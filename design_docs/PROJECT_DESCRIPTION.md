@@ -1,0 +1,52 @@
+# Mesocosm — Project Description
+
+> **Draft, 2026-07-30.** Written at founding so the repo has a description.
+> Per DOC_POLICY §6 this file is maintainer-owned from here on; it is Mark's
+> to rewrite, and assistants should not edit it without instruction.
+
+## What it is
+
+Mesocosm is a first-person game of lineages. You are a critter in an enclosed
+mid-scale ecosystem. You grow only by incorporating other organisms. You die,
+and your line continues or it does not. Your aim is to increase your kind's
+share of the world's biomass — which no predator achieves alone.
+
+A mesocosm is ecology's mid-scale enclosed experimental ecosystem: larger
+than a microcosm, smaller than the world. Critters are not cells, so that is
+the accurate scale, and each generational run is one experiment in the same
+enclosure.
+
+## Pillars
+
+1. **You are this body.** Movement, eating, damage, and growth are
+   experienced directly, never administered through a menu.
+2. **Every part used to be somebody.** Parts come only from incorporation.
+   Provenance is not decoration on equipment; equipment is provenance with
+   consequences.
+3. **Morph yourself, morph the world.** One verb, metabolize, turns world
+   into self and self into world. The world keeps what your generations did
+   to it.
+4. **You cannot just be a predator.** Producers make the biomass; consumers
+   shape the producers. Winning is niche construction, not a power curve.
+5. **Dead is dead; lineage persists.** Descent must be carried. What memory
+   keeps instead is a different thing, and it is also kept.
+6. **Sincere, not edgy.** Affectionate and mortal. Incorporation carries real
+   weight when critters are not simply beasts.
+
+## Where it sits
+
+Vessel 1 of a three-game wing that shares a world substrate, a lineage model,
+and a trust plane, but shares no engine, genre, or schedule: Mesocosm (first
+person), Paredros (second person), Isometry (third person). Mesocosm is
+standalone-complete; inheritance into the others is enrichment, never
+homework.
+
+See [`2026-07-30_games_wing_founding.md`](2026-07-30_games_wing_founding.md).
+
+## Speculative
+
+Not planned, recorded only as direction: co-op descent into the soup;
+stranger-critter capsules arriving asynchronously in single-player worlds
+(the NetHack bones-file lineage, at world granularity); the soup as an
+autonomous place that produces feral critters whether or not anyone is
+playing.
