@@ -25,7 +25,7 @@ any other index and is updated in the same session as any doc change.
 | [DOC_POLICY.md](DOC_POLICY.md) | Documentation governance |
 | [PROJECT_DESCRIPTION.md](PROJECT_DESCRIPTION.md) | Product goals and pillars (maintainer-owned) |
 | [2026-07-30_games_wing_founding.md](2026-07-30_games_wing_founding.md) | **Wing-level, cited by the sibling games.** The three-vessel person grammar, the lifecycle and its anti-Spore rule, the three pipeline laws, worlds-as-moots with fili/tulpa/gemot mapping and graduated interop, the verified state of the stack (what is ready, what is not), the two-game proof pair as the next threshold, the shared vocabulary, and the open questions. |
-| [2026-07-30_mesocosm_founding_plan.md](2026-07-30_mesocosm_founding_plan.md) | Vessel 1's own design and phases: the single verb (metabolize), incorporation-only parts with provenance (kleptoplasty), the flora/fauna loop as two lineage strategies, multiple lineages, the death model, tone, expression, what is genuinely new to build, and phases M0–M5 with done-conditions. |
+| [2026-07-30_mesocosm_founding_plan.md](2026-07-30_mesocosm_founding_plan.md) | Vessel 1's own design and phases: the single verb (metabolize), incorporation-only parts with provenance (kleptoplasty), the three kingdoms as three lineage strategies (plant/animal/fungus — decomposers make the biomass economy a cycle, not a ratchet), the metabolic budget, the arena as ecological competition rather than a mode, where new lineages come from now that the soup is retired, multiple lineages, the death model, tone, expression, what is genuinely new to build, and phases M0–M5 with done-conditions. |
 
 ## Archive
 

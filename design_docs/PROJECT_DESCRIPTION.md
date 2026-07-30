@@ -12,9 +12,12 @@ and your line continues or it does not. Your aim is to increase your kind's
 share of the world's biomass — which no predator achieves alone.
 
 A mesocosm is ecology's mid-scale enclosed experimental ecosystem: larger
-than a microcosm, smaller than the world. Critters are not cells, so that is
-the accurate scale, and each generational run is one experiment in the same
-enclosure.
+than a microcosm, smaller than the world. Critters are not cells — they are
+plants, animals, and fungi — so that is the accurate scale, and each
+generational run is one experiment in the same enclosure.
+
+The arena is the world itself: your lineage competing for resources, for a
+niche, for a survival strategy in a strange place.
 
 ## Pillars
 
@@ -26,11 +29,15 @@ enclosure.
 3. **Morph yourself, morph the world.** One verb, metabolize, turns world
    into self and self into world. The world keeps what your generations did
    to it.
-4. **You cannot just be a predator.** Producers make the biomass; consumers
-   shape the producers. Winning is niche construction, not a power curve.
-5. **Dead is dead; lineage persists.** Descent must be carried. What memory
+4. **You cannot just be a predator.** Plants fix the energy, animals shape
+   the plants, fungi return what dies to circulation. A world without
+   decomposers runs down. Winning is niche construction, not a power curve.
+5. **Everything costs upkeep.** The metabolic budget is the scarcity that
+   makes each generation a real tradeoff, and it is where a point budget
+   belongs in a game about bodies.
+6. **Dead is dead; lineage persists.** Descent must be carried. What memory
    keeps instead is a different thing, and it is also kept.
-6. **Sincere, not edgy.** Affectionate and mortal. Incorporation carries real
+7. **Sincere, not edgy.** Affectionate and mortal. Incorporation carries real
    weight when critters are not simply beasts.
 
 ## Where it sits
@@ -45,8 +52,9 @@ See [`2026-07-30_games_wing_founding.md`](2026-07-30_games_wing_founding.md).
 
 ## Speculative
 
-Not planned, recorded only as direction: co-op descent into the soup;
-stranger-critter capsules arriving asynchronously in single-player worlds
-(the NetHack bones-file lineage, at world granularity); the soup as an
-autonomous place that produces feral critters whether or not anyone is
-playing.
+Not planned, recorded only as direction: co-op branching, where two players
+steer one lineage's split; stranger-critter capsules arriving asynchronously
+in single-player worlds (the NetHack bones-file lineage, at world
+granularity); and the world's biota speciating on its own whether or not
+anyone is playing, so unclaimed lineages exist to be met, adopted, or
+competed with.

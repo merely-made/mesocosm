@@ -15,9 +15,15 @@ your line continues or does not. Your goal is to increase your kind's share
 of the world's biomass, which cannot be achieved by predation alone.
 
 Structurally it is Rogue Legacy's generational run loop pointed at an
-ecosystem instead of a castle: **morph yourself, morph the world.** A
-successful run establishes the lineage in the persistent world. The world
-keeps what your generations did to it.
+ecosystem instead of a castle — but you **build the critter as you go**,
+generation by generation, trading off against a metabolic budget rather than
+rolling a fresh heir. **Morph yourself, morph the world.** A successful run
+establishes the lineage in the persistent world, and the world keeps what
+your generations did to it.
+
+The arena is not a room in this game. **The arena is the world**: your
+lineage competing for resources, for a niche, for a survival strategy in a
+strange place (see below).
 
 ### The single verb: metabolize
 
@@ -48,18 +54,35 @@ weapon in Isometry is an organism its ancestors ate. An "item" is a creature
 record — opaque body plan, fili ancestry, projection profile — so the
 interchange profile already carries everything an item needs.
 
-### The flora/fauna loop
+### Three kingdoms, not two
 
-The defining cycle. The two kingdoms are the two lineage **strategies**:
+**Critters are multicellular. This is not a cell game.** Plant, animal,
+fungus — no unicellular stage, with slime mold as the deliberate exception,
+because a thing that is arguably one cell and behaves like a colony is
+exactly the joke this game should be able to tell. The name already ruled
+this: a mesocosm is the mid scale, and critters are not cells.
 
-- **Sessile producers** (algae, coral, forest): slow, structural,
-  high-biomass, terraforming. They make the world habitable.
-- **Mobile consumers**: fast, agile, low-biomass. They shape the producers
+The three kingdoms are the three lineage **strategies**, and they are the
+three trophic roles:
+
+- **Producers** (plants, algae, coral): slow, structural, high-biomass,
+  terraforming. They fix energy and make the world habitable.
+- **Consumers** (animals): fast, agile, low-biomass. They shape the producers
   by grazing and predation.
+- **Decomposers** (fungi): networked, patient, spreading through the dead.
+  They return locked matter to circulation.
 
-Biomass share is therefore unwinnable by consumers alone — not as a tuning
-knob but structurally, because someone has to make the biomass. This is what
-makes the goal a balancing act rather than a power curve, and it is niche
+Adding the third kingdom is what makes the biomass economy a **cycle rather
+than a ratchet**. Producers fix, consumers eat, decomposers release. Without
+decomposition, dead biomass locks up and the world stalls — so a world with
+no fungal line is a world running down, and that is a legible, playable
+pressure rather than a rule in a manual. The fungal strategy also plays
+unlike the other two: it is infrastructure, not action. A mycelial line
+spreads through what has died, which means your own dead generations are its
+substrate.
+
+Biomass share is therefore unwinnable by any single kingdom, structurally
+rather than as a tuning knob. The goal is a balancing act, and it is niche
 construction rather than growth: you engineer the world to favor your line.
 
 **Kleptoplasty is the boundary-crossing move.** A consumer line that steals
@@ -69,8 +92,23 @@ the bridge between kingdoms, not merely a parts pipe.
 *Trophic cascade* is the candidate name for world-morphing-by-eating (remove
 a predator and the vegetation changes). Unruled.
 
-**Naming constraint:** the bare word *flora* is spoken for platform-side.
-Game vocabulary must not reuse it.
+**Naming note:** using plant / animal / fungus directly sidesteps the
+platform-side reservation on the bare word *flora* (a moot's accumulated
+engrams). Do not reintroduce it.
+
+### The metabolic budget
+
+Every part costs upkeep. Armor is mass to haul, speed burns fuel,
+photosynthesis wants light and stillness, a fungal network wants substrate
+and time. **The budget is the scarcity that Law A's deed log records**, and
+it is where Gotcha Force's point budget actually lands in this vessel:
+reincarnated as metabolism rather than imported as a roster cap.
+
+Structurally this is Rogue Legacy with a body instead of a manor: you build
+the critter as you go, and each generation is a set of tradeoffs and
+improvements against a budget that will not let you have everything. "Chose
+armor over speed while starving in a cold vent" is a budget decision before
+it is a story, which is exactly why the story is trustworthy.
 
 ### Multiple lineages
 
@@ -103,40 +141,60 @@ Personality renders as movement, habits, and emotes — Rain World is the
 proof that per-individual movement personality produces attachment with zero
 dialogue.
 
-### Where the arena went
+### The arena is the world
 
-**Proposed resolution, awaiting the maintainer's ruling.** This vessel was
-originally shorthanded "cell+arena," but the design that emerged is
-soup, lineage, biomass, and the flora/fauna loop. The arena never got
-designed, and the reason is structural rather than an oversight.
+**Ruled 2026-07-30.** The label was "cell+arena" and both halves were wrong.
+Not *cell*, because critters are multicellular. And the arena was never a
+combat mode: **the arena is ecological competition itself.** Your lineage
+competes for resources, for a niche, for a survival strategy in a strange
+world. That is the arena, and it is the whole game rather than a room
+inside it.
 
-Gotcha Force's actual shape — collect a roster, field a force under a point
-budget — is **inherently third person**. It is a commander's game. Dropping
-it into Mesocosm would break the person grammar, and dropping it into
-Paredros would break it the other way.
+So the fights were never missing. Predation and territorial encounters in
+the world are the fights, experienced first person, and the competitive
+pressure that gives them stakes is the niche itself.
 
-So the arena splits along a seam that already exists:
+Two consequences worth stating precisely:
 
-- **Its combat half is already here**, and always was: predation and
-  territorial encounters in the world are the fights, experienced first
-  person. There is no separate arena mode. What you "collect" is lineages,
-  not fighters.
-- **Its force-building half is Isometry's**, which is already the
-  third-person tactical game with a roster, factions, and turn-based combat.
-  A player fielding their own bred critters as tactical pieces is Gotcha
-  Force, arriving through the interchange profile rather than as a mode
-  bolted onto this vessel.
+- **Collection runs the other way.** It is not that the player collects
+  lineages; **the world collects lineages, and yours displace generated
+  ones.** That is Law C seen from inside the fiction: same seed format,
+  player history displacing procedural content. The persistent world's
+  roster of lineages is the collection, and your successful runs are how
+  entries in it become yours.
+- **Gotcha Force's point budget stays here**, as the metabolic budget
+  above — not as a roster cap. What genuinely belongs to Isometry is
+  *taming*: collecting critters, characters, and companions into a faction
+  roster, which is befriending a goblin or taming a dog, and which Isometry
+  already implements as `convince` (an attack-shaped social action whose
+  consequence is allegiance). That is recruitment, not force-building, and
+  it needs nothing new here.
 
-If accepted, the wing loses nothing and gains coherence: the influence
-survives at the vessel whose person it fits. The "cell+arena" label should
-retire in favour of **cell and ecosystem**.
+The label retires in favour of **critter and arena**, read correctly.
 
-### Not a chore
+### Where new lineages come from
 
-The soup is a **place**, not a character creator. It runs autonomously and
-produces feral critters on its own; you descend into it to midwife one you
-want to be yours. If the loop is good enough to play for its own sake, the
-tax inverts into a draw. This is Law C applied locally.
+**The "primordial soup" framing is retired** (2026-07-30). It was inherited
+from Spore's cell stage and contradicts the multicellular ruling: there is no
+abiogenesis here, and the world is not a starting broth. It is a strange
+world that already has biota.
+
+A new lineage therefore arrives by **branching, not by creation**. You split
+off from something already living — the world's own stock, or one of your
+established lines — and the split is where authorship enters: you influence
+what the branch commits to, without designing it outright. This preserves the
+property the soup was there to provide, which is partial authorship. A
+critter you specified is a possession; a critter that *grew*, that you
+steered but did not author, has the otherness that attachment needs. It also
+gives the genesis moment a real cost, since branching spends the parent
+lineage's standing rather than drawing from nothing.
+
+**And it is never a chore.** Branching is a place you go, not a menu you
+clear. The world's biota speciates on its own whether or not anyone is
+playing, so unclaimed lineages exist to be met, adopted, or competed with.
+You go there when you want the next one to be *yours*. This is Law C applied
+locally: player-authored branches displace generated ones through the same
+slot.
 
 ---
 
@@ -172,9 +230,11 @@ Done-conditions, not estimates. Each phase must be worth playing on its own.
 
 ### M0 — The verb
 One critter, one enclosure, metabolize. Eat, incorporate, deposit, in 3D
-voxel space on rapier3d.
+voxel space on rapier3d. Doubles as the engine probe (§4 findings): build it
+twice, on an existing engine and on a custom wgpu loop, and let the verb
+decide.
 
-**Done when** a playtester will re-enter the soup voluntarily, without a
+**Done when** a playtester will re-enter the world voluntarily, without a
 goal being offered.
 
 ### M1 — Incorporation with provenance
@@ -198,12 +258,14 @@ persistent world; the world keeps the marks.
 **Done when** a player recognizes their own earlier line's handiwork in a
 world they did not expect to.
 
-### M4 — The two kingdoms
-Producer and consumer strategies, lineage switching, biomass share as the
-win condition.
+### M4 — The three kingdoms
+Producer, consumer, and decomposer strategies; lineage switching; biomass
+share as the win condition; the metabolic budget as the constraint that makes
+each generation a real tradeoff.
 
-**Done when** a player deliberately grows a producer line to support a
-consumer line, unprompted.
+**Done when** a player deliberately grows one kingdom's line to support
+another's, unprompted — and notices a world running down for want of
+decomposers.
 
 ### M5 — Export
 Interchange profile v0 over `mere.pack/v1`, and the proof pair with Isometry

@@ -337,12 +337,22 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
 8. **The constellation boundary.** Two vessels are named. A colony game or
    strategy game as further vessels is not ruled in; vessels earn existence
    by shipping.
-9. **Where Gotcha Force lands.** Proposed 2026-07-30 and awaiting a ruling
-   (detail in the Mesocosm founding plan): the "arena" that vessel 1 was
-   originally shorthanded with is structurally third person — collect a
-   roster, field a force under a point budget, which is a commander's game.
-   Its combat half already lives in Mesocosm as first-person predation; its
-   force-building half is **Isometry's**, reached through the interchange
-   profile, where bred critters become tactical pieces. If accepted, the
-   influence survives at the vessel whose person fits it, and "cell+arena"
-   retires in favour of "cell and ecosystem".
+9. ~~Where Gotcha Force lands.~~ **Resolved 2026-07-30**, and my proposed
+   answer was wrong in an instructive way. The arena is not a mode and was
+   never missing: **the arena is ecological competition itself** — a lineage
+   competing for resources and a niche in a strange world. Collection also
+   runs the other way round from how I first put it: the *world* collects
+   lineages, and the player's displace generated ones, which is Law C seen
+   from inside the fiction. Gotcha Force's point budget stays in Mesocosm as
+   the **metabolic budget**, not as a roster cap. What genuinely belongs to
+   Isometry is **taming** — collecting critters and characters into a faction
+   roster, which is befriending a goblin or taming a dog, and which Isometry
+   already implements as `convince`. Detail in the Mesocosm founding plan.
+10. **Run rhythm across the wing** (2026-07-30). Mesocosm runs generations,
+    Paredros runs expeditions against a settlement that keeps (the Heroes of
+    Hammerwatch shape), Isometry runs campaigns. One rhythm, three scales,
+    and it delivers the sortie-and-return through-line under half the
+    influence set. It also produced the wing's first concrete co-op design:
+    your character visits another player's settlement, which is
+    "bring your own hero" and, at world scale, the graft the lineage model
+    already describes.
