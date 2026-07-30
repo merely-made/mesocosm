@@ -305,12 +305,24 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
 
 1. **Licensing.** These scaffolds use the standing convention (MIT OR
    Apache-2.0, edition 2024), which is right for name-reservation stubs and
-   for libraries. It is an open business question whether shipped game code
-   should be permissively licensed. Decide before real game code lands.
-2. **Render and engine stack.** rapier3d is indicated for arena physics and
-   seiche is the architectural template, but the voxel render lane is
-   undecided and is a genuinely new organ (wgpu-native, not genet's DOM
-   lens).
+   for libraries. Whether *shipped game code* should be permissively licensed
+   is a business question, and the wing already has a precedent to copy: the
+   radio business splits licenses by role (crates MIT/Apache, firmware
+   GPLv3). The same split applies cleanly here — **permissive for anything
+   extracted as a library, restrictive for the game itself** — so the
+   decision is which restrictive license, not whether. Decide before real
+   game code lands, because relicensing after contributions is painful.
+2. **Render and engine stack.** Settled facts as of 2026-07-30: rapier3d for
+   physics, and **nothing in the Merely stack supplies a 3D render lane** —
+   the `wgpu-*` siblings are a web-embedding family (Servo texture grafting,
+   CEF OSR, system-webview capture), and genet/netrender is a document
+   renderer. The open choice is therefore greenfield: an existing Rust engine
+   (Bevy the obvious candidate) versus a custom wgpu + rapier3d loop. Trade-
+   off: Bevy owns the app loop, which sits awkwardly beside armillary and the
+   stack's host patterns, but buys years; a custom loop keeps the stack's
+   architecture and costs those years. **Resolve by probe, not argument** —
+   the smallest honest test is M0's verb rendered as voxels in both, since
+   that is the phase that must feel good anyway.
 3. **Paredros' unit word.** "Borg" is chat shorthand — a Gotcha Force loan
    with an IP shadow. The battle-frame noun is unnamed.
 4. **Tulpa's inscription and shape**, including the attention mechanic that
@@ -325,3 +337,12 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
 8. **The constellation boundary.** Two vessels are named. A colony game or
    strategy game as further vessels is not ruled in; vessels earn existence
    by shipping.
+9. **Where Gotcha Force lands.** Proposed 2026-07-30 and awaiting a ruling
+   (detail in the Mesocosm founding plan): the "arena" that vessel 1 was
+   originally shorthanded with is structurally third person — collect a
+   roster, field a force under a point budget, which is a commander's game.
+   Its combat half already lives in Mesocosm as first-person predation; its
+   force-building half is **Isometry's**, reached through the interchange
+   profile, where bred critters become tactical pieces. If accepted, the
+   influence survives at the vessel whose person fits it, and "cell+arena"
+   retires in favour of "cell and ecosystem".

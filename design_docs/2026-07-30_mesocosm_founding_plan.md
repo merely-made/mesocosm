@@ -103,6 +103,34 @@ Personality renders as movement, habits, and emotes — Rain World is the
 proof that per-individual movement personality produces attachment with zero
 dialogue.
 
+### Where the arena went
+
+**Proposed resolution, awaiting the maintainer's ruling.** This vessel was
+originally shorthanded "cell+arena," but the design that emerged is
+soup, lineage, biomass, and the flora/fauna loop. The arena never got
+designed, and the reason is structural rather than an oversight.
+
+Gotcha Force's actual shape — collect a roster, field a force under a point
+budget — is **inherently third person**. It is a commander's game. Dropping
+it into Mesocosm would break the person grammar, and dropping it into
+Paredros would break it the other way.
+
+So the arena splits along a seam that already exists:
+
+- **Its combat half is already here**, and always was: predation and
+  territorial encounters in the world are the fights, experienced first
+  person. There is no separate arena mode. What you "collect" is lineages,
+  not fighters.
+- **Its force-building half is Isometry's**, which is already the
+  third-person tactical game with a roster, factions, and turn-based combat.
+  A player fielding their own bred critters as tactical pieces is Gotcha
+  Force, arriving through the interchange profile rather than as a mode
+  bolted onto this vessel.
+
+If accepted, the wing loses nothing and gains coherence: the influence
+survives at the vessel whose person it fits. The "cell+arena" label should
+retire in favour of **cell and ecosystem**.
+
 ### Not a chore
 
 The soup is a **place**, not a character creator. It runs autonomously and
@@ -192,6 +220,18 @@ nothing lost.
 *Verified facts discovered during the work, dated, with references. Empty at
 founding.*
 
+- **2026-07-30**: **Nothing in the Merely stack supplies a 3D render lane.**
+  The `wgpu-*` sibling repos are a *web-embedding* family, not a graphics
+  family: `wgpu-graft` grafts an external GPU producer's texture (Servo) onto
+  host `wgpu` textures, `wgpu-weld` routes CEF accelerated OSR output into
+  them, and `wgpu-scry` adapts system webviews (WebView2/WKWebView/WebKitGTK/
+  WPE) into consumable frames. None renders geometry. Genet/netrender is a
+  document renderer and is the wrong lane for volumetric first-person 3D
+  (Isometry's own docs already gate 3D lenses behind a separate render lane).
+  **Consequence:** the engine choice is a genuine greenfield decision between
+  an existing Rust engine (Bevy being the obvious candidate) and a custom
+  wgpu + rapier3d loop. It cannot be resolved by adopting something already
+  owned, and it should be settled by a probe rather than from the armchair.
 - **2026-07-30**: `numen`/`quint`/`seiche` live at
   `mere/crates/conatus/{numen,quint,seiche}`; there is no `repos/conatus`
   (absorbed by the 2026-07-23 consolidation). `seiche` wraps `rapier2d`
