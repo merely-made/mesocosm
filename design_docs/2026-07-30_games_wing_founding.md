@@ -23,6 +23,13 @@ schedule.
 | **Paredros** | Second | I live with you | Companions can be addressed, persuaded, equipped, and helped. They remain peers, and they can replace you. |
 | **Isometry** | Third | They occupy the world | Characters become groups, factions, visible pieces in a shared tactical and historical account. |
 
+**Person is agency, not camera.** Ruled 2026-07-30 after the two vocabularies
+collided in a render doc. "Second person" says companions are peers you
+address rather than units you command; it says nothing about where the camera
+sits, and Paredros may well use a close camera. When discussing renderers, say
+**camera distance**; reserve *person* for agency. Conflating them invites
+exactly the drift the grammar exists to detect.
+
 The grammar is not decoration. It is the wing's thesis (care at increasing
 granularity: species, then individual, then community) and its scope-creep
 detector. **Creep is person drift.** Paredros growing party micromanagement
@@ -56,11 +63,27 @@ nothing, so no stage could deepen another. The insurance is one rule, and it
 is the same rule Isometry already runs on (`isometry/CLAUDE.md`: the
 substrate/system split is load-bearing).
 
-> **All stages are rule-dressings over one substrate.** Voxel physics, the
-> deed log, and the relationship graph are shared. Genesis, action RPG,
-> colony, and tactical VTT are system plugins over one world-log, exactly as
-> 5e and PF2e are two plugins over one board. If any stage grows its own
-> engine, the wing hollows out the way Spore did.
+> **A vessel must not create a private replacement for shared world identity,
+> provenance, and causal history.**
+
+Restated 2026-07-30, at the right altitude. The earlier wording ("all stages
+are rule-dressings over one substrate; if any stage grows its own engine the
+wing hollows out") was directionally right and technically wrong, because it
+forbade too much. What hollowed Spore was five stages that shared no *world*,
+not five stages that shared no renderer.
+
+A vessel may absolutely have its own renderer, event loop, ECS, camera, or
+physics dimensionality. What it may never do is mint a second, private answer
+to *who this creature is, where it came from, and what happened to it*. The
+sharing rules per layer are tabulated in the
+[engine and render lane landscape](2026-07-30_engine_and_render_lane_landscape.md)
+§5, and the shared organ that follows from them is planned in the
+[body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md).
+
+Consequently: **"shared world model" is too strong** — Mesocosm's live
+ecology, Paredros' settlement, and Isometry's campaign state will never be one
+in-memory model. They append compatible facts to one world. The shared thing
+is the **world identity and fact substrate**.
 
 ---
 
@@ -261,12 +284,23 @@ The proof pair:
 5. The same slot accepts an RNG-authored organism indistinguishably (Law C).
 
 This forces **interchange profile v0** into existence, which is the founding
-artifact of the wing. Its fields: opaque body plan, fili ancestry, the Law A
-tradeoff record (arguably the most important field for downstream
-consumers), and a projection profile. It rides `mere.pack/v1`, so no new wire
-format is invented. Keep schema negotiation microscopic in v0: profile
-strings, versions, required and optional capability sets. Resist building a
-negotiation framework before two consumers exist.
+artifact of the wing. Its fields, sharpened 2026-07-30 and detailed in the
+[body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md) §3:
+body topology (parts, attachment frames, parent/child structure), **per-part
+provenance** (what each part used to be — the keystone, and Law A's raw
+material), mass and collision hints, fili ancestry, the Law A tradeoff
+record, Law B's loud inherited signatures, and **optional** projection
+recipes.
+
+Projection recipes are optional on purpose. `isometry-voxel` recipes are an
+excellent first projection codec and probably Isometry's, but making them
+canonical would let today's renderer leak into the substrate. Each vessel
+derives its own presentation from topology.
+
+It rides `mere.pack/v1`, so no new wire format is invented. Keep schema
+negotiation microscopic in v0: profile strings, versions, required and
+optional capability sets. Resist building a negotiation framework before two
+consumers exist.
 
 ---
 

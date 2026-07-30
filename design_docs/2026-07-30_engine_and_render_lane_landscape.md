@@ -1,175 +1,275 @@
 # Engine and Render Lane: Landscape
 
-**Status: research, 2026-07-30. No decision.** Written because the founding
-record reduced this to "Bevy versus custom wgpu," which is a false binary.
-There are other pure-Rust engines, some forkable in the way this stack
-normally forks things, and "custom wgpu" is not one option but an assembly
-with many joints. This doc maps the space so a probe can be aimed.
+**Status: research, 2026-07-30. No decision.** Rewritten the same day after a
+review found two systematic faults in the first draft: it counted an
+ingredient shelf as a nearly finished engine, and it let "engine" mean two
+different things in one document. Both are fixed below. The decision itself
+and its probe live in
+[the body pipeline and host probe plan](2026-07-30_body_pipeline_and_host_probe_plan.md).
 
-Facts here were checked on 2026-07-30. Version numbers move; recheck before
-committing.
+External facts were re-verified on 2026-07-30 against crates.io and GitHub.
+Version numbers move; recheck before committing.
 
 ---
 
 ## 0. What is actually being chosen
 
-Three vessels, three different needs, and they do not have to share an
-engine — only a substrate (§5).
+Three vessels with three different presentation needs. They do not have to
+share a renderer — see §5 for what they *must* share.
 
-Working dimensionality, proposed by Mark 2026-07-30 and **not yet ruled**:
+Working dimensionality, proposed by Mark and **not yet ruled**:
 
 | Vessel | Proposed | Notes |
 | ------ | -------- | ----- |
-| Mesocosm | 2D or 2.5D, rapier2d | A large simplification. Voxel bodies still work in 2.5D, and physics-legible bodies survive: mass, balance, and reach all read fine in 2D. |
-| Paredros | 3D, first person | The heaviest renderer requirement in the wing. |
-| Isometry | 3D, third person | **Conflicts with a standing ruling** — see below. |
+| Mesocosm | 2D or 2.5D, rapier2d | A large simplification, and it rides rendering the stack already has. |
+| Paredros | 3D, close camera | The heaviest renderer requirement in the wing. |
+| Isometry | 3D, distant camera | **Conflicts with a standing ruling.** See below. |
 
-**Isometry caveat, flagged rather than adopted.** Isometry's `CLAUDE.md`
-says camera freedom is explicitly not a near-term rendering task: the locked
-isometric 2D lens is the shipped one, and later 2.5D/3D modes are allowed
-(voxel source models dissolve the facing-art explosion) *but need their own
-plan and render lane*. Isometry also renders through genet's DOM today, so a
-3D lens is a different renderer, not a camera change. Moving Isometry to 3D
-third person is a real scope change to a shipping project and should be its
-own plan in its own repo, not a side effect of this wing's choices.
+**Camera is not person.** The first draft wrote "Paredros: 3D, first person",
+which collides two vocabularies. The wing's person grammar describes *agency*
+— Paredros is second person because companions are peers you address rather
+than units you command. That is orthogonal to where the camera sits. A
+second-person game can use a first-person camera; saying "first person" about
+Paredros invites exactly the drift the person grammar exists to detect. Say
+**camera distance** when discussing renderers, and **person** only when
+discussing agency.
 
-If Mesocosm lands at 2.5D, the wing's hardest renderer is Paredros, not
-Mesocosm — which inverts the founding record's assumption that vessel 1 is
-the render pressure vessel.
+**Isometry caveat, flagged rather than adopted.** Isometry's `CLAUDE.md` says
+camera freedom is explicitly not a near-term rendering task: the locked
+isometric 2D lens is the shipped one, later 2.5D/3D modes are allowed because
+voxel source models dissolve the facing-art explosion, *but they need their
+own plan and render lane*. Isometry also renders through genet's DOM today, so
+a 3D lens is a different renderer rather than a camera change. Moving Isometry
+to 3D is a real scope change to a shipping project and belongs in a plan in
+that repo, not as a side effect of this wing's choices.
+
+If Mesocosm lands at 2.5D, the wing's hardest renderer is Paredros, which
+inverts the founding record's assumption that vessel 1 is the render pressure
+vessel.
 
 ---
 
 ## 1. Pure-Rust engines
 
-Checked 2026-07-30.
+Verified 2026-07-30.
 
-| Engine | Version | Shape | License | Fork posture |
-| ------ | ------- | ----- | ------- | ------------ |
-| **Bevy** | 0.18 | Data-driven ECS, 2D + 3D, ~44k stars, large plugin ecosystem | MIT/Apache | Too large to fork; the idiom is plugins, and that is genuinely how the ecosystem works |
-| **Fyrox** | 0.36.2 | 3D-focused full engine, **the only one with a real visual editor** (scene hierarchy, property inspector, asset browser, 3D viewport) | MIT | **Forkable.** Pure Rust, single-vendor, editor included |
-| **Macroquad** | 0.4.14 | Minimal-friction 2D, tiny API surface | MIT/Apache | Small enough to fork or simply outgrow |
-| **ggez** | 0.9.3 | Comfortable 2D defaults, LÖVE-shaped | MIT | Small |
-| Amethyst | — | Archived; its ECS lineage fed Bevy | — | Dead, do not start here |
-| Piston | — | Legacy modular experiment | MIT | Effectively dormant |
-| Ambient | — | Rust/WASM multiplayer engine; **shut down** | — | Dead |
-| Nannou, Blue Engine, Tetra | — | Creative-coding / niche 2D | — | Not a fit |
-| rend3 | — | 3D renderer (not an engine) on wgpu | — | Verify maintenance before use |
+| Engine | Version (registry) | Shape | License | Posture |
+| ------ | ------------------ | ----- | ------- | ------- |
+| **Bevy** | **0.19.0** (2026-06-19) | Data-driven ECS, 2D + 3D, ~44k stars, large plugin ecosystem | MIT/Apache | Too large to fork; the idiom is plugins. **Cost to book: Bevy documents frequent breaking releases**, and two minor versions landed in the months around this survey. |
+| **Fyrox** | **1.0.1** (2026-03-28) | 2D/3D engine, **the only Rust engine shipping a real scene editor** | MIT | Forkable in principle. But its current renderer is `fyrox-graphics-gl`, which makes shared-device composition with genet a poor fit. Treat as a possible **Paredros** engine, not a reusable stack organ. |
+| **ggez** | **0.10.0** (2026-06-03) | 2D framework, LÖVE-shaped; now explicitly wgpu-based with event, timing, resource, and audio defaults | MIT | An alternative *host*, not a missing component. |
+| **Bones** | `bones_framework` 0.4.0 on crates.io (2024-09-12) — **but git-active, pushed 2026-04-24**, 305 stars, not archived | **Renderer-neutral game logic**: deterministic ECS, snapshots, asset server, schema reflection, Piccolo (Lua) integration. Bevy renderer optional | MIT/Apache | **The most interesting row.** Addresses the missing middle (§2) rather than the renderer. Piccolo is already Isometry's scripting engine, which is an uncanny adjacency. |
+| **Renderling** | 0.4.9 on crates.io (2024-09-20) — **git-active, pushed 2026-07-19**, 238 stars | GPU-driven wgpu + rust-gpu renderer: PBR, glTF scene machinery, headless image tests | MIT/Apache | Young, but a far better custom-3D probe target than a bare `rend3` reference. |
+| **Macroquad** | — | Minimal 2D | MIT/Apache | **Ruled out.** [RUSTSEC-2025-0035](https://rustsec.org/advisories/RUSTSEC-2025-0035.html): multiple soundness issues, unprincipled mutable statics enabling use-after-free from safe code, **all versions affected, no patched release**, and the advisory notes fixing them is not treated as a priority. |
+| Ambient | — | Rust/WASM multiplayer engine | — | **Paused indefinitely.** An architectural *donor* to read, not a candidate to adopt. |
+| Amethyst, Piston | — | Legacy | — | Dead. Amethyst's ECS lineage fed Bevy. |
+| rend3, Nannou, Blue Engine, Tetra | — | Renderer / creative-coding / niche 2D | — | Superseded here by Renderling, or not a fit. |
 
-**The two that deserve a real look are Bevy and Fyrox**, for opposite
-reasons. Bevy is the ecosystem bet: voxel crates, physics integrations, and
-asset pipelines already exist against it, and the plugin idiom means adopting
-it is not all-or-nothing. Fyrox is the fork bet: it is the only Rust engine
-that ships an editor, which is the single most expensive thing to build and
-the thing a solo-maintained stack most often does without.
-
-The cost that has to be weighed honestly against both: **an engine owns the
-app loop.** That sits awkwardly beside armillary (the stack's actor runtime),
-cambium's host patterns, and the pattern seiche demonstrates of a
-continuously-reconciled world the host owns. For a game this is normal and
-usually fine; for *this* stack it is the real friction, and it is worth
-knowing before falling in love with either.
+**A note on registry-stale, git-active projects.** Bones and Renderling both
+look abandoned on crates.io and are not: their GitHub repositories saw pushes
+in April and July 2026 respectively. This stack already has the convention for
+that situation — the cambium family is git-only by ruling, tracked by branch
+rather than pinned — so a stale registry version is not disqualifying here the
+way it would be elsewhere. It *is* a maintenance signal worth weighing.
 
 ---
 
-## 2. "Custom wgpu" is an assembly, not an option
+## 2. The correction: the shelf is not an engine
 
-The useful reframing: the stack already owns most of a game engine's parts.
-What is missing is 3D geometry rendering, a mesher, and glue.
+The first draft claimed "eleven of thirteen components are already owned" and
+concluded the stack owns most of a game engine's parts. That is
+inventory-true and architecture-misleading, and the corrected claim is:
 
-| Concern | Candidate | Already owned? |
-| ------- | --------- | -------------- |
-| Windowing + input | `winit` | Yes, via `cambium-winit` and genet's winit host |
-| 2D GPU render | `vello`, and `netrender` (webrender-wgpu fork, vello backend shipped) | **Yes** — and this is what makes a 2.5D Mesocosm cheap |
-| 3D render | `wgpu` directly, or `rend3` | No. This is the actual gap |
-| Voxel meshing | `block-mesh` (`visible_block_faces` ≈ 40M quads/s single-core; `greedy_quads` ≈ ⅓ the triangles at ~3× the time), surface-nets, binary-greedy-meshing ports | No, but these are small, well-scoped crates |
-| Physics | `rapier2d` / `rapier3d`, `parry` | Partly — `seiche` already wraps rapier2d 0.33 |
-| Voxel asset ingest | `isometry-voxel` (.vox ingest, recipes, palette swaps, bakes) | **Yes**, and it is already the wing's "recipe not image" pipeline |
-| Audio | **Firewheel** | **Yes** — already the audio lane via Hocket/Strophe |
-| Actor runtime | `armillary` | Yes |
-| Persistence | `muniment`, `codicil` | Yes, and codicil is already the deed-log shape |
-| Influence fields / AI gradients | `numen` + `quint` | Yes (R² today; R³ is parked) |
-| UI | `cambium`, `xilem_serval`, `sprigging` | Yes |
-| Text | `parley` | Yes (endorsed over cosmic-text) |
-| ML, if ever | `burn` | Yes (endorsed direction) |
+> The stack already owns most of the **platform-facing boundary** and several
+> important simulation primitives. **The missing middle is a coherent game
+> runtime.**
 
-Eleven of thirteen rows are already owned or trivially available. The custom
-path is therefore not "write an engine"; it is **write a 3D renderer and a
-game loop, and wire in things that already exist.** That is a materially
-different proposition from the founding record's framing, and it is the
-strongest argument for the custom lane: the synergies Mark asked about are
-real and they are mostly already paid for.
+That is still a strong position, and worth stating precisely.
 
-The honest counterweight: an engine supplies not just these boxes but the
-*integration*, plus an asset pipeline, a scene format, tooling, and a
-community answering questions. Eleven owned components still have to be made
-to cohere, and nobody else has done that combination.
+### What genuinely exists — a credible host skeleton
+
+- winit window, input, device, and presentation ownership (`cambium-winit`, genet's winit host)
+- a real 2D renderer with external-texture composition (`netrender`, vello backend shipped)
+- native UI, layout, and text (`cambium`, `sprigging`, `genet-layout`, `parley`)
+- a host-neutral actor boundary (`armillary`)
+- audio proven in a real interactive genet application (Firewheel, via Hocket)
+- persistence and append-only history primitives (`muniment`, `codicil`)
+- rapier2d already in the tree (`seiche`)
+- field algebra and evaluation (`numen`, `quint`)
+- voxel recipes and sprite baking (`isometry-voxel`)
+- two working application patterns to copy (Hocket; Isometry's pure-core / views / native-host split)
+
+### What is missing, and is load-bearing
+
+Not one of these is supplied by the shelf:
+
+- fixed-timestep simulation and clock policy
+- an authoritative gameplay world or ECS
+- snapshot, checkpoint, and deterministic replay lifecycle
+- input actions, rebinding, controllers, device churn
+- asset dependency graph, hot reload, content addressing
+- scene, prefab, and level representation
+- camera, animation, particles, lighting, materials
+- navigation and spatial queries above raw collision
+- game audio mixing, emitters, streaming, spatialization
+- diagnostics, inspection, simulation stepping
+- packaging and content-build tooling
+
+And three specific over-claims from the first draft, corrected:
+
+- **`armillary` is an actor harness, not a game scheduler.** It does not
+  supply a fixed timestep or a simulation clock policy.
+- **`codicil` is a linear replay primitive, not a game deed log.** A typed
+  deed log with schema evolution, indexes, checkpoints, and forks is work on
+  top of it, and Law A's `(context, chosen, foregone, cause-link)` record is
+  exactly that work.
+- **`muniment` ships an in-memory backend and expects the host to supply
+  durable storage.** Isometry supplies redb; a game must supply its own.
+- **Firewheel is proven for Hocket's audio graph**, which is not the same as
+  positional game audio for Paredros.
+- **`numen`/`quint` are field mathematics**, not ecological scheduling or AI.
+
+### The opportunity this reveals
+
+Better than the first draft's version. Mesocosm can be the consumer that
+extracts a small reusable **game runtime layer** sitting between the existing
+host boundary and a game's rules — fixed step, input intents, snapshot and
+replay, asset graph — while Paredros stays free to choose a heavier 3D engine
+later. That is the stack's normal extraction pattern applied one layer up.
 
 ---
 
-## 3. Approaches worth probing, not just the two
+## 3. Approaches worth probing
 
-1. **Bevy as-is.** Fastest to a playable M0. Accept the loop.
-2. **Fyrox, with fork intent.** Gets an editor. Smaller community; a fork is
-   a real maintenance commitment, which this stack has taken on before
-   (stylo, xilem, webrender) and knows the cost of.
-3. **Custom loop, 2.5D.** `winit` + `netrender`/`vello` + `rapier2d` +
-   voxel bake through `isometry-voxel`. Maximum reuse, minimum new
-   rendering, and it fits Mesocosm's proposed dimensionality exactly.
-4. **Custom loop, 3D.** `winit` + `wgpu` + `block-mesh` + `rapier3d`. The
-   real new work is a voxel renderer, which is one of the more tractable
-   custom renderers to write (chunked meshing, no skeletal-animation
-   pipeline needed if bodies are voxel-rigid).
-5. **Split the bet.** Mesocosm on the custom 2.5D lane (cheap, high reuse,
-   proves the substrate), Paredros on an engine (its 3D first-person needs
-   are conventional and an engine serves them well). The wing shares a
-   *substrate*, not a renderer — which the founding record already requires
-   for other reasons.
+1. **Bevy as-is.** Fastest to a playable M0; accept that it owns the loop, and
+   book the breaking-release cadence as a real cost.
+2. **Fyrox for Paredros specifically.** Gets an editor. Its GL renderer makes
+   it a poor genet-composition citizen, so treat it as a self-contained host
+   for the heavy-3D vessel rather than a shared organ.
+3. **Custom loop, 2.5D, on the existing host skeleton.** `winit` +
+   `netrender`/vello + `rapier2d`, with bodies rendered to a shared wgpu
+   texture that netrender composites and cambium decorates. Maximum reuse,
+   minimum new rendering, and it fits Mesocosm's proposed dimensionality.
+4. **Custom loop, 3D.** `winit` + `wgpu` + a mesher + `rapier3d`, with
+   **Renderling** as the probe target rather than a from-scratch renderer.
+5. **Bones as the missing middle.** Renderer-neutral: it could supply the
+   deterministic ECS, snapshots, and asset server *inside* lane 3, which is
+   the layer that is actually undecided.
+6. **Split the bet.** Mesocosm custom-2.5D, Paredros on a heavier engine
+   later. Permitted by §5.
 
-Option 5 deserves more attention than it first appears to. The one-substrate
-law binds the world model, the deed log, and the interchange profile. It
-says nothing about renderers, and pretending it does would be the same
-category error as letting a stage grow its own engine.
+The architecture lane 3 implies, which the review sketched and I endorse:
+
+```text
+genet / winit kernel  (device, window, input, presentation)
+    |-- cambium UI, inspection, chrome
+    |-- mesocosm fixed-step world
+    |     |-- rapier2d bodies
+    |     |-- ecology + lineage systems
+    |     `-- numen/quint fields
+    `-- body renderer -> shared wgpu texture -> netrender composite
+```
+
+**The hidden gap in that diagram is the body renderer**, and it is the whole
+subject of the plan doc. `isometry-voxel` bakes appearances; it has never
+shown that an incorporated part can attach *during play*, acquire collision
+and mass, rotate correctly, move the center of balance, and stay visually
+legible. "Voxel bodies still work in 2.5D" is a hypothesis, not a finding.
 
 ---
 
 ## 4. How to decide
 
-**By probe, and the probe already exists.** M0 is "one critter, one
-enclosure, metabolize" — the phase that must feel good regardless. Build it
-more than once:
+By probe, with one correction that matters: **both hosts must consume the same
+`mesocosm-core`**, or the experiment compares two implementations of the game
+instead of two hosts.
 
-- M0 on Bevy
-- M0 on the custom 2.5D lane
+```text
+mesocosm-core          (deterministic rules, traits, metabolism, lineage,
+                        input intents — no rendering, no host)
+    |-- mesocosm-genet  (custom 2.5D lane)
+    `-- mesocosm-bevy   (engine lane)
+```
 
-**Done when** the verb feels right in one of them and the difference in
-effort is measured rather than argued. Fyrox enters the probe only if the
-editor turns out to be the deciding factor, since that is its distinguishing
-claim.
+Same seed, same recorded input trace, and record:
 
-What to record from each probe: time to first playable, how the app loop
-fought or fit the stack's actor/host patterns, how much owned code was
-actually reusable, and whether voxel bodies read as physics-legible.
+- final simulation-state hash
+- save/reload and replay equivalence
+- fixed-tick behaviour under uneven frame delivery
+- input-to-present latency and frame pacing
+- **whether one new body part can be attached and metabolized mid-run**
+- rapier reconciliation and collider rebuilding cost
+- lines of adapter code, and any duplicated ownership
+- whether the host creates a second wgpu device
+- headed inspection and debugging quality
+- asset and content iteration behaviour
+
+"Does the verb feel right?" stays the product judgment. These receipts say
+whether a lane is helping or fighting it.
+
+A **third, smaller experiment belongs inside the genet lane**: `mesocosm-core`
+storage versus Bones ECS. Bevy-versus-genet mostly tests host ownership;
+core-versus-Bones tests the layer that is genuinely undecided.
 
 ---
 
-## 5. What must stay shared regardless
+## 5. What must stay shared, restated
 
-Renderer choice is free. These are not:
+The first draft said "renderer choice is free" and then listed a shared
+*world model*, which was too strong in one direction and too vague in the
+other. Corrected, with the sharing rule made explicit per layer:
 
-- The world model, deed log, and interchange profile (the one-substrate law)
-- `codicil` / `muniment` for persistence
-- The `mere.pack/v1` envelope for anything crossing games
-- `isometry-voxel` recipes as the appearance format, so a critter can look
-  like itself in every vessel that renders it
+| Layer | Sharing rule |
+| ----- | ------------ |
+| World identity and fact substrate | **Shared** |
+| Identity, provenance, deed vocabulary | **Shared** |
+| Portable critter profile | **Extracted from two consumers** |
+| Game simulation runtime | May share crates, may differ |
+| Host shell and event loop | Per vessel |
+| Renderer and camera | Per vessel |
+
+Two consequences:
+
+- **"Shared world model" becomes "shared world identity and fact substrate."**
+  Mesocosm's live ecology, Paredros' settlement, and Isometry's campaign state
+  will never be one in-memory model. They append compatible facts to one
+  world.
+- **`isometry-voxel` recipes are no longer canonical.** They are an excellent
+  first projection codec and probably Isometry's projection, but making them
+  *the* appearance format lets today's renderer leak into the substrate. The
+  portable artifact carries **body topology, incorporated-part provenance,
+  loud inherited signatures, and optional projection recipes**; each vessel
+  derives its own presentation.
+
+### The anti-Spore law, restated
+
+The founding record's one-substrate rule and this document's "renderers need
+not be shared" appear to conflict. They do not, once the law is stated at the
+right altitude:
+
+> **A vessel must not create a private replacement for shared world identity,
+> provenance, and causal history.**
+
+A vessel may absolutely have its own renderer, event loop, ECS, or physics
+dimensionality. What hollowed Spore was five stages that shared no world, not
+five stages that shared no renderer.
 
 ---
 
 ## 6. Findings
 
-- **2026-07-30**: the `wgpu-*` sibling repos are a web-embedding family
+- **2026-07-30**: the `wgpu-*` siblings are a web-embedding family
   (`wgpu-graft` = Servo texture grafting, `wgpu-weld` = CEF accelerated OSR,
-  `wgpu-scry` = system-webview capture). None renders geometry, so none of
-  them shortens this path. `netrender` and `vello` *do* apply, but to the 2D
-  lane only.
-- **2026-07-30**: `seiche` wraps rapier2d 0.33 already, so the physics
-  dependency family is in the tree and understood.
+  `wgpu-scry` = system-webview capture). None renders geometry, so none
+  shortens this path. `netrender` and vello apply, but to the 2D lane only.
+- **2026-07-30**: `seiche` wraps rapier2d 0.33, so the physics family is
+  already in the tree and understood.
+- **2026-07-30, verified versions**: Bevy 0.19.0 (2026-06-19), Fyrox 1.0.1
+  (2026-03-28), ggez 0.10.0 (2026-06-03). Macroquad carries an unpatched
+  soundness advisory affecting all versions. Bones (`bones_framework` 0.4.0,
+  registry 2024-09-12) and Renderling (0.4.9, registry 2024-09-20) are both
+  **registry-stale but git-active** (pushes 2026-04-24 and 2026-07-19), which
+  this stack already has a convention for.
+- **2026-07-30**: `block-mesh` remains the meshing reference —
+  `visible_block_faces` ≈ 40M quads/s on one core, `greedy_quads` ≈ ⅓ the
+  triangles at ~3× the time.
