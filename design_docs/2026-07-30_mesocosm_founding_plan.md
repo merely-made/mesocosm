@@ -152,6 +152,24 @@ are what make the world social rather than merely edible:
 That last example is the design in miniature: a threat you cannot solve in
 your current form, surfaced during play, answered between epochs.
 
+### The nest
+
+**Permitted 2026-07-30** by the care-granularity relaxation (wing founding
+record §1). Territorial construction — a dam, a reef, a mound, a burrow — was
+previously refused as base-tending drifting toward Paredros' person. That
+reading was wrong: **building is how a lineage constructs its niche**, and
+niche construction is this vessel's stated win condition rather than a
+borrowed mechanic.
+
+It also gives the three kingdoms distinct construction verbs, which is free
+characterisation: producers build by *growing* structure (reef, canopy),
+consumers by *excavating and hoarding* (burrow, cache), decomposers by
+*spreading* (mycelial network through the dead). And it gives the world
+something to remember you by between epochs, which Law B needs anyway.
+
+Home person is unchanged. You build as the critter, in the world, in first
+person — not from a construction menu.
+
 ### The metabolic budget
 
 Every part costs upkeep. Armor is mass to haul, speed burns fuel,
@@ -179,6 +197,15 @@ and worth probing both ways.
 
 **2. Adaptation and world examination — turn-based, everyone.** What you
 metabolized during the epoch is your **bank of possible filial changes**.
+
+Note that **this phase is third person**, and deliberately so: you view the
+ecology from outside, as pieces, yourself among them. It is the vessel's
+sanctioned person shift, and it passes all three guardrails — first person
+remains home and you return to it, the shift is bounded and diegetic (an epoch
+ends), and it is cheap because it is a turn-based UI over the same world
+rather than a second simulation. This phase is why the strict
+person-purity rule had to be relaxed (wing founding record §1).
+
 Then:
 
 > **Every species takes a turn**, spending its own accumulated resources to

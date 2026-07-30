@@ -27,15 +27,96 @@ schedule.
 collided in a render doc. "Second person" says companions are peers you
 address rather than units you command; it says nothing about where the camera
 sits, and Paredros may well use a close camera. When discussing renderers, say
-**camera distance**; reserve *person* for agency. Conflating them invites
-exactly the drift the grammar exists to detect.
+**camera distance**; reserve *person* for agency.
 
-The grammar is not decoration. It is the wing's thesis (care at increasing
-granularity: species, then individual, then community) and its scope-creep
-detector. **Creep is person drift.** Paredros growing party micromanagement
-is drifting into third person. Mesocosm growing base-tending is drifting into
-second. When a feature changes the person, it is out of scope or it belongs
-to a different vessel.
+### The invariant is care granularity, not person purity
+
+**Relaxed 2026-07-30, at Mark's prompting, and this correction matters.** The
+first version of this record said "creep is person drift" and forbade a vessel
+from changing person at all. That rule was too strict, and the proof is
+internal: **Mesocosm's adaptation phase is not first person.** When every
+species spends its bank in initiative order and you watch the thing that eats
+your food supply decide to eat it better, you are viewing the ecology from
+outside, as pieces. That is third person, and it is the load-bearing half of
+the epoch loop. A rule that condemns the wing's best mechanic is mis-stated
+rather than proven.
+
+The influence set says the same thing. **Mount & Blade** is the canonical
+mixed-person game — one body in the melee, a party under command, a fief to
+rule, and the shifting *is* the identity. Kenshi embodies any squad member.
+Helldivers is one body inside a third-person galactic war. And the sharpest
+precedent is **Dwarf Fortress**, which runs fortress mode and adventure mode
+over one world: walking into your own dead fortress as a lone adventurer is
+among the most beloved experiences in games, and it is precisely this wing's
+export arrow. The strict rule forbade the payoff the architecture was built
+for.
+
+So the invariant is the thesis, not the grammar:
+
+> **Care granularity must not drift. Person may.**
+
+Mesocosm is care for a **species**, Paredros for **individuals**, Isometry for
+a **community**. That survives camera and control changes in a way person
+does not — XCOM is third person at individual granularity, Mount & Blade is
+first person at community granularity. Person was a convenient proxy for
+granularity, and it should be used as a design lens rather than a fence.
+
+### The three guardrails that replace the prohibition
+
+The old rule did earn its keep: it resolved where Gotcha Force belongs and it
+kept Paredros' settlement layer light. Those wins are preserved by three
+narrower rules.
+
+1. **Each vessel has a home person** — its default, its center of gravity, the
+   one you inhabit continuously. Mesocosm's home is first, Paredros' second,
+   Isometry's third. A shift is a departure you return from.
+2. **Shifts are bounded and diegetic.** Earned, framed, and temporary, not a
+   second mode of equal weight with its own menu.
+3. **Removal test.** Can each layer be deleted with the game still standing?
+   If two persons are equally load-bearing, you have two half-games — which is
+   the actual Spore failure. Spore's stages were person shifts with **no home
+   person** to return to.
+
+**The cost to book**, because this is what hollowed Spore in practice rather
+than in theory: every person is a camera, a control map, and a rendering need.
+Two persons per vessel is a production multiplier. Mesocosm's second person is
+cheap *only* because the adaptation phase is a turn-based UI over the same
+world rather than a second simulation. Any shift that needs a second
+simulation or a second renderer should be refused on those grounds alone.
+
+### What the relaxation opens
+
+Recorded 2026-07-30. Each was forbidden by the strict rule and is permitted
+by the care-granularity rule; each still has to pass the three guardrails.
+
+- **The nest** (Mesocosm). Territorial construction — beaver dams, coral
+  reefs, termite mounds. Under the strict rule this read as base-tending
+  drifting second person. Under the care rule it is **niche construction**,
+  which is the literal win condition. The prohibition was forbidding the
+  mechanic that best expresses the vessel's own thesis.
+- **Configure, don't command** (Paredros). Standing behaviour negotiated with
+  a peer in advance, in the FFXII gambit shape. Categorically different from
+  puppeteering in the moment: you agree how someone acts rather than driving
+  them. Preserves "peers, not units" while giving the player real leverage,
+  and it is a better answer than the deployment queue alone.
+- **Tag-in** (Paredros). Crystal Chronicles and Gotcha Force both let you
+  *become* another body. That is succession in miniature, and succession is
+  already ruled — becoming a companion temporarily is the same mechanic as
+  becoming one permanently.
+- **An embodied scout** (Isometry). Exploration mode, the pointcrawl, and
+  board-to-text narration already exist there; one figure moving through the
+  world is a shift that repo is nearly built for. Still gated behind
+  Isometry's own render-lane ruling.
+- **Asymmetric co-op** (all three), and this is the largest unlock. Co-op is
+  deferred in every vessel and has never been designed. Asymmetric co-op is
+  *inherently* multi-person — one player embodied, one strategic — so a strict
+  grammar makes it unbuildable. Under the care rule it is the obvious shape,
+  and it is the shared-burden friction the influence set started from (the
+  Crystal Chronicles chalice, Four Swords).
+- **The Dwarf Fortress payoff** (wing-level). Walking into a world your other
+  vessel shaped, and meeting your own dead as legend. This makes the export
+  arrow *experiential* rather than merely a data transform, and it is where
+  `tulpa` stops being bookkeeping and becomes the point.
 
 ### The influence set
 
@@ -385,8 +466,14 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
    beside it, not on it.
 6. **Attachment-creep levers.** Relationship drift the player cannot
    influence reads as random punishment (the Darkest Dungeon 2 lesson).
-7. **Co-op**, deferred to last in every vessel; the shared-burden designs
-   (the Crystal Chronicles chalice, Four Swords friction) are unexplored.
+7. **Co-op**, deferred to last in every vessel, but no longer shapeless.
+   Two concrete shapes now exist: **asymmetric co-op** (one player embodied,
+   one strategic), which the care-granularity relaxation made buildable and
+   which is the natural home for the shared-burden friction the influence set
+   started from (the Crystal Chronicles chalice, Four Swords); and **visiting**
+   (your character arrives in another player's settlement — Hammerwatch's
+   "bring your own hero", and at world scale the graft the lineage model
+   already describes). Still deferred; no longer unexplored.
 8. **The constellation boundary.** Two vessels are named. A colony game or
    strategy game as further vessels is not ruled in; vessels earn existence
    by shipping.

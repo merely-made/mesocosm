@@ -97,5 +97,10 @@ Do not copy it into Paredros or Isometry.
   additive facts plus deferred interpretation, which makes conflict
   impossible by construction.
 - Do not add features beyond the active plan's current target without
-  surfacing the scope change first. **Scope creep here is person drift**: if
-  a feature moves the game out of first person, it belongs to another vessel.
+  surfacing the scope change first. **The invariant is care granularity, not
+  person purity** (relaxed 2026-07-30; wing founding record §1). Mesocosm is
+  care for a **species**. Person may shift — the adaptation phase is
+  deliberately third person — provided first person stays home, the shift is
+  bounded and diegetic, and each layer could be removed with the game still
+  standing. Refuse any shift that needs a second simulation or a second
+  renderer: that is the multiplier that actually hollowed Spore.
