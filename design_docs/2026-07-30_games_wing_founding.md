@@ -303,26 +303,45 @@ not reuse it.
 
 Carried forward deliberately. Each needs a ruling before the work it gates.
 
-1. **Licensing.** These scaffolds use the standing convention (MIT OR
-   Apache-2.0, edition 2024), which is right for name-reservation stubs and
-   for libraries. Whether *shipped game code* should be permissively licensed
-   is a business question, and the wing already has a precedent to copy: the
-   radio business splits licenses by role (crates MIT/Apache, firmware
-   GPLv3). The same split applies cleanly here — **permissive for anything
-   extracted as a library, restrictive for the game itself** — so the
-   decision is which restrictive license, not whether. Decide before real
-   game code lands, because relicensing after contributions is painful.
-2. **Render and engine stack.** Settled facts as of 2026-07-30: rapier3d for
-   physics, and **nothing in the Merely stack supplies a 3D render lane** —
-   the `wgpu-*` siblings are a web-embedding family (Servo texture grafting,
-   CEF OSR, system-webview capture), and genet/netrender is a document
-   renderer. The open choice is therefore greenfield: an existing Rust engine
-   (Bevy the obvious candidate) versus a custom wgpu + rapier3d loop. Trade-
-   off: Bevy owns the app loop, which sits awkwardly beside armillary and the
-   stack's host patterns, but buys years; a custom loop keeps the stack's
-   architecture and costs those years. **Resolve by probe, not argument** —
-   the smallest honest test is M0's verb rendered as voxels in both, since
-   that is the phase that must feel good anyway.
+1. **Licensing — direction set 2026-07-30, exact license still open.**
+   Mark's call: **MIT/Apache for the reusable parts, and copyleft
+   guarantees for the game roughly equivalent to Cataclysm: Dark Days
+   Ahead**, with MPL floated as the alternative. That matches the split the
+   radio business already runs (crates MIT/Apache, firmware GPLv3).
+
+   One correction to carry into the decision: **CDDA is CC BY-SA 3.0 for
+   code and content both**, which is an unusual choice and not a good model
+   to copy literally. Creative Commons themselves advise against CC licenses
+   for software — they carry no patent grant and do not address
+   source-versus-object distribution, both of which matter for a Rust
+   project with dependencies. The equivalent *guarantees* are better reached
+   as:
+
+   - **Extracted libraries**: MIT OR Apache-2.0 (the standing convention).
+   - **Game code**: **GPLv3** for CDDA-strength copyleft, or **MPL-2.0** for
+     weaker file-level copyleft. MPL is already in the stack's vocabulary
+     (retinue is MPL-2.0, and the Servo-derived lanes are), so it is the
+     lower-friction choice; GPLv3 is the stronger guarantee and matches the
+     firmware precedent.
+   - **Assets and content**: **CC BY-SA 4.0**, which is what CC licenses are
+     actually for, and which delivers the CDDA feel where it belongs.
+
+   Decide before real game code lands, since relicensing after outside
+   contributions is painful.
+2. **Render and engine stack.** Given its own research doc:
+   [`2026-07-30_engine_and_render_lane_landscape.md`](2026-07-30_engine_and_render_lane_landscape.md).
+   The earlier framing here (Bevy versus custom wgpu) was a false binary and
+   is superseded. Short version: Fyrox is the forkable engine and the only
+   Rust one with an editor; "custom" is an assembly in which **eleven of
+   thirteen components are already owned** (winit, netrender/vello,
+   isometry-voxel, Firewheel, armillary, codicil/muniment, numen/quint,
+   cambium, parley, rapier via seiche); the real gap is a 3D renderer and a
+   mesher. Renderers need not be shared across vessels — the one-substrate
+   law binds the world model, not the pixels — so splitting the bet is live.
+   Also carries Mark's proposed dimensionality (Mesocosm 2/2.5D, Paredros 3D
+   first person, Isometry 3D third person) **and the flag that the Isometry
+   half contradicts a standing ruling in that repo** and needs its own plan
+   there.
 3. **Paredros' unit word.** "Borg" is chat shorthand — a Gotcha Force loan
    with an IP shadow. The battle-frame noun is unnamed.
 4. **Tulpa's inscription and shape**, including the attention mechanic that

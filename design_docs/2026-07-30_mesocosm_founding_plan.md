@@ -54,13 +54,30 @@ weapon in Isometry is an organism its ancestors ate. An "item" is a creature
 record — opaque body plan, fili ancestry, projection profile — so the
 interchange profile already carries everything an item needs.
 
-### Three kingdoms, not two
+### The real axis is trait count, not cell count
 
-**Critters are multicellular. This is not a cell game.** Plant, animal,
-fungus — no unicellular stage, with slime mold as the deliberate exception,
-because a thing that is arguably one cell and behaves like a colony is
-exactly the joke this game should be able to tell. The name already ruled
-this: a mesocosm is the mid scale, and critters are not cells.
+**Corrected 2026-07-30.** "Multicellular, not cellular" was the wrong way to
+say it. The measure is **how many traits an organism carries**:
+
+- A single cell is a **one-trait critter**. Legitimate, playable, and the
+  bottom of the ladder rather than a discarded stage.
+- A cell that has absorbed mitochondria and uses them has **two traits**, and
+  counts as complex for this game's purposes. Endosymbiosis is the promotion
+  mechanism, exactly as in real history.
+
+So proto-conditions are **not retired** — they are one starting condition
+among many, and a good one for seeding a roster, because one-trait organisms
+are the cheapest interesting things a world can be populated with. What is
+retired is only the idea that the game *begins* at abiogenesis and climbs a
+fixed staircase. Any world can start anywhere on the trait ladder.
+
+Slime mold stays as the deliberate joke it deserves to be: arguably one cell,
+behaves like a colony, solves mazes.
+
+### Three kingdoms
+
+Plant, animal, fungus — the three lineage **strategies**, which are the three
+trophic roles.
 
 The three kingdoms are the three lineage **strategies**, and they are the
 three trophic roles:
@@ -96,6 +113,45 @@ a predator and the vegetation changes). Unruled.
 platform-side reservation on the bare word *flora* (a moot's accumulated
 engrams). Do not reintroduce it.
 
+### Worlds
+
+A world is a **set of conditions**, and the roster of worlds is a design axis
+in its own right rather than a backdrop. Named 2026-07-30: proto-conditions
+(the old soup, now one option), ocean, ice, hothouse, and gas giants where
+life rides the upper stratosphere. And explicitly **fantastical, extreme,
+bizarre, impossible, or magical ones** — this is not an earth-history
+simulator, and a world whose physics or chemistry is frankly invented is a
+first-class citizen.
+
+Conditions are what make a trait good or useless, so the world is the thing
+that gives the metabolic budget its meaning. The same body is a triumph in
+one world and a corpse in another.
+
+**Worlds seek balance on their own**, because traits are gated only by
+gameplay: to have a trait, something has to acquire it, and acquisition
+routes are all diegetic (eat it, be given it, be infected by it, strike a
+bargain for it). Nothing is unlocked by a menu, so nothing arrives that the
+world did not already contain. Balance is an emergent property of that
+constraint rather than a tuning pass.
+
+### Acquisition is not only eating
+
+Incorporation is the keystone, but it is not the only route, and the others
+are what make the world social rather than merely edible:
+
+- **Provide something with what it needs, and it may follow you.** The
+  beginning of symbiosis, and the beginning of company.
+- **Dependency forms whether you plan it or not.** You come to rely on a
+  particular tree for your reproductive cycle; that tree is now part of your
+  strategy and part of your exposure.
+- **Infection runs both ways.** A viral critter starts infecting the tree you
+  depend on. As an animal you may simply have no way to fight it — which is
+  not a failure state, it is the *shape of the problem* that the next
+  adaptation phase exists to answer.
+
+That last example is the design in miniature: a threat you cannot solve in
+your current form, surfaced during play, answered between epochs.
+
 ### The metabolic budget
 
 Every part costs upkeep. Armor is mass to haul, speed burns fuel,
@@ -109,6 +165,67 @@ the critter as you go, and each generation is a set of tradeoffs and
 improvements against a budget that will not let you have everything. "Chose
 armor over speed while starving in a cold vent" is a budget decision before
 it is a story, which is exactly why the story is trustworthy.
+
+### The epoch loop
+
+**Ruled 2026-07-30. This is the game's structure, and it is what makes it a
+roguelike rather than a sandbox.** Two alternating phases:
+
+**1. The epoch — played, embodied, first person.** Acquire resources,
+explore, fight, test what your body can do. Form relationships and
+dependencies. Discover, by living in it, what your form cannot handle. The
+epoch ends on a timer or on a condition; whether it is timed is undecided
+and worth probing both ways.
+
+**2. Adaptation and world examination — turn-based, everyone.** What you
+metabolized during the epoch is your **bank of possible filial changes**.
+Then:
+
+> **Every species takes a turn**, spending its own accumulated resources to
+> adapt, in initiative order — and the same initiative order carries over
+> from the epoch. Mutations can be swapped, not merely added.
+
+The player is one species among many at this table. That single decision is
+what makes the world feel like it is playing too, and it is where trophic
+cascades and extinctions become legible: you watch the thing that ate your
+food supply spend its bank on a better way to eat your food supply.
+
+The run is some number of these rounds, **limited or unlimited** — also
+undecided, and the choice changes the genre (a fixed count is a scored
+roguelike; unlimited is a world you live in until you lose).
+
+### Prior art, checked 2026-07-30
+
+Mark asked whether this direction has been explored. Findings:
+
+- **Thrive** (Revolutionary Games, open source) is the serious Spore
+  successor: microbe stage reached 1.0 in December 2025, **including an
+  endosymbiosis feature**, with 9 planned stages and multicellular next. It
+  is the closest existing thing to the incorporation keystone, and it is also
+  a live cautionary datapoint about stage-based scope — one stage took the
+  project most of its life. Reinforces this wing's one-substrate rule and
+  the standalone-completeness law.
+- **Sipho** (2018, 1.0 in 2023) is an action-roguelike where you build a
+  creature from zooids and eat to grow, each zooid specialising in a
+  function. The nearest existing feel for the *epoch* half.
+- **Bite the Bullet** does eat-enemies-to-power-up as a run-and-gun.
+- **Dominant Species** (GMT, board game) is the nearest prior art for the
+  *adaptation* half, and it is closer than expected: players are animal
+  classes, spend action pawns, **adapt by spending adaptation cubes to take
+  trait cards**, migrate and speciate, suffer a Healthy → Endangered →
+  Extinct track, all against a slowly-encroaching ice age — and **turn order
+  for the next round is determined by standing**. The initiative-order idea
+  has been proven at a table.
+- **Evolution: The Origin of Species** does trait cards and predator/prey
+  economies.
+
+**The gap is the seam.** No verified prior art alternates a *real-time,
+embodied, first-person epoch* with a *turn-based all-species adaptation
+phase*. Evolution games are either simulations you steer from outside
+(Thrive's editor, Species, Niche) or board games with no embodied layer. The
+combination is the thing worth building, and the risk it carries is the usual
+one for hybrids: two good halves that do not want to meet. The M-phases
+should therefore prove the seam early rather than polish either half.
 
 ### Multiple lineages
 
@@ -198,6 +315,51 @@ slot.
 
 ---
 
+## 1a. Open design questions from the epoch ruling
+
+Raised 2026-07-30 and deliberately unanswered. Each is a real fork.
+
+1. **How large is the species roster?** It sets the cost of the adaptation
+   phase (every species takes a turn, so the phase is O(species)) and the
+   texture of the world. Dominant Species runs six animal classes at a table;
+   an ecosystem wants more. Likely answer: a small number of *tracked*
+   species with real banks and turns, over a larger substrate of untracked
+   background biota — the same loud-signatures-over-quiet-drift shape Law B
+   requires everywhere else.
+2. **How do branches, forks, and randomisation produce new creatures?** Three
+   distinct mechanisms are tangled here: **speciation** (a line splits),
+   **hybridisation** (two lines combine — which may be the endosymbiosis
+   mechanic seen at organism scale rather than a separate system), and
+   **drift** (random change). They need separate rules, and hybridisation in
+   particular needs a ruling on whether it is player-directed or emergent.
+3. **How are trophic cascades and extinction events handled?** Two candidate
+   sources, not exclusive: **emergent** (the adaptation phase produces them
+   naturally when a keystone species is out-competed — the best outcome,
+   since it needs no authoring) and **evented** (a world throws a glaciation,
+   an impact, a plague). The design should prefer emergent and use evented
+   pressure only to keep worlds from settling.
+4. **Timed or untimed epochs; limited or unlimited rounds.** Genre-defining,
+   see above.
+
+## 1b. A storyteller, and where it belongs
+
+Mark's suggestion, 2026-07-30: a **RimWorld-style storyteller** — a director
+that paces pressure rather than a fixed difficulty curve — and the
+observation that it would apply to more than one game in the wing.
+
+That is right, and it is a candidate for the first genuinely shared *game*
+component, distinct from the platform substrate. All three vessels want the
+same organ at different scales: Mesocosm pacing extinction pressure and world
+events across epochs, Paredros pacing what an expedition meets and what the
+settlement suffers, Isometry pacing a campaign (where it also has an obvious
+relationship to the storylet engine that already exists there).
+
+**Do not build it as a shared crate yet.** The wing's own extraction
+discipline says a shared component is pulled out once two real consumers
+exist. Build a storyteller inside Mesocosm first, let Paredros want one, and
+extract at the second consumer. Recorded here so the eventual seam is not a
+surprise.
+
 ## 2. What is genuinely new here
 
 Stated plainly so the cost is visible:
@@ -244,9 +406,19 @@ Bodies are physics-legible: mass, balance, and reach follow from placement.
 **Done when** two runs that ate differently *play* differently, without a
 stat screen being consulted.
 
-### M2 — The deed log
+### M2 — The seam
+The epoch ends and the adaptation phase opens: what you metabolized becomes a
+bank, you spend it on filial changes, and **at least one rival species takes
+its turn too**. This is the riskiest joint in the design (§1, prior art) and
+it is proven here rather than after the halves are polished.
+
+**Done when** a player finishes an epoch wanting the adaptation phase, and
+finishes the adaptation phase wanting the next epoch.
+
+### M2a — The deed log
 Runs write `(scarcity context, chosen, foregone, cause-link)` entries.
-Append-only, codicil-shaped.
+Append-only, codicil-shaped. The adaptation phase is a natural writer: every
+spend is a recorded tradeoff.
 
 **Done when** a run's log reads back as a legible story of what that critter
 valued, to someone who did not watch the run.
@@ -258,14 +430,17 @@ persistent world; the world keeps the marks.
 **Done when** a player recognizes their own earlier line's handiwork in a
 world they did not expect to.
 
-### M4 — The three kingdoms
+### M4 — The three kingdoms, and a world that pushes back
 Producer, consumer, and decomposer strategies; lineage switching; biomass
 share as the win condition; the metabolic budget as the constraint that makes
-each generation a real tradeoff.
+each generation a real tradeoff. The full species roster takes turns, and
+cascades and extinctions emerge from it. A storyteller paces what the world
+throws on top (§1b).
 
 **Done when** a player deliberately grows one kingdom's line to support
-another's, unprompted — and notices a world running down for want of
-decomposers.
+another's, unprompted — notices a world running down for want of
+decomposers — and loses a lineage to something they watched another species
+decide to become.
 
 ### M5 — Export
 Interchange profile v0 over `mere.pack/v1`, and the proof pair with Isometry
