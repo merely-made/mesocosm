@@ -2,7 +2,9 @@
 
 **Status: in progress, 2026-07-31.** Wave 1.1 landed. Wave 1.2 landed except
 the window and the device: stepping, meshing, and placement are done and
-tested. Ruled by Mark. This is the **authority on ordering** across the
+tested. **Wave 1.3 dropped**: the render lane is decided (custom wgpu body
+renderer, netrender owning the device), so there is no second host to compare
+against. Ruled by Mark. This is the **authority on ordering** across the
 games wing. It does not restate design;
 it sequences the work the governing plans already specify and adds the
 constraints that only appear once the order is fixed.
@@ -88,20 +90,58 @@ this crate, so any difference is attributable. This is also the extraction
 candidate the body pipeline plan named; it stays here, and small, until a
 second consumer justifies lifting it.
 
-### 1.3 The Bevy host
+### 1.3 ~~The Bevy host~~ — **DROPPED 2026-07-31**
 
-Host the **exact same** core, fixture, physics dimension, and body document in
-Bevy.
+The engine lane is cancelled. Mesocosm renders through a small custom wgpu
+body renderer with netrender owning the device and compositing.
 
-> **The confound rule.** Comparing a Genet 2.5D lane against a Bevy 3D lane
-> would measure host *and* perspective at once and attribute the difference to
-> whichever the reader already preferred. **Both hosts initially stage the same
-> enclosure.** Perspective is a lens choice to be made later, on its own
-> evidence.
+**The reason is stronger than preference, and worth keeping so the decision is
+defensible later.** Weighing the field established that **our rendering need is
+tiny and specialised**: the mesher emits flat-shaded palette quads with no
+textures, no interpolated normals, no skinning (parts are rigid by ruling), and
+no authored materials. Engines are optimised for the opposite problem, authored
+content with PBR materials, image-based lighting, and skeletal animation.
+Renderling's entire feature set, and most of Bevy's rendering value, sits in the
+part of the problem this game does not have. Roughly six hundred lines of
+pipeline covers what we do need.
 
-**Done when** its final state hash matches the Genet run, and concrete receipts
-exist for adapter size, frame pacing, iteration quality, asset handling, and
-debugging.
+**What dropping the comparison costs, stated honestly.** We give up a *measured*
+answer to "would an engine have been faster to work in." The receipts R2 was to
+produce, adapter size, frame pacing, iteration quality, asset handling and
+debugging, become absolute observations rather than comparisons. They are still
+worth recording, and if the custom lane turns out to fight us, the engine
+question can be reopened with real evidence from having built the thing once.
+
+**The confound rule retires with the comparison, but its insight does not.**
+"Do not change two variables at once" still applies to any later A/B, and most
+immediately to a 2.5D-versus-3D presentation choice, which must not be decided
+inside some other change.
+
+**Rejected with reasons, for the record:**
+
+- **Renderling.** Alpha, self-described work in progress, and its shaders need
+  a *specific nightly* through rust-gpu. `cargo-gpu` isolates that toolchain so
+  the rest of the project stays stable, which is a real mitigation, but it is
+  still a pinned nightly tracking behind latest, paid for glTF, IBL, PBR,
+  shadows and bloom that this game will not use. Its registry staleness is not
+  the problem; the toolchain is. **Two ideas are worth stealing without the
+  dependency**: headless rendering with image-diff tests (see below), and
+  shaders in Rust so quad and material types are defined once instead of
+  drifting between Rust and WGSL.
+- **Vello, for now.** If Mesocosm settles into a genuinely 2.5D stylised look,
+  vello becomes very attractive, and it is already owned. It is not the probe
+  target because **vello has no depth buffer**: a 2.5D vello lane would depth
+  sort by painter's algorithm, which is a different rendering approach rather
+  than a different host, and the geometry here is separate rigid boxes that a
+  depth buffer handles without sorting artifacts. Revisit once the look is
+  known.
+
+**Adopted from the Renderling read: golden-image testing.** The visual half of
+1.2 was going to be pure judgment. It need not be. wgpu renders headless to a
+texture, so the renderer should be built headless-first and wrapped in a window,
+which makes "the new part is visible" an assertable property rather than an
+opinion. The opinion that remains is whether it looks *good*, which is the right
+thing to leave to a human at a screen.
 
 ### 1.4 The Isometry projection
 
@@ -115,10 +155,15 @@ with part provenance intact.
 
 ### Where Bones goes
 
-**Not its own lane.** After the host comparison lands, test core-owned storage
-against Bones **inside the winning host**. That isolates the real question —
-which storage model the core wants — instead of mixing an ECS choice with a
-renderer choice and getting one muddy answer for two questions.
+**Not its own lane**, and now **unblocked earlier**. The original rule was to
+test core-owned storage against Bones inside the *winning* host, so the ECS
+choice would not be mixed with a renderer choice. With one host, there is
+nothing left to wait for: the question is whether `mesocosm-core`'s own storage
+or Bones ECS serves the core better, and it is independent of rendering.
+
+It stays deferred behind playfeel rather than behind the host, because a
+storage model chosen before there is a game to store is chosen against
+guesses.
 
 ---
 

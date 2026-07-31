@@ -492,10 +492,20 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
    Isometry contradicts a standing ruling in that repo**, which needs its own
    plan there rather than arriving as a side effect.
 
-   Ordering for the probe itself lives in the
-   [execution waves plan](2026-07-31_execution_waves_plan.md), including the
-   **confound rule**: both hosts initially stage the same enclosure, so the
-   comparison measures host rather than host-plus-perspective.
+   **Decided 2026-07-31 for Mesocosm**: a small custom wgpu body renderer,
+   with netrender owning the device and compositing, built headless-first so
+   visibility is testable. The engine lane is dropped, because this game's
+   geometry is flat-shaded palette quads with no textures, skinning, or
+   authored materials, and an engine's rendering value sits in exactly the
+   parts it does not need. Renderling was rejected on its pinned-nightly
+   rust-gpu requirement rather than on staleness; vello stays a live option if
+   the look settles 2.5D, since it has no depth buffer and would change the
+   rendering approach rather than the host. Reasons and costs in the
+   [execution waves plan](2026-07-31_execution_waves_plan.md) §1.3.
+
+   **Paredros is not bound by this.** Renderers are per-vessel, and a close
+   camera with real lighting is the case where an engine, or Renderling, would
+   earn its keep.
 3. **Paredros' unit word.** "Borg" is chat shorthand — a Gotcha Force loan
    with an IP shadow. The battle-frame noun is unnamed.
 4. **Tulpa's inscription and shape**, including the attention mechanic that

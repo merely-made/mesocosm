@@ -224,6 +224,15 @@ reads clearly on screen.
 and say what it used to be — and the critter visibly handles differently
 afterwards.
 
+> **R2 and R2a superseded 2026-07-31.** The engine lane is dropped and the
+> render lane is decided: a small custom wgpu body renderer with netrender
+> owning the device and compositing. There is no second host, so R2 is no
+> longer a comparison; its receipts survive as absolute observations of the one
+> lane. R2a is unblocked from the host question and deferred behind playfeel
+> instead. Reasons, and what dropping the comparison costs, are recorded in the
+> [execution waves plan](2026-07-31_execution_waves_plan.md) §1.3. The sections
+> below are kept as written because they define what the receipts *are*.
+
 ### R2 — The host probe
 `mesocosm-core` behind a seam; two hosts over it (a custom Genet lane and an
 engine lane); same seed, same recorded input trace. Each host may constrain
