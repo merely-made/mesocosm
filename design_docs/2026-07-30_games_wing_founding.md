@@ -142,6 +142,56 @@ over a graph), and the idea became this. The wing has vocabulary for exactly
 that shape — **dead is dead, lineage persists**, and what remains when nobody
 carried the line is a **tulpa**. Meerkat is one.
 
+### The continuity: critter, borg, character
+
+**Ruled 2026-07-31 by Mark**, and it is the sharpest statement of the wing's
+thesis so far:
+
+> A **critter** is an organism. A **borg** is a *named* critter — something you
+> make incidentally, by playing Mesocosm. A **character** is a
+> *faction-associated* borg — something you make by playing Paredros.
+
+The force of it is what it does *not* require. There is no conversion step, no
+promotion pipeline, no second representation. Each vessel adds exactly one
+thing to an artifact that already exists:
+
+| Vessel | Adds | The thing it makes |
+| ------ | ---- | ------------------ |
+| Mesocosm | a **name** | a borg, out of a critter |
+| Paredros | a **faction** | a character, out of a borg |
+| Isometry | a **history** | a legend, out of a character |
+
+**Naming is the whole promotion.** A critter is a member of a species; a borg
+is a particular one you can refer to. That is also exactly what the deed log
+does — an anonymous organism accumulates a record, and at some point the record
+is *of somebody*. This is why the founding plan's death ruling works: what
+survives is a line and a memory, and a memory has to be a memory *of* someone.
+
+**Incidentally is doing real work in that sentence.** You do not go to Mesocosm
+to make a borg. You play an ecology, and some critter of yours survives long
+enough, does something particular enough, and accrues enough record that it
+stops being a statistic. The naming is *earned by play* rather than chosen at a
+character creator, which is the partial-authorship ruling arriving at the level
+of identity rather than morphology.
+
+**And a faction is a relationship, not a property.** A borg becomes a character
+by being *of* somewhere and *among* someone — which is precisely Paredros'
+second person, and precisely why that vessel is the one that mints characters.
+You cannot be a colleague alone.
+
+Three consequences worth holding:
+
+- **The interchange profile does not grow.** Name and faction are fields on the
+  artifact the body pipeline already carries, not new artifact kinds. The proof
+  pair does not get harder because of this ruling; it gets *sharper*, because
+  what crosses is now a nameable thing rather than an anonymous body document.
+- **This is the one-substrate law paying out.** Three games, three additions,
+  one object. If any vessel had needed to *convert* a critter into a character,
+  that would have been the hollowing Spore suffered.
+- **It also explains the export arrow.** A legend in Isometry is not a fourth
+  kind of thing — it is a character whose history outlived it, which is exactly
+  what `tulpa` was named for.
+
 ### The influence set
 
 **Scavengers' Reign** joined 2026-07-31, and it is the reference that named
