@@ -230,8 +230,12 @@ Mark asked whether this direction has been explored. Findings:
   endosymbiosis feature**, with 9 planned stages and multicellular next. It
   is the closest existing thing to the incorporation keystone, and it is also
   a live cautionary datapoint about stage-based scope — one stage took the
-  project most of its life. Reinforces this wing's one-substrate rule and
-  the standalone-completeness law.
+  project **more than ten years**, and even at 1.0 its own GDD still marks
+  Evolution, NPCs, and the Microbe Editor as work in progress. Those are
+  precisely the systems this vessel calls novel. Reinforces the
+  one-substrate rule and the standalone-completeness law.
+
+  **Studied in detail 2026-07-30** (see §1c for what was taken).
 - **Sipho** (2018, 1.0 in 2023) is an action-roguelike where you build a
   creature from zooids and eat to grow, each zooid specialising in a
   function. The nearest existing feel for the *epoch* half.
@@ -344,15 +348,19 @@ slot.
 
 ## 1a. Open design questions from the epoch ruling
 
-Raised 2026-07-30 and deliberately unanswered. Each is a real fork.
+Raised 2026-07-30. Questions 1 and 4 were substantially answered the same day
+by studying Thrive (§1c); 2 and 3 remain real forks.
 
-1. **How large is the species roster?** It sets the cost of the adaptation
-   phase (every species takes a turn, so the phase is O(species)) and the
-   texture of the world. Dominant Species runs six animal classes at a table;
-   an ecosystem wants more. Likely answer: a small number of *tracked*
-   species with real banks and turns, over a larger substrate of untracked
-   background biota — the same loud-signatures-over-quiet-drift shape Law B
-   requires everywhere else.
+1. **How large is the species roster?** ~~Open.~~ **Largely answered 2026-07-30.**
+   It sets the cost of the adaptation phase (every species takes a turn, so the
+   phase is O(species)) and the texture of the world. Thrive's auto-evo shows
+   the per-species turn can be *cheap* — generate five candidate mutations,
+   score, keep the best or none — so a large roster is affordable. The
+   remaining shape is still the Law B one: a modest number of **tracked**
+   species with real banks, visible turns, and names, over a broader substrate
+   of background biota evolving by the same cheap rule without individual
+   attention. Dominant Species runs six animal classes at a table; the ceiling
+   here is set by how many turns a player will *watch*, not by compute.
 2. **How do branches, forks, and randomisation produce new creatures?** Three
    distinct mechanisms are tangled here: **speciation** (a line splits),
    **hybridisation** (two lines combine — which may be the endosymbiosis
@@ -365,8 +373,67 @@ Raised 2026-07-30 and deliberately unanswered. Each is a real fork.
    since it needs no authoring) and **evented** (a world throws a glaciation,
    an impact, a plague). The design should prefer emergent and use evented
    pressure only to keep worlds from settling.
-4. **Timed or untimed epochs; limited or unlimited rounds.** Genre-defining,
-   see above.
+4. ~~**Timed or untimed epochs?**~~ **Answered 2026-07-30: neither.** An epoch
+   ends **when you have earned the right to reproduce** (§1c, from Thrive).
+   Diegetic and player-paced, with no arbitrary clock. **Limited or unlimited
+   rounds is still open**, and still genre-defining: a fixed count is a scored
+   roguelike, unlimited is a world you live in until you lose.
+5. **Determinism as a constraint.** Adopted 2026-07-30 as a design constraint
+   rather than an open question, but recorded here because it binds early
+   decisions: `mesocosm-core` should be a **pure function of (seed, ordered
+   inputs)** behind a boundary that can be snapshotted wholesale. See the
+   [body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md) §R0.
+   Cheap to design in now, brutal to retrofit.
+
+## 1c. What we take from Thrive
+
+Studied 2026-07-30 as the nearest shipped relative. Four things are worth
+taking, and one is worth deliberately rejecting.
+
+**The editor is triggered by reproduction, not a timer.** In Thrive you gather
+phosphate and ammonia, your organelles duplicate one at a time, and when they
+have all doubled the reproduce button appears — which opens the editor. The
+resource loop *is* the upgrade loop. **Adopted**, and it closes open question
+4 below: an epoch ends **when you have earned the right to reproduce**. Fully
+diegetic, player-paced, no arbitrary clock; a cautious player runs long epochs
+and a reckless one cycles fast.
+
+**Auto-evo's algorithm is cheap and sufficient.** Thrive evolves NPC species by
+generating five random mutations per species, scoring them, and keeping the
+best — or keeping none if none beats the status quo — then separately
+evaluating migration between patches. That is hill-climbing with N=5. **Adopted
+as the starting algorithm** for the adaptation phase's non-player species, and
+it substantially answers open question 1: per-species turns need not be
+expensive to be believable, so the roster can be large.
+
+**The prediction window.** Thrive's editor runs auto-evo forward and shows how
+a proposed change will affect the species *before* mutation points are spent.
+**Adopted**, because it is the honest fix for Law B's concern — depth nobody
+can see reads as noise — applied exactly where the player is making a
+tradeoff. Our version predicts against the metabolic budget.
+
+**Patches.** Thrive's world is compartmentalised biomes with distinct compound
+availability and physical conditions, species migrate between them, and
+**resource availability shifts from species activity** (photosynthesisers raise
+O₂, predators lower it). That is the three-kingdom cycle validated as a shipped
+mechanic. **Adopted as an option to weigh**: the world-conditions roster (§
+Worlds) could be *patches within one world* rather than separate worlds, which
+is cheaper and makes migration a strategic move rather than a menu.
+
+**Rejected: invisible auto-evo.** Thrive's NPC evolution happens in the
+background between generations, and the player infers it from population
+numbers. Our adaptation phase makes every species take a **visible turn in
+initiative order**. Same underlying algorithm, opposite legibility — you watch
+the thing that eats your food supply choose to eat it better, rather than
+discovering afterwards that it did. This is the deliberate divergence, and it
+is the reason the seam is worth building.
+
+Also confirmed rather than adopted: **extinction, not death, is the failure
+state** (a cell dying is not game over; losing the species is), which is
+independent support for the death ruling. And their per-generation Mutation
+Point budget (100 by default) is the simpler cousin of the metabolic budget —
+which puts the burden on ours to produce *better decisions*, not merely better
+fiction.
 
 ## 1b. A storyteller, and where it belongs
 

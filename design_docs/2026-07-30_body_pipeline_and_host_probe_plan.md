@@ -112,12 +112,36 @@ over-built.
 Done-conditions, not estimates. R-phases interleave with the M-phases in the
 founding plan; R0–R2 are prerequisites for a meaningful M0.
 
-### R0 — The body format
+### R0 — The body format, and the determinism constraint
 Presentation-neutral topology: parts, attachment frames, per-part provenance,
 mass hints. Serde, no host dependencies, no wgpu.
 
+**And the constraint that has a deadline.** `mesocosm-core` must be a **pure
+function of (seed, ordered inputs)**, behind a boundary whose whole state can
+be captured at once. Adopted 2026-07-30 after studying
+[Tangle](https://github.com/kettle11/tangle), which gets rollback multiplayer
+without the author writing any netcode, because WebAssembly's linear memory
+makes "capture the world" a memcpy rather than hand-written serialisation the
+author can forget a field of.
+
+One discipline buys five things: **co-op, replay, save/load, time-travel
+debugging, and R2's host comparison** are the same mechanism seen from
+different angles. Note that R2 already requires state-hash and replay
+equivalence between two hosts, so **the engine probe doubles as the co-op
+feasibility test** — that was an accident of design worth keeping on purpose.
+
+Practical implications to hold from the first commit: no ambient clock reads
+in core, no unordered iteration affecting simulation, all randomness from the
+seeded stream, and physics behind a seam because **cross-platform float
+determinism is the classic killer** (rapier's `enhanced-determinism` comes
+with caveats rather than guarantees, and is a probe target rather than an
+assumption). Whole-heap snapshotting also scales with heap size, and an
+ecology with a species roster is precisely the large-mutable-state profile
+that makes it expensive — so measure before relying on it.
+
 **Done when** `isometry-voxel` can bake a sprite *from* a topology document,
-and the document round-trips without losing provenance.
+the document round-trips without losing provenance, and a recorded input
+trace replayed against the same seed produces an identical state hash.
 
 ### R1 — Live attachment (the hypothesis test)
 One critter, one world, 2.5D. Eat a part; it attaches, gains a collider,

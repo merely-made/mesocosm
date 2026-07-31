@@ -473,7 +473,35 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
    started from (the Crystal Chronicles chalice, Four Swords); and **visiting**
    (your character arrives in another player's settlement — Hammerwatch's
    "bring your own hero", and at world scale the graft the lineage model
-   already describes). Still deferred; no longer unexplored.
+   already describes).
+
+   **The two shapes want different netcode, and conflating them would be a
+   mistake.** Shared-session co-op (both players in one world at once) is
+   deterministic-lockstep-shaped. Visiting is authority-plus-state-transfer
+   shaped, which is closer to what the pack, grant, and signed-space machinery
+   already does.
+
+   **The lockstep half got much cheaper than feared** (studied 2026-07-30 via
+   [Tangle](https://github.com/kettle11/tangle)). Rollback multiplayer need not
+   be hand-written: if the simulation is a pure function of seed and ordered
+   inputs behind a wholesale-snapshottable boundary, peers exchange only inputs
+   and the runtime does the rest. Tangle gets this from WebAssembly's linear
+   memory, where capturing the world is a memcpy — and this stack already runs
+   wasm in-browser, in the participant gate, and in packs. The constraint is
+   recorded in the body pipeline plan §R0, and it is the piece with a deadline
+   because it is nearly free to design in and brutal to retrofit.
+
+   Two structural gifts: the epoch loop's **adaptation phase is turn-based and
+   therefore trivially co-op-able**, so only the epoch half needs the hard
+   machinery; and asymmetric co-op is free in this model, since the strategic
+   player is simply another input stream. One API rule regardless of
+   implementation: **co-op must not appear in a game core's API at all.**
+
+   Honest caveats: whole-heap snapshotting scales with heap size and an ecology
+   is a large-mutable-state profile; cross-platform float determinism is the
+   classic killer; and Tangle itself is web-only, TypeScript-hosted, and last
+   pushed July 2024, so the *technique* is the transferable part rather than
+   the library. Still deferred; no longer unexplored.
 8. **The constellation boundary.** Two vessels are named. A colony game or
    strategy game as further vessels is not ruled in; vessels earn existence
    by shipping.
