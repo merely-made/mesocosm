@@ -202,6 +202,85 @@ something to remember you by between epochs, which Law B needs anyway.
 Home person is unchanged. You build as the critter, in the world, in first
 person — not from a construction menu.
 
+### The world is not a larder
+
+**Ruled 2026-07-31, from Scavengers' Reign.** The anti-pattern, in Mark's
+words: *"we're just kinda munchin'. A free meal, talk about the opposite of a
+game."*
+
+A morsel today is `{species, volume, mass, position}` sitting still, waiting
+to be collected. It costs nothing, risks nothing, and decides nothing. **Right
+now nothing in the world does anything except the player** — which is exactly
+the difference between a field of pickups and an ecology, and it is a larger
+gap than anything else outstanding.
+
+On Vesta every organism has "its own coherent place, purpose, method and cycle
+of life": clone-breeding plants that reproduce by killing herds, things that
+run a whole birth-to-death cycle in three minutes to renew a forest. Nothing
+is an encounter. Everything is **a process you walked into**.
+
+> The rule: loose matter becomes **organisms with a lifecycle stage**, running
+> the same loop the player runs. Everything is trying to do what you are trying
+> to do.
+
+**Miscible strategies, not classes.** The point is not a rock-paper-scissors of
+predator and prey but a set of survival strategies an organism may *combine*.
+A producer can also parasitise. The three kingdoms are trophic roles, not
+character classes, and a lineage may run several.
+
+| Strategy | What it means here |
+| -------- | ------------------ |
+| **Predation** | Take the parts by force. What we have, and currently the only one. |
+| **Symbiosis** | A living neighbour is worth more than an eaten one, because it keeps giving. Already flagged; still unbuilt. |
+| **Parasitism** | The reversal: **something incorporates you.** A part you carry that was once somebody may still *be* somebody, with upkeep, preference, and a reason it is there. |
+| **Simulacra** | Mimicry. A thing that is not what its shape says it is. |
+| **Signalling** | Advertising what you are: toxic, armed, mating, kin. |
+| **Counter-signalling** | Faking the advertisement, or seeing through one. |
+| **Distribution** | Making a resource *in order to be eaten*, because being eaten spreads you. |
+
+Two of these are unusually strong here because they collide with machinery
+that already exists.
+
+**Mimicry breaks the shape contract, on purpose.** Roles are read from
+geometry, so the game teaches "shape tells you function" from the first meal.
+A mimic violates exactly that lesson: limb-shaped, but a trap. That is a
+mechanic which cannot exist without the role system and which makes the role
+system feel earned rather than administrative. Signalling then supplies the
+second-order cue — material and colour are already carried per part, so
+"bright means toxic" is nearly free, and a mimic wearing brightness without
+toxicity is the counter-signal.
+
+**Distribution inverts the free meal completely.** An organism that grows a
+rich, tempting part *so that* something eats it and carries its offspring
+elsewhere. Because incorporation means what you eat becomes part of you, the
+seed rides in your body. You were not the predator; you were the vector. This
+is endozoochory, it needs no new substrate, and it is the sharpest available
+answer to "a free meal is the opposite of a game": the meal *wanted* this.
+
+**The legibility tension, and how it resolves.** Vesta's stated danger is that
+"a creature's threat is often impossible to estimate until it's too late",
+which contradicts Law B outright. The show can be illegible because it is
+authored and paced; a game where threats cannot be read is merely unfair. The
+workable line is **legible mechanism, unpredictable consequence** — you can
+always see what a thing *does*, you cannot see what it will do to the web.
+Mimicry sits exactly on that line and is the reason to keep it bounded: rare,
+and always tell-able on a second look.
+
+**The authoring caution.** Vesta's ecology is *authored*. "Clone-breeding
+plants that reproduce by killing herds" is a specific weird idea a person had,
+and a generator produces variance rather than ideas — the Spore trap in new
+clothes. What makes Vesta feel enormous is roughly a dozen organisms each
+carrying one strange mechanism followed all the way through: **complexity from
+specificity, not quantity**, which is Law B's few-loud-signatures at ecology
+scale. So: **author the organisms, generate the arrangements.** That is the
+wave 2.2 ruling (three authored worlds, not procedural generation) holding one
+level further down, at the bestiary.
+
+**Cost, stated plainly.** This changes `Morsel` in the core from inert matter
+into an organism with state and a step, and it means the world simulates
+during an epoch rather than only during adaptation. It is the substrate every
+other strategy above needs, so it comes first or none of them can exist.
+
 ### The metabolic budget
 
 Every part costs upkeep. Armor is mass to haul, speed burns fuel,

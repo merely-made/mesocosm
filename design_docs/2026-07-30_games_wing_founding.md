@@ -144,6 +144,30 @@ carried the line is a **tulpa**. Meerkat is one.
 
 ### The influence set
 
+**Scavengers' Reign** joined 2026-07-31, and it is the reference that named
+the biggest gap. On Vesta every organism has "its own coherent place, purpose,
+method and cycle of life" — nothing is an encounter, everything is a process
+you walked into. Mark's diagnosis of what we had instead: *"we're just kinda
+munchin'. A free meal, talk about the opposite of a game."*
+
+What it supplies that nothing else on this list does:
+
+- **Organisms rather than pickups.** Loose matter must run the same loop the
+  player runs. Detail in the Mesocosm founding plan, "The world is not a
+  larder".
+- **A strategy space wider than eating**: parasitism, symbiosis, simulacra,
+  signalling, counter-signalling, and making a resource *in order to be
+  eaten*. Mark's framing: **miscible strategies**, combinable rather than
+  exclusive classes.
+- **Indifference as the tone.** Vesta "has a nature that simply exists" — no
+  narrative purpose, nothing spawned for you. That is the RimWorld-vanilla
+  sincerity ruling seen from the ecology side.
+
+And one caution it supplies by counterexample: Vesta is **authored**. Its
+sense of enormity comes from about a dozen organisms each carrying one strange
+idea followed all the way through, not from generated variety. Author the
+organisms, generate the arrangements.
+
 **Katamari Damacy** joined 2026-07-31, from Mark watching a grown critter:
 "there's something kinda neat about it, like katamari." It earns the place,
 because it is the one game whose core verb is *accretion made visible*. Three
