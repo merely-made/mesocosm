@@ -1,0 +1,37 @@
+[package]
+name = "mesocosm-render"
+version = "0.0.1"
+edition = "2024"
+license = "MPL-2.0"
+description = "Mesocosm's body renderer: turns meshed bodies into frames on wgpu. Headless-first, so 'the part is visible' is a test rather than an opinion."
+repository = "https://github.com/merely-made/mesocosm"
+publish = false
+
+# wgpu is pinned to 29 to match netrender, which owns the device in the shipped
+# architecture. Two wgpu versions in one process are two incompatible device
+# types, so this pin follows netrender rather than upstream-current.
+#
+# Backends are named explicitly because `default-features = false` turns them
+# all off, and an instance with no backend panics at construction rather than
+# reporting a missing adapter. wgpu gates each by target, so listing all four
+# is portable. A host that wants to narrow them can, since this crate also
+# accepts a device someone else created.
+[dependencies]
+mesocosm-core = { workspace = true }
+mesocosm-mesh = { workspace = true }
+wgpu = { version = "29", default-features = false, features = [
+    "std",
+    "wgsl",
+    "dx12",
+    "vulkan",
+    "metal",
+    "gles",
+] }
+bytemuck = { version = "1", features = ["derive"] }
+glam = "0.30"
+pollster = "0.4"
+
+[dev-dependencies]
+# Only for the example that writes a frame to disk for a human to look at.
+png = "0.17"
+mesocosm-runtime = { workspace = true }

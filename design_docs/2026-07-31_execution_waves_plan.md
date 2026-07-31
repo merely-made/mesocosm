@@ -276,6 +276,26 @@ round-trip:
   plan predicted, and it arrived earlier than expected: **Isometry's baker
   (wave 1.4) wants the same quads**, so the projection split is
   mesh-once-then-render-many rather than two independent pipelines.
+- **2026-07-31, wave 1.2. A part's local origin is its lowest corner, not a
+  pivot, and the body document needs to say which it wants.** This is the first
+  finding that came from *looking at a render* rather than from a test, which is
+  the argument for keeping a human in this loop. Every visual test passed while
+  the first rendered body had its limbs **floating in space beside the torso**,
+  because a test can assert that a part is drawn and that the silhouette
+  widened, and both were true of a detached limb.
+
+  Two consequences follow, and they are the same underspecification seen twice.
+  Attaching a part flush requires knowing that part's size, so an author cannot
+  write an offset without consulting the volume. And **rotation turns a part
+  about its corner**, so a limb that was flush swings off its joint when yawed,
+  which is why the example holds yaw at zero.
+
+  The fix belongs in the body document as a **per-part pivot**, the origin an
+  attachment frame is measured from and a rotation turns about. The plan already
+  calls for the `.vox` importer to strip marker voxels and write explicit
+  attachment frames; this says what those frames must carry. Deferred rather
+  than done, because the right pivot convention is easier to choose once real
+  authored parts exist. Recorded so it is not rediscovered as a rendering bug.
 
 ---
 

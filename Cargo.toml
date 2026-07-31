@@ -16,11 +16,12 @@ exclude = ["design_docs/"]
 # Game and application crates use MPL-2.0. A genuinely reusable library may
 # declare MIT OR Apache-2.0 in its own manifest after its boundary is proven.
 [workspace]
-members = ["crates/mesocosm-core", "crates/mesocosm-mesh", "crates/mesocosm-runtime"]
+members = ["crates/mesocosm-core", "crates/mesocosm-mesh", "crates/mesocosm-render", "crates/mesocosm-runtime"]
 
 [workspace.dependencies]
 mesocosm-core = { path = "crates/mesocosm-core", version = "0.0.1" }
 mesocosm-mesh = { path = "crates/mesocosm-mesh", version = "0.0.1" }
+mesocosm-render = { path = "crates/mesocosm-render", version = "0.0.1" }
 mesocosm-runtime = { path = "crates/mesocosm-runtime", version = "0.0.1" }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 postcard = { version = "1", default-features = false, features = ["alloc"] }

@@ -273,6 +273,16 @@ explicitly declined in writing.
 
 *Verified facts discovered during the work, dated, with references.*
 
+- **2026-07-31: attachment frames need a per-part pivot.** `Attachment` today
+  carries an offset and a yaw, and a part's local origin is its **lowest
+  corner**. That makes an offset corner-to-corner rather than socket-to-socket,
+  so attaching flush requires knowing the part's size, and a yaw turns the part
+  about its corner so a flush limb swings off its joint. §3's portable artifact
+  should carry a pivot per part: the point an attachment frame measures from and
+  a rotation turns about. Found by rendering, not by testing; every visual
+  assertion passed while limbs floated beside the torso. Deferred until real
+  authored parts exist, since the convention is easier to choose against them.
+
 - **2026-07-30**: `isometry-voxel` is a build-time bake pipeline (.vox ingest,
   recipes, palette swaps, isometric sprite output). It does not demonstrate
   runtime part attachment, so R1 is a genuine unknown rather than an
