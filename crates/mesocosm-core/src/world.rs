@@ -39,7 +39,12 @@ pub struct MorselId(pub u32);
 pub enum Intent {
     /// Move the critter by a voxel delta.
     Move { delta: [i32; 3] },
-    /// Eat a morsel and incorporate it at the given attachment.
+    /// Eat a morsel and let the body plan decide where it goes. **The
+    /// default.** Growth is automatic and symmetric; the player shapes the
+    /// plan, not the placement.
+    Incorporate { morsel: MorselId },
+    /// Eat a morsel and place it explicitly. The editor path: total control is
+    /// possible, but it is never the resting state.
     Metabolize {
         morsel: MorselId,
         parent: PartId,
@@ -60,12 +65,18 @@ pub enum Rejection {
     NoSuchParent(PartId),
     OutOfReach,
     InsufficientMass,
+    /// The body plan found nowhere for a part of this shape to go. Refusing is
+    /// correct: forcing it would overlap existing parts, and a plan that
+    /// cannot place something is telling you to change the plan.
+    NoRoom,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Outcome {
     Moved,
     Incorporated { part: PartId },
+    /// A bilateral plan grew a mirrored pair from one meal, splitting its mass.
+    IncorporatedPair { part: PartId, mirror: PartId },
     Deposited { morsel: MorselId },
     Idled,
     Rejected(Rejection),
@@ -83,6 +94,20 @@ pub struct World {
     next_morsel: u32,
     /// Metabolic budget in milligrams. Spent by moving, gained by eating.
     pub energy_mg: u64,
+}
+
+/// The half-extent of a morsel, by its volume tag.
+///
+/// Shapes vary so that [`crate::plan::classify`] finds real roles: a world of
+/// identical cubes can only ever grow mass. A host's volumes must match, since
+/// this is what placement and physics read.
+pub fn morsel_extent(tag: u8) -> [i32; 3] {
+    match tag % 4 {
+        0 => [3, 1, 1],
+        1 => [1, 3, 1],
+        2 => [3, 1, 3],
+        _ => [2, 2, 2],
+    }
 }
 
 /// How far the critter can reach to eat, in voxel units.
@@ -111,7 +136,7 @@ impl World {
                 species,
                 volume: VolumeRef::from_tag(16 + (index % 8) as u8),
                 mass_mg: mass,
-                half_extent: [1, 1, 1],
+                half_extent: morsel_extent(16 + (index % 8) as u8),
                 position: [x, y, z],
             });
         }
@@ -157,6 +182,8 @@ impl World {
                 }
                 Outcome::Moved
             }
+
+            Intent::Incorporate { morsel } => self.incorporate(morsel),
 
             Intent::Metabolize { morsel, parent, offset, yaw } => {
                 let Some(index) = self.morsels.iter().position(|m| m.id == morsel) else {
@@ -213,6 +240,64 @@ impl World {
                 });
                 Outcome::Deposited { morsel: id }
             }
+        }
+    }
+
+    /// Eats a morsel and grows it where the plan says.
+    fn incorporate(&mut self, morsel: MorselId) -> Outcome {
+        let Some(index) = self.morsels.iter().position(|m| m.id == morsel) else {
+            return Outcome::Rejected(Rejection::NoSuchMorsel(morsel));
+        };
+        if !self.within_reach(self.morsels[index].position) {
+            return Outcome::Rejected(Rejection::OutOfReach);
+        }
+
+        let Some(growth) = crate::growth::resolve(&self.body, self.morsels[index].half_extent)
+        else {
+            return Outcome::Rejected(Rejection::NoRoom);
+        };
+
+        let eaten = self.morsels.remove(index);
+        let provenance = Provenance {
+            origin: Origin::Incorporated {
+                from_species: eaten.species,
+                from_part: PartId(0),
+            },
+            epoch: self.epoch,
+        };
+
+        // A mirrored pair splits the mass it came from, so the budget stays
+        // honest however symmetric the body becomes.
+        let parts = if growth.mirror.is_some() { 2 } else { 1 };
+        let each = eaten.mass_mg / parts;
+
+        let Ok(part) = self.body.attach(
+            eaten.volume,
+            each,
+            eaten.half_extent,
+            crate::growth::attachment(&growth),
+            provenance.clone(),
+        ) else {
+            self.morsels.insert(index, eaten);
+            return Outcome::Rejected(Rejection::NoRoom);
+        };
+
+        self.energy_mg += eaten.mass_mg / 2;
+
+        match crate::growth::mirror_attachment(&growth) {
+            Some(mirrored) => {
+                match self.body.attach(
+                    eaten.volume,
+                    each,
+                    eaten.half_extent,
+                    mirrored,
+                    provenance,
+                ) {
+                    Ok(mirror) => Outcome::IncorporatedPair { part, mirror },
+                    Err(_) => Outcome::Incorporated { part },
+                }
+            }
+            None => Outcome::Incorporated { part },
         }
     }
 

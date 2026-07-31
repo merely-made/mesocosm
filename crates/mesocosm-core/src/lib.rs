@@ -41,6 +41,8 @@
 //! ```
 
 pub mod body;
+pub mod growth;
+pub mod plan;
 pub mod rng;
 pub mod snapshot;
 pub mod world;
@@ -49,6 +51,8 @@ pub use body::{
     Aabb, AttachError, Attachment, BodyDocument, Origin, Part, PartId, Provenance, SpeciesId,
     VolumeRef, Yaw,
 };
+pub use growth::{Growth, resolve};
+pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use rng::Rng;
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use world::{Intent, Morsel, MorselId, Outcome, Rejection, World};

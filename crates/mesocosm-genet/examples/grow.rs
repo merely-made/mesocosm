@@ -78,7 +78,30 @@ fn main() {
         .map(|v| v.solid_count())
         .sum();
 
+    // Lateral balance is the check that matters for a bilateral plan: a
+    // mirrored body keeps its centre of mass on the midline.
+    let centre = world.body.centre_of_mass();
+    let pairs = world
+        .body
+        .parts
+        .iter()
+        .filter(|p| {
+            let Some(at) = world.body.world_offset(p.id) else {
+                return false;
+            };
+            at[0] != 0
+        })
+        .count();
+
     println!("ate {eaten}, body has {} parts", world.body.len());
+    // The midline is the root's centre, not the origin, because a part's
+    // position is its lowest corner.
+    let midline = world.body.part(world.body.root).map(|p| p.half_extent[0]).unwrap_or(0);
+    println!(
+        "centre of mass {centre:?}; midline x={midline} -> {}",
+        if centre[0] == midline { "balanced" } else { "DRIFTING" }
+    );
+    println!("{pairs} parts sit off the midline");
     println!("mass {} mg", world.total_mass_mg());
     println!(
         "voxels: {} placed, {} expected{}",

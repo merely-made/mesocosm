@@ -15,6 +15,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::plan::BodyPlan;
+
 /// Stable index into [`BodyDocument::parts`]. Never reused within a body.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PartId(pub u32);
@@ -172,6 +174,9 @@ impl Aabb {
 pub struct BodyDocument {
     pub species: SpeciesId,
     pub root: PartId,
+    /// The heritable rules that decide where growth goes. Parts fill in during
+    /// an epoch; this changes between them.
+    pub plan: BodyPlan,
     /// Ordered by `PartId`, so iteration is deterministic.
     pub parts: Vec<Part>,
 }
@@ -191,6 +196,7 @@ impl BodyDocument {
         Self {
             species,
             root,
+            plan: BodyPlan::default(),
             parts: vec![Part {
                 id: root,
                 volume,
@@ -291,6 +297,12 @@ impl BodyDocument {
 
     /// Mass-weighted centre in voxel units, rounded toward zero.
     ///
+    /// Uses each part's **centre**, not its origin. A part's origin is its
+    /// lowest corner, so averaging origins biases the result by every part's
+    /// size and reports a balance the body does not have. This is the same
+    /// corner-versus-pivot confusion recorded in the body pipeline plan,
+    /// surfacing a third time.
+    ///
     /// Accumulated in `i128` so a large body cannot overflow into a different
     /// answer on a different platform.
     pub fn centre_of_mass(&self) -> [i32; 3] {
@@ -304,7 +316,8 @@ impl BodyDocument {
                 continue;
             };
             for axis in 0..3 {
-                acc[axis] += pos[axis] as i128 * part.mass_mg as i128;
+                let centre = pos[axis] + part.half_extent[axis];
+                acc[axis] += centre as i128 * part.mass_mg as i128;
             }
         }
         let total = total as i128;
@@ -374,7 +387,10 @@ mod tests {
     #[test]
     fn attaching_moves_the_centre_of_mass() {
         let mut body = seed_body();
-        assert_eq!(body.centre_of_mass(), [0, 0, 0]);
+        // The root spans 0..4 with half-extent 2, so its centre is [2, 2, 2].
+        // A lone body's centre of mass is its own centre, not its corner.
+        assert_eq!(body.centre_of_mass(), [2, 2, 2]);
+
         body.attach(
             VolumeRef::from_tag(2),
             1_000,
@@ -383,7 +399,10 @@ mod tests {
             Provenance::founding(),
         )
         .unwrap();
-        assert_eq!(body.centre_of_mass(), [5, 0, 0]);
+
+        // Equal masses at centres [2,2,2] and [11,1,1], so the mean is
+        // [6.5, 1.5, 1.5], truncated toward zero.
+        assert_eq!(body.centre_of_mass(), [6, 1, 1]);
     }
 
     #[test]
