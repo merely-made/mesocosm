@@ -48,11 +48,16 @@ pub mod rng;
 pub mod snapshot;
 pub mod world;
 
+pub mod chronicle;
+pub mod wire;
+
 pub use body::{
     Aabb, AttachError, Attachment, BodyDocument, Origin, Part, PartId, Provenance, SpeciesId,
     VolumeRef, Yaw,
 };
+pub use chronicle::{Chronicle, Consequence, Deed, PartOrigin, generate};
 pub use growth::{Growth, resolve};
+pub use wire::{WireError, frame, unframe};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use rng::Rng;
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};

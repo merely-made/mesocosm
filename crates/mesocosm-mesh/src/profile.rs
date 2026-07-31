@@ -67,7 +67,7 @@
 //! is then recoverable per voxel, and a reader that does not care can ignore
 //! it entirely.
 
-use mesocosm_core::{BodyDocument, Origin};
+use mesocosm_core::{BodyDocument, PartOrigin, wire};
 use serde::{Deserialize, Serialize};
 
 use crate::{MeshError, VolumeSource, flatten::flatten_attributed};
@@ -76,37 +76,15 @@ use crate::{MeshError, VolumeSource, flatten::flatten_attributed};
 /// reader knows what it is holding before it opens it.
 pub const PROFILE_SCHEMA: &str = "mesocosm.body/v0";
 
-/// Fixed-position header magic. Never changes; a new schema gets a new
-/// version number, not new magic.
+/// Schema magic. See [`mesocosm_core::wire`] for why this sits outside the
+/// payload rather than in a version field the decoder cannot reach.
 pub const PROFILE_MAGIC: [u8; 8] = *b"MESOBODY";
 
-/// The version the header carries, and the only one this build accepts.
+/// The only version this build accepts.
 pub const PROFILE_VERSION: u16 = 0;
 
 /// Bytes before the payload: magic plus a little-endian `u16`.
-pub const HEADER_LEN: usize = 10;
-
-/// What one part records about where it came from.
-///
-/// Flat on purpose: `None` for both species and part means the part was there
-/// when the lineage was founded, and any other combination means it was taken
-/// from somebody. A reader needs no enum from this crate to tell those apart.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PartOrigin {
-    /// The species this part was taken from. `None` at founding.
-    pub from_species: Option<u32>,
-    /// The part's identity in the body it was taken from. `None` at founding.
-    pub from_part: Option<u32>,
-    /// The epoch during which this part joined the body.
-    pub epoch: u64,
-}
-
-impl PartOrigin {
-    /// Whether this part was taken from another organism.
-    pub fn is_incorporated(&self) -> bool {
-        self.from_species.is_some()
-    }
-}
+pub const HEADER_LEN: usize = wire::HEADER_LEN;
 
 /// A body projected for crossing: the grid a baker can consume, and the
 /// history that grid would otherwise lose.
@@ -130,47 +108,16 @@ pub struct BodyProfile {
     pub parts: Vec<PartOrigin>,
 }
 
-/// Why a profile could not be read. Every variant is a refusal rather than a
-/// silent fallback: a reader that cannot tell what it is holding must say so.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ProfileError {
-    /// Fewer bytes than a header. Not a profile.
-    TooShort { got: usize },
-    /// The magic does not match. These bytes are something else entirely.
-    NotAProfile { found: [u8; 8] },
-    /// The magic matched, so this *is* a profile — written by a build that
-    /// does not agree with this one about the payload's shape. The refusal
-    /// the plan required, and the reason the header is not inside the payload.
-    UnknownVersion { found: u16, expected: u16 },
-    /// The header was good and the payload was not. A truncated or corrupted
-    /// blob, distinct from a version disagreement.
-    Malformed,
-    /// The payload decoded but contradicts itself: the attribution grid does
-    /// not match the occupancy grid it claims to describe.
-    Inconsistent { cells: usize, attribution: usize },
-}
+/// Why a profile could not be read. The shared wire error, so every reader in
+/// the wing refuses for the same reasons and handles one type.
+pub type ProfileError = wire::WireError;
 
 impl BodyProfile {
     /// Projects a body and the voxels its parts refer to into a crossable
     /// artifact.
     pub fn of(body: &BodyDocument, source: &impl VolumeSource) -> Result<Self, MeshError> {
         let (flattened, attribution) = flatten_attributed(body, source)?;
-        let parts = body
-            .parts
-            .iter()
-            .map(|part| match part.provenance.origin {
-                Origin::Founding => PartOrigin {
-                    from_species: None,
-                    from_part: None,
-                    epoch: part.provenance.epoch,
-                },
-                Origin::Incorporated { from_species, from_part } => PartOrigin {
-                    from_species: Some(from_species.0),
-                    from_part: Some(from_part.0),
-                    epoch: part.provenance.epoch,
-                },
-            })
-            .collect();
+        let parts = body.parts.iter().map(|part| PartOrigin::from(&part.provenance)).collect();
 
         Ok(Self {
             species: body.species.0,
@@ -212,62 +159,30 @@ impl BodyProfile {
             .unwrap_or(0)
     }
 
-    /// Serializes with the fixed-position header ahead of the payload.
-    pub fn to_bytes(&self) -> Result<Vec<u8>, MeshError> {
-        let mut bytes = Vec::with_capacity(HEADER_LEN + self.cells.len());
-        bytes.extend_from_slice(&PROFILE_MAGIC);
-        bytes.extend_from_slice(&PROFILE_VERSION.to_le_bytes());
-        let payload = postcard::to_allocvec(self).map_err(|_| MeshError::Encode)?;
-        bytes.extend_from_slice(&payload);
-        Ok(bytes)
+    /// Serializes behind the schema header.
+    pub fn to_bytes(&self) -> Result<Vec<u8>, ProfileError> {
+        wire::frame(PROFILE_MAGIC, PROFILE_VERSION, self)
     }
 
     /// Reads bytes written by [`to_bytes`](Self::to_bytes), refusing anything
     /// it cannot vouch for.
     ///
-    /// The order matters: magic, then version, then payload. Checking the
-    /// version before decoding is the whole point — a profile from a future
-    /// build is diagnosed rather than mis-decoded.
+    /// Framing refuses on magic and version before touching the payload; this
+    /// adds the checks only this schema can make. A well-formed decode can
+    /// still be an incoherent document, and the three arrays are only useful
+    /// together, so disagreement is a refusal rather than something every
+    /// reader has to notice for itself.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ProfileError> {
-        if bytes.len() < HEADER_LEN {
-            return Err(ProfileError::TooShort { got: bytes.len() });
-        }
+        let profile: Self = wire::unframe(PROFILE_MAGIC, PROFILE_VERSION, bytes)?;
 
-        let magic: [u8; 8] = bytes[..8].try_into().expect("checked length");
-        if magic != PROFILE_MAGIC {
-            return Err(ProfileError::NotAProfile { found: magic });
-        }
-
-        let version = u16::from_le_bytes([bytes[8], bytes[9]]);
-        if version != PROFILE_VERSION {
-            return Err(ProfileError::UnknownVersion {
-                found: version,
-                expected: PROFILE_VERSION,
-            });
-        }
-
-        let profile: Self =
-            postcard::from_bytes(&bytes[HEADER_LEN..]).map_err(|_| ProfileError::Malformed)?;
-
-        // A well-formed decode can still be an incoherent document. The three
-        // arrays are only useful together, so disagreement is a refusal rather
-        // than something a reader has to notice for itself.
         let cells = profile.cell_count();
-        if cells != profile.cells.len() || cells != profile.attribution.len() {
-            return Err(ProfileError::Inconsistent {
-                cells,
-                attribution: profile.attribution.len(),
-            });
-        }
-        if let Some(highest) = profile.attribution.iter().copied().max()
-            && highest as usize > profile.parts.len()
+        let highest = profile.attribution.iter().copied().max().unwrap_or(0) as usize;
+        if cells != profile.cells.len()
+            || cells != profile.attribution.len()
+            || highest > profile.parts.len()
         {
-            return Err(ProfileError::Inconsistent {
-                cells: profile.parts.len(),
-                attribution: highest as usize,
-            });
+            return Err(ProfileError::Inconsistent);
         }
-
         Ok(profile)
     }
 
@@ -291,7 +206,7 @@ impl BodyProfile {
 mod tests {
     use super::*;
     use crate::{Volume, VolumeMap};
-    use mesocosm_core::{Attachment, PartId, Provenance, SpeciesId, VolumeRef, Yaw};
+    use mesocosm_core::{Attachment, Origin, PartId, Provenance, SpeciesId, VolumeRef, Yaw};
 
     /// A two-part body: a root, and one limb taken from another species.
     fn donated() -> (BodyDocument, VolumeMap) {
@@ -432,7 +347,7 @@ mod tests {
     fn foreign_bytes_are_refused_as_not_a_profile() {
         assert_eq!(
             BodyProfile::from_bytes(b"NOTABODY and then some payload"),
-            Err(ProfileError::NotAProfile { found: *b"NOTABODY" })
+            Err(ProfileError::WrongSchema { found: *b"NOTABODY", expected: PROFILE_MAGIC })
         );
     }
 
@@ -484,9 +399,10 @@ mod tests {
         let mut profile = profile();
         let cells = profile.cell_count();
         profile.attribution.truncate(cells - 1);
+        let _ = cells;
         assert_eq!(
             BodyProfile::from_bytes(&framed(&profile)),
-            Err(ProfileError::Inconsistent { cells, attribution: cells - 1 })
+            Err(ProfileError::Inconsistent)
         );
     }
 
@@ -499,7 +415,7 @@ mod tests {
         profile.attribution[0] = 99;
         assert_eq!(
             BodyProfile::from_bytes(&framed(&profile)),
-            Err(ProfileError::Inconsistent { cells: 2, attribution: 99 })
+            Err(ProfileError::Inconsistent)
         );
     }
 

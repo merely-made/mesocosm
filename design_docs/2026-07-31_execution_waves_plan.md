@@ -327,15 +327,79 @@ socially different* without becoming friction theatre. That is a judgment, and
 it is the right kind of judgment for this vessel: the failure mode is a
 negotiation minigame attached to routine work.
 
-### 2.4 The full Mesocosm–Isometry proof pair
+### 2.4 The full Mesocosm–Isometry proof pair — **COMPLETE 2026-07-31**
 
-Player-made **and** RNG organisms enter the same Isometry roster slot;
-Isometry adds history; Mesocosm reads the descendant back.
+The loop is closed with real bytes in both directions. Mesocosm writes a
+critter, Isometry reads it into a roster slot and adds history, Mesocosm reads
+the descendant back and founds the next generation. `mesocosm.chronicle/v0` is
+the return schema; neither repo depends on the other.
 
-This is where **interchange profile v0 becomes real**, and where Law C is
-demonstrated rather than asserted: the two organisms must be structurally
-indistinguishable in that slot, with only the player able to tell them apart,
-by pointing.
+**Law C is demonstrated, and the demonstration had to move to the consumer.**
+Mesocosm proving its own two records identical is the easy half — a writer can
+hardly be surprised by its own output. The claim that matters is that the
+*consuming* game has no way to sort them, so the test lives in
+`isometry-campaign/tests/proof_pair.rs`: given two files and nothing else, every
+question the campaign can ask returns the same kind of answer.
+
+Two things that had to be true for the proof to mean anything:
+
+- **The played critter is genuinely played.** `tests/proof_pair.rs` drives the
+  world — hunts the nearest organism, walks at it, eats it, four hundred times —
+  rather than hand-building a body. A hand-built body would prove that two
+  structs with the same fields compare equal, which is not the claim.
+- **The generated critter has a real history, at a real size.** A blank-slate
+  RNG creature is trivially distinguishable from a played one, and so is a small
+  one: **nobody needs an `is_player_made` flag to break Law C when the part
+  count already gives it away.** The first generator capped at five parts while
+  a well-fed critter reached forty-seven, so the distributions were disjoint and
+  a consumer could have guessed origin from size alone. The generator now
+  reaches the sizes play reaches, and both suites test for the overlap.
+
+**The roster slot is the one Isometry already had.** An arriving creature
+becomes a `WorldCharacter`, the same struct an authored NPC uses. A separate
+`ImportedCharacter` would have failed Law C by existing. And that struct carries
+a `faction`, so this seam is exactly where a borg becomes a character in the
+sense ruled on 2026-07-31.
+
+**The keystone is now three properties of a type rather than three phrases.**
+
+- *Additive facts*: `append` is the only mutation a chronicle has. No edit, no
+  delete, so set union is a legal merge and no game can quietly rewrite another's
+  record.
+- *Opaque preservation*: a deed carries the writing game's own vessel name, its
+  own verb, and a payload nobody else parses. `tests/homecoming.rs` asserts that
+  Isometry's facts come home byte for byte and survive being re-emitted, because
+  fact loss happens by omission and omissions are not caught by review.
+- *Deferred interpretation*: Isometry records what happened; Mesocosm decides
+  what it means for a body. `Chronicle::found` reads the record without
+  consuming it, so the next game sees everything this one saw.
+
+**The round trip forced a distinction the design had not named.** A game's own
+verbs are opaque, so their payload can be anything — Isometry writes JSON. But a
+verb *two games both act on* is a contract, and needs an agreed payload. Writing
+a `HistoryEvent` whose kind is `"lost-part"` therefore does **not** claim a lost
+part; `record_loss` does, carrying the little-endian `u32` Mesocosm reads.
+Narrating a loss and claiming one in another game's anatomy are different acts,
+and a game that guessed from the prose would be inventing consequences for
+somebody else's fiction. The shared vocabulary is deliberately one verb long:
+each addition is a coupling two vessels must keep in step forever.
+
+**Law A is visible as an absence.** A chronicle carries provenance and history
+and no coordinates. `geometry_did_not_travel_and_that_is_the_law` founds the same
+record twice at different scales and gets the same lineage with different
+anatomy, because the descendant is regrown here. That is what keeps the round
+trip cheap and keeps another game from dictating this one's bodies.
+
+**Framing was factored out.** `mesocosm-core::wire` now owns the magic-plus-
+version header both schemas ride, so the refusal contract is written once and
+every reader in the wing refuses for the same reasons. `profile.rs` lost 84
+lines to it. `mesocosm-mesh` reads `PartOrigin` from core rather than defining
+its own, so the wire form of provenance has one definition.
+
+Fixtures, all committed and all real output: `played.chronicle` and
+`rng.chronicle` from `cargo run -p mesocosm-core --example emit_chronicles`,
+`returned.chronicle` from `cargo run -p isometry-campaign --example emit_return`.
+The copies between repos are manual on purpose.
 
 ---
 
@@ -563,3 +627,11 @@ round-trip:
   rebuilt as a flat projection, because a reader would have needed
    to decode it, which is the type dependency the ruling
   forbade. Details in §1.4.
+- **2026-07-31**: **wave 2.4 complete.** The proof pair closes with real bytes
+  both directions: `mesocosm.chronicle/v0` out, Isometry adds a roster slot
+  and history, Mesocosm founds the descendant. 163 tests in mesocosm, 271 in
+  isometry, both clippy clean. Two findings worth carrying: a generator that
+  only makes small creatures breaks Law C without any marker, because part
+  count becomes the tell; and a verb two games both act on is a contract
+  needing an agreed payload, distinct from a game's own opaque vocabulary.
+  Details in §2.4.
