@@ -26,10 +26,25 @@ change.
 
 ## Status
 
-**Pre-implementation.** This repository holds a name reservation and the
-design record. There is no game code yet.
+**Early.** The simulation, the body pipeline, and a windowed host run; the
+game does not exist yet. Wave 1 of the execution plan is complete apart from
+the cross-repo projection.
+
+```sh
+cargo run -p mesocosm-genet    # WASD move, E/Space eat, arrows orbit, Esc quit
+cargo test --workspace
+```
+
+| Crate | What it is |
+| ----- | ---------- |
+| `mesocosm-core` | The simulation. Seeded, integer-only, a pure function of ordered intents. Owns all game state. |
+| `mesocosm-runtime` | Host-neutral fixed-step driving, intent queue, and replay. |
+| `mesocosm-mesh` | Body document to geometry: per-part greedy voxel meshing and rigid placement. |
+| `mesocosm-render` | wgpu body renderer, headless-first so visibility is testable. |
+| `mesocosm-genet` | The windowed host. Owns the loop and the device, never a rule. |
 
 - [Project description](design_docs/PROJECT_DESCRIPTION.md)
+- [Execution waves](design_docs/2026-07-31_execution_waves_plan.md) — what is built and what is next
 - [Founding plan](design_docs/2026-07-30_mesocosm_founding_plan.md) — design and phases M0–M5
 - [Games wing founding record](design_docs/2026-07-30_games_wing_founding.md) — shared architecture across Mesocosm, Paredros, and Isometry
 

@@ -155,7 +155,7 @@ which makes "the new part is visible" an assertable property rather than an
 opinion. The opinion that remains is whether it looks *good*, which is the right
 thing to leave to a human at a screen.
 
-### 1.4 The Isometry projection
+### 1.4 The Isometry projection — **in progress 2026-07-31**
 
 Teach `isometry-voxel` to consume **`BodyDocument v0`** and emit a sprite plus
 a bake receipt. `.vox` remains an **authoring input**, never the interchange
@@ -164,6 +164,35 @@ object.
 **Done when** one critter completes
 `body document → Isometry sprite → body/profile round-trip`
 with part provenance intact.
+
+**Landed: the flattening half.** `mesocosm-mesh::flatten` composes a whole body
+into one occupancy grid with a body-space origin, handling negative placements
+by shifting the origin rather than clipping. That is precisely what
+`isometry-voxel::bake_facing` consumes, so **Isometry's baker needs no change**;
+what was missing was the adapter, not a feature.
+
+**Open, and it is a decision rather than work: which side holds the seam.**
+`Voxels` and `Palette` live in `isometry-voxel`; `Flattened` lives here. One of
+four has to happen, and the choice is Mark's because it sets a coupling
+direction for the whole wing:
+
+1. **Mesocosm depends on `isometry-voxel`** (git dep). Smallest diff. Couples a
+   game to a VTT's asset crate, which is backwards but survivable since
+   `isometry-voxel` is nearly standalone.
+2. **Isometry depends on `mesocosm-core`.** Worse: a general VTT would depend on
+   one specific game.
+3. **Extract the body document into a neutral crate** both consume. Correct by
+   the wing's own extraction rule, since two real consumers now exist, and it
+   would be MIT/Apache under the licensing split as a genuinely reusable
+   library. Costs a naming round and a new published crate.
+4. **Couple by data, not types.** Mesocosm writes the grid through
+   `mere.pack/v1`; Isometry reads it with its own thirty-line adapter. Most
+   consistent with the wing's law that games interoperate through data rather
+   than type dependencies, and the only option that scales to a third game.
+
+Recommendation: **4 now, 3 when a third consumer appears.** Option 4 needs no
+name, no publish, and no cross-repo dependency, and it is what the interop
+model already says should happen.
 
 ### Where Bones goes
 
@@ -284,10 +313,18 @@ round-trip:
   skipped part. The tempting behaviour is to draw what resolves and move on,
   which yields an invisible limb and a silent divergence between a body's
   physics and its picture. `MeshError::MissingVolume` names the part.
-- **2026-07-31, wave 1.2.** The mesher is the shared organ the body pipeline
-  plan predicted, and it arrived earlier than expected: **Isometry's baker
-  (wave 1.4) wants the same quads**, so the projection split is
-  mesh-once-then-render-many rather than two independent pipelines.
+- ~~**2026-07-31, wave 1.2.** The mesher is the shared organ… Isometry's baker
+  wants the same quads.~~ **Wrong, corrected 2026-07-31 by reading the code.**
+  `isometry-voxel::bake_facing` takes a `Voxels` **occupancy grid** and projects
+  it voxel by voxel with depth sorting. It has never wanted quads.
+
+  The corrected shape is better, and smaller. There are **two projections off
+  one document**: a live renderer wants quads meshed per part and kept separate
+  so limbs can move; a sprite baker wants a single grid, because a baked sprite
+  has no moving parts. `mesocosm-mesh::flatten` composes a body into one grid
+  and is the adapter that lane needs, so **Isometry's baker requires no change
+  at all**. The shared organ is the body *document*, which is what the body
+  pipeline plan said in the first place; the quads were my embellishment.
 - **2026-07-31, wave 1.2. A part's local origin is its lowest corner, not a
   pivot, and the body document needs to say which it wants.** This is the first
   finding that came from *looking at a render* rather than from a test, which is

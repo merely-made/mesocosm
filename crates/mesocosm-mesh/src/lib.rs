@@ -5,9 +5,14 @@
 
 //! Turns a body document into geometry.
 //!
-//! A projection, not a renderer. It emits quads in integer voxel space; a host
-//! turns those into vertex buffers, and Isometry's baker turns the same quads
-//! into sprites. Nothing here touches a GPU.
+//! A projection, not a renderer. It emits quads in integer voxel space and a
+//! host turns those into vertex buffers. Nothing here touches a GPU.
+//!
+//! **Two projections, not one.** A live renderer wants quads, meshed per part
+//! and kept separate so limbs can move. A sprite baker wants the opposite: one
+//! occupancy grid to project voxel by voxel, since a baked sprite has no moving
+//! parts. [`flatten`] serves that lane. The shared organ is the body *document*,
+//! not the quads.
 //!
 //! # The shape
 //!
@@ -32,6 +37,7 @@
 //! so a part that cannot be drawn is a reported failure and not an invisible
 //! critter.
 
+pub mod flatten;
 pub mod greedy;
 pub mod volume;
 
@@ -39,6 +45,7 @@ use std::collections::BTreeMap;
 
 use mesocosm_core::{BodyDocument, PartId, VolumeRef, Yaw};
 
+pub use flatten::{Flattened, flatten};
 pub use greedy::{PartMesh, Quad, mesh_volume, mesh_volume_naive};
 pub use volume::{Volume, VolumeError, VolumeMap, VolumeSource};
 
