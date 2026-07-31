@@ -511,12 +511,35 @@ second consumer.
 
 ---
 
-## 6. The next architectural threshold
+## 6. The next architectural threshold — **CROSSED 2026-07-31**
 
 Not a federation platform. **A portable world profile proven by two actual
 games.**
 
-The proof pair:
+**The proof pair is built and passing**, both directions, with committed bytes
+rather than agreeing types. Two schemas ride one framing: `mesocosm.body/v0`
+carries appearance to `isometry-voxel`, and `mesocosm.chronicle/v0` carries the
+record to `isometry-campaign` and back. Neither repo depends on the other.
+Receipts and findings in the
+[execution waves plan](2026-07-31_execution_waves_plan.md) §1.4 and §2.4.
+
+Three things the build settled that this section had not:
+
+- **The profile is a projection, not the body document.** Putting body topology
+  on the wire, as listed below, forces the reader to link `mesocosm-core` — a
+  type dependency wearing a data dependency's clothes. What crosses is
+  primitives: a flattened grid, a parallel attribution grid naming the part
+  behind each voxel, and flat per-part provenance. **Per-part provenance was the
+  right keystone**; attachment frames and parent/child structure were not, and
+  stay home as morphology.
+- **The record and the appearance are separate artifacts.** A chronicle carries
+  no geometry at all, which is Law A visible as an absence, and is why re-entry
+  regrows a body rather than restoring one.
+- **Law C's proof belongs in the consumer, and size is a tell.** A generator
+  that only makes small creatures breaks the law with no marker at all, because
+  the part count sorts them.
+
+The pair as originally specified:
 
 1. Mesocosm mints an organism.
 2. Isometry imports it as a token, preserving the opaque body plan,
@@ -544,6 +567,20 @@ It rides `mere.pack/v1`, so no new wire format is invented. Keep schema
 negotiation microscopic in v0: profile strings, versions, required and
 optional capability sets. Resist building a negotiation framework before two
 consumers exist.
+
+**Held to, and narrowed further 2026-07-31.** Negotiation is one magic and one
+`u16`, checked before any payload is decoded — a version cannot live *inside* a
+postcard payload, because a decoder cannot reach a field whose layout just
+changed. The pack envelope itself is deliberately not wired yet: a pack carries
+content-addressed blobs, and these are what goes inside one. Wiring the envelope
+means depending on eidetic, and the platform is extracted from shipped games
+rather than built before them.
+
+One rule the round trip added: **a verb two games both act on is a contract, not
+vocabulary.** A game's own verbs are opaque and may carry any payload; a shared
+verb needs an agreed one, or the reading game is inventing consequences for
+another game's fiction. The shared vocabulary is one verb long, and each
+addition is a coupling two vessels must keep in step forever.
 
 ---
 
