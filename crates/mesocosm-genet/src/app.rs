@@ -8,9 +8,9 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use mesocosm_core::{Intent, Signal};
+use mesocosm_core::{Intent, Kingdom, Organism, Signal, Stage};
 use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
-use mesocosm_render::{Camera, Renderer, SceneItem};
+use mesocosm_render::{Camera, Renderer, SceneItem, deadened, kingdom_colour};
 use mesocosm_runtime::Runtime;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, WindowEvent};
@@ -62,7 +62,34 @@ const REACH: i32 = 8;
 
 /// One drawable thing in the world: its geometry, where it sits, and how
 /// brightly it reads.
-type Placed = (BodyMesh, [i32; 3], f32, bool);
+type Placed = (BodyMesh, [i32; 3], f32, bool, [f32; 3], f32);
+
+/// How an organism should read on screen.
+///
+/// Colour comes from its **guise**, never its kingdom, so a simulacrum is
+/// drawn as the thing it pretends to be. Size tracks mass, so growth is
+/// visible and a sapling does not look like a giant. The dead drain toward
+/// grey.
+fn look_of(organism: &Organism) -> ([f32; 3], f32) {
+    let guise = match organism.guise {
+        Kingdom::Producer => 0,
+        Kingdom::Consumer => 1,
+        Kingdom::Decomposer => 2,
+    };
+    let colour = kingdom_colour(guise);
+
+    match organism.stage {
+        // Growth you can see: a juvenile is visibly smaller than what it will
+        // become, which is what makes waiting a decision.
+        Stage::Juvenile => (
+            [colour[0] * 0.85 + 0.1, colour[1] * 0.85 + 0.1, colour[2] * 0.85 + 0.1],
+            0.55,
+        ),
+        Stage::Mature => (colour, 1.0),
+        Stage::Carrion => (deadened(colour), 0.8),
+        Stage::Spent => (deadened(colour), 0.3),
+    }
+}
 
 /// Camera orbit state. Presentation only; never reaches the core.
 struct View {
@@ -151,11 +178,14 @@ impl Host {
             // entitled to. Whether the thing is telling the truth about itself
             // is not, and the renderer does not leak it.
             let reach_tint = if in_reach { 1.0 } else { 0.45 };
+            let (colour, scale) = look_of(organism);
             loose.push((
                 BodyMesh::single(organism.volume, volume),
                 organism.position,
                 reach_tint,
                 organism.signal == Signal::Warning,
+                colour,
+                scale,
             ));
         }
         Some((body, loose))
@@ -243,8 +273,8 @@ impl Host {
         );
         let mut items = Vec::with_capacity(loose.len() + 1);
         items.push(SceneItem::new(&body, critter_at));
-        for (mesh, at, tint, warns) in &loose {
-            items.push(SceneItem::signalling(mesh, *at, *tint, *warns));
+        for (mesh, at, tint, warns, colour, scale) in &loose {
+            items.push(SceneItem::creature(mesh, *at, *tint, *warns, *colour, *scale));
         }
         gpu.renderer.draw_scene(&mut encoder, &view, &items, &camera);
         gpu.renderer.queue().submit(Some(encoder.finish()));
@@ -276,8 +306,8 @@ impl Host {
         );
         let mut items = Vec::with_capacity(loose.len() + 1);
         items.push(SceneItem::new(&body, critter_at));
-        for (mesh, at, tint, warns) in &loose {
-            items.push(SceneItem::signalling(mesh, *at, *tint, *warns));
+        for (mesh, at, tint, warns, colour, scale) in &loose {
+            items.push(SceneItem::creature(mesh, *at, *tint, *warns, *colour, *scale));
         }
         let Ok(frame) = shot.render_scene(&items, &self.camera()) else {
             return;

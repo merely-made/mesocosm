@@ -465,3 +465,25 @@ round-trip:
   signal must be seen to mean anything, but a bluffer wears the same colours
   as something genuinely armed. Reach is dimmed because that is information
   the player is entitled to; honesty is not.
+- **2026-07-31. "A tad abstract."** Mark's read of the signalling capture, and
+  correct: the simulation had plants, grazers, corpses, saplings and giants in
+  it, and the render had **confetti**. Every organism was an identically-shaped
+  box in a hash-derived colour, so a rich ecology was invisible. This is Law B
+  turned on the world rather than on the player's marks — depth nobody can
+  perceive is procedural noise, whoever it belongs to.
+
+  Three cheap changes, all presentation:
+
+  - **Colour by kingdom**: green makes its own living, ochre eats, violet works
+    the dead. A role is now readable at a glance.
+  - **Colour by *guise*, never by kingdom.** A simulacrum is drawn as the thing
+    it pretends to be, so the picture can be lied to. The renderer must not
+    leak what the player has to learn.
+  - **Scale by stage**: a juvenile is visibly smaller than what it will become,
+    which is what makes waiting a decision rather than a delay. The dead drain
+    toward grey.
+
+  The player's own body deliberately keeps **material** colours rather than
+  kingdom colours, because its parts came from different species and that
+  patchwork *is* its provenance. The world is colour-coded by role; you are
+  colour-coded by history.

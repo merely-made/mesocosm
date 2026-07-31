@@ -50,6 +50,36 @@ pub fn material_colour(material: u8) -> [f32; 3] {
     [r, g, b]
 }
 
+/// The colour of a way of making a living.
+///
+/// Colour by **guise**, never by kingdom: a thing is drawn as what it presents
+/// as, so a simulacrum reads as the thing it is pretending to be. The picture
+/// is allowed to be lied to.
+///
+/// This replaces hashing the material id, which produced a legible *palette*
+/// and an illegible *world*. The simulation had plants, grazers, and corpses
+/// in it; the render had confetti.
+pub fn kingdom_colour(guise: u8) -> [f32; 3] {
+    match guise {
+        // Producer: green, the colour of something making its own living.
+        0 => [0.42, 0.68, 0.34],
+        // Consumer: warm ochre, the colour of something that eats.
+        1 => [0.78, 0.47, 0.28],
+        // Decomposer: pale violet, the colour of something working the dead.
+        _ => [0.60, 0.52, 0.70],
+    }
+}
+
+/// Drains a colour toward grey. Used for the dead.
+pub fn deadened(colour: [f32; 3]) -> [f32; 3] {
+    let grey = (colour[0] + colour[1] + colour[2]) / 3.0 * 0.55;
+    [
+        colour[0] * 0.25 + grey,
+        colour[1] * 0.25 + grey,
+        colour[2] * 0.25 + grey,
+    ]
+}
+
 /// Shifts a colour toward a warning: hot, saturated, conspicuous.
 ///
 /// A signal has to be *seen* to mean anything. This is the visual half of
@@ -88,19 +118,32 @@ pub struct SceneItem<'a> {
     pub tint: f32,
     /// Whether this thing is advertising danger. A claim, not a fact.
     pub warns: bool,
+    /// Replaces the material colour outright, when a caller knows something
+    /// more meaningful than a hash of a material id.
+    pub recolour: Option<[f32; 3]>,
+    /// Scales the body about its own origin. Growth you can see.
+    pub scale: f32,
 }
 
 impl<'a> SceneItem<'a> {
     pub fn new(mesh: &'a BodyMesh, origin: [i32; 3]) -> Self {
-        Self { mesh, origin, tint: 1.0, warns: false }
+        Self { mesh, origin, tint: 1.0, warns: false, recolour: None, scale: 1.0 }
     }
 
     pub fn tinted(mesh: &'a BodyMesh, origin: [i32; 3], tint: f32) -> Self {
-        Self { mesh, origin, tint, warns: false }
+        Self { tint, ..Self::new(mesh, origin) }
     }
 
-    pub fn signalling(mesh: &'a BodyMesh, origin: [i32; 3], tint: f32, warns: bool) -> Self {
-        Self { mesh, origin, tint, warns }
+    /// A living thing, drawn as what it appears to be and how big it has got.
+    pub fn creature(
+        mesh: &'a BodyMesh,
+        origin: [i32; 3],
+        tint: f32,
+        warns: bool,
+        colour: [f32; 3],
+        scale: f32,
+    ) -> Self {
+        Self { mesh, origin, tint, warns, recolour: Some(colour), scale }
     }
 }
 
@@ -108,7 +151,7 @@ impl<'a> SceneItem<'a> {
 pub fn build_scene_vertices(items: &[SceneItem]) -> Vec<Vertex> {
     let mut out = Vec::new();
     for item in items {
-        append_body(&mut out, item.mesh, item.origin, item.tint, item.warns);
+        append_body(&mut out, item);
     }
     out
 }
@@ -120,24 +163,19 @@ pub fn build_scene_vertices(items: &[SceneItem]) -> Vec<Vertex> {
 /// renderer draws as an empty frame rather than treating as an error.
 pub fn build_vertices(mesh: &BodyMesh) -> Vec<Vertex> {
     let mut out = Vec::new();
-    append_body(&mut out, mesh, [0, 0, 0], 1.0, false);
+    append_body(&mut out, &SceneItem::new(mesh, [0, 0, 0]));
     out
 }
 
-fn append_body(
-    out: &mut Vec<Vertex>,
-    mesh: &BodyMesh,
-    origin: [i32; 3],
-    tint: f32,
-    warns: bool,
-) {
+fn append_body(out: &mut Vec<Vertex>, item: &SceneItem) {
+    let SceneItem { mesh, origin, tint, warns, recolour, scale } = *item;
     for placement in &mesh.placements {
         let Some(part_mesh) = mesh.mesh_for(placement.volume) else {
             continue;
         };
         for quad in &part_mesh.quads {
             let shade = face_shade(quad.axis, quad.positive);
-            let base = material_colour(quad.material);
+            let base = recolour.unwrap_or_else(|| material_colour(quad.material));
             let base = if warns { warning_colour(base) } else { base };
             let colour = [base[0] * shade, base[1] * shade, base[2] * shade];
 
@@ -151,9 +189,9 @@ fn append_body(
                     placement.pivot_at,
                 );
                 [
-                    (placed[0] + origin[0]) as f32,
-                    (placed[1] + origin[1]) as f32,
-                    (placed[2] + origin[2]) as f32,
+                    placed[0] as f32 * scale + origin[0] as f32,
+                    placed[1] as f32 * scale + origin[1] as f32,
+                    placed[2] as f32 * scale + origin[2] as f32,
                 ]
             });
 

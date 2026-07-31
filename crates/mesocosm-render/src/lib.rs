@@ -29,7 +29,10 @@ use mesocosm_mesh::BodyMesh;
 use wgpu::util::DeviceExt;
 
 pub use camera::Camera;
-pub use geometry::{SceneItem, Vertex, build_scene_vertices, build_vertices, face_shade, material_colour};
+pub use geometry::{
+    SceneItem, Vertex, build_scene_vertices, build_vertices, deadened, face_shade,
+    kingdom_colour, material_colour, warning_colour,
+};
 
 /// Colour the frame is cleared to. Distinct from every material colour, so
 /// coverage can be measured by "not this".
