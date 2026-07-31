@@ -20,7 +20,7 @@ evidence rather than argument. Nothing here is a game yet, and that is
 deliberate — but see the standing caveat in Wave 2.1, which is the reason this
 wave is not allowed to expand.
 
-### 1.1 `mesocosm-core`
+### 1.1 `mesocosm-core` — **LANDED 2026-07-31**
 
 Own the core: seeded simulation, ordered inputs, snapshots, state hashing, the
 body graph, provenance, and the smallest possible metabolize/attach operation.
@@ -31,6 +31,20 @@ holding literally.
 
 **Done when** the fixture replays identically, provenance round-trips, and
 attaching a part changes the core's mass and collision state.
+
+**All three met.** `crates/mesocosm-core`, 30 tests, clippy clean, no host or
+graphics dependencies (serde and postcard only). The shared fixture lives in
+`tests/replay.rs` and is what waves 1.2 and 1.3 replay.
+
+The design decision worth carrying forward: **the core is integer-only.**
+Voxel coordinates, masses in milligrams, and quarter-turn rotations are exact
+on every platform, so a replay cannot diverge on a different machine's
+floating-point behaviour. This is a stronger guarantee than the R0 note
+anticipated, which had float physics behind a seam but still inside the
+determinism argument. Float physics now sits wholly outside the core, and
+`rapier`'s `enhanced-determinism` stops being load-bearing for replay
+equivalence: a host may use floats freely, provided it does not feed derived
+float state back into the core.
 
 ### 1.2 The Genet host
 
@@ -140,11 +154,30 @@ round-trip:
 
 ## Findings
 
-*Verified facts discovered during the work, dated, with references. Empty at
-plan time.*
+- **2026-07-31, wave 1.1.** An integer-only core removes float determinism
+  from the replay argument entirely, rather than managing it. Voxel units,
+  milligram masses, quarter-turn rotations, and an `i128` accumulator for
+  centre-of-mass are exact everywhere. Consequence for wave 1.3: the two hosts
+  must agree on a state hash, and neither host's physics backend can affect
+  that, because host physics never writes to the core. If a host ever needs to
+  push a derived float back in, that is the moment this guarantee breaks and
+  the decision should be surfaced rather than absorbed.
+- **2026-07-31, wave 1.1.** Rejections are recorded outcomes rather than
+  errors. An intent that cannot apply still advances the tick and returns
+  `Outcome::Rejected`, so a replay that rejects the same intents stays
+  identical. This matters for the host probe: a host that silently drops an
+  invalid intent instead of submitting it will diverge.
+- **2026-07-31, wave 1.1.** The body needed `world_yaw` alongside
+  `world_offset`. Position alone would let a projection draw every part
+  unrotated, which was a real gap in the portable document rather than a
+  rendering detail.
 
 ---
 
 ## Progress
 
-- **2026-07-31**: waves ruled and recorded. No code.
+- **2026-07-31**: waves ruled and recorded.
+- **2026-07-31**: **wave 1.1 landed.** `crates/mesocosm-core` with body graph,
+  provenance, seeded stream, ordered intents, whole-world snapshots, and FNV
+  state hashing. 30 tests, clippy clean. Deps: serde, postcard. The fixture in
+  `tests/replay.rs` is the shared artifact waves 1.2 and 1.3 compare against.

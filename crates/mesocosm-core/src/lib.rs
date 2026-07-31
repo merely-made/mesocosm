@@ -1,0 +1,54 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// SPDX-License-Identifier: MPL-2.0
+
+//! Mesocosm's simulation core.
+//!
+//! **The core owns game state; hosts only project it.** A host sends
+//! [`Intent`]s and reads the world back. It never mutates world state, and it
+//! never re-implements a rule.
+//!
+//! # Determinism
+//!
+//! A [`World`] is a pure function of its seed and the ordered intents applied
+//! to it. Three properties hold this up, and each is a constraint on anything
+//! added here later:
+//!
+//! - **No ambient inputs.** No clock reads, no environment, no I/O.
+//! - **No unordered iteration reaching the simulation.** Collections are
+//!   ordered vectors, never hash maps.
+//! - **All randomness from the seeded stream** in [`rng`].
+//!
+//! There is a fourth, and it is the one that buys the most: **the core is
+//! integer-only.** Voxel coordinates, masses in milligrams, and quarter-turn
+//! rotations are exact on every platform, so a replay cannot diverge on a
+//! different machine's floating-point behaviour. Float physics belongs to a
+//! host, on the far side of this boundary.
+//!
+//! One discipline buys five things, which is why it is worth the constraint:
+//! co-op, replay, save/load, time-travel debugging, and comparing two hosts
+//! are the same mechanism seen from different angles.
+//!
+//! # Shape
+//!
+//! ```text
+//! World  ── seed + ordered intents ──▶ World'
+//!   │
+//!   ├── BodyDocument   parts, attachment frames, per-part provenance
+//!   ├── Morsels        loose matter available to metabolize
+//!   └── snapshot()     the whole world, captured in one call
+//! ```
+
+pub mod body;
+pub mod rng;
+pub mod snapshot;
+pub mod world;
+
+pub use body::{
+    Aabb, AttachError, Attachment, BodyDocument, Origin, Part, PartId, Provenance, SpeciesId,
+    VolumeRef, Yaw,
+};
+pub use rng::Rng;
+pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
+pub use world::{Intent, Morsel, MorselId, Outcome, Rejection, World};
