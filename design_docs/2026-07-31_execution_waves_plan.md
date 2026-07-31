@@ -46,7 +46,7 @@ determinism argument. Float physics now sits wholly outside the core, and
 equivalence: a host may use floats freely, provided it does not feed derived
 float state back into the core.
 
-### 1.2 The Genet host
+### 1.2 The Genet host — **partially landed 2026-07-31**
 
 Build the custom host over the existing winit / wgpu / Cambium stack, probing
 **Renderling** for voxel bodies. It consumes the core's state and intents
@@ -55,6 +55,28 @@ Build the custom host over the existing winit / wgpu / Cambium stack, probing
 **Done when** the new part is visible and physically legible, the host uses the
 intended wgpu device, and uneven frame delivery does not change simulation
 results.
+
+**Split on landing, because the three conditions carry very different risk.**
+The frame-delivery condition is a logic property provable without a window; the
+other two need a GPU and a display. Doing the provable part first also serves
+the confound rule, since the stepping it defines is shared by both hosts.
+
+- **`mesocosm-runtime` landed** (`crates/mesocosm-runtime`, 12 tests, clippy
+  clean): the fixed-step clock, the intent queue, the applied-intent trace, and
+  `Receipt`. **Uneven frame delivery does not change simulation results** is
+  met and tested: the same total elapsed time delivered in ragged chunks
+  produces the same trace and the same state hash, and a step cap defers work
+  rather than dropping it.
+- **Remaining for 1.2**: the window, the device, and the voxel body
+  projection. These need a machine with a display to verify honestly, and the
+  meshing question (§2 of the body pipeline plan) is still the unproven part.
+
+**Why the runtime is shared rather than per-host.** If each host wrote its own
+stepping, a divergence between hosts could be a divergence in *stepping*, and
+the probe would measure the wrong thing. Both hosts drive the world through
+this crate, so any difference is attributable. This is also the extraction
+candidate the body pipeline plan named; it stays here, and small, until a
+second consumer justifies lifting it.
 
 ### 1.3 The Bevy host
 
@@ -171,6 +193,18 @@ round-trip:
   `world_offset`. Position alone would let a projection draw every part
   unrotated, which was a real gap in the portable document rather than a
   rendering detail.
+- **2026-07-31, wave 1.2.** The fixed-step clock must accumulate in *rational*
+  form, scaling elapsed microseconds by the tick rate rather than dividing by a
+  precomputed interval. **1_000_000 is not divisible by 60**, so a precomputed
+  16666 us interval runs fast and gains a step roughly every 25 seconds. The
+  first implementation here asserted divisibility, which would have refused
+  60 Hz outright; the second rounded, which drifts. Scaling is exact for every
+  tick rate and refuses none. A host probe that ran long enough would have
+  found this as an unexplained divergence between two hosts polling at
+  different rates.
+- **2026-07-31, wave 1.2.** A step cap must **defer** rather than drop. Capping
+  by discarding the remainder would make the simulation depend on how badly the
+  host stalled, which is exactly the property the fixed step exists to remove.
 
 ---
 
@@ -181,3 +215,7 @@ round-trip:
   provenance, seeded stream, ordered intents, whole-world snapshots, and FNV
   state hashing. 30 tests, clippy clean. Deps: serde, postcard. The fixture in
   `tests/replay.rs` is the shared artifact waves 1.2 and 1.3 compare against.
+- **2026-07-31**: **wave 1.2 part one landed.** `crates/mesocosm-runtime`:
+  drift-free fixed-step clock, intent queue, applied-intent trace, and
+  `Receipt` for host comparison. 12 tests, clippy clean. The frame-delivery
+  done-condition is met; the window, device, and body projection remain.
