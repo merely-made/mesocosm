@@ -34,17 +34,20 @@ pub struct Growth {
 /// rather than forcing a part into occupied space.
 pub fn resolve(body: &BodyDocument, half_extent: [i32; 3]) -> Option<Growth> {
     let role = classify(half_extent);
-    let size = extent_of(half_extent);
 
     for facing in body.plan.candidates(role) {
         // Nearest the root first, so a body grows outward rather than
         // sprouting from whatever it ate last.
         for part in &body.parts {
-            let anchor = body.world_offset(part.id)?;
-            let host = extent_of(part.half_extent);
-            let at = site(anchor, host, size, facing);
+            let anchor = body.world_pivot(part.id)?;
+            let offset = flush(part.half_extent, half_extent, facing);
+            let at = [
+                anchor[0] + offset[0],
+                anchor[1] + offset[1],
+                anchor[2] + offset[2],
+            ];
 
-            if !free(body, at, size) {
+            if !free(body, at, half_extent) {
                 continue;
             }
 
@@ -53,25 +56,23 @@ pub fn resolve(body: &BodyDocument, half_extent: [i32; 3]) -> Option<Growth> {
             // growing a single lopsided limb. Best-effort mirroring drifts a
             // body sideways one failed pair at a time.
             let mirror = if body.plan.mirrors(facing) {
-                let mirrored_at = site(anchor, host, size, facing.mirrored());
-                if mirrored_at == at || !free(body, mirrored_at, size) {
+                let mirrored_offset = flush(part.half_extent, half_extent, facing.mirrored());
+                let mirrored_at = [
+                    anchor[0] + mirrored_offset[0],
+                    anchor[1] + mirrored_offset[1],
+                    anchor[2] + mirrored_offset[2],
+                ];
+                if mirrored_at == at || !free(body, mirrored_at, half_extent) {
                     continue;
                 }
-                Some((
-                    part.id,
-                    [
-                        mirrored_at[0] - anchor[0],
-                        mirrored_at[1] - anchor[1],
-                        mirrored_at[2] - anchor[2],
-                    ],
-                ))
+                Some((part.id, mirrored_offset))
             } else {
                 None
             };
 
             return Some(Growth {
                 parent: part.id,
-                offset: [at[0] - anchor[0], at[1] - anchor[1], at[2] - anchor[2]],
+                offset,
                 yaw: Yaw::Zero,
                 facing,
                 role,
@@ -83,35 +84,27 @@ pub fn resolve(body: &BodyDocument, half_extent: [i32; 3]) -> Option<Growth> {
     None
 }
 
-/// Full extent from a half-extent, never zero.
-fn extent_of(half: [i32; 3]) -> [i32; 3] {
-    [
-        (half[0].abs() * 2).max(1),
-        (half[1].abs() * 2).max(1),
-        (half[2].abs() * 2).max(1),
-    ]
-}
-
-/// Where a part of `size` sits when placed flush against a host's face.
+/// Pivot-to-pivot displacement that puts a part flush against a host's face.
 ///
-/// The offset depends on the new part's size on the negative side, because a
-/// part's local origin is its lowest corner rather than a pivot.
-fn site(anchor: [i32; 3], host: [i32; 3], size: [i32; 3], facing: Facing) -> [i32; 3] {
+/// **Symmetric, which is the point of pivots.** Both parts are measured from
+/// their centres, so the two sides of an axis are exact negations and the
+/// offset no longer depends on which face is being used.
+fn flush(host_half: [i32; 3], own_half: [i32; 3], facing: Facing) -> [i32; 3] {
     let (axis, sign) = facing.axis();
-    let mut at = anchor;
-    at[axis] += if sign > 0 { host[axis] } else { -size[axis] };
-    at
+    let mut offset = [0i32; 3];
+    offset[axis] = sign * (host_half[axis].abs() + own_half[axis].abs());
+    offset
 }
 
-/// Whether a box of `size` at `at` clears every existing part.
-fn free(body: &BodyDocument, at: [i32; 3], size: [i32; 3]) -> bool {
+/// Whether a part of `half` centred at `at` clears every existing part.
+fn free(body: &BodyDocument, at: [i32; 3], half: [i32; 3]) -> bool {
     for part in &body.parts {
-        let Some(anchor) = body.world_offset(part.id) else {
+        let Some(centre) = body.world_pivot(part.id) else {
             continue;
         };
-        let host = extent_of(part.half_extent);
         let overlaps = (0..3).all(|axis| {
-            at[axis] < anchor[axis] + host[axis] && anchor[axis] < at[axis] + size[axis]
+            let gap = (at[axis] - centre[axis]).abs();
+            gap < half[axis].abs() + part.half_extent[axis].abs()
         });
         if overlaps {
             return false;
@@ -193,11 +186,10 @@ mod tests {
     #[test]
     fn a_mirrored_body_is_balanced_across_its_lateral_axis() {
         let mut body = body();
-        // The midline is the root's centre, not the origin, because a part's
-        // position is its lowest corner. The root has half-extent 3, so it
-        // spans 0..6 and its midline is x = 3.
+        // With pivots, the root is centred on the origin, so the midline is
+        // zero and a balanced body says so plainly.
         let midline = body.centre_of_mass()[0];
-        assert_eq!(midline, 3);
+        assert_eq!(midline, 0);
 
         grow(&mut body, [4, 1, 1], 400).unwrap();
         assert_eq!(
@@ -247,12 +239,15 @@ mod tests {
                     continue;
                 }
                 let (pa, pb) = (
-                    body.world_offset(a.id).unwrap(),
-                    body.world_offset(b.id).unwrap(),
+                    body.world_pivot(a.id).unwrap(),
+                    body.world_pivot(b.id).unwrap(),
                 );
-                let (ea, eb) = (extent_of(a.half_extent), extent_of(b.half_extent));
-                let overlaps = (0..3)
-                    .all(|ax| pa[ax] < pb[ax] + eb[ax] && pb[ax] < pa[ax] + ea[ax]);
+                // Centre-to-centre: two boxes overlap when the gap on every
+                // axis is smaller than the sum of their half-extents.
+                let overlaps = (0..3).all(|ax| {
+                    (pa[ax] - pb[ax]).abs()
+                        < a.half_extent[ax].abs() + b.half_extent[ax].abs()
+                });
                 assert!(!overlaps, "{:?} overlaps {:?}", a.id, b.id);
             }
         }
@@ -275,6 +270,38 @@ mod tests {
         let growth = grow(&mut body, [4, 1, 1], 100).unwrap();
         assert_eq!(growth.facing, Facing::Above);
         assert!(growth.mirror.is_none(), "vertical growth does not pair");
+    }
+
+    /// What the pivot bought: a turned part stays joined. Before pivots a
+    /// rotation swung a part about its lowest corner, so a limb that had been
+    /// placed flush swung off the joint entirely, and every yaw in the game
+    /// was pinned to zero to hide it.
+    #[test]
+    fn a_turned_part_stays_joined_to_its_parent() {
+        let mut body = body();
+        let arm = body
+            .attach(
+                VolumeRef::from_tag(9),
+                100,
+                [4, 1, 1],
+                Attachment {
+                    parent: body.root,
+                    offset: [7, 0, 0],
+                    yaw: Yaw::Quarter,
+                },
+                Provenance::founding(),
+            )
+            .unwrap();
+
+        // The joint is where the plan put it, whatever the part does about it.
+        assert_eq!(body.world_pivot(arm), Some([7, 0, 0]));
+
+        // And the part is still the same size, just pointing elsewhere: its
+        // far tip is a half-length from the pivot in the turned direction.
+        let tip = body.place(arm, [8, 1, 1]).unwrap();
+        let pivot = body.world_pivot(arm).unwrap();
+        let reach: i32 = (0..3).map(|a| (tip[a] - pivot[a]).abs()).sum();
+        assert_eq!(reach, 4, "a quarter turn moves the tip, not the joint");
     }
 
     #[test]

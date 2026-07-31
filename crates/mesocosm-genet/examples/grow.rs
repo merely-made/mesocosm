@@ -94,9 +94,8 @@ fn main() {
         .count();
 
     println!("ate {eaten}, body has {} parts", world.body.len());
-    // The midline is the root's centre, not the origin, because a part's
-    // position is its lowest corner.
-    let midline = world.body.part(world.body.root).map(|p| p.half_extent[0]).unwrap_or(0);
+    // With pivots the root is centred on the origin, so the midline is zero.
+    let midline = 0;
     println!(
         "centre of mass {centre:?}; midline x={midline} -> {}",
         if centre[0] == midline { "balanced" } else { "DRIFTING" }

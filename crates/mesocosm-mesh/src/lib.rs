@@ -54,8 +54,10 @@ pub use volume::{Volume, VolumeError, VolumeMap, VolumeSource};
 pub struct Placement {
     pub part: PartId,
     pub volume: VolumeRef,
-    /// Offset in body space, from [`BodyDocument::world_offset`].
-    pub offset: [i32; 3],
+    /// Where this part's pivot sits in body space.
+    pub pivot_at: [i32; 3],
+    /// The pivot in the part's own voxel space. A rotation turns about it.
+    pub pivot: [i32; 3],
     /// Orientation in body space, from [`BodyDocument::world_yaw`].
     pub yaw: Yaw,
 }
@@ -88,7 +90,8 @@ impl BodyMesh {
             placements: vec![Placement {
                 part: PartId(0),
                 volume: reference,
-                offset: [0, 0, 0],
+                pivot_at: [0, 0, 0],
+                pivot: [0, 0, 0],
                 yaw: Yaw::Zero,
             }],
         }
@@ -132,7 +135,12 @@ impl BodyMesh {
             };
             for quad in &mesh.quads {
                 for corner in quad.corners() {
-                    let placed = place_point(corner, placement.yaw, placement.offset);
+                    let placed = place_point(
+                        corner,
+                        placement.yaw,
+                        placement.pivot,
+                        placement.pivot_at,
+                    );
                     for axis in 0..3 {
                         min[axis] = min[axis].min(placed[axis]);
                         max[axis] = max[axis].max(placed[axis]);
@@ -146,16 +154,24 @@ impl BodyMesh {
     }
 }
 
-/// Applies a placement's rotation and offset to a point in part-local space.
+/// Maps a point in a part's own voxel space into body space.
+///
+/// Rotates about the pivot, then puts the pivot where it belongs. Rotating
+/// about a corner instead is what used to fling a turned limb off its joint.
 ///
 /// Integer-only, like everything the core hands over, so geometry derived on
 /// two machines is identical.
-pub fn place_point(point: [i32; 3], yaw: Yaw, offset: [i32; 3]) -> [i32; 3] {
-    let rotated = rotate(point, yaw);
+pub fn place_point(point: [i32; 3], yaw: Yaw, pivot: [i32; 3], pivot_at: [i32; 3]) -> [i32; 3] {
+    let relative = [
+        point[0] - pivot[0],
+        point[1] - pivot[1],
+        point[2] - pivot[2],
+    ];
+    let swung = rotate(relative, yaw);
     [
-        rotated[0] + offset[0],
-        rotated[1] + offset[1],
-        rotated[2] + offset[2],
+        swung[0] + pivot_at[0],
+        swung[1] + pivot_at[1],
+        swung[2] + pivot_at[2],
     ]
 }
 
@@ -174,7 +190,7 @@ pub fn mesh_body(body: &BodyDocument, source: &impl VolumeSource) -> Result<Body
     let mut result = BodyMesh::default();
 
     for part in &body.parts {
-        let Some(offset) = body.world_offset(part.id) else {
+        let Some(pivot_at) = body.world_pivot(part.id) else {
             return Err(MeshError::Unplaceable { part: part.id });
         };
         let Some(yaw) = body.world_yaw(part.id) else {
@@ -192,7 +208,8 @@ pub fn mesh_body(body: &BodyDocument, source: &impl VolumeSource) -> Result<Body
         result.placements.push(Placement {
             part: part.id,
             volume: part.volume,
-            offset,
+            pivot_at,
+            pivot: part.pivot,
             yaw,
         });
     }
@@ -312,9 +329,18 @@ mod tests {
         let placement = &mesh.placements[1];
         assert_eq!(placement.yaw, Yaw::Quarter);
 
-        // The 2x1x1 arm points along +x locally; a quarter turn sends it to -z.
-        let tip = place_point([2, 0, 0], placement.yaw, placement.offset);
-        assert_eq!(tip, [6, 0, -2]);
+        // A quarter turn now swings the arm about its own pivot rather than
+        // flinging it off a corner, so its far tip lands a half-length from
+        // where the pivot sits.
+        let local = [2, 0, 0];
+        let turned = place_point(local, placement.yaw, placement.pivot, placement.pivot_at);
+        let straight = place_point(local, Yaw::Zero, placement.pivot, placement.pivot_at);
+
+        // A yaw swings a point about the pivot in the horizontal plane: its
+        // height relative to the pivot is preserved while lateral and depth
+        // trade places. Turning about a corner instead would also move it.
+        assert_eq!(turned[1], straight[1], "yaw does not change height");
+        assert_ne!(turned, straight, "but it does move the point");
     }
 
     #[test]

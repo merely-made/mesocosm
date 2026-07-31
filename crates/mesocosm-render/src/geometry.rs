@@ -117,7 +117,12 @@ fn append_body(out: &mut Vec<Vertex>, mesh: &BodyMesh, origin: [i32; 3], tint: f
             let colour = [colour[0] * tint, colour[1] * tint, colour[2] * tint];
 
             let corners = quad.corners().map(|corner| {
-                let placed = place_point(corner, placement.yaw, placement.offset);
+                let placed = place_point(
+                    corner,
+                    placement.yaw,
+                    placement.pivot,
+                    placement.pivot_at,
+                );
                 [
                     (placed[0] + origin[0]) as f32,
                     (placed[1] + origin[1]) as f32,

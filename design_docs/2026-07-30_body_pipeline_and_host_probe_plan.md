@@ -347,7 +347,27 @@ explicitly declined in writing.
 
 *Verified facts discovered during the work, dated, with references.*
 
-- **2026-07-31: attachment frames need a per-part pivot.** `Attachment` today
+- **2026-07-31: pivots landed, and the count was four, not one.** `Part` now
+  carries a `pivot` in its own voxel space; an attachment offset is
+  pivot-to-pivot, and a rotation turns about it. `world_pivot` is the
+  authoritative position and everything derives from it.
+
+  Fixing it closed **four** defects that were all the same missing concept.
+  Rotation turned a part about its lowest corner, so a flush limb swung off
+  its joint — which is why every yaw in the game had been pinned to zero.
+  Flush placement had to know a part's size and was asymmetric between the two
+  faces of an axis; it is now `±(host_half + own_half)`, an exact negation.
+  `centre_of_mass` averaged corners. And `Aabb::around` was being handed a
+  corner while expecting a centre, so every part's box straddled its own edge.
+
+  Two semantics improved as a side effect: a body is now **centred on the
+  origin** rather than cornered at it, so the midline is genuinely zero, and a
+  lone body's centre of mass is the origin. Both had been quietly offset by
+  half the root's size.
+
+  Defaults to the part's centre. A part authored with a socket elsewhere can
+  override it; nothing generated needs to.
+- ~~**2026-07-31: attachment frames need a per-part pivot.**~~ *(Fixed above.)* `Attachment` today
   carries an offset and a yaw, and a part's local origin is its **lowest
   corner**. That makes an offset corner-to-corner rather than socket-to-socket,
   so attaching flush requires knowing the part's size, and a yaw turns the part

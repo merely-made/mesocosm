@@ -61,9 +61,9 @@ pub fn flatten(
     let mut seen = false;
 
     for part in &body.parts {
-        let (offset, yaw, volume) = resolve(body, source, part.id)?;
+        let (pivot_at, pivot, yaw, volume) = resolve(body, source, part.id)?;
         for corner in volume_corners(volume) {
-            let placed = place_point(corner, yaw, offset);
+            let placed = place_point(corner, yaw, pivot, pivot_at);
             for axis in 0..3 {
                 min[axis] = min[axis].min(placed[axis]);
                 max[axis] = max[axis].max(placed[axis]);
@@ -87,7 +87,7 @@ pub fn flatten(
     let mut grid = Volume::empty(size);
 
     for part in &body.parts {
-        let (offset, yaw, volume) = resolve(body, source, part.id)?;
+        let (pivot_at, pivot, yaw, volume) = resolve(body, source, part.id)?;
         for z in 0..volume.size[2] {
             for y in 0..volume.size[1] {
                 for x in 0..volume.size[0] {
@@ -96,7 +96,7 @@ pub fn flatten(
                         continue;
                     }
                     let placed =
-                        place_point([x as i32, y as i32, z as i32], yaw, offset);
+                        place_point([x as i32, y as i32, z as i32], yaw, pivot, pivot_at);
                     grid.set(
                         (placed[0] - min[0]) as u32,
                         (placed[1] - min[1]) as u32,
@@ -111,23 +111,24 @@ pub fn flatten(
     Ok(Flattened { volume: grid, origin: min })
 }
 
+/// A part resolved for flattening: where its pivot sits, the pivot itself,
+/// its orientation, and the voxels to write.
+type Placed<'a> = ([i32; 3], [i32; 3], Yaw, &'a Volume);
+
 fn resolve<'a>(
     body: &BodyDocument,
     source: &'a impl VolumeSource,
     part: mesocosm_core::PartId,
-) -> Result<([i32; 3], Yaw, &'a Volume), MeshError> {
-    let offset = body
-        .world_offset(part)
+) -> Result<Placed<'a>, MeshError> {
+    let pivot_at = body
+        .world_pivot(part)
         .ok_or(MeshError::Unplaceable { part })?;
     let yaw = body.world_yaw(part).ok_or(MeshError::Unplaceable { part })?;
-    let reference = body
-        .part(part)
-        .ok_or(MeshError::Unplaceable { part })?
-        .volume;
+    let entry = body.part(part).ok_or(MeshError::Unplaceable { part })?;
     let volume = source
-        .volume(reference)
-        .ok_or(MeshError::MissingVolume { part, volume: reference })?;
-    Ok((offset, yaw, volume))
+        .volume(entry.volume)
+        .ok_or(MeshError::MissingVolume { part, volume: entry.volume })?;
+    Ok((pivot_at, entry.pivot, yaw, volume))
 }
 
 /// The eight corners of a volume's occupied range, in local coordinates.
@@ -155,110 +156,85 @@ mod tests {
     use crate::VolumeMap;
     use mesocosm_core::{Attachment, PartId, Provenance, SpeciesId, VolumeRef};
 
+    /// Volumes sized to exactly twice their part's half-extent, so the picture
+    /// and the physics describe the same box.
     fn source() -> VolumeMap {
         let mut map = VolumeMap::new();
-        map.insert(VolumeRef::from_tag(1), Volume::solid([3, 3, 3], 1));
-        map.insert(VolumeRef::from_tag(2), Volume::solid([2, 1, 1], 7));
+        map.insert(VolumeRef::from_tag(1), Volume::solid([4, 4, 4], 1));
+        map.insert(VolumeRef::from_tag(2), Volume::solid([2, 2, 2], 7));
         map
     }
 
+    const CORE_HALF: [i32; 3] = [2, 2, 2];
+    const ARM_HALF: [i32; 3] = [1, 1, 1];
+
     fn body() -> BodyDocument {
-        BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, [1, 1, 1])
+        BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, CORE_HALF)
     }
 
-    #[test]
-    fn a_lone_body_flattens_to_its_own_volume() {
-        let flat = flatten(&body(), &source()).unwrap();
-        assert_eq!(flat.volume.size, [3, 3, 3]);
-        assert_eq!(flat.origin, [0, 0, 0]);
-        assert_eq!(flat.volume.solid_count(), 27);
-    }
-
-    #[test]
-    fn an_attached_part_lands_at_its_offset() {
+    fn with_arm(offset: [i32; 3], yaw: Yaw) -> BodyDocument {
         let mut body = body();
         body.attach(
             VolumeRef::from_tag(2),
             10,
-            [1, 1, 1],
-            Attachment { parent: PartId(0), offset: [3, 0, 0], yaw: Yaw::Zero },
+            ARM_HALF,
+            Attachment { parent: PartId(0), offset, yaw },
             Provenance::founding(),
         )
         .unwrap();
+        body
+    }
 
-        let flat = flatten(&body, &source()).unwrap();
-        // The arm occupies x = 3..5 in body space.
+    #[test]
+    fn a_lone_body_is_centred_on_its_pivot() {
+        let flat = flatten(&body(), &source()).unwrap();
+        assert_eq!(flat.volume.size, [4, 4, 4]);
+        // A pivot is the centre, so the grid starts a half-extent below it.
+        assert_eq!(flat.origin, [-2, -2, -2]);
+        assert_eq!(flat.volume.solid_count(), 64);
+        assert_eq!(flat.at([0, 0, 0]), 1, "the core covers the origin");
+    }
+
+    #[test]
+    fn an_attached_part_lands_where_its_pivot_says() {
+        let flat = flatten(&with_arm([3, 0, 0], Yaw::Zero), &source()).unwrap();
+        // The arm's pivot sits at x=3, so its two voxels straddle it.
+        assert_eq!(flat.at([2, 0, 0]), 7);
         assert_eq!(flat.at([3, 0, 0]), 7);
-        assert_eq!(flat.at([4, 0, 0]), 7);
-        assert_eq!(flat.at([2, 0, 0]), 1, "the core is still there");
-        assert_eq!(flat.volume.size, [5, 3, 3]);
+        assert_eq!(flat.at([0, 0, 0]), 1, "the core is still there");
     }
 
     #[test]
     fn negative_placements_shift_the_origin_rather_than_clipping() {
-        let mut body = body();
-        body.attach(
-            VolumeRef::from_tag(2),
-            10,
-            [1, 1, 1],
-            Attachment { parent: PartId(0), offset: [-2, 0, 0], yaw: Yaw::Zero },
-            Provenance::founding(),
-        )
-        .unwrap();
-
-        let flat = flatten(&body, &source()).unwrap();
-        assert_eq!(flat.origin, [-2, 0, 0]);
-        assert_eq!(flat.at([-2, 0, 0]), 7, "nothing was clipped off the low side");
+        let flat = flatten(&with_arm([-3, 0, 0], Yaw::Zero), &source()).unwrap();
+        assert_eq!(flat.origin[0], -4);
+        assert_eq!(flat.at([-4, 0, 0]), 7, "nothing was clipped off the low side");
         assert_eq!(flat.at([0, 0, 0]), 1);
     }
 
+    /// The pivot's whole point: a turned part stays joined instead of swinging
+    /// off its corner.
     #[test]
-    fn yaw_rotates_what_gets_written() {
-        let mut body = body();
-        body.attach(
-            VolumeRef::from_tag(2),
-            10,
-            [1, 1, 1],
-            Attachment { parent: PartId(0), offset: [0, 0, 0], yaw: Yaw::Quarter },
-            Provenance::founding(),
-        )
-        .unwrap();
+    fn yaw_turns_a_part_about_its_pivot() {
+        let straight = flatten(&with_arm([3, 0, 0], Yaw::Zero), &source()).unwrap();
+        let turned = flatten(&with_arm([3, 0, 0], Yaw::Quarter), &source()).unwrap();
 
-        let flat = flatten(&body, &source()).unwrap();
-        // The 2x1x1 arm points along +x locally; a quarter turn sends it to -z.
-        assert_eq!(flat.at([0, 0, -1]), 7);
+        // Same body, same joint, so the same amount of matter in the same box.
+        assert_eq!(straight.volume.solid_count(), turned.volume.solid_count());
+        assert_eq!(straight.volume.size, turned.volume.size);
+        assert_eq!(straight.origin, turned.origin);
     }
 
     #[test]
     fn every_solid_voxel_survives_when_parts_do_not_overlap() {
-        let mut body = body();
-        body.attach(
-            VolumeRef::from_tag(2),
-            10,
-            [1, 1, 1],
-            Attachment { parent: PartId(0), offset: [3, 0, 0], yaw: Yaw::Zero },
-            Provenance::founding(),
-        )
-        .unwrap();
-        let flat = flatten(&body, &source()).unwrap();
-        assert_eq!(flat.volume.solid_count(), 27 + 2);
+        let flat = flatten(&with_arm([3, 0, 0], Yaw::Zero), &source()).unwrap();
+        assert_eq!(flat.volume.solid_count(), 64 + 8);
     }
 
     #[test]
     fn flattening_is_deterministic() {
-        let mut body = body();
-        body.attach(
-            VolumeRef::from_tag(2),
-            10,
-            [1, 1, 1],
-            Attachment { parent: PartId(0), offset: [4, 1, -2], yaw: Yaw::Half },
-            Provenance::founding(),
-        )
-        .unwrap();
-        assert_eq!(
-            flatten(&body, &source()).unwrap(),
-            flatten(&body, &source()).unwrap()
-        );
+        let build = || flatten(&with_arm([4, 1, -2], Yaw::Half), &source()).unwrap();
+        assert_eq!(build(), build());
     }
 
     #[test]
@@ -267,7 +243,7 @@ mod tests {
         body.attach(
             VolumeRef::from_tag(99),
             10,
-            [1, 1, 1],
+            ARM_HALF,
             Attachment { parent: PartId(0), offset: [3, 0, 0], yaw: Yaw::Zero },
             Provenance::founding(),
         )

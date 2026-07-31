@@ -403,3 +403,15 @@ round-trip:
   real growth policy will want directional bias, symmetry, or trait-driven
   morphology; the current one only guarantees no overlap. Recorded because a
   blob that reads as a blob is a design question, not a bug.
+- **2026-07-31. Pivots, and the value of counting recurrences.** The
+  corner-origin gap was recorded once as a rendering curiosity, then showed up
+  as a placement awkwardness, then as a wrong centre of mass, then as a
+  malformed AABB. **Four defects, one missing concept**, and each was fixed
+  locally before anyone counted. The lesson worth keeping: a finding that
+  recurs is not four findings, and the second recurrence is the signal to fix
+  the cause rather than the instance.
+
+  The fix also paid a dividend that was invisible while the bug stood: yaw had
+  been pinned to zero everywhere, in the fixture and the plan and the growth
+  resolver, each place with its own comment explaining why. Rotation now works,
+  which unblocks the articulation that the presentation ruling depends on.

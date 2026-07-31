@@ -112,7 +112,12 @@ impl Provenance {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Attachment {
     pub parent: PartId,
-    /// Offset in the parent's frame, before the parent's own rotation.
+    /// Displacement from the parent's pivot to this part's pivot, in the
+    /// parent's frame and before the parent's own rotation.
+    ///
+    /// Pivot-to-pivot, which is what makes flush placement symmetric: a part
+    /// sits against its parent's `+x` face at `+(parent_half + own_half)` and
+    /// against `-x` at the negation of the same number.
     pub offset: [i32; 3],
     pub yaw: Yaw,
 }
@@ -125,6 +130,15 @@ pub struct Part {
     /// Half-extent in voxel units, so an extent can be derived without
     /// resolving the volume.
     pub half_extent: [i32; 3],
+    /// The point, in this part's own voxel space, that an attachment offset is
+    /// measured to and that a rotation turns about.
+    ///
+    /// Defaults to the part's centre. Before pivots existed a part's origin
+    /// was its lowest corner, which caused four separate defects: limbs that
+    /// floated instead of joining, flush placement that needed to know a
+    /// part's size and was asymmetric between faces, a centre of mass that
+    /// averaged corners, and an AABB that treated a corner as a centre.
+    pub pivot: [i32; 3],
     /// `None` only for the root.
     pub attachment: Option<Attachment>,
     pub provenance: Provenance,
@@ -202,6 +216,7 @@ impl BodyDocument {
                 volume,
                 mass_mg,
                 half_extent,
+                pivot: half_extent,
                 attachment: None,
                 provenance: Provenance::founding(),
             }],
@@ -238,17 +253,22 @@ impl BodyDocument {
             volume,
             mass_mg,
             half_extent,
+            // Centre by default. A part authored with a socket elsewhere can
+            // override it; nothing generated needs to.
+            pivot: half_extent,
             attachment: Some(attachment),
             provenance,
         });
         Ok(id)
     }
 
-    /// Position of a part in body space, walking up the parent chain.
+    /// Where a part's **pivot** sits in body space, walking up the chain.
+    ///
+    /// This is the authoritative position. Everything else derives from it.
     ///
     /// Returns `None` if the chain is malformed, which the constructors above
     /// prevent but a deserialized document could carry.
-    pub fn world_offset(&self, id: PartId) -> Option<[i32; 3]> {
+    pub fn world_pivot(&self, id: PartId) -> Option<[i32; 3]> {
         let mut offset = [0i32; 3];
         let mut cursor = id;
         // Bounded by part count, so a cycle terminates rather than hanging.
@@ -270,6 +290,43 @@ impl BodyDocument {
             }
         }
         None
+    }
+
+    /// Where a part's lowest corner sits in body space.
+    ///
+    /// Derived from the pivot rather than accumulated, so a rotated part stays
+    /// joined: the pivot holds still and the body swings around it.
+    pub fn world_offset(&self, id: PartId) -> Option<[i32; 3]> {
+        let pivot_at = self.world_pivot(id)?;
+        let yaw = self.world_yaw(id)?;
+        let part = self.part(id)?;
+        let swung = yaw.rotate(part.pivot);
+        Some([
+            pivot_at[0] - swung[0],
+            pivot_at[1] - swung[1],
+            pivot_at[2] - swung[2],
+        ])
+    }
+
+    /// Maps a point in a part's own voxel space into body space.
+    ///
+    /// The one transform a projection needs: rotate about the pivot, then put
+    /// the pivot where it belongs.
+    pub fn place(&self, id: PartId, local: [i32; 3]) -> Option<[i32; 3]> {
+        let pivot_at = self.world_pivot(id)?;
+        let yaw = self.world_yaw(id)?;
+        let part = self.part(id)?;
+        let relative = [
+            local[0] - part.pivot[0],
+            local[1] - part.pivot[1],
+            local[2] - part.pivot[2],
+        ];
+        let swung = yaw.rotate(relative);
+        Some([
+            pivot_at[0] + swung[0],
+            pivot_at[1] + swung[1],
+            pivot_at[2] + swung[2],
+        ])
     }
 
     /// Orientation of a part in body space, composing every joint up the
@@ -312,12 +369,13 @@ impl BodyDocument {
         }
         let mut acc = [0i128; 3];
         for part in &self.parts {
-            let Some(pos) = self.world_offset(part.id) else {
+            // A pivot is the part's centre, so this is a true mass-weighted
+            // centre rather than an average of corners.
+            let Some(centre) = self.world_pivot(part.id) else {
                 continue;
             };
             for axis in 0..3 {
-                let centre = pos[axis] + part.half_extent[axis];
-                acc[axis] += centre as i128 * part.mass_mg as i128;
+                acc[axis] += centre[axis] as i128 * part.mass_mg as i128;
             }
         }
         let total = total as i128;
@@ -332,10 +390,12 @@ impl BodyDocument {
     pub fn aabb(&self) -> Aabb {
         let mut result: Option<Aabb> = None;
         for part in &self.parts {
-            let Some(pos) = self.world_offset(part.id) else {
+            // `around` wants a centre. Passing the corner made every part's box
+            // straddle its own edge; a pivot is the centre it always wanted.
+            let Some(centre) = self.world_pivot(part.id) else {
                 continue;
             };
-            let box_ = Aabb::around(pos, part.half_extent);
+            let box_ = Aabb::around(centre, part.half_extent);
             result = Some(match result {
                 None => box_,
                 Some(acc) => acc.union(box_),
@@ -363,7 +423,10 @@ mod tests {
     #[test]
     fn root_sits_at_origin() {
         let body = seed_body();
-        assert_eq!(body.world_offset(body.root), Some([0, 0, 0]));
+        // The root's *pivot* is the origin, so a body is centred on it rather
+        // than cornered at it, and the midline is genuinely zero.
+        assert_eq!(body.world_pivot(body.root), Some([0, 0, 0]));
+        assert_eq!(body.world_offset(body.root), Some([-2, -2, -2]));
         assert_eq!(body.total_mass_mg(), 1_000);
     }
 
@@ -387,9 +450,8 @@ mod tests {
     #[test]
     fn attaching_moves_the_centre_of_mass() {
         let mut body = seed_body();
-        // The root spans 0..4 with half-extent 2, so its centre is [2, 2, 2].
-        // A lone body's centre of mass is its own centre, not its corner.
-        assert_eq!(body.centre_of_mass(), [2, 2, 2]);
+        // A lone body's centre of mass is its pivot, which is the origin.
+        assert_eq!(body.centre_of_mass(), [0, 0, 0]);
 
         body.attach(
             VolumeRef::from_tag(2),
@@ -400,9 +462,8 @@ mod tests {
         )
         .unwrap();
 
-        // Equal masses at centres [2,2,2] and [11,1,1], so the mean is
-        // [6.5, 1.5, 1.5], truncated toward zero.
-        assert_eq!(body.centre_of_mass(), [6, 1, 1]);
+        // Equal masses at [0,0,0] and [10,0,0]: halfway between.
+        assert_eq!(body.centre_of_mass(), [5, 0, 0]);
     }
 
     #[test]
@@ -426,8 +487,10 @@ mod tests {
                 Provenance::founding(),
             )
             .unwrap();
-        // The hand's own offset is rotated by the arm's quarter turn.
-        assert_eq!(body.world_offset(hand), Some([4, 0, -4]));
+        // The hand's own offset is rotated by the arm's quarter turn. Pivots
+        // chain exactly as corners used to, but now a rotation swings a part
+        // about its own centre instead of flinging it off its corner.
+        assert_eq!(body.world_pivot(hand), Some([4, 0, -4]));
     }
 
     #[test]
