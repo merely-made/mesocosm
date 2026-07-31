@@ -68,9 +68,17 @@ the confound rule, since the stepping it defines is shared by both hosts.
   met and tested: the same total elapsed time delivered in ragged chunks
   produces the same trace and the same state hash, and a step cap defers work
   rather than dropping it.
-- **Remaining for 1.2**: the window, the device, and the voxel body
-  projection. These need a machine with a display to verify honestly, and the
-  meshing question (§2 of the body pipeline plan) is still the unproven part.
+- **`mesocosm-mesh` landed** (`crates/mesocosm-mesh`, 24 tests, clippy clean):
+  per-part greedy voxel meshing plus rigid placement, headless and integer-only.
+  **The attachment hypothesis is met on everything derivable without a screen.**
+  An end-to-end test eats a real morsel and checks all four claims at once:
+  mass grows, the centre of mass moves toward the new part, the collision box
+  grows, and the drawn body gains placements and reaches further, with
+  provenance intact alongside the geometry.
+- **Remaining for 1.2**: the window and the device. What is left is whether the
+  result *looks* legible, which is a judgment for a machine with a display and
+  cannot be asserted in a test. Everything that judgment needs is now
+  derivable, deterministic, and cheap.
 
 **Why the runtime is shared rather than per-host.** If each host wrote its own
 stepping, a divergence between hosts could be a divergence in *stepping*, and
@@ -206,6 +214,22 @@ round-trip:
 - **2026-07-31, wave 1.2.** A step cap must **defer** rather than drop. Capping
   by discarding the remainder would make the simulation depend on how badly the
   host stalled, which is exactly the property the fixed step exists to remove.
+- **2026-07-31, wave 1.2.** **Per-part meshing makes attachment cheap, and the
+  plan's rigid-part posture is what buys it.** A part's geometry depends only on
+  its volume, so it is cacheable by `VolumeRef`: incorporating a part adds one
+  placement and, only if the volume is new, one mesh. Nothing already on the
+  body is remeshed, which is verified rather than assumed. This also means faces
+  are never merged across a joint, which is correct rather than a shortcut,
+  since merging across parts would weld the body into one mesh and lose the
+  ability to move a limb.
+- **2026-07-31, wave 1.2.** A missing volume is a **reported error**, not a
+  skipped part. The tempting behaviour is to draw what resolves and move on,
+  which yields an invisible limb and a silent divergence between a body's
+  physics and its picture. `MeshError::MissingVolume` names the part.
+- **2026-07-31, wave 1.2.** The mesher is the shared organ the body pipeline
+  plan predicted, and it arrived earlier than expected: **Isometry's baker
+  (wave 1.4) wants the same quads**, so the projection split is
+  mesh-once-then-render-many rather than two independent pipelines.
 
 ---
 
@@ -220,3 +244,7 @@ round-trip:
   drift-free fixed-step clock, intent queue, applied-intent trace, and
   `Receipt` for host comparison. 12 tests, clippy clean. The frame-delivery
   done-condition is met; the window, device, and body projection remain.
+- **2026-07-31**: **wave 1.2 part two landed.** `crates/mesocosm-mesh`:
+  per-part greedy voxel meshing, rigid placement, and an end-to-end attachment
+  test over the real simulation. 24 tests, clippy clean. 66 tests across the
+  workspace. Only the window and the device remain in wave 1.2.
