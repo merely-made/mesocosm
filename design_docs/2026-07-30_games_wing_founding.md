@@ -118,6 +118,30 @@ by the care-granularity rule; each still has to pass the three guardrails.
   arrow *experiential* rather than merely a data transform, and it is where
   `tulpa` stops being bookkeeping and becomes the point.
 
+### Where the idea came from
+
+Recorded 2026-07-31, from Mark, because it is not recoverable from the code.
+
+The seed for Mesocosm was **the physics-overlay cellular automata experiments
+on the meerkat host** — Game of Life run as a physics layer over a graph
+canvas, back when meerkat was the reference application. What was compelling
+there was watching a small rule produce structure nobody had authored, and
+wanting to be *inside* that rather than looking at it.
+
+That is the difference the wing is built to make good on. In meerkat the
+automaton was an **overlay**: presentation drawn over a graph. Here the
+relationship is inverted. `mesocosm-core` owns the simulation and every
+renderer is downstream projection, which is why the core is integer-only, why
+hosts only project, and why the body document carries topology rather than
+pixels. The rule-producing-structure is the substrate now, not the decoration.
+
+Meerkat itself is gone, obviated into turnstone and deleted. Its lineage
+persisted anyway: `frisket` relocated, the physics-over-canvas work grew into
+the conatus crates (`numen`, `quint`, `seiche`, still rapier-backed layout
+over a graph), and the idea became this. The wing has vocabulary for exactly
+that shape — **dead is dead, lineage persists**, and what remains when nobody
+carried the line is a **tulpa**. Meerkat is one.
+
 ### The influence set
 
 Gotcha Force, RimWorld, Phantasy Star Online, Mount & Blade, Zelda: Four
