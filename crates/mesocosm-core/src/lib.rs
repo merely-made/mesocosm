@@ -42,6 +42,7 @@
 
 pub mod body;
 pub mod growth;
+pub mod organism;
 pub mod plan;
 pub mod rng;
 pub mod snapshot;
@@ -55,4 +56,5 @@ pub use growth::{Growth, resolve};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use rng::Rng;
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
-pub use world::{Intent, Morsel, MorselId, Outcome, Rejection, World};
+pub use organism::{Kingdom, Organism, OrganismId, Stage, Tally};
+pub use world::{Intent, Outcome, Rejection, World};

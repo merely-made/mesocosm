@@ -13,7 +13,7 @@
 //! both hosts run this fixture and must agree on the final state hash.
 
 use mesocosm_core::{
-    BodyDocument, Intent, MorselId, Origin, Outcome, PartId, Provenance, SpeciesId, VolumeRef,
+    BodyDocument, Intent, OrganismId, Origin, Outcome, PartId, Provenance, SpeciesId, VolumeRef,
     World, Yaw, snapshot, state_hash,
 };
 use mesocosm_core::body::Attachment;
@@ -26,8 +26,8 @@ const MORSELS: u32 = 32;
 fn fixture_trace(world: &World) -> Vec<Intent> {
     // Choose targets by position rather than by iteration order of anything
     // unordered, so the trace itself is reproducible.
-    let mut reachable: Vec<MorselId> = world
-        .morsels
+    let mut reachable: Vec<OrganismId> = world
+        .organisms
         .iter()
         .filter(|m| {
             (0..3).all(|axis| (m.position[axis] - world.position[axis]).abs() <= 8)
@@ -37,9 +37,9 @@ fn fixture_trace(world: &World) -> Vec<Intent> {
     reachable.sort();
 
     let mut trace = vec![Intent::Move { delta: [1, 0, 1] }, Intent::Idle];
-    for (index, morsel) in reachable.iter().take(3).enumerate() {
+    for (index, organism) in reachable.iter().take(3).enumerate() {
         trace.push(Intent::Metabolize {
-            morsel: *morsel,
+            organism: *organism,
             parent: PartId(0),
             offset: [4 + index as i32 * 3, 0, 0],
             yaw: Yaw::Zero,

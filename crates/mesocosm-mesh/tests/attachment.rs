@@ -9,7 +9,7 @@
 //! attaches to a living body **during play**, acquires collision and mass,
 //! moves the centre of balance, and stays legible.
 //!
-//! These tests run the real simulation, eat a real morsel, and check all four
+//! These tests run the real simulation, eat a real organism, and check all four
 //! at once. What they cannot check is whether it *looks* good on screen; that
 //! stays a judgment for the windowed host. What they do establish is that
 //! everything the screen would need is derivable, deterministic, and cheap.
@@ -17,7 +17,7 @@
 use mesocosm_core::{Intent, Origin, Outcome, PartId, VolumeRef, World, Yaw};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 
-/// Volumes for the fixture: a body, and one per morsel tag the world mints.
+/// Volumes for the fixture: a body, and one per organism tag the world mints.
 fn source() -> VolumeMap {
     let mut map = VolumeMap::new();
     map.insert(VolumeRef::from_tag(1), Volume::solid([3, 3, 3], 1));
@@ -28,15 +28,15 @@ fn source() -> VolumeMap {
     map
 }
 
-fn reachable_morsel(world: &World) -> mesocosm_core::MorselId {
+fn reachable_organism(world: &World) -> mesocosm_core::OrganismId {
     let mut ids: Vec<_> = world
-        .morsels
+        .organisms
         .iter()
         .filter(|m| (0..3).all(|a| (m.position[a] - world.position[a]).abs() <= 8))
         .map(|m| m.id)
         .collect();
     ids.sort();
-    *ids.first().expect("fixture places a morsel in reach")
+    *ids.first().expect("fixture places a organism in reach")
 }
 
 #[test]
@@ -49,9 +49,9 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     let collision_before = world.collision();
     let drawn_before = mesh_body(&world.body, &source).unwrap();
 
-    let target = reachable_morsel(&world);
+    let target = reachable_organism(&world);
     let outcome = world.apply(Intent::Metabolize {
-        morsel: target,
+        organism: target,
         parent: PartId(0),
         offset: [9, 0, 0],
         yaw: Yaw::Zero,
@@ -88,16 +88,16 @@ fn eating_changes_mass_balance_collision_and_geometry() {
 fn an_eaten_part_still_says_whose_it_was() {
     let source = source();
     let mut world = World::new(4242, 40);
-    let target = reachable_morsel(&world);
+    let target = reachable_organism(&world);
     let donor = world
-        .morsels
+        .organisms
         .iter()
         .find(|m| m.id == target)
         .map(|m| m.species)
         .unwrap();
 
     let Outcome::Incorporated { part } = world.apply(Intent::Metabolize {
-        morsel: target,
+        organism: target,
         parent: PartId(0),
         offset: [7, 0, 0],
         yaw: Yaw::Quarter,
@@ -129,9 +129,9 @@ fn attaching_remeshes_only_what_is_new() {
     let before = mesh_body(&world.body, &source).unwrap();
     let root_mesh_before = before.mesh_for(VolumeRef::from_tag(1)).cloned();
 
-    let target = reachable_morsel(&world);
+    let target = reachable_organism(&world);
     world.apply(Intent::Metabolize {
-        morsel: target,
+        organism: target,
         parent: PartId(0),
         offset: [6, 0, 0],
         yaw: Yaw::Zero,
@@ -155,7 +155,7 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
         let mut world = World::new(9_001, 60);
         for _ in 0..5 {
             let Some(target) = world
-                .morsels
+                .organisms
                 .iter()
                 .filter(|m| (0..3).all(|a| (m.position[a] - world.position[a]).abs() <= 8))
                 .map(|m| m.id)
@@ -164,7 +164,7 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
                 break;
             };
             world.apply(Intent::Metabolize {
-                morsel: target,
+                organism: target,
                 parent: PartId(0),
                 offset: [5, 0, 0],
                 yaw: Yaw::Zero,

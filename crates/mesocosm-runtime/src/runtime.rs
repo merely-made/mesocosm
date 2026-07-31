@@ -31,20 +31,20 @@ pub struct Runtime {
     last: Vec<Outcome>,
     max_steps: u64,
     seed: u64,
-    morsels: u32,
+    organisms: u32,
 }
 
 impl Runtime {
-    pub fn new(seed: u64, morsels: u32, ticks_per_second: u32) -> Self {
+    pub fn new(seed: u64, organisms: u32, ticks_per_second: u32) -> Self {
         Self {
-            world: World::new(seed, morsels),
+            world: World::new(seed, organisms),
             clock: Clock::new(ticks_per_second),
             queued: VecDeque::new(),
             trace: Vec::new(),
             last: Vec::new(),
             max_steps: DEFAULT_MAX_STEPS_PER_ADVANCE,
             seed,
-            morsels,
+            organisms,
         }
     }
 
@@ -94,7 +94,7 @@ impl Runtime {
         &self.world
     }
 
-    /// The ordered trace of applied intents. Together with the seed and morsel
+    /// The ordered trace of applied intents. Together with the seed and organism
     /// count this reproduces the run exactly.
     pub fn trace(&self) -> &[Intent] {
         &self.trace
@@ -114,7 +114,7 @@ impl Runtime {
     pub fn receipt(&self) -> Receipt {
         Receipt {
             seed: self.seed,
-            morsels: self.morsels,
+            organisms: self.organisms,
             steps: self.clock.steps_taken().max(self.trace.len() as u64),
             state_hash: self.state_hash(),
         }
@@ -122,8 +122,8 @@ impl Runtime {
 
     /// Rebuilds a world from a seed and trace, without any host at all. Two
     /// hosts agree exactly when their traces replay to the same hash here.
-    pub fn replay(seed: u64, morsels: u32, trace: &[Intent]) -> World {
-        let mut world = World::new(seed, morsels);
+    pub fn replay(seed: u64, organisms: u32, trace: &[Intent]) -> World {
+        let mut world = World::new(seed, organisms);
         world.apply_all(trace);
         world
     }
@@ -133,7 +133,7 @@ impl Runtime {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Receipt {
     pub seed: u64,
-    pub morsels: u32,
+    pub organisms: u32,
     pub steps: u64,
     pub state_hash: u64,
 }
@@ -150,7 +150,7 @@ mod tests {
             Intent::Move { delta: [0, 0, 2] },
             Intent::Deposit { mass_mg: 25 },
             Intent::Metabolize {
-                morsel: mesocosm_core::MorselId(0),
+                organism: mesocosm_core::OrganismId(0),
                 parent: PartId(0),
                 offset: [4, 0, 0],
                 yaw: Yaw::Zero,

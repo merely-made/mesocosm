@@ -415,3 +415,29 @@ round-trip:
   been pinned to zero everywhere, in the fixture and the plan and the growth
   resolver, each place with its own comment explaining why. Rotation now works,
   which unblocks the articulation that the presentation ruling depends on.
+- **2026-07-31. The ecology substrate landed, and running it found three
+  things no design pass had.** `Morsel` became `Organism`: kingdom, lifecycle
+  stage, age, and a per-tick step, with the world stepping every organism on
+  every tick whether or not the player acted.
+
+  **One: producers had no limit.** Fixing energy from nothing with no
+  competition made the population exponential — 75 organisms became 1530 in
+  600 ticks — and biomass share is meaningless when everyone's share grows.
+  Fixed with density-dependent income on a coarse grid, floored at rent so a
+  shaded stand *stagnates* rather than starving. The first attempt had no
+  floor, and an entire patch of identical plants crossed the starvation line
+  on the same tick and went extinct instead of thinning.
+
+  **Two: consumers could not eat.** They paid upkeep and earned nothing, so
+  they were guaranteed to starve and every world converged to producers only.
+  The trophic cycle had a missing rung and nothing in the design documents
+  caught it, because on paper "consumers eat producers" reads as already true.
+
+  **Three: producers alone are unbounded, and that is correct.** Crowding
+  limits what a patch supports; dispersal escapes the patch. What actually
+  regulates a pasture is something grazing it. A test asserting producers
+  self-limit was asserting the wrong thing, and the right test is that a
+  *mixed* world holds its population.
+
+  Result: 75 alive to 74 alive over 600 unattended ticks, all three kingdoms
+  coexisting, with carrion cycling. The world now goes somewhere on its own.

@@ -9,7 +9,7 @@
 //! because it is presentation-adjacent scaffolding, not world truth: the core
 //! carries content addresses and knows nothing about what a volume looks like.
 
-use mesocosm_core::{Intent, MorselId, VolumeRef, World, world::morsel_extent};
+use mesocosm_core::{Intent, OrganismId, VolumeRef, World, world::organism_extent};
 use mesocosm_mesh::{Volume, VolumeMap};
 
 pub fn volumes() -> VolumeMap {
@@ -18,7 +18,7 @@ pub fn volumes() -> VolumeMap {
     for tag in 16..24u8 {
         // A volume is exactly the extent the core placed with, or the picture
         // and the physics would disagree about the same part.
-        let half = morsel_extent(tag);
+        let half = organism_extent(tag);
         let size = [
             (half[0] * 2).max(1) as u32,
             (half[1] * 2).max(1) as u32,
@@ -34,13 +34,13 @@ pub fn volumes() -> VolumeMap {
 ///
 /// Explicit placement still exists on `Intent::Metabolize` for an editor, but
 /// automatic and symmetric is the resting state.
-pub fn metabolize(_world: &World, morsel: MorselId, _volumes: &VolumeMap) -> Intent {
-    Intent::Incorporate { morsel }
+pub fn metabolize(_world: &World, organism: OrganismId, _volumes: &VolumeMap) -> Intent {
+    Intent::Incorporate { organism }
 }
 
-pub fn reachable(world: &World) -> Option<MorselId> {
+pub fn reachable(world: &World) -> Option<OrganismId> {
     world
-        .morsels
+        .organisms
         .iter()
         .filter(|m| (0..3).all(|a| (m.position[a] - world.position[a]).abs() <= 8))
         .map(|m| m.id)
@@ -57,8 +57,8 @@ mod tests {
         let volumes = volumes();
         let world = World::new(7, 40);
         assert!(mesocosm_mesh::mesh_body(&world.body, &volumes).is_ok());
-        for morsel in &world.morsels {
-            assert!(volumes.volume(morsel.volume).is_some());
+        for organism in &world.organisms {
+            assert!(volumes.volume(organism.volume).is_some());
         }
     }
 

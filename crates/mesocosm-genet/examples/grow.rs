@@ -93,6 +93,32 @@ fn main() {
         })
         .count();
 
+    // Let the enclosure run on its own for a while, with the critter idle.
+    // This is the thing that separates an ecology from a field of pickups:
+    // it goes somewhere whether or not anyone is playing.
+    let before_alive = world.living().count();
+    for _ in 0..600 {
+        world.apply(mesocosm_core::Intent::Idle);
+    }
+    let after_alive = world.living().count();
+    println!("left alone for 600 ticks: {before_alive} alive -> {after_alive} alive");
+
+    // What the enclosure did on its own while the critter was eating.
+    let alive = world.living().count();
+    let carrion = world
+        .organisms
+        .iter()
+        .filter(|o| o.stage == mesocosm_core::Stage::Carrion)
+        .count();
+    let producers = world
+        .living()
+        .filter(|o| o.kingdom == mesocosm_core::Kingdom::Producer)
+        .count();
+    println!(
+        "enclosure: {alive} alive ({producers} producers), {carrion} carrion,          {} total ever minted",
+        world.organisms.len()
+    );
+
     println!("ate {eaten}, body has {} parts", world.body.len());
     // With pivots the root is centred on the origin, so the midline is zero.
     let midline = 0;

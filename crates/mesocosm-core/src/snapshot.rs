@@ -64,7 +64,8 @@ pub fn hash_bytes(bytes: &[u8]) -> u64 {
 mod tests {
     use super::*;
     use crate::body::Yaw;
-    use crate::world::{Intent, MorselId, World};
+    use crate::world::{Intent, World};
+    use crate::organism::OrganismId;
 
     #[test]
     fn snapshot_round_trips() {
@@ -113,7 +114,7 @@ mod tests {
         let mut a = World::new(13, 6);
         let mut b = World::new(13, 6);
         a.apply(Intent::Metabolize {
-            morsel: MorselId(9999),
+            organism: OrganismId(9999),
             parent: a.body.root,
             offset: [0, 0, 0],
             yaw: Yaw::Zero,

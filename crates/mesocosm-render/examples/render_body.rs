@@ -14,7 +14,7 @@
 
 use std::path::{Path, PathBuf};
 
-use mesocosm_core::{Intent, MorselId, Outcome, PartId, VolumeRef, World, Yaw};
+use mesocosm_core::{Intent, OrganismId, Outcome, PartId, VolumeRef, World, Yaw};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 use mesocosm_render::{Camera, Renderer};
 
@@ -25,7 +25,7 @@ fn volumes() -> VolumeMap {
     let mut map = VolumeMap::new();
     // The founding body: a chunky core.
     map.insert(VolumeRef::from_tag(1), Volume::solid([5, 5, 5], 1));
-    // Morsel volumes, varied so incorporated parts read as different things.
+    // Organism volumes, varied so incorporated parts read as different things.
     for tag in 16..24u8 {
         let size = match tag % 4 {
             0 => [3, 2, 2],
@@ -57,10 +57,10 @@ fn grow(world: &mut World, meals: usize) -> usize {
         let Some(target) = reachable(world) else { break };
 
         let size = world
-            .morsels
+            .organisms
             .iter()
             .find(|m| m.id == target)
-            .map(|m| morsel_extent(m.volume))
+            .map(|m| organism_extent(m.volume))
             .unwrap_or([2, 2, 2]);
 
         // Flush against one of the six faces, cycling.
@@ -76,7 +76,7 @@ fn grow(world: &mut World, meals: usize) -> usize {
         // Yaw stays zero here for the same reason: rotation turns a part about
         // its corner, so a rotated limb swings off the joint it was flush to.
         if let Outcome::Incorporated { .. } = world.apply(Intent::Metabolize {
-            morsel: target,
+            organism: target,
             parent: PartId(0),
             offset,
             yaw: Yaw::Zero,
@@ -88,7 +88,7 @@ fn grow(world: &mut World, meals: usize) -> usize {
 }
 
 /// Mirrors the sizes in [`volumes`], since the world carries only references.
-fn morsel_extent(reference: VolumeRef) -> [i32; 3] {
+fn organism_extent(reference: VolumeRef) -> [i32; 3] {
     let tag = reference.0[0];
     match tag % 4 {
         0 => [3, 2, 2],
@@ -98,9 +98,9 @@ fn morsel_extent(reference: VolumeRef) -> [i32; 3] {
     }
 }
 
-fn reachable(world: &World) -> Option<MorselId> {
+fn reachable(world: &World) -> Option<OrganismId> {
     world
-        .morsels
+        .organisms
         .iter()
         .filter(|m| (0..3).all(|a| (m.position[a] - world.position[a]).abs() <= 8))
         .map(|m| m.id)

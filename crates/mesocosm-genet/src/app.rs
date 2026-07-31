@@ -23,7 +23,7 @@ use crate::fixture;
 #[derive(Clone, Debug)]
 pub struct HostConfig {
     pub seed: u64,
-    pub morsels: u32,
+    pub organisms: u32,
     pub ticks_per_second: u32,
     pub width: u32,
     pub height: u32,
@@ -41,7 +41,7 @@ impl Default for HostConfig {
     fn default() -> Self {
         Self {
             seed: 0x00A7_7AC4,
-            morsels: 60,
+            organisms: 60,
             ticks_per_second: 60,
             width: 720,
             height: 720,
@@ -97,7 +97,7 @@ struct Gpu {
 
 impl Host {
     pub fn new(config: HostConfig) -> Self {
-        let runtime = Runtime::new(config.seed, config.morsels, config.ticks_per_second);
+        let runtime = Runtime::new(config.seed, config.organisms, config.ticks_per_second);
         Self {
             config,
             runtime,
@@ -133,23 +133,23 @@ impl Host {
     }
 
     /// Builds the drawable scene: the critter where it stands, plus every
-    /// morsel where it lies. Morsels out of reach are dimmed, so what can be
+    /// organism where it lies. Organisms out of reach are dimmed, so what can be
     /// eaten reads without a UI element.
     fn scene(&self) -> Option<(BodyMesh, Vec<Placed>)> {
         let world = self.runtime.world();
         let body = mesh_body(&world.body, &self.volumes).ok()?;
 
-        let mut loose = Vec::with_capacity(world.morsels.len());
-        for morsel in &world.morsels {
-            let Some(volume) = self.volumes.volume(morsel.volume) else {
+        let mut loose = Vec::with_capacity(world.organisms.len());
+        for organism in &world.organisms {
+            let Some(volume) = self.volumes.volume(organism.volume) else {
                 continue;
             };
             let in_reach = (0..3).all(|a| {
-                (morsel.position[a] - world.position[a]).abs() <= REACH
+                (organism.position[a] - world.position[a]).abs() <= REACH
             });
             loose.push((
-                BodyMesh::single(morsel.volume, volume),
-                morsel.position,
+                BodyMesh::single(organism.volume, volume),
+                organism.position,
                 if in_reach { 1.0 } else { 0.45 },
             ));
         }

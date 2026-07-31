@@ -16,22 +16,8 @@ use serde::{Deserialize, Serialize};
 use crate::body::{
     Aabb, Attachment, BodyDocument, Origin, PartId, Provenance, SpeciesId, VolumeRef, Yaw,
 };
+use crate::organism::{Kingdom, Organism, OrganismId, Stage};
 use crate::rng::Rng;
-
-/// A piece of loose matter in the enclosure, available to be eaten.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Morsel {
-    pub id: MorselId,
-    /// Which lineage this used to belong to. Incorporation carries it forward.
-    pub species: SpeciesId,
-    pub volume: VolumeRef,
-    pub mass_mg: u64,
-    pub half_extent: [i32; 3],
-    pub position: [i32; 3],
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct MorselId(pub u32);
 
 /// What a host may ask the world to do. Hosts send intents; they never mutate
 /// world state directly.
@@ -39,19 +25,19 @@ pub struct MorselId(pub u32);
 pub enum Intent {
     /// Move the critter by a voxel delta.
     Move { delta: [i32; 3] },
-    /// Eat a morsel and let the body plan decide where it goes. **The
+    /// Eat an organism and let the body plan decide where it goes. **The
     /// default.** Growth is automatic and symmetric; the player shapes the
     /// plan, not the placement.
-    Incorporate { morsel: MorselId },
-    /// Eat a morsel and place it explicitly. The editor path: total control is
+    Incorporate { organism: OrganismId },
+    /// Eat an organism and place it explicitly. The editor path: total control is
     /// possible, but it is never the resting state.
     Metabolize {
-        morsel: MorselId,
+        organism: OrganismId,
         parent: PartId,
         offset: [i32; 3],
         yaw: Yaw,
     },
-    /// Return mass to the enclosure as a new morsel.
+    /// Return mass to the enclosure as carrion.
     Deposit { mass_mg: u64 },
     /// Advance one tick without acting.
     Idle,
@@ -61,7 +47,7 @@ pub enum Intent {
 /// outcome, so a replay that rejects the same intents is still identical.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Rejection {
-    NoSuchMorsel(MorselId),
+    NoSuchOrganism(OrganismId),
     NoSuchParent(PartId),
     OutOfReach,
     InsufficientMass,
@@ -77,7 +63,7 @@ pub enum Outcome {
     Incorporated { part: PartId },
     /// A bilateral plan grew a mirrored pair from one meal, splitting its mass.
     IncorporatedPair { part: PartId, mirror: PartId },
-    Deposited { morsel: MorselId },
+    Deposited { organism: OrganismId },
     Idled,
     Rejected(Rejection),
 }
@@ -90,18 +76,19 @@ pub struct World {
     pub position: [i32; 3],
     pub body: BodyDocument,
     /// Ordered by id, so iteration never depends on hashing.
-    pub morsels: Vec<Morsel>,
-    next_morsel: u32,
+    pub organisms: Vec<Organism>,
+    next_organism: u32,
+    last_tally: crate::organism::Tally,
     /// Metabolic budget in milligrams. Spent by moving, gained by eating.
     pub energy_mg: u64,
 }
 
-/// The half-extent of a morsel, by its volume tag.
+/// The half-extent of an organism, by its volume tag.
 ///
 /// Shapes vary so that [`crate::plan::classify`] finds real roles: a world of
 /// identical cubes can only ever grow mass. A host's volumes must match, since
 /// this is what placement and physics read.
-pub fn morsel_extent(tag: u8) -> [i32; 3] {
+pub fn organism_extent(tag: u8) -> [i32; 3] {
     match tag % 4 {
         0 => [3, 1, 1],
         1 => [1, 3, 1],
@@ -118,26 +105,40 @@ const MOVE_COST_MG: u64 = 1;
 
 impl World {
     /// Builds the standard fixture: one critter and a deterministic scatter of
-    /// morsels drawn from the seeded stream.
-    pub fn new(seed: u64, morsel_count: u32) -> Self {
+    /// organisms drawn from the seeded stream.
+    pub fn new(seed: u64, organism_count: u32) -> Self {
         let mut rng = Rng::from_seed(seed);
         let body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
 
-        let mut morsels = Vec::with_capacity(morsel_count as usize);
-        for index in 0..morsel_count {
+        let mut organisms = Vec::with_capacity(organism_count as usize);
+        for index in 0..organism_count {
             // Draws happen in a fixed order, so the scatter is reproducible.
             let x = rng.range_i32(-16, 16);
             let y = rng.range_i32(-2, 2);
             let z = rng.range_i32(-16, 16);
             let mass = 100 + rng.below(400);
             let species = SpeciesId(2 + (rng.below(3) as u32));
-            morsels.push(Morsel {
-                id: MorselId(index),
+            // A mix that can actually sustain itself: mostly producers,
+            // because a world without income runs down.
+            let kingdom = match rng.below(6) {
+                0 => Kingdom::Consumer,
+                1 => Kingdom::Decomposer,
+                _ => Kingdom::Producer,
+            };
+            // Staggered ages, so the enclosure is mid-life rather than all
+            // hatching on the same tick.
+            let age = rng.below(200) as u32;
+            organisms.push(Organism {
+                id: OrganismId(index),
                 species,
+                kingdom,
                 volume: VolumeRef::from_tag(16 + (index % 8) as u8),
                 mass_mg: mass,
-                half_extent: morsel_extent(16 + (index % 8) as u8),
+                half_extent: organism_extent(16 + (index % 8) as u8),
                 position: [x, y, z],
+                stage: Stage::Juvenile,
+                age,
+                since_offspring: rng.below(120) as u32,
             });
         }
 
@@ -147,8 +148,9 @@ impl World {
             rng,
             position: [0, 0, 0],
             body,
-            morsels,
-            next_morsel: morsel_count,
+            organisms,
+            next_organism: organism_count,
+            last_tally: crate::organism::Tally::default(),
             energy_mg: 1_000,
         }
     }
@@ -157,8 +159,26 @@ impl World {
     /// state changes.
     pub fn apply(&mut self, intent: Intent) -> Outcome {
         let outcome = self.resolve(intent);
+        // The enclosure lives whether or not the player acted. This is what
+        // separates an ecology from a field of pickups: things grow, breed,
+        // starve, and rot on their own schedule.
+        self.last_tally = crate::organism::step(
+            &mut self.organisms,
+            &mut self.next_organism,
+            &mut self.rng,
+        );
         self.tick += 1;
         outcome
+    }
+
+    /// What the most recent tick did to the enclosure.
+    pub fn last_tally(&self) -> crate::organism::Tally {
+        self.last_tally
+    }
+
+    /// Living organisms, in id order.
+    pub fn living(&self) -> impl Iterator<Item = &Organism> {
+        self.organisms.iter().filter(|o| o.is_alive())
     }
 
     /// Applies an ordered trace, returning every outcome in order.
@@ -183,20 +203,20 @@ impl World {
                 Outcome::Moved
             }
 
-            Intent::Incorporate { morsel } => self.incorporate(morsel),
+            Intent::Incorporate { organism } => self.incorporate(organism),
 
-            Intent::Metabolize { morsel, parent, offset, yaw } => {
-                let Some(index) = self.morsels.iter().position(|m| m.id == morsel) else {
-                    return Outcome::Rejected(Rejection::NoSuchMorsel(morsel));
+            Intent::Metabolize { organism, parent, offset, yaw } => {
+                let Some(index) = self.organisms.iter().position(|m| m.id == organism) else {
+                    return Outcome::Rejected(Rejection::NoSuchOrganism(organism));
                 };
                 if self.body.part(parent).is_none() {
                     return Outcome::Rejected(Rejection::NoSuchParent(parent));
                 }
-                if !self.within_reach(self.morsels[index].position) {
+                if !self.within_reach(self.organisms[index].position) {
                     return Outcome::Rejected(Rejection::OutOfReach);
                 }
 
-                let eaten = self.morsels.remove(index);
+                let eaten = self.organisms.remove(index);
                 let provenance = Provenance {
                     origin: Origin::Incorporated {
                         from_species: eaten.species,
@@ -217,7 +237,7 @@ impl World {
                         Outcome::Incorporated { part }
                     }
                     Err(_) => {
-                        self.morsels.insert(index, eaten);
+                        self.organisms.insert(index, eaten);
                         Outcome::Rejected(Rejection::NoSuchParent(parent))
                     }
                 }
@@ -228,36 +248,42 @@ impl World {
                     return Outcome::Rejected(Rejection::InsufficientMass);
                 }
                 self.energy_mg -= mass_mg;
-                let id = MorselId(self.next_morsel);
-                self.next_morsel += 1;
-                self.morsels.push(Morsel {
+                let id = OrganismId(self.next_organism);
+                self.next_organism += 1;
+                self.organisms.push(Organism {
                     id,
                     species: self.body.species,
+                    // Deposited matter is dead matter: it feeds decomposers
+                    // and returns to the world rather than growing.
+                    kingdom: Kingdom::Decomposer,
                     volume: VolumeRef::from_tag(64),
                     mass_mg,
                     half_extent: [1, 1, 1],
                     position: self.position,
+                    stage: Stage::Carrion,
+                    age: 0,
+                    since_offspring: 0,
                 });
-                Outcome::Deposited { morsel: id }
+                Outcome::Deposited { organism: id }
             }
         }
     }
 
-    /// Eats a morsel and grows it where the plan says.
-    fn incorporate(&mut self, morsel: MorselId) -> Outcome {
-        let Some(index) = self.morsels.iter().position(|m| m.id == morsel) else {
-            return Outcome::Rejected(Rejection::NoSuchMorsel(morsel));
+    /// Eats a organism and grows it where the plan says.
+    fn incorporate(&mut self, organism: OrganismId) -> Outcome {
+        let Some(index) = self.organisms.iter().position(|m| m.id == organism) else {
+            return Outcome::Rejected(Rejection::NoSuchOrganism(organism));
         };
-        if !self.within_reach(self.morsels[index].position) {
+        if !self.within_reach(self.organisms[index].position) {
             return Outcome::Rejected(Rejection::OutOfReach);
         }
 
-        let Some(growth) = crate::growth::resolve(&self.body, self.morsels[index].half_extent)
+        let Some(growth) = crate::growth::resolve(&self.body, self.organisms[index].half_extent)
         else {
             return Outcome::Rejected(Rejection::NoRoom);
         };
 
-        let eaten = self.morsels.remove(index);
+        let eaten = self.organisms.remove(index);
         let provenance = Provenance {
             origin: Origin::Incorporated {
                 from_species: eaten.species,
@@ -278,7 +304,7 @@ impl World {
             crate::growth::attachment(&growth),
             provenance.clone(),
         ) else {
-            self.morsels.insert(index, eaten);
+            self.organisms.insert(index, eaten);
             return Outcome::Rejected(Rejection::NoRoom);
         };
 
@@ -324,12 +350,12 @@ impl World {
 mod tests {
     use super::*;
 
-    fn near_morsel(world: &World) -> MorselId {
+    fn near_organism(world: &World) -> OrganismId {
         world
-            .morsels
+            .organisms
             .iter()
             .find(|m| world.within_reach(m.position))
-            .expect("fixture places at least one morsel in reach")
+            .expect("fixture places at least one organism in reach")
             .id
     }
 
@@ -344,18 +370,18 @@ mod tests {
     fn different_seeds_build_different_worlds() {
         let a = World::new(1, 12);
         let b = World::new(2, 12);
-        assert_ne!(a.morsels, b.morsels);
+        assert_ne!(a.organisms, b.organisms);
     }
 
     #[test]
     fn metabolize_grows_mass_and_collision() {
         let mut world = World::new(99, 24);
-        let target = near_morsel(&world);
+        let target = near_organism(&world);
         let mass_before = world.total_mass_mg();
         let box_before = world.collision();
 
         let outcome = world.apply(Intent::Metabolize {
-            morsel: target,
+            organism: target,
             parent: world.body.root,
             offset: [5, 0, 0],
             yaw: Yaw::Zero,
@@ -369,16 +395,16 @@ mod tests {
     #[test]
     fn metabolize_records_where_the_part_came_from() {
         let mut world = World::new(7, 24);
-        let target = near_morsel(&world);
+        let target = near_organism(&world);
         let eaten_species = world
-            .morsels
+            .organisms
             .iter()
             .find(|m| m.id == target)
             .map(|m| m.species)
             .unwrap();
 
         let Outcome::Incorporated { part } = world.apply(Intent::Metabolize {
-            morsel: target,
+            organism: target,
             parent: world.body.root,
             offset: [4, 0, 0],
             yaw: Yaw::Zero,
@@ -394,18 +420,22 @@ mod tests {
     }
 
     #[test]
-    fn out_of_reach_morsels_are_refused() {
+    fn out_of_reach_organisms_are_refused() {
         let mut world = World::new(5, 4);
-        world.morsels.push(Morsel {
-            id: MorselId(900),
+        world.organisms.push(Organism {
+            id: OrganismId(900),
             species: SpeciesId(3),
+            kingdom: Kingdom::Producer,
             volume: VolumeRef::from_tag(2),
             mass_mg: 100,
             half_extent: [1, 1, 1],
             position: [500, 0, 0],
+            stage: Stage::Mature,
+            age: 0,
+            since_offspring: 0,
         });
         let outcome = world.apply(Intent::Metabolize {
-            morsel: MorselId(900),
+            organism: OrganismId(900),
             parent: world.body.root,
             offset: [1, 0, 0],
             yaw: Yaw::Zero,
@@ -418,12 +448,12 @@ mod tests {
         let mut world = World::new(11, 2);
         let before = world.tick;
         let outcome = world.apply(Intent::Metabolize {
-            morsel: MorselId(4242),
+            organism: OrganismId(4242),
             parent: world.body.root,
             offset: [0, 0, 0],
             yaw: Yaw::Zero,
         });
-        assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchMorsel(MorselId(4242))));
+        assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchOrganism(OrganismId(4242))));
         assert_eq!(world.tick, before + 1);
     }
 
@@ -438,9 +468,9 @@ mod tests {
     #[test]
     fn deposit_returns_matter_to_the_enclosure() {
         let mut world = World::new(3, 2);
-        let count = world.morsels.len();
+        let count = world.organisms.len();
         let outcome = world.apply(Intent::Deposit { mass_mg: 200 });
         assert!(matches!(outcome, Outcome::Deposited { .. }));
-        assert_eq!(world.morsels.len(), count + 1);
+        assert_eq!(world.organisms.len(), count + 1);
     }
 }
