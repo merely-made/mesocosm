@@ -268,6 +268,33 @@ only at world forks, campaign descent, and cross-moot grafts.** This keeps
 Fili's recorded scope exact (`mere/design_docs/TERMINOLOGY.md`: moot lineage,
 not event history) while making provenance impossible to lose.
 
+### Layered beings, places, and engrams
+
+**Ruled 2026-07-31.** `character(borg(critter))` is useful conceptual
+shorthand, but it must not become literal nested wire data. A cross-vessel
+subject has one stable identity and independently versioned profile facets:
+
+| Profile | Owns |
+| ------- | ---- |
+| Critter | metabolism, body topology, traits, biological descent, incorporated-part provenance |
+| Paredros character | continuity of person, skills, affinities, personality, trust, history, relationships |
+| Place | buildings, inhabitants, dependencies, deeds, accumulated customs and institutions |
+| Isometry participant/faction | campaign role, authority, allegiance, ethos, public history |
+
+A character may refer to a critter body profile; a changed chassis mints or
+selects another body revision without copying the whole person into it. A
+place likewise refers to inhabitants and facilities rather than containing
+authoritative copies of them. Profiles compose through stable references and
+capabilities, so a consumer can understand the layers it knows and preserve
+the rest opaquely.
+
+These are still **engrams** when made portable. An engram is the canonical
+portable contribution payload; the profile names the schema of what it
+carries. `mere.pack/v1` is the signed installable-bundle envelope that can
+carry one or more related engrams plus scripts and capabilities. Engram,
+profile, and pack are therefore transport, meaning, and bundle respectively,
+not competing names for one object.
+
 ### Graduated interoperability
 
 1. **Observe** — render or inspect a world
@@ -284,9 +311,17 @@ interpretation.** Games append history in their own vocabulary and never
 mutate foreign facts without a grant. Each game retains facts it cannot
 interpret. Re-entry is *interpretation*, not merging: Mesocosm reads "lost an
 arm at the ford" from Isometry's appended history and derives the
-morphological consequence itself, under its own rules. Conflict is therefore
-impossible by construction, which is why this needs no CRDTs and does not
-disturb Isometry's standing no-rollback guardrail.
+morphological consequence itself, under its own rules.
+
+This prevents **destructive merge and fact loss**; it does not make semantic
+conflict impossible. Independent signed facts converge by set union.
+Incompatible claims remain visible until the relevant domain materializer and
+group policy interpret, reject, sequence, or branch them. A true CRDT belongs
+only where a domain needs concurrent edits to one mergeable value, such as
+text, a counter, or possibly map cells. Live tactics and timing-sensitive
+simulation retain an ordered sequencer or authority. Isometry already proves
+both sides: signed multi-writer campaign space and a separately ordered
+tactical session.
 
 **Authority:** lenses hold revocable per-domain grants. Isometry's shape
 generalizes unchanged — a client sends an *ask*, never a verdict, and the
@@ -336,13 +371,15 @@ overstated it, and the correction matters.
 - **The missing arrow is adoption, not wire.** `isometry-campaign` does not
   yet lower to or recover from `mere.pack/v1`.
 - **Genuinely new organs** the wing needs and the stack does not have:
-  real-time netcode (Isometry is deliberately turn-based with a no-rollback
-  guardrail), voxels as playable volume with a live 3D render lane (Isometry
-  keeps voxels as asset substrate only), and colony/production simulation.
+  real-time netcode (Isometry's current tactical lane is deliberately ordered
+  and turn-based), voxels as live attachable bodies and possibly playable
+  volume (Isometry keeps them as an asset substrate), and settlement/
+  production simulation.
 - **Parked deliberately:** R³ fields (numen is R² today, and numen/quint are
   a field algebra — an influence-map substrate — while seiche is rapier2d
-  graph layout, so arena physics means rapier3d directly, with seiche's
-  reconcile-a-physics-world-to-a-host-graph pattern as the template).
+  graph layout, so Mesocosm takes its chosen Rapier2D or Rapier3D dependency
+  directly, with seiche's reconcile-a-physics-world-to-a-host-graph pattern
+  as the template).
 
 **Discipline:** the platform is extracted from shipped games, never built
 platform-first. Mesocosm is a *candidate* for that proof, not yet a real
@@ -358,8 +395,9 @@ games.**
 The proof pair:
 
 1. Mesocosm mints an organism.
-2. Isometry imports it as a token, preserving the opaque body plan and fili
-   ancestry, rendering appearance through the voxel recipe pipeline.
+2. Isometry imports it as a token, preserving the opaque body plan,
+   biological descent, and any outer world-Fili provenance, rendering
+   appearance through the voxel recipe pipeline.
 3. Isometry appends a played history.
 4. Mesocosm reads the descendant back without either side losing facts.
 5. The same slot accepts an RNG-authored organism indistinguishably (Law C).
@@ -369,9 +407,9 @@ artifact of the wing. Its fields, sharpened 2026-07-30 and detailed in the
 [body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md) §3:
 body topology (parts, attachment frames, parent/child structure), **per-part
 provenance** (what each part used to be — the keystone, and Law A's raw
-material), mass and collision hints, fili ancestry, the Law A tradeoff
-record, Law B's loud inherited signatures, and **optional** projection
-recipes.
+material), mass and collision hints, a biological-lineage reference,
+optional Fili provenance for a world fork or graft, the Law A tradeoff record,
+Law B's loud inherited signatures, and **optional** projection recipes.
 
 Projection recipes are optional on purpose. `isometry-voxel` recipes are an
 excellent first projection codec and probably Isometry's, but making them
@@ -393,7 +431,7 @@ maintainer's manual step.
 
 | Word | Role |
 | ---- | ---- |
-| **Mesocosm** | Vessel 1. Ecology's mid-scale enclosed experimental ecosystem. Critters are not cells, so *meso-* is the accurate scale, and each generational run is one experiment in the same enclosure. |
+| **Mesocosm** | Vessel 1. Ecology's mid-scale enclosed experimental ecosystem. The simulated enclosure is mesoscopic even when a playable one-trait critter is cellular; each generational run is one experiment in it. |
 | **Paredros** | Vessel 2. "The one who sits beside": the Greek Magical Papyri's acquired companion, and in classical civic use an assessor seated beside a magistrate. A colleague, not a servant. |
 | **critter** | The plain organism word, wing-wide. |
 | **animula** | The played soul in Mesocosm: Hadrian's *animula vagula blandula, hospes comesque corporis*, the little soul that guests in a body. In-product term only — **ANIMULA NOOK** is a live Tencent mark in Class 9 game software, so the word must never title a game. |
@@ -418,45 +456,46 @@ not reuse it.
 
 Carried forward deliberately. Each needs a ruling before the work it gates.
 
-1. **Licensing — direction set 2026-07-30, exact license still open.**
-   Mark's call: **MIT/Apache for the reusable parts, and copyleft
-   guarantees for the game roughly equivalent to Cataclysm: Dark Days
-   Ahead**, with MPL floated as the alternative. That matches the split the
-   radio business already runs (crates MIT/Apache, firmware GPLv3).
+1. **Licensing — adopted 2026-07-31.** Game code and repository
+   documentation use **MPL-2.0**. Separately identified reusable library
+   crates use **MIT OR Apache-2.0** after their boundary is proven. Original
+   game assets use **CC BY-SA 4.0**, with per-asset attribution and explicit
+   notices for imported material.
 
    One correction to carry into the decision: **CDDA is CC BY-SA 3.0 for
    code and content both**, which is an unusual choice and not a good model
    to copy literally. Creative Commons themselves advise against CC licenses
    for software — they carry no patent grant and do not address
    source-versus-object distribution, both of which matter for a Rust
-   project with dependencies. The equivalent *guarantees* are better reached
-   as:
-
-   - **Extracted libraries**: MIT OR Apache-2.0 (the standing convention).
-   - **Game code**: **GPLv3** for CDDA-strength copyleft, or **MPL-2.0** for
-     weaker file-level copyleft. MPL is already in the stack's vocabulary
-     (retinue is MPL-2.0, and the Servo-derived lanes are), so it is the
-     lower-friction choice; GPLv3 is the stronger guarantee and matches the
-     firmware precedent.
-   - **Assets and content**: **CC BY-SA 4.0**, which is what CC licenses are
-     actually for, and which delivers the CDDA feel where it belongs.
-
-   Decide before real game code lands, since relicensing after outside
-   contributions is painful.
+   project with dependencies. The adopted split uses a software license for
+   code and a culture/content license for assets. Each game repository keeps
+   a `LICENSES.md` scope record so the permissive library texts cannot be
+   mistaken for a dual license on MPL game code.
 2. **Render and engine stack.** Given its own research doc:
    [`2026-07-30_engine_and_render_lane_landscape.md`](2026-07-30_engine_and_render_lane_landscape.md).
    The earlier framing here (Bevy versus custom wgpu) was a false binary and
    is superseded. Short version: Fyrox is the forkable engine and the only
-   Rust one with an editor; "custom" is an assembly in which **eleven of
-   thirteen components are already owned** (winit, netrender/vello,
-   isometry-voxel, Firewheel, armillary, codicil/muniment, numen/quint,
-   cambium, parley, rapier via seiche); the real gap is a 3D renderer and a
-   mesher. Renderers need not be shared across vessels — the one-substrate
-   law binds the world model, not the pixels — so splitting the bet is live.
-   Also carries Mark's proposed dimensionality (Mesocosm 2/2.5D, Paredros 3D
-   first person, Isometry 3D third person) **and the flag that the Isometry
-   half contradicts a standing ruling in that repo** and needs its own plan
-   there.
+   Rust one with an editor; "custom" is an **assembly over an existing host
+   skeleton** — winit, netrender/vello, isometry-voxel, Firewheel, armillary,
+   codicil/muniment, numen/quint, cambium, parley, and rapier via seiche are
+   all owned — but the shelf is **not an engine**, and the missing middle is a
+   coherent game runtime (fixed timestep, authoritative world,
+   snapshot/replay, input actions, asset graph, scene representation, camera
+   and animation, spatial queries, game audio, inspection). The renderer gap
+   is a 3D renderer and a mesher. Renderers need not be shared across vessels
+   — the restated law binds world identity, provenance, and causal history,
+   not the pixels — so splitting the bet is live.
+
+   Carries Mark's proposed dimensionality (Mesocosm 2 or 2.5D, Paredros a
+   close camera, Isometry a distant one) with two flags: **camera distance is
+   not person** (say close camera, never "first-person Paredros"), and **a 3D
+   Isometry contradicts a standing ruling in that repo**, which needs its own
+   plan there rather than arriving as a side effect.
+
+   Ordering for the probe itself lives in the
+   [execution waves plan](2026-07-31_execution_waves_plan.md), including the
+   **confound rule**: both hosts initially stage the same enclosure, so the
+   comparison measures host rather than host-plus-perspective.
 3. **Paredros' unit word.** "Borg" is chat shorthand — a Gotcha Force loan
    with an IP shadow. The battle-frame noun is unnamed.
 4. **Tulpa's inscription and shape**, including the attention mechanic that

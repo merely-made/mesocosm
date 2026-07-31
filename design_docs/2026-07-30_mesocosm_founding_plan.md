@@ -127,12 +127,44 @@ Conditions are what make a trait good or useless, so the world is the thing
 that gives the metabolic budget its meaning. The same body is a triumph in
 one world and a corpse in another.
 
-**Worlds seek balance on their own**, because traits are gated only by
-gameplay: to have a trait, something has to acquire it, and acquisition
-routes are all diegetic (eat it, be given it, be infected by it, strike a
-bargain for it). Nothing is unlocked by a menu, so nothing arrives that the
-world did not already contain. Balance is an emergent property of that
-constraint rather than a tuning pass.
+**Worlds seek balance through flows and costs.** Gameplay gating is necessary
+but insufficient: to have a trait, something has to acquire it diegetically
+(eat it, be given it, be infected by it, strike a bargain for it), but an
+acquired advantage would still ratchet upward if it were free to keep. Every
+trait therefore participates in the metabolic budget and in the world's
+material economy: acquisition, upkeep, development, reproduction, dependency,
+and opportunity cost. Energy and matter move among producers, consumers,
+decomposers, corpses, and the environment. Scarcity, niche overlap,
+predator/prey and host/parasite feedback, migration, dormancy, and spatial
+refugia supply the balancing pressure. The game may settle into a moving
+equilibrium, oscillate, or collapse; none is guaranteed to be kind.
+
+#### World-condition grammar
+
+**Adopted 2026-07-31 from Mark's
+[Exocosm resources](https://exocosm.org/resources/) reference.** Exocosm's
+useful method is to begin with a question — life under high gravity and a
+dense atmosphere, on a tidally locked world, through a violent eccentric
+year, or permanently aloft — and derive niches from the resulting pressures.
+Mesocosm should generate worlds the same way rather than choose a decorative
+biome.
+
+| Family | Example parameters |
+| ------ | ------------------ |
+| Energy schedule | spectrum, intensity, day/year shape, tidal locking, flares, geothermal and chemical sources |
+| Medium and mechanics | gravity, pressure, density, viscosity, buoyancy, solid/liquid/gas layers, vertical stratification |
+| Chemistry and materials | solvent, atmospheric mix, redox pairs, nutrients, salinity, acidity, scarce structural materials |
+| Topology | connected oceans, islands, caves, canopy, cloud bands, rings, moving habitable zones |
+| Cycles and disturbances | tides, freeze/thaw, storms, eruptions, impacts, resource pulses, magical seasons |
+| Initial ecology | founder lineages, trophic roles, body-plan priors, dispersal, dependency graph, generation tempo |
+| Altered law | one explicit impossible or magical rule and the consequences it permits |
+
+These values are not all scalar knobs. Some are constants, some are spatial
+Numen/Quint fields, some are cycles, and some are event distributions for the
+storyteller. A world profile records the question, the parameters, their
+generator/content versions, and the derived pressures. Exocosm is a
+worldbuilding reference library, not a runtime dependency or a demand for
+astrophysical realism.
 
 ### Acquisition is not only eating
 
@@ -212,6 +244,16 @@ Then:
 > adapt, in initiative order — and the same initiative order carries over
 > from the epoch. Mutations can be swapped, not merely added.
 
+**Initiative is descending metabolic complexity, ruled 2026-07-31.** The most
+complex lineages commit first. Simpler lineages act later and can respond to
+what those expensive, slower-generating forms just became. This compresses
+generation time into one legible adaptation round: the fruit fly can pass
+through many generations within one cicada lifecycle, so its lineage receives
+the informational advantage rather than asking the player to watch hundreds
+of repeated turns. Whether generation tempo also changes candidate count,
+mutation variance, or bank growth remains a tuning question; it must not add
+more visible turns merely to imitate elapsed generations.
+
 The player is one species among many at this table. That single decision is
 what makes the world feel like it is playing too, and it is where trophic
 cascades and extinctions become legible: you watch the thing that ate your
@@ -260,11 +302,25 @@ should therefore prove the seam early rather than polish either half.
 
 ### Multiple lineages
 
-You may switch between lineages. Lines can advantage or disadvantage one
-another, so a mature deme may run a producer line and a consumer line that
-support each other. Favoritism is real: some lines are outcompeted entirely
-and leave only traces, or mutate into other critters. Lineage favoritism is
-the first identified attachment-creep lever.
+**Ruled 2026-07-31.** At an epoch boundary the player may step out of the
+current descent loop and enter another unlocked lineage, or branch a new
+critter from the world's stock. The gate is the world's established
+**complexity frontier**: an unlocked lineage in that world must be more
+metabolically complex than the target. This lets the player step downward and
+explore newly viable niches without minting an unearned peer at the frontier.
+
+Leaving a lineage does not freeze it. Earlier played lines return to the
+world's adaptation policy and continue to grow, decline, split, migrate, or
+become extinct while the player inhabits another. Returning means entering
+their current descendants, not restoring the exact body that was left.
+Creative mode may offer an explicit freeze setting, but stasis is not the
+default fiction.
+
+Lines can advantage or disadvantage one another, so a mature world may hold
+a player-shaped producer line and consumer line that support each other.
+Favoritism is real: some lines are outcompeted entirely and leave only traces,
+or mutate into other critters. Lineage favoritism is the first identified
+attachment-creep lever.
 
 ### Death
 
@@ -322,20 +378,21 @@ The label retires in favour of **critter and arena**, read correctly.
 
 ### Where new lineages come from
 
-**The "primordial soup" framing is retired** (2026-07-30). It was inherited
-from Spore's cell stage and contradicts the multicellular ruling: there is no
-abiogenesis here, and the world is not a starting broth. It is a strange
-world that already has biota.
+**Corrected 2026-07-31: soup stays; the fixed staircase is retired.**
+Proto-conditions are a first-class world and an excellent starting roster of
+one-trait critters. What the game rejects is only the assumption that every
+world begins at abiogenesis and must climb through a prescribed cellular
+stage before the real game starts. Any world may begin anywhere on the trait
+ladder.
 
-A new lineage therefore arrives by **branching, not by creation**. You split
-off from something already living — the world's own stock, or one of your
-established lines — and the split is where authorship enters: you influence
-what the branch commits to, without designing it outright. This preserves the
-property the soup was there to provide, which is partial authorship. A
-critter you specified is a possession; a critter that *grew*, that you
-steered but did not author, has the otherness that attachment needs. It also
-gives the genesis moment a real cost, since branching spends the parent
-lineage's standing rather than drawing from nothing.
+A player-shaped lineage arrives by **branching, not a blank creator**. You
+split from something already living — a one-trait soup organism, the world's
+generated stock, or one of your established lines — and the split is where
+authorship enters. You influence what the branch commits to without designing
+it outright. A critter that grew, which you steered but did not wholly author,
+retains the otherness that attachment needs. The complexity-frontier rule
+above also gives a new branch a real ceiling rather than drawing arbitrary
+power from nothing.
 
 **And it is never a chore.** Branching is a place you go, not a menu you
 clear. The world's biota speciates on its own whether or not anyone is
@@ -458,15 +515,16 @@ surprise.
 
 Stated plainly so the cost is visible:
 
-- **Voxels as playable volume.** Isometry keeps voxels as asset substrate and
-  explicitly gates 3D lenses behind their own plan and render lane. Mesocosm
-  inverts that: the volume is the level and the critter. This is a new
-  wgpu-native render lane, and Mesocosm is its pressure vessel.
+- **A live voxel body pipeline.** Isometry keeps voxels as an asset substrate
+  and bakes sprites. Mesocosm must attach, remove, animate, collide, and
+  remesh parts during play. Whether the world projection is 2.5D or 3D is
+  deliberately left to the host probe; the live body requirement is new in
+  either lane.
 - **Physics-legible bodies.** Spore shipped 228 parts that resolved to stat
   icons, so the simulation never read form. The fix is that form *is* the
   dynamics input: voxel mass is inertia, part placement is balance and reach
-  and hitbox, armor distribution decides where subtraction hurts. rapier3d
-  reads the body directly, so form cannot be ignored.
+  and hitbox, armor distribution decides where subtraction hurts. The chosen
+  Rapier dimensionality reads the body directly, so form cannot be ignored.
 - **Procedural animation over grown morphologies.** Hecker's real-time motion
   retargeting is the prior art for animating bodies nobody has seen.
 
@@ -485,10 +543,11 @@ to a host graph the physics never owns.
 Done-conditions, not estimates. Each phase must be worth playing on its own.
 
 ### M0 — The verb
-One critter, one enclosure, metabolize. Eat, incorporate, deposit, in 3D
-voxel space on rapier3d. Doubles as the engine probe (§4 findings): build it
-twice, on an existing engine and on a custom wgpu loop, and let the verb
-decide.
+One critter, one enclosure, metabolize. Eat, incorporate, deposit, and attach
+one provenance-bearing part during play. This is built once in
+`mesocosm-core` and projected through the two hosts named in the body-pipeline
+probe. The probe chooses 2.5D versus 3D presentation and the corresponding
+Rapier lane rather than this founding phase hardcoding either.
 
 **Done when** a playtester will re-enter the world voluntarily, without a
 goal being offered.
@@ -551,26 +610,24 @@ nothing lost.
 *Verified facts discovered during the work, dated, with references. Empty at
 founding.*
 
-- **2026-07-30**: **Nothing in the Merely stack supplies a 3D render lane.**
-  The `wgpu-*` sibling repos are a *web-embedding* family, not a graphics
-  family: `wgpu-graft` grafts an external GPU producer's texture (Servo) onto
-  host `wgpu` textures, `wgpu-weld` routes CEF accelerated OSR output into
-  them, and `wgpu-scry` adapts system webviews (WebView2/WKWebView/WebKitGTK/
-  WPE) into consumable frames. None renders geometry. Genet/netrender is a
-  document renderer and is the wrong lane for volumetric first-person 3D
-  (Isometry's own docs already gate 3D lenses behind a separate render lane).
-  **Consequence:** the engine choice is a genuine greenfield decision between
-  an existing Rust engine (Bevy being the obvious candidate) and a custom
-  wgpu + rapier3d loop. It cannot be resolved by adopting something already
-  owned, and it should be settled by a probe rather than from the armchair.
+- **2026-07-30, corrected after stack review**: the Merely stack supplies a
+  credible host skeleton — winit/device/presentation ownership, NetRender and
+  Vello 2D composition, Cambium UI, Armillary actors, Firewheel, persistence,
+  fields, and an Isometry voxel baker — but not a game runtime or live body
+  renderer. The missing middle and the Bevy/Genet/Bones/Renderling probe are
+  specified in the engine landscape and body-pipeline plan.
 - **2026-07-30**: `numen`/`quint`/`seiche` live at
   `mere/crates/conatus/{numen,quint,seiche}`; there is no `repos/conatus`
   (absorbed by the 2026-07-23 consolidation). `seiche` wraps `rapier2d`
-  0.33 and is graph layout, not a game physics engine. Confirms rapier3d as
-  a direct dependency rather than a conatus consumer.
+  0.33 and is graph layout, not a game physics engine. Confirms that the
+  chosen Rapier2D or Rapier3D lane is a direct dependency rather than a
+  conatus consumer.
 
 ---
 
 ## 5. Progress
 
 - **2026-07-30**: repo founded, name reserved, design recorded. No code.
+- **2026-07-31**: recorded the world-condition grammar, metabolic-complexity
+  initiative, complexity-frontier lineage switching, autonomous inactive
+  lineages, and the restoration of soup as a valid proto-condition.

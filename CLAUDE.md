@@ -78,6 +78,17 @@ Do not copy it into Paredros or Isometry.
 - Prefer runtime verification over extended static code tracing. If runtime
   diagnostics are blocked, surface that blocker early.
 
+## Licensing Boundary
+
+- Game code and repository documentation are MPL-2.0.
+- A separately identified reusable library crate may use MIT OR Apache-2.0
+  only after its reusable boundary is real. State that license in its own
+  manifest; the presence of the permissive license texts does not
+  dual-license MPL game code.
+- Original game assets are CC BY-SA 4.0 and require an attribution entry.
+  Imported assets retain their own licenses and must be recorded explicitly.
+- See `LICENSES.md`. Do not blur code, library, and asset grants.
+
 ## Important Don'ts
 
 - **Do not violate the three pipeline laws** (games wing founding record §3).
@@ -93,9 +104,12 @@ Do not copy it into Paredros or Isometry.
   extracted after two real consumers, never declared in advance.
 - **Do not build the federation platform first.** It is extracted from
   shipped games. Mesocosm is a candidate for that proof, not yet a consumer.
-- Do not add rollback netcode or CRDTs speculatively. The interop model is
-  additive facts plus deferred interpretation, which makes conflict
-  impossible by construction.
+- Do not add rollback netcode or a universal CRDT world state speculatively.
+  Signed multi-writer authoring is already real in Isometry and is permitted:
+  additive operations converge without erasing concurrent claims. Each domain
+  still names its materializer and conflict rule; introduce a true CRDT only
+  when that domain proves it needs mergeable concurrent values. Live action
+  remains separately ordered or authoritative.
 - Do not add features beyond the active plan's current target without
   surfacing the scope change first. **The invariant is care granularity, not
   person purity** (relaxed 2026-07-30; wing founding record §1). Mesocosm is

@@ -1,8 +1,8 @@
 [package]
 name = "mesocosm"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
-license = "MIT OR Apache-2.0"
+license = "MPL-2.0"
 description = "Name reservation. Mesocosm is a first-person game of lineages: you are a critter in an enclosed mid-scale ecosystem, you grow by incorporating other organisms, and you try to make your kind matter."
 repository = "https://github.com/merely-made/mesocosm"
 readme = "README.md"
@@ -12,6 +12,9 @@ exclude = ["design_docs/"]
 
 # Own workspace root. Members arrive when the first real crate splits out;
 # until then the reservation package is the only member.
+#
+# Game and application crates use MPL-2.0. A genuinely reusable library may
+# declare MIT OR Apache-2.0 in its own manifest after its boundary is proven.
 [workspace]
 
 [dependencies]

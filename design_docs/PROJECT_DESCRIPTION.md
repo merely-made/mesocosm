@@ -1,8 +1,8 @@
 # Mesocosm — Project Description
 
-> **Draft, 2026-07-30.** Written at founding so the repo has a description.
-> Per DOC_POLICY §6 this file is maintainer-owned from here on; it is Mark's
-> to rewrite, and assistants should not edit it without instruction.
+> **Drafted 2026-07-30; revised by instruction 2026-07-31.** Per DOC_POLICY
+> §6 this file is maintainer-owned; assistants should not edit it without
+> instruction.
 
 ## What it is
 
@@ -12,9 +12,11 @@ and your line continues or it does not. Your aim is to increase your kind's
 share of the world's biomass — which no predator achieves alone.
 
 A mesocosm is ecology's mid-scale enclosed experimental ecosystem: larger
-than a microcosm, smaller than the world. Critters are not cells — they are
-plants, animals, and fungi — so that is the accurate scale, and each
-generational run is one experiment in the same enclosure.
+than a microcosm, smaller than the world. That names the scale of the
+enclosure, not the complexity of its inhabitants. A world's roster may begin
+with one-trait cells, colonies, or slime molds and branch into plants,
+animals, fungi, symbioses, and stranger forms. Each generational run is one
+experiment in the same enclosure.
 
 The arena is the world itself: your lineage competing for resources, for a
 niche, for a survival strategy in a strange place.

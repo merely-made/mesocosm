@@ -10,11 +10,13 @@ planning now. Landscape and candidate inventory:
 
 ## 1. Why not a shared render lane
 
-The three vessels want genuinely different renderers: a 2.5D voxel world
-composited into a genet host, a close-camera 3D world, and a locked isometric
-2D board drawn through a DOM today. Forcing one renderer across those means
-either crippling Paredros or dragging Isometry off a shipped lens, and the
-sharing rules say plainly that renderer and camera are per-vessel.
+The three vessels currently point toward genuinely different renderers: a
+2.5D or 3D Mesocosm world, a close-camera 3D Paredros world, and a locked
+isometric 2D Isometry board drawn through a DOM today. Perspective is now a
+lens choice rather than a person rule, so later convergence is welcome if a
+second consumer proves it. Forcing one renderer before that would either
+cripple Paredros or drag Isometry off a shipped lens, and the sharing rules say
+plainly that renderer and camera are per-vessel.
 
 The instinct behind the question is still right, though. Something *is* shared
 and it is one layer down:
@@ -77,6 +79,65 @@ This artifact is the concrete content of interchange profile v0, which the
 wing founding record names as the next architectural threshold. Planning the
 body pipeline and planning the profile are the same work.
 
+### Authoring input, canonical body document, and caches
+
+**Ruled 2026-07-31 after reviewing the rigid-part rendering proposal.**
+MagicaVoxel `.vox` is the first authoring and import format, not the
+interchange schema. The importer may read reserved marker voxels to discover
+sockets and orientation, but it strips those markers and writes explicit
+attachment frames into the canonical body document. This avoids making
+MagicaVoxel palette behavior part of the protocol.
+
+The canonical shape is:
+
+- content-addressed part-volume references
+- an explicit parts graph with attachment frames
+- palette/material roles and overrides
+- physical hints and capability references
+- per-part and cross-part provenance
+- biological-lineage and world-provenance references
+
+A physical part is a useful unit of inheritance, animation, collision, and
+mesh invalidation, but it is not the only semantic unit. One trait may span
+several parts; one symbiont may inhabit a whole body; one part may carry
+several layers of provenance. The body document therefore refers to traits
+and capabilities rather than forcing each to equal exactly one meshable part.
+
+Merged meshes, colliders, sprite sheets, and PNGs are content-addressed
+**derived artifacts**. They may be distributed and reused, but none becomes
+the editable source of truth.
+
+### Rendering posture
+
+These are defaults for the probe, not permanent renderer law:
+
+- **Greedy-meshed voxel geometry is the leading live-render candidate.**
+  Remesh a dirty part when mutation or damage changes its volume. Per-frame
+  remeshing is not assumed and every performance claim is measured on the
+  target hardware. Raymarching remains a replaceable projection experiment
+  for a future workload that actually benefits from massive static volume.
+- **Rigid-part transforms are the baseline animation model.** Sockets,
+  pivots, oscillators, and procedural IK fit unpredictable bodies and let one
+  part mesh be reused. Skinning or another deformation projection remains
+  available for tentacles, soft bodies, cloth, faces, and characters whose
+  expression proves the need. The portable body document does not prohibit
+  it.
+- **Sprite baking is projection and distribution.** Isometry's CPU baker,
+  an on-demand local bake, a curated touched-up sheet, and a live orthographic
+  projection may all derive from the same body document. A cache key includes
+  the canonical source digest, palette/material roles, resolved transforms,
+  projection parameters, and baker version.
+- **Determinism is stated honestly.** The existing reference CPU baker can
+  be required to emit byte-identical pixels. A GPU bake on heterogeneous
+  drivers is not presumed pixel-identical. Peers may share a signed baked PNG
+  and its bake receipt, or generate a semantically equivalent local cache.
+  Gameplay and artifact identity depend on the body document and receipt,
+  never on accidental GPU raster equivalence.
+
+Chunked destructible world terrain is a Paredros or Mesocosm world-renderer
+decision, not part of the shared body pipeline. The first proof moves one
+body across vessels before it generalizes the level format.
+
 ---
 
 ## 4. The missing middle, and who extracts it
@@ -112,6 +173,15 @@ over-built.
 Done-conditions, not estimates. R-phases interleave with the M-phases in the
 founding plan; R0–R2 are prerequisites for a meaningful M0.
 
+> **Ordering authority moved 2026-07-31** to the
+> [execution waves plan](2026-07-31_execution_waves_plan.md). This section still
+> owns *what each phase is*; that plan owns *when they happen and in what
+> order*, and adds two constraints that only appear once the order is fixed:
+> the **confound rule** (both hosts initially stage the same enclosure, so the
+> probe measures host rather than host-plus-perspective) and the placement of
+> the Bones experiment **inside the winning host** rather than as its own lane.
+> Where the two disagree on sequence, the waves plan wins.
+
 ### R0 — The body format, and the determinism constraint
 Presentation-neutral topology: parts, attachment frames, per-part provenance,
 mass hints. Serde, no host dependencies, no wgpu.
@@ -129,6 +199,8 @@ debugging, and R2's host comparison** are the same mechanism seen from
 different angles. Note that R2 already requires state-hash and replay
 equivalence between two hosts, so **the engine probe doubles as the co-op
 feasibility test** — that was an accident of design worth keeping on purpose.
+This keeps rollback feasible; it does not authorize rollback netcode before a
+real co-op mode and carrier prove they need it.
 
 Practical implications to hold from the first commit: no ambient clock reads
 in core, no unordered iteration affecting simulation, all randomness from the
@@ -144,17 +216,19 @@ the document round-trips without losing provenance, and a recorded input
 trace replayed against the same seed produces an identical state hash.
 
 ### R1 — Live attachment (the hypothesis test)
-One critter, one world, 2.5D. Eat a part; it attaches, gains a collider,
-changes the body's mass and balance, and reads clearly on screen.
+One critter, one world, in the live projection selected for the probe. Eat a
+part; it attaches, gains a collider, changes the body's mass and balance, and
+reads clearly on screen.
 
 **Done when** a viewer who did not watch the eating can point at the new part
 and say what it used to be — and the critter visibly handles differently
 afterwards.
 
 ### R2 — The host probe
-`mesocosm-core` behind a seam; two hosts over it (custom genet/2.5D lane and
-an engine lane); same seed, same recorded input trace. Record every receipt in
-the landscape §4 list.
+`mesocosm-core` behind a seam; two hosts over it (a custom Genet lane and an
+engine lane); same seed, same recorded input trace. Each host may constrain
+the camera differently, but both consume the same body and intent documents.
+Record every receipt in the landscape §4 list.
 
 **Done when** the receipts exist and are written into this plan's Findings,
 including at minimum: state-hash equivalence, replay equivalence, whether
@@ -163,14 +237,16 @@ either host spawns a second wgpu device, and the adapter-code cost of each.
 ### R2a — The storage experiment
 Inside the winning host only: `mesocosm-core`'s own storage versus Bones ECS.
 This tests the layer that is actually undecided, where R2 mostly tests host
-ownership.
+ownership. **Confirmed 2026-07-31**: Bones does not get its own lane, because
+running it as a third host would mix an ECS choice with a renderer choice and
+return one muddy answer for two questions.
 
 **Done when** one of them is chosen with a stated reason, or Bones is ruled
 out with one.
 
 ### R3 — Projection backends
-Mesocosm's live 2.5D projection and Isometry's baked-sprite projection, both
-deriving from the same R0 topology.
+Mesocosm's winning live projection and Isometry's baked-sprite projection,
+both deriving from the same R0 topology.
 
 **Done when** one critter appears in both vessels, recognisably itself, with
 neither vessel owning the other's renderer.
@@ -192,9 +268,17 @@ explicitly declined in writing.
   recipes, palette swaps, isometric sprite output). It does not demonstrate
   runtime part attachment, so R1 is a genuine unknown rather than an
   integration task.
+- **2026-07-31**: `.vox` is retained as the first authoring format while the
+  portable source becomes an explicit parts graph over content-addressed
+  volumes. Greedy meshes, rigid transforms, and sprite bakes are first
+  projections rather than substrate law; cross-driver pixel identity is not
+  required.
 
 ---
 
 ## 7. Progress
 
 - **2026-07-30**: plan written. No code.
+- **2026-07-31**: incorporated the renderer proposal at the body-pipeline
+  boundary and kept terrain, deformation policy, and GPU bake identity out of
+  the portable schema.
