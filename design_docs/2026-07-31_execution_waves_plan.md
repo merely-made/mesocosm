@@ -441,3 +441,27 @@ round-trip:
 
   Result: 75 alive to 74 alive over 600 unattended ticks, all three kingdoms
   coexisting, with carrion cycling. The world now goes somewhere on its own.
+- **2026-07-31. Simulacra and signalling landed.** Organisms carry a `signal`
+  (what they advertise), `venom_mg` (what they actually do to something that
+  eats them), and a `guise` (the kingdom they appear to belong to). The gap
+  between claim and truth is the mechanic.
+
+  Both directions of lie exist, because one direction alone is just a hazard.
+  **Batesian**: warns without a bite, so it is safe and only something that
+  learned better will risk it. **Aggressive**: looks plain and bites hard,
+  which is the trap that makes reading the world worth doing. A live world
+  reports 91 warning, 76 armed, of which 24 bluff and 9 trap.
+
+  **The tell is diegetic**, per the unfair-versus-unknowable line: a thing
+  wearing a producer's look but living a consumer's life does not gain mass in
+  open ground, because it is not fixing anything. Watch it and the lie shows.
+  A test asserts exactly that divergence.
+
+  **A lie is heritable.** Offspring inherit signal, venom, and guise, so a
+  mimic is a *lineage* you can learn rather than a coin flip per organism.
+  That is what makes the knowledge worth carrying across a death.
+
+  And the renderer does not leak it: warning colours are drawn because a
+  signal must be seen to mean anything, but a bluffer wears the same colours
+  as something genuinely armed. Reach is dimmed because that is information
+  the player is entitled to; honesty is not.

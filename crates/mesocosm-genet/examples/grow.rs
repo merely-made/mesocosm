@@ -119,6 +119,22 @@ fn main() {
         world.organisms.len()
     );
 
+    // Who is telling the truth. The player never sees this list; it exists to
+    // prove the world contains liars in both directions.
+    let warning = world.living().filter(|o| o.signal == mesocosm_core::Signal::Warning).count();
+    let armed = world.living().filter(|o| o.venom_mg > 0).count();
+    let bluffers = world
+        .living()
+        .filter(|o| o.signal == mesocosm_core::Signal::Warning && o.venom_mg == 0)
+        .count();
+    let traps = world
+        .living()
+        .filter(|o| o.signal == mesocosm_core::Signal::Plain && o.venom_mg > 0)
+        .count();
+    println!(
+        "signals: {warning} warn, {armed} armed -> {bluffers} bluffing, {traps} trapping"
+    );
+
     println!("ate {eaten}, body has {} parts", world.body.len());
     // With pivots the root is centred on the origin, so the midline is zero.
     let midline = 0;

@@ -50,6 +50,20 @@ pub fn material_colour(material: u8) -> [f32; 3] {
     [r, g, b]
 }
 
+/// Shifts a colour toward a warning: hot, saturated, conspicuous.
+///
+/// A signal has to be *seen* to mean anything. This is the visual half of
+/// signalling and counter-signalling — and because a bluffer wears the same
+/// colours as something genuinely armed, the picture alone cannot tell you
+/// which is which. That is the point.
+pub fn warning_colour(base: [f32; 3]) -> [f32; 3] {
+    [
+        (base[0] * 0.4 + 0.85).min(1.0),
+        (base[1] * 0.35 + 0.35).min(1.0),
+        base[2] * 0.25,
+    ]
+}
+
 /// How much a face is lit, by which way it points. Top bright, sides mid,
 /// bottom dark: the convention that makes untextured voxels read as solid.
 pub fn face_shade(axis: u8, positive: bool) -> f32 {
@@ -72,15 +86,21 @@ pub struct SceneItem<'a> {
     /// Multiplies the body's colour. Used to dim things the critter cannot
     /// reach, so reach reads without a UI element.
     pub tint: f32,
+    /// Whether this thing is advertising danger. A claim, not a fact.
+    pub warns: bool,
 }
 
 impl<'a> SceneItem<'a> {
     pub fn new(mesh: &'a BodyMesh, origin: [i32; 3]) -> Self {
-        Self { mesh, origin, tint: 1.0 }
+        Self { mesh, origin, tint: 1.0, warns: false }
     }
 
     pub fn tinted(mesh: &'a BodyMesh, origin: [i32; 3], tint: f32) -> Self {
-        Self { mesh, origin, tint }
+        Self { mesh, origin, tint, warns: false }
+    }
+
+    pub fn signalling(mesh: &'a BodyMesh, origin: [i32; 3], tint: f32, warns: bool) -> Self {
+        Self { mesh, origin, tint, warns }
     }
 }
 
@@ -88,7 +108,7 @@ impl<'a> SceneItem<'a> {
 pub fn build_scene_vertices(items: &[SceneItem]) -> Vec<Vertex> {
     let mut out = Vec::new();
     for item in items {
-        append_body(&mut out, item.mesh, item.origin, item.tint);
+        append_body(&mut out, item.mesh, item.origin, item.tint, item.warns);
     }
     out
 }
@@ -100,11 +120,17 @@ pub fn build_scene_vertices(items: &[SceneItem]) -> Vec<Vertex> {
 /// renderer draws as an empty frame rather than treating as an error.
 pub fn build_vertices(mesh: &BodyMesh) -> Vec<Vertex> {
     let mut out = Vec::new();
-    append_body(&mut out, mesh, [0, 0, 0], 1.0);
+    append_body(&mut out, mesh, [0, 0, 0], 1.0, false);
     out
 }
 
-fn append_body(out: &mut Vec<Vertex>, mesh: &BodyMesh, origin: [i32; 3], tint: f32) {
+fn append_body(
+    out: &mut Vec<Vertex>,
+    mesh: &BodyMesh,
+    origin: [i32; 3],
+    tint: f32,
+    warns: bool,
+) {
     for placement in &mesh.placements {
         let Some(part_mesh) = mesh.mesh_for(placement.volume) else {
             continue;
@@ -112,6 +138,7 @@ fn append_body(out: &mut Vec<Vertex>, mesh: &BodyMesh, origin: [i32; 3], tint: f
         for quad in &part_mesh.quads {
             let shade = face_shade(quad.axis, quad.positive);
             let base = material_colour(quad.material);
+            let base = if warns { warning_colour(base) } else { base };
             let colour = [base[0] * shade, base[1] * shade, base[2] * shade];
 
             let colour = [colour[0] * tint, colour[1] * tint, colour[2] * tint];

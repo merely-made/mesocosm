@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::body::{
     Aabb, Attachment, BodyDocument, Origin, PartId, Provenance, SpeciesId, VolumeRef, Yaw,
 };
-use crate::organism::{Kingdom, Organism, OrganismId, Stage};
+use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
 use crate::rng::Rng;
 
 /// What a host may ask the world to do. Hosts send intents; they never mutate
@@ -128,6 +128,16 @@ impl World {
             // Staggered ages, so the enclosure is mid-life rather than all
             // hatching on the same tick.
             let age = rng.below(200) as u32;
+
+            // Most things are honest. A minority lie, in both directions: a
+            // harmless thing wearing a warning, and a dangerous thing wearing
+            // none. Both are rare, because a world of liars teaches nothing.
+            let (signal, venom_mg, guise) = match rng.below(10) {
+                0 => (Signal::Warning, 0, kingdom),
+                1 => (Signal::Plain, 90 + rng.below(60), Kingdom::Producer),
+                2..=3 => (Signal::Warning, 60 + rng.below(60), kingdom),
+                _ => (Signal::Plain, 0, kingdom),
+            };
             organisms.push(Organism {
                 id: OrganismId(index),
                 species,
@@ -139,6 +149,9 @@ impl World {
                 stage: Stage::Juvenile,
                 age,
                 since_offspring: rng.below(120) as u32,
+                signal,
+                venom_mg,
+                guise,
             });
         }
 
@@ -233,7 +246,12 @@ impl World {
                 ) {
                     Ok(part) => {
                         // Half the mass becomes usable budget, the rest becomes body.
-                        self.energy_mg += eaten.mass_mg / 2;
+                        // What it does on the way down. A venomous meal costs more than it
+        // gives, which is what makes reading a signal worth doing.
+        self.energy_mg = self
+            .energy_mg
+            .saturating_add(eaten.mass_mg / 2)
+            .saturating_sub(eaten.venom_mg);
                         Outcome::Incorporated { part }
                     }
                     Err(_) => {
@@ -263,6 +281,9 @@ impl World {
                     stage: Stage::Carrion,
                     age: 0,
                     since_offspring: 0,
+                    signal: Signal::Plain,
+                    venom_mg: 0,
+                    guise: Kingdom::Decomposer,
                 });
                 Outcome::Deposited { organism: id }
             }
@@ -433,6 +454,9 @@ mod tests {
             stage: Stage::Mature,
             age: 0,
             since_offspring: 0,
+            signal: Signal::Plain,
+            venom_mg: 0,
+            guise: Kingdom::Producer,
         });
         let outcome = world.apply(Intent::Metabolize {
             organism: OrganismId(900),

@@ -38,6 +38,19 @@ pub enum Kingdom {
     Decomposer,
 }
 
+/// What an organism advertises about itself.
+///
+/// Signalling and counter-signalling: an advertisement is a claim, and a claim
+/// can be false. This is what makes choosing a meal a decision rather than a
+/// collection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Signal {
+    /// Claims nothing. Ordinary, unremarkable, probably safe.
+    Plain,
+    /// Claims to be dangerous. Bright, loud, conspicuous.
+    Warning,
+}
+
 /// Where an organism is in its life.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stage {
@@ -105,11 +118,50 @@ pub struct Organism {
     pub age: u32,
     /// Ticks since this organism last reproduced.
     pub since_offspring: u32,
+    /// What this organism *advertises*.
+    pub signal: Signal,
+    /// What it actually does to something that eats it, in milligrams.
+    ///
+    /// The gap between this and [`Self::signal`] is the whole mechanic. An
+    /// honest organism's claim matches its bite. A **Batesian** mimic warns
+    /// without a bite: safe, and eaten only by something that learned better.
+    /// An **aggressive** mimic looks plain and bites hard: the trap.
+    pub venom_mg: u64,
+    /// The kingdom this organism *appears* to belong to.
+    ///
+    /// Usually its own. A mimic's differs, which is what breaks the shape
+    /// contract on purpose: roles are read from geometry, so the game teaches
+    /// that form tells you function, and a simulacrum violates exactly that
+    /// lesson.
+    pub guise: Kingdom,
 }
 
 impl Organism {
     pub fn is_alive(&self) -> bool {
         self.stage.is_alive()
+    }
+
+    /// Whether this organism is pretending to be something it is not.
+    pub fn is_mimic(&self) -> bool {
+        self.guise != self.kingdom || self.signals_falsely()
+    }
+
+    /// Whether its advertisement is a lie, in either direction.
+    pub fn signals_falsely(&self) -> bool {
+        match self.signal {
+            Signal::Warning => self.venom_mg == 0,
+            Signal::Plain => self.venom_mg > 0,
+        }
+    }
+
+    /// The tell.
+    ///
+    /// A thing wearing a producer's look but living a consumer's life does not
+    /// gain mass in open ground, because it is not fixing anything. Watch it
+    /// for a while and the lie shows. Unfair is fine here; unknowable is not,
+    /// so every mimic leaves something a second encounter can find.
+    pub fn betrays_itself(&self) -> bool {
+        self.guise == Kingdom::Producer && self.kingdom != Kingdom::Producer
     }
 
     /// Whether this organism is ready to produce an offspring.
@@ -304,6 +356,12 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
             stage: Stage::Juvenile,
             age: 0,
             since_offspring: 0,
+            // A lie is heritable. An offspring wears its parent's colours and
+            // carries its parent's bite, which is what makes a mimic lineage a
+            // thing you can learn rather than a coin flip per organism.
+            signal: parent.signal,
+            venom_mg: parent.venom_mg,
+            guise: parent.guise,
         };
         *next_id += 1;
         newborns.push(child);
@@ -335,6 +393,9 @@ mod tests {
             stage: Stage::Juvenile,
             age: 0,
             since_offspring: 0,
+            signal: Signal::Plain,
+            venom_mg: 0,
+            guise: kingdom,
         }
     }
 
@@ -535,6 +596,87 @@ mod tests {
             world.iter().all(|o| !o.is_alive()),
             "consumers alone cannot sustain a world"
         );
+    }
+
+    #[test]
+    fn an_honest_organism_does_not_lie() {
+        let plain = organism(Kingdom::Producer, 100);
+        assert!(!plain.is_mimic());
+        assert!(!plain.signals_falsely());
+
+        let honestly_armed = Organism {
+            signal: Signal::Warning,
+            venom_mg: 80,
+            ..organism(Kingdom::Producer, 100)
+        };
+        assert!(!honestly_armed.signals_falsely(), "a real warning is not a lie");
+    }
+
+    /// Batesian: harmless, wearing a warning. Safe to eat, and only something
+    /// that learned better will risk it.
+    #[test]
+    fn a_bluffer_warns_without_a_bite() {
+        let bluffer = Organism {
+            signal: Signal::Warning,
+            venom_mg: 0,
+            ..organism(Kingdom::Producer, 100)
+        };
+        assert!(bluffer.signals_falsely());
+        assert!(bluffer.is_mimic());
+    }
+
+    /// Aggressive: looks like an ordinary plant, is not. The trap, and the one
+    /// that makes reading the world worth doing.
+    #[test]
+    fn a_trap_looks_plain_and_bites() {
+        let trap = Organism {
+            signal: Signal::Plain,
+            venom_mg: 120,
+            guise: Kingdom::Producer,
+            ..organism(Kingdom::Consumer, 100)
+        };
+        assert!(trap.is_mimic());
+        assert!(trap.signals_falsely());
+        assert!(
+            trap.betrays_itself(),
+            "unfair is fine, unknowable is not: a trap must leave a tell"
+        );
+    }
+
+    /// The tell is diegetic rather than a marker: a thing wearing a producer's
+    /// look but living a consumer's life does not gain mass in open ground.
+    #[test]
+    fn the_tell_is_that_a_trap_does_not_grow() {
+        let mut honest = vec![organism(Kingdom::Producer, 200)];
+        let mut trap = vec![Organism {
+            guise: Kingdom::Producer,
+            signal: Signal::Plain,
+            venom_mg: 120,
+            ..organism(Kingdom::Consumer, 200)
+        }];
+
+        run(&mut honest, 30);
+        run(&mut trap, 30);
+
+        assert!(honest[0].mass_mg > 200, "a real plant fixes energy");
+        assert!(
+            trap[0].mass_mg < 200,
+            "a plant that does not photosynthesise is not a plant"
+        );
+    }
+
+    #[test]
+    fn a_lie_is_heritable() {
+        let mut world = vec![Organism {
+            signal: Signal::Warning,
+            venom_mg: 0,
+            ..organism(Kingdom::Producer, 400)
+        }];
+        run(&mut world, GESTATION + 10);
+        let child = world.iter().find(|o| o.id.0 >= 100).expect("an offspring");
+        assert_eq!(child.signal, Signal::Warning);
+        assert_eq!(child.venom_mg, 0);
+        assert!(child.is_mimic(), "a mimic lineage is learnable, not a coin flip");
     }
 
     #[test]

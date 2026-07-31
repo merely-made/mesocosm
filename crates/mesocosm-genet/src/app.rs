@@ -8,7 +8,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use mesocosm_core::Intent;
+use mesocosm_core::{Intent, Signal};
 use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
 use mesocosm_render::{Camera, Renderer, SceneItem};
 use mesocosm_runtime::Runtime;
@@ -62,7 +62,7 @@ const REACH: i32 = 8;
 
 /// One drawable thing in the world: its geometry, where it sits, and how
 /// brightly it reads.
-type Placed = (BodyMesh, [i32; 3], f32);
+type Placed = (BodyMesh, [i32; 3], f32, bool);
 
 /// Camera orbit state. Presentation only; never reaches the core.
 struct View {
@@ -147,10 +147,15 @@ impl Host {
             let in_reach = (0..3).all(|a| {
                 (organism.position[a] - world.position[a]).abs() <= REACH
             });
+            // Dim what cannot be reached; that is information the player is
+            // entitled to. Whether the thing is telling the truth about itself
+            // is not, and the renderer does not leak it.
+            let reach_tint = if in_reach { 1.0 } else { 0.45 };
             loose.push((
                 BodyMesh::single(organism.volume, volume),
                 organism.position,
-                if in_reach { 1.0 } else { 0.45 },
+                reach_tint,
+                organism.signal == Signal::Warning,
             ));
         }
         Some((body, loose))
@@ -238,8 +243,8 @@ impl Host {
         );
         let mut items = Vec::with_capacity(loose.len() + 1);
         items.push(SceneItem::new(&body, critter_at));
-        for (mesh, at, tint) in &loose {
-            items.push(SceneItem::tinted(mesh, *at, *tint));
+        for (mesh, at, tint, warns) in &loose {
+            items.push(SceneItem::signalling(mesh, *at, *tint, *warns));
         }
         gpu.renderer.draw_scene(&mut encoder, &view, &items, &camera);
         gpu.renderer.queue().submit(Some(encoder.finish()));
@@ -271,8 +276,8 @@ impl Host {
         );
         let mut items = Vec::with_capacity(loose.len() + 1);
         items.push(SceneItem::new(&body, critter_at));
-        for (mesh, at, tint) in &loose {
-            items.push(SceneItem::tinted(mesh, *at, *tint));
+        for (mesh, at, tint, warns) in &loose {
+            items.push(SceneItem::signalling(mesh, *at, *tint, *warns));
         }
         let Ok(frame) = shot.render_scene(&items, &self.camera()) else {
             return;
