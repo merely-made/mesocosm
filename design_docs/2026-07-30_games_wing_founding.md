@@ -330,6 +330,13 @@ not competing names for one object.
 These are trust rungs and the test plan at once. Rung 5 is the netcode
 dragon; rungs 1–4 carry the entire ecology and need no new machinery.
 
+**Presentation negotiates the same way** (ruled 2026-07-31): a peer holding
+the body document and a geometry renderer projects a token *live*, with
+procedural articulation; a peer holding only an image decoder shows the baked
+sheet. Neither is privileged, the document is canonical, and sheets are
+optional derived artifacts riding beside it. Detail in the
+[body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md) §3.
+
 **Protocol keystone: additive facts, opaque preservation, deferred
 interpretation.** Games append history in their own vocabulary and never
 mutate foreign facts without a grant. Each game retains facts it cannot

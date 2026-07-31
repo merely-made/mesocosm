@@ -138,6 +138,75 @@ Chunked destructible world terrain is a Paredros or Mesocosm world-renderer
 decision, not part of the shared body pipeline. The first proof moves one
 body across vessels before it generalizes the level format.
 
+### Presentation tiers and live articulation
+
+**Ruled 2026-07-31**, from Mark's observation that the static token is a
+sharing convention mistaken for a rendering constraint: baked sheets exist so
+a peer *without* the document and a renderer can still see the token. A peer
+that has both never needs the sheet. "For it to be a tactical VTT, it's not
+like the tokens have to be static."
+
+Presentation therefore negotiates by capability, the same shape as the
+interop rungs, applied to pixels:
+
+- **Live projection** — the peer holds the body document and a geometry
+  renderer. Full procedural articulation, arbitrary grown bodies, no authored
+  animation.
+- **Baked sheet** — the peer holds an image decoder. Fixed facings and clips,
+  universally displayable.
+
+Same content, different fidelity, neither privileged; **the document is
+canonical**. Consequence for the seam decision: a pack ships the *document*,
+and sheets ride alongside as optional derived artifacts.
+
+**Animation is the decisive argument.** A sprite sheet requires every action
+to have been animated in advance, which is impossible for procedurally grown
+bodies: nobody can pre-animate a body that has never existed. Rigid-part
+articulation animates the placements the mesher already returns — offsets and
+yaws over time, driven by sockets, oscillators, and procedural IK — so it
+serves any body graph, authored or grown. This is the retroactive
+justification for the rigid-part posture above, and it is the same problem
+Spore solved with motion retargeting, met here with a simpler tool because
+parts are rigid by ruling.
+
+**The lexicon already carries the model** (mere `TERMINOLOGY.md`, all ruled
+before this plan existed):
+
+- A critter's body is a **nested graph**: parts are nodes, attachments are
+  links.
+- A token is a **gnode**, "a node's rendered body on a graph canvas."
+- A live token is a **swatch over the critter's nested graph** — by exact
+  analogy with the entry's own example, "a swatch over a servitor's nested
+  graph is that servitor's inspection UI."
+
+The gnode entry already specifies **two render tiers** (a chrome-DOM element
+on the focused pane, an in-scene Scene layer on secondary panes), which is
+the live/baked tiering already resolved by pane focus, and its **face**
+already admits "sprite", so a baked sheet is an existing legitimate face kind
+rather than a special case. The definition also states "a projection, never
+truth: rebuilt per frame from kernel truth, stores nothing" — the same
+sentence as this wing's "the core owns state; hosts only project."
+
+**The genuinely new organ is the arrangement.** An orrery is force-directed;
+a body is **joint-constrained**, positions fixed by attachment frames rather
+than settled by forces. Proposed to mere's arrangement registry as a
+reserved candidate (working name **Armature**, ratification pending), with
+the games-wing body swatch as its first consumer. That is the missing
+sibling: orrery is to a dataspace what an armature arrangement is to a
+nested-graph body.
+
+**Honest constraint.** Isometry renders through genet's DOM today, so a live
+token there means the body renderer drawing to a shared wgpu texture that the
+host composites — the architecture already chosen for the world, applied per
+token. That path is **unverified**; check genet's external-texture
+composition before promising it.
+
+**Baked remains a first-class tier, not a legacy rung.** Shared play that
+wants identical pixels on every screen, hand-touched art that beats any
+auto-projection, cost at token scale, third-party art that was never a voxel
+model, and thin clients with no 3D renderer at all — graphshell's remote-lens
+profile — all keep choosing sheets.
+
 ---
 
 ## 4. The missing middle, and who extracts it
