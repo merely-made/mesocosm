@@ -39,14 +39,16 @@
 
 pub mod flatten;
 pub mod greedy;
+pub mod profile;
 pub mod volume;
 
 use std::collections::BTreeMap;
 
 use mesocosm_core::{BodyDocument, PartId, VolumeRef, Yaw};
 
-pub use flatten::{Flattened, flatten};
+pub use flatten::{Flattened, flatten, flatten_attributed};
 pub use greedy::{PartMesh, Quad, mesh_volume, mesh_volume_naive};
+pub use profile::{BodyProfile, PROFILE_SCHEMA, PROFILE_VERSION, ProfileError};
 pub use volume::{Volume, VolumeError, VolumeMap, VolumeSource};
 
 /// One part's mesh, placed in body space.
@@ -69,6 +71,11 @@ pub enum MeshError {
     /// A part's attachment chain is malformed, so it has no body-space
     /// position. Constructors prevent this; a deserialized document might not.
     Unplaceable { part: PartId },
+    /// More parts than the attributed flatten can name. Checked rather than
+    /// assumed because the artifact it feeds crosses a repo boundary.
+    TooManyParts { parts: usize },
+    /// A profile could not be serialized.
+    Encode,
 }
 
 /// A body's geometry: one mesh per distinct volume, and one placement per part.

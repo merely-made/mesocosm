@@ -1,8 +1,8 @@
 # Execution Waves
 
-**Status: in progress, 2026-07-31.** **Waves 1.1 and 1.2 complete**: core,
-runtime, mesher, renderer, and a windowed host, with every done-condition met
-and tested. **Wave 1.3 dropped**: the render lane is decided (custom wgpu body
+**Status: in progress, 2026-07-31.** **Wave 1 is complete**: core, runtime,
+mesher, renderer, a windowed host, and the Isometry projection, with every
+done-condition met and tested. **Wave 1.3 dropped**: the render lane is decided (custom wgpu body
 renderer, netrender owning the device), so there is no second host to compare
 against. Ruled by Mark. This is the **authority on ordering** across the
 games wing. It does not restate design;
@@ -155,7 +155,7 @@ which makes "the new part is visible" an assertable property rather than an
 opinion. The opinion that remains is whether it looks *good*, which is the right
 thing to leave to a human at a screen.
 
-### 1.4 The Isometry projection — **in progress 2026-07-31**
+### 1.4 The Isometry projection — **COMPLETE 2026-07-31**
 
 Teach `isometry-voxel` to consume **`BodyDocument v0`** and emit a sprite plus
 a bake receipt. `.vox` remains an **authoring input**, never the interchange
@@ -208,6 +208,75 @@ the schema has stopped moving.
 checks. Drift between writer and reader becomes a runtime failure rather than a
 build failure, so the profile needs a version field and a refusal path from the
 first commit. That is the trade the interop model makes everywhere else.
+
+**Wave 1.4 is complete, 2026-07-31**, and the seam is proven with real bytes
+rather than asserted. `mesocosm.body/v0` is the schema, `mesocosm-mesh::profile`
+writes it, `isometry-voxel::body` reads it, and neither repo depends on the
+other. A critter grown by incorporation crosses and bakes to a sprite from four
+facings in which you can see what it ate.
+
+Four things the build settled that the ruling did not:
+
+**What crosses is a projection, not the body.** The first cut put a whole
+`BodyDocument` on the wire, and that quietly broke the ruling it was built to
+satisfy: a reader would have needed `mesocosm-core` — attachment graph, pivots,
+body plan and all — which is a type dependency wearing a data dependency's
+clothes. "Isometry reads it with its own small adapter" is only true if the
+adapter is small. So every field on the wire is a primitive, a fixed-size
+array, or a `Vec` of those, and Isometry's mirror is about twenty lines.
+
+This is **Law A falling out of the encoding rather than being imposed on it**.
+What travels is choices under scarcity, not morphology: each part's provenance
+crosses because it records a choice, and the attachment graph stays home
+because it is morphology. A test named `the_profile_carries_no_core_types`
+decodes the payload into a structurally identical foreign mirror, so the next
+person to put a core type back on the wire gets a red test rather than a
+review comment.
+
+**The version field cannot live inside the payload.** Postcard is positional
+with no field tags, so when the layout changes the decoder cannot reach the
+version field to discover it should have refused — it fails as a malformed
+decode, or succeeds and returns nonsense. The schema tag and version therefore
+sit in a fixed-position header ahead of the payload: eight magic bytes and a
+little-endian `u16`, checked before anything is decoded. Both sides have a test
+proving a bumped version is diagnosed even when the payload is unreadable,
+which is the case a field inside the payload cannot handle at all.
+
+**Flattening destroys history, so attribution is a second grid.** `flatten`
+composes every part into one occupancy grid and in doing so discards which part
+wrote each cell — the grid records materials, not origins. That is right for
+the mesher and wrong for this seam, because the wing's legibility rule is that
+the world is colour-coded by role and a creature is colour-coded by history. A
+sprite baked from materials alone cannot show where a limb was taken from. So
+the profile carries a parallel grid naming the part behind every voxel, written
+by the same loop that writes occupancy, so the two can never disagree about
+which part won a contested cell.
+
+**A committed fixture is what buys back the compile check.** Unit tests on each
+side prove each side self-consistent and prove nothing about the pair.
+`mesocosm-mesh/fixtures/critter.body` is real writer output, copied unchanged
+into `isometry-voxel/tests/fixtures/`, and Isometry's suite reads it. If the
+writer changes shape without bumping its version, Isometry goes red instead of
+a player's sprite going quietly wrong. The copy is deliberately manual: a
+fixture that synced itself would hide exactly the drift it exists to catch.
+
+Also checked rather than assumed: **the two engines agree on axes.** `.vox`
+needs a remap because MagicaVoxel is Z-up. Mesocosm is Y-up like Isometry — its
+`Above` facing is axis 1 and its yaw rotates about axis 1 — and both use
+`x + y * dx + z * dx * dy` cell order, so the importer copies straight across.
+The arrays lining up would not have been evidence.
+
+Receipt: `Code/testing/mesocosm/09_critter_crossed_to_isometry.png`, a 494x132
+four-facing strip of a three-part critter, one part founding and two
+incorporated, the founding trunk green and the taken parts ochre.
+
+Open, and deliberately not built: the `mere.pack/v1` envelope itself. A pack
+carries an inventory of content-addressed blobs, and this is what goes *inside*
+a blob. Wiring the outer envelope means depending on eidetic, which is the
+federation platform, and the wing's rule is that the platform is extracted from
+shipped games rather than built before them. Mesocosm is a candidate for that
+proof, not yet a consumer. The bytes are ready for it whenever the pack lane
+opens.
 
 ### Where Bones goes
 
@@ -487,3 +556,10 @@ round-trip:
   kingdom colours, because its parts came from different species and that
   patchwork *is* its provenance. The world is colour-coded by role; you are
   colour-coded by history.
+- **2026-07-31**: **wave 1.4 complete.**  crosses from
+   to  with no shared type and no
+  cross-repo dependency. 139 tests in mesocosm, 22 in isometry-voxel, both
+  clippy clean. The first cut embedded a whole  and had to be
+  rebuilt as a flat projection, because a reader would have needed
+   to decode it, which is the type dependency the ruling
+  forbade. Details in §1.4.

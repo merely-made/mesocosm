@@ -54,6 +54,24 @@ pub fn flatten(
     body: &BodyDocument,
     source: &impl VolumeSource,
 ) -> Result<Flattened, MeshError> {
+    flatten_attributed(body, source).map(|(flattened, _)| flattened)
+}
+
+/// Flattens a body and also records **which part wrote each cell**.
+///
+/// The second grid is parallel to the first, in the same cell order, holding
+/// `part index + 1` with `0` for empty. It exists because flattening otherwise
+/// discards history: the occupancy grid records materials, and a reader that
+/// wants to tint a sprite by where a limb came from has no way back to the
+/// document without this map. See [`crate::profile`].
+///
+/// Overwrite order is shared with [`flatten`] by construction — the same loop
+/// writes both grids — so attribution can never disagree with occupancy about
+/// which part won a contested cell.
+pub fn flatten_attributed(
+    body: &BodyDocument,
+    source: &impl VolumeSource,
+) -> Result<(Flattened, Vec<u16>), MeshError> {
     // Two passes: find the extent, then fill. A body's parts can sit anywhere,
     // and a grid sized to the union avoids both clipping and waste.
     let mut min = [i32::MAX; 3];
@@ -73,10 +91,10 @@ pub fn flatten(
     }
 
     if !seen {
-        return Ok(Flattened {
-            volume: Volume::empty([1, 1, 1]),
-            origin: [0, 0, 0],
-        });
+        return Ok((
+            Flattened { volume: Volume::empty([1, 1, 1]), origin: [0, 0, 0] },
+            vec![0; 1],
+        ));
     }
 
     let size = [
@@ -85,9 +103,17 @@ pub fn flatten(
         (max[2] - min[2] + 1) as u32,
     ];
     let mut grid = Volume::empty(size);
+    let cells = size.iter().map(|d| *d as usize).product::<usize>();
+    let mut attribution = vec![0u16; cells];
 
-    for part in &body.parts {
+    for (slot, part) in body.parts.iter().enumerate() {
         let (pivot_at, pivot, yaw, volume) = resolve(body, source, part.id)?;
+        // Slot + 1, so `0` can mean empty. A body with more parts than a u16
+        // can name is far outside anything growth produces, but the artifact
+        // this feeds is portable, so the ceiling is checked rather than
+        // assumed.
+        let tag = u16::try_from(slot + 1).map_err(|_| MeshError::TooManyParts { parts: body.parts.len() })?;
+
         for z in 0..volume.size[2] {
             for y in 0..volume.size[1] {
                 for x in 0..volume.size[0] {
@@ -97,18 +123,21 @@ pub fn flatten(
                     }
                     let placed =
                         place_point([x as i32, y as i32, z as i32], yaw, pivot, pivot_at);
-                    grid.set(
+                    let cell = [
                         (placed[0] - min[0]) as u32,
                         (placed[1] - min[1]) as u32,
                         (placed[2] - min[2]) as u32,
-                        material,
-                    );
+                    ];
+                    grid.set(cell[0], cell[1], cell[2], material);
+                    let index =
+                        (cell[0] + cell[1] * size[0] + cell[2] * size[0] * size[1]) as usize;
+                    attribution[index] = tag;
                 }
             }
         }
     }
 
-    Ok(Flattened { volume: grid, origin: min })
+    Ok((Flattened { volume: grid, origin: min }, attribution))
 }
 
 /// A part resolved for flattening: where its pivot sits, the pivot itself,

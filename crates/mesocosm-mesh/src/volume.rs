@@ -49,6 +49,13 @@ impl Volume {
         Self::solid(size, 0)
     }
 
+    /// Consumes the volume, yielding its cells in `x + y * sx + z * sx * sy`
+    /// order. Used by the interchange profile, which carries a flat array
+    /// rather than this type so a foreign reader needs none of this crate.
+    pub fn into_voxels(self) -> Vec<u8> {
+        self.voxels
+    }
+
     fn index(&self, x: u32, y: u32, z: u32) -> usize {
         (x + y * self.size[0] + z * self.size[0] * self.size[1]) as usize
     }
