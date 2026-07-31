@@ -78,6 +78,22 @@ pub struct BodyMesh {
 }
 
 impl BodyMesh {
+    /// A mesh holding one volume, unattached. Loose matter in the world has
+    /// no body graph, but it still has to be drawn.
+    pub fn single(reference: VolumeRef, volume: &Volume) -> Self {
+        let mut meshes = BTreeMap::new();
+        meshes.insert(reference.0, mesh_volume(volume));
+        Self {
+            meshes,
+            placements: vec![Placement {
+                part: PartId(0),
+                volume: reference,
+                offset: [0, 0, 0],
+                yaw: Yaw::Zero,
+            }],
+        }
+    }
+
     pub fn mesh_for(&self, reference: VolumeRef) -> Option<&PartMesh> {
         self.meshes.get(&reference.0)
     }

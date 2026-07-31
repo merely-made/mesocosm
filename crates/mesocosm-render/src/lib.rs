@@ -29,7 +29,7 @@ use mesocosm_mesh::BodyMesh;
 use wgpu::util::DeviceExt;
 
 pub use camera::Camera;
-pub use geometry::{Vertex, build_vertices, face_shade, material_colour};
+pub use geometry::{SceneItem, Vertex, build_scene_vertices, build_vertices, face_shade, material_colour};
 
 /// Colour the frame is cleared to. Distinct from every material colour, so
 /// coverage can be measured by "not this".
@@ -301,7 +301,21 @@ impl Renderer {
         mesh: &BodyMesh,
         camera: &Camera,
     ) {
-        let vertices = build_vertices(mesh);
+        self.draw_scene(encoder, target, &[SceneItem::new(mesh, [0, 0, 0])], camera);
+    }
+
+    /// Records a whole scene: several bodies, each placed in world space.
+    ///
+    /// One pass and one buffer for everything, which is what the depth buffer
+    /// wants and what keeps a world of loose matter cheap to draw.
+    pub fn draw_scene(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        items: &[SceneItem],
+        camera: &Camera,
+    ) {
+        let vertices = build_scene_vertices(items);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
@@ -382,6 +396,15 @@ impl Renderer {
     /// Goes through the same [`Self::draw`] a window uses, so what the tests
     /// assert is what a host displays.
     pub fn render(&self, mesh: &BodyMesh, camera: &Camera) -> Result<Frame, RenderError> {
+        self.render_scene(&[SceneItem::new(mesh, [0, 0, 0])], camera)
+    }
+
+    /// Renders a whole scene offscreen and reads the frame back.
+    pub fn render_scene(
+        &self,
+        items: &[SceneItem],
+        camera: &Camera,
+    ) -> Result<Frame, RenderError> {
         let colour = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("frame"),
             size: wgpu::Extent3d {
@@ -401,7 +424,7 @@ impl Renderer {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("body") });
-        self.draw(&mut encoder, &colour_view, mesh, camera);
+        self.draw_scene(&mut encoder, &colour_view, items, camera);
 
         self.read_back(encoder, &colour)
     }

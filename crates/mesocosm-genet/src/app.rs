@@ -9,8 +9,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use mesocosm_core::Intent;
-use mesocosm_mesh::{VolumeMap, mesh_body};
-use mesocosm_render::{Camera, Renderer};
+use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
+use mesocosm_render::{Camera, Renderer, SceneItem};
 use mesocosm_runtime::Runtime;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, WindowEvent};
@@ -51,6 +51,18 @@ impl Default for HostConfig {
         }
     }
 }
+
+/// Half-height of the visible world region, in voxel units. Fixed, so the
+/// critter moves across the view rather than the view rescaling around it.
+const WORLD_EXTENT: f32 = 26.0;
+
+/// Mirrors the core's reach. Presentation only: the core decides what is
+/// actually edible, this only decides what looks edible.
+const REACH: i32 = 8;
+
+/// One drawable thing in the world: its geometry, where it sits, and how
+/// brightly it reads.
+type Placed = (BodyMesh, [i32; 3], f32);
 
 /// Camera orbit state. Presentation only; never reaches the core.
 struct View {
@@ -106,20 +118,42 @@ impl Host {
         event_loop.run_app(&mut host)
     }
 
+    /// Frames the world around the critter at a fixed scale, so moving reads
+    /// as travelling rather than as the camera zooming.
     fn camera(&self) -> Camera {
-        let mesh = mesh_body(&self.runtime.world().body, &self.volumes);
-        let (min, max) = mesh
-            .as_ref()
-            .ok()
-            .and_then(|m| m.bounds())
-            .unwrap_or(([-8, -8, -8], [8, 8, 8]));
-
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        let mut camera = Camera::framing(min, max, aspect);
+        let mut camera = Camera::following(
+            self.runtime.world().position,
+            WORLD_EXTENT * self.view.zoom,
+            aspect,
+        );
         camera.yaw = self.view.yaw;
         camera.pitch = self.view.pitch;
-        camera.extent *= self.view.zoom;
         camera
+    }
+
+    /// Builds the drawable scene: the critter where it stands, plus every
+    /// morsel where it lies. Morsels out of reach are dimmed, so what can be
+    /// eaten reads without a UI element.
+    fn scene(&self) -> Option<(BodyMesh, Vec<Placed>)> {
+        let world = self.runtime.world();
+        let body = mesh_body(&world.body, &self.volumes).ok()?;
+
+        let mut loose = Vec::with_capacity(world.morsels.len());
+        for morsel in &world.morsels {
+            let Some(volume) = self.volumes.volume(morsel.volume) else {
+                continue;
+            };
+            let in_reach = (0..3).all(|a| {
+                (morsel.position[a] - world.position[a]).abs() <= REACH
+            });
+            loose.push((
+                BodyMesh::single(morsel.volume, volume),
+                morsel.position,
+                if in_reach { 1.0 } else { 0.45 },
+            ));
+        }
+        Some((body, loose))
     }
 
     /// Turns a key into an intent. The host does not decide whether the intent
@@ -181,9 +215,8 @@ impl Host {
         self.steps += self.runtime.advance(elapsed_us);
 
         let camera = self.camera();
-        let Ok(mesh) = mesh_body(&self.runtime.world().body, &self.volumes) else {
-            return;
-        };
+        let Some((body, loose)) = self.scene() else { return };
+        let critter_at = self.runtime.world().position;
 
         let Some(gpu) = &mut self.gpu else { return };
         // wgpu 29 returns an enum rather than a Result here: a suboptimal
@@ -203,7 +236,12 @@ impl Host {
         let mut encoder = gpu.renderer.device().create_command_encoder(
             &wgpu::CommandEncoderDescriptor { label: Some("frame") },
         );
-        gpu.renderer.draw(&mut encoder, &view, &mesh, &camera);
+        let mut items = Vec::with_capacity(loose.len() + 1);
+        items.push(SceneItem::new(&body, critter_at));
+        for (mesh, at, tint) in &loose {
+            items.push(SceneItem::tinted(mesh, *at, *tint));
+        }
+        gpu.renderer.draw_scene(&mut encoder, &view, &items, &camera);
         gpu.renderer.queue().submit(Some(encoder.finish()));
         surface_texture.present();
 
@@ -221,9 +259,8 @@ impl Host {
     fn capture(&self) {
         let Some(path) = &self.config.capture else { return };
         let Some(gpu) = &self.gpu else { return };
-        let Ok(mesh) = mesh_body(&self.runtime.world().body, &self.volumes) else {
-            return;
-        };
+        let Some((body, loose)) = self.scene() else { return };
+        let critter_at = self.runtime.world().position;
 
         // The offscreen path wants our own colour format, not the surface's.
         let shot = Renderer::with_device(
@@ -232,7 +269,12 @@ impl Host {
             self.config.width,
             self.config.height,
         );
-        let Ok(frame) = shot.render(&mesh, &self.camera()) else {
+        let mut items = Vec::with_capacity(loose.len() + 1);
+        items.push(SceneItem::new(&body, critter_at));
+        for (mesh, at, tint) in &loose {
+            items.push(SceneItem::tinted(mesh, *at, *tint));
+        }
+        let Ok(frame) = shot.render_scene(&items, &self.camera()) else {
             return;
         };
 

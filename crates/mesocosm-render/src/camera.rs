@@ -65,6 +65,20 @@ impl Camera {
         }
     }
 
+    /// Frames a fixed-size region around a point.
+    ///
+    /// Distinct from [`Self::framing`], which sizes itself to a body. A world
+    /// view must hold its scale as the critter moves, or motion reads as the
+    /// camera zooming rather than the critter travelling.
+    pub fn following(centre: [i32; 3], extent: f32, aspect: f32) -> Self {
+        Self {
+            target: [centre[0] as f32, centre[1] as f32, centre[2] as f32],
+            extent,
+            aspect,
+            ..Self::default()
+        }
+    }
+
     pub fn view_proj(&self) -> Mat4 {
         let distance = self.extent * 4.0 + 32.0;
         let direction = Vec3::new(

@@ -63,6 +63,36 @@ pub fn face_shade(axis: u8, positive: bool) -> f32 {
     }
 }
 
+/// One meshed body placed in world space.
+#[derive(Clone, Copy, Debug)]
+pub struct SceneItem<'a> {
+    pub mesh: &'a BodyMesh,
+    /// Where this body's origin sits in the world, in voxel units.
+    pub origin: [i32; 3],
+    /// Multiplies the body's colour. Used to dim things the critter cannot
+    /// reach, so reach reads without a UI element.
+    pub tint: f32,
+}
+
+impl<'a> SceneItem<'a> {
+    pub fn new(mesh: &'a BodyMesh, origin: [i32; 3]) -> Self {
+        Self { mesh, origin, tint: 1.0 }
+    }
+
+    pub fn tinted(mesh: &'a BodyMesh, origin: [i32; 3], tint: f32) -> Self {
+        Self { mesh, origin, tint }
+    }
+}
+
+/// Builds the triangle list for a whole scene: several bodies, each placed.
+pub fn build_scene_vertices(items: &[SceneItem]) -> Vec<Vertex> {
+    let mut out = Vec::new();
+    for item in items {
+        append_body(&mut out, item.mesh, item.origin, item.tint);
+    }
+    out
+}
+
 /// Builds the triangle list for a meshed body.
 ///
 /// Two triangles per quad, wound so the mesher's outward-facing corner order
@@ -70,7 +100,11 @@ pub fn face_shade(axis: u8, positive: bool) -> f32 {
 /// renderer draws as an empty frame rather than treating as an error.
 pub fn build_vertices(mesh: &BodyMesh) -> Vec<Vertex> {
     let mut out = Vec::new();
+    append_body(&mut out, mesh, [0, 0, 0], 1.0);
+    out
+}
 
+fn append_body(out: &mut Vec<Vertex>, mesh: &BodyMesh, origin: [i32; 3], tint: f32) {
     for placement in &mesh.placements {
         let Some(part_mesh) = mesh.mesh_for(placement.volume) else {
             continue;
@@ -80,9 +114,15 @@ pub fn build_vertices(mesh: &BodyMesh) -> Vec<Vertex> {
             let base = material_colour(quad.material);
             let colour = [base[0] * shade, base[1] * shade, base[2] * shade];
 
+            let colour = [colour[0] * tint, colour[1] * tint, colour[2] * tint];
+
             let corners = quad.corners().map(|corner| {
                 let placed = place_point(corner, placement.yaw, placement.offset);
-                [placed[0] as f32, placed[1] as f32, placed[2] as f32]
+                [
+                    (placed[0] + origin[0]) as f32,
+                    (placed[1] + origin[1]) as f32,
+                    (placed[2] + origin[2]) as f32,
+                ]
             });
 
             for index in [0usize, 1, 2, 0, 2, 3] {
@@ -90,8 +130,6 @@ pub fn build_vertices(mesh: &BodyMesh) -> Vec<Vertex> {
             }
         }
     }
-
-    out
 }
 
 #[cfg(test)]

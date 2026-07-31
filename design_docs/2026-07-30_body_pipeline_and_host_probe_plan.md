@@ -189,11 +189,16 @@ sentence as this wing's "the core owns state; hosts only project."
 
 **The genuinely new organ is the arrangement.** An orrery is force-directed;
 a body is **joint-constrained**, positions fixed by attachment frames rather
-than settled by forces. Proposed to mere's arrangement registry as a
-reserved candidate (working name **Armature**, ratification pending), with
-the games-wing body swatch as its first consumer. That is the missing
-sibling: orrery is to a dataspace what an armature arrangement is to a
-nested-graph body.
+than settled by forces. **Ratified 2026-07-31 as the Armature arrangement** in
+mere's registry, with the games-wing body swatch as its first consumer. That is
+the missing sibling: orrery is to a dataspace what an armature arrangement is to
+a nested-graph body.
+
+**Armature is a display name and must never become a crate name.** `armature`
+is taken on crates.io by an event-driven actor framework, whose domain is
+adjacent to **armillary** — so publishing under it would collide both on the
+registry and in the stack's own vocabulary. The `graph_layout:*` id remains the
+persistence key, as for every arrangement.
 
 **Honest constraint.** Isometry renders through genet's DOM today, so a live
 token there means the body renderer drawing to a shared wgpu texture that the

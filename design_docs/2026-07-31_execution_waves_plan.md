@@ -190,9 +190,24 @@ direction for the whole wing:
    consistent with the wing's law that games interoperate through data rather
    than type dependencies, and the only option that scales to a third game.
 
-Recommendation: **4 now, 3 when a third consumer appears.** Option 4 needs no
-name, no publish, and no cross-repo dependency, and it is what the interop
-model already says should happen.
+**Ruled 2026-07-31: option 4, couple by data.** Mesocosm writes the body
+document and its flattened grid through `mere.pack/v1`; Isometry reads them
+with its own small adapter into `Voxels` and `Palette`. No shared type, no
+cross-repo dependency, no naming round.
+
+This is what the wing's interop law already required — games interoperate
+through data rather than type dependencies — and it is the only option that
+scales to a third consumer without rework. It also follows from the
+presentation ruling: if projection negotiates by capability, the pack must
+ship the *document*, so the seam is data by construction.
+
+Revisit option 3, a neutral extracted crate, when a third consumer appears and
+the schema has stopped moving.
+
+**Booked cost, honestly:** a schema and a reader instead of a type the compiler
+checks. Drift between writer and reader becomes a runtime failure rather than a
+build failure, so the profile needs a version field and a refusal path from the
+first commit. That is the trade the interop model makes everywhere else.
 
 ### Where Bones goes
 
