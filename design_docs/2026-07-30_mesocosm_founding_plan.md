@@ -257,14 +257,43 @@ seed rides in your body. You were not the predator; you were the vector. This
 is endozoochory, it needs no new substrate, and it is the sharpest available
 answer to "a free meal is the opposite of a game": the meal *wanted* this.
 
-**The legibility tension, and how it resolves.** Vesta's stated danger is that
-"a creature's threat is often impossible to estimate until it's too late",
-which contradicts Law B outright. The show can be illegible because it is
-authored and paced; a game where threats cannot be read is merely unfair. The
-workable line is **legible mechanism, unpredictable consequence** — you can
-always see what a thing *does*, you cannot see what it will do to the web.
-Mimicry sits exactly on that line and is the reason to keep it bounded: rare,
-and always tell-able on a second look.
+**Illegibility is a feature, and Law B does not forbid it.** Corrected
+2026-07-31, after an over-application of the law. Vesta's stated danger is
+that "a creature's threat is often impossible to estimate until it's too
+late", and the first draft here called that a contradiction of Law B and
+proposed *legible mechanism, unpredictable consequence* to soften it. That was
+wrong twice over.
+
+First, **Law B is about the player's own marks**, not the world's dangers. It
+says a lineage's inheritance must be pointable — that you can walk into a
+village and say "those are mine". It says nothing about whether a threat can
+be read, and applying it there was a category error.
+
+Second, **this is a roguelike, and unfair is the tradition**. Mark: *"I
+actually don't mind unfair."* The genre's canon, and this wing's own influence
+set, is built on exactly what the first draft flinched from: Caves of Qud will
+kill you with something you had no way to evaluate, Vagante hides its traps,
+NetHack's whole item game is *quaff and find out*, and Dwarf Fortress named
+the phenomenon **!!FUN!!**. The world does not scale to the player and never
+should.
+
+The tension dissolves on timescale rather than on caution:
+
+> **Illegible within a run. Legible across the lineage.**
+
+Knowledge is the thing that survives a death. A generation that died to a
+mimic leaves that fact behind, and the machinery is already ruled: the deed
+log records what happened, **tulpa** is precisely "what memory keeps", and
+**fili** carries it across the fork. Learning the bestiary *is* an
+inheritance, which fits Law B better than the reading it was given.
+
+**The one line worth holding is unfair versus unknowable.** A death you could
+not have predicted is good; a death there was *nothing to predict* is a coin
+flip wearing a costume. NetHack's potions are unidentified but never
+arbitrary — price tiers, consistent appearance within a run, engrave-ID, the
+floor test. There is always a tell, even one you only recognise in hindsight.
+So: **no cap on cruelty, and a hard floor on arbitrariness.** Every threat
+carries a tell that a second encounter can find.
 
 **The authoring caution.** Vesta's ecology is *authored*. "Clone-breeding
 plants that reproduce by killing herds" is a specific weird idea a person had,
