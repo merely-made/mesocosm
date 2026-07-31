@@ -144,6 +144,25 @@ carried the line is a **tulpa**. Meerkat is one.
 
 ### The influence set
 
+**Katamari Damacy** joined 2026-07-31, from Mark watching a grown critter:
+"there's something kinda neat about it, like katamari." It earns the place,
+because it is the one game whose core verb is *accretion made visible*. Three
+things it already validates here:
+
+- **You can see what you rolled up.** Katamari's charm is that the ball is a
+  legible record of everything it ate. That is this wing's "every part used to
+  be somebody" pillar, arrived at from the other direction.
+- **Size gates what you can take.** Reach and the metabolic budget do the same
+  work, so the escalation curve has prior art that is known to feel good.
+- **Growth changes handling.** Mass and balance shifting as you accrete is
+  Katamari's whole physical comedy, and this wing already computes centre of
+  mass from placed parts.
+
+The distinction worth holding: Katamari's accretion is comic and terminal, a
+run that ends when the timer does. Here it is generational and consequential,
+because a part carries provenance and the world keeps what you did to it.
+
+
 Gotcha Force, RimWorld, Phantasy Star Online, Mount & Blade, Zelda: Four
 Swords, FF Crystal Chronicles, XCOM 2, Caves of Qud, Vagante, Tactics Ogre:
 The Knight of Lodis, FFTA, Fire Emblem (GBA), Kenshi, Helldivers 2,

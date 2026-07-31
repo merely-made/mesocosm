@@ -168,14 +168,14 @@ impl Host {
                 "d" | "D" => Some(Intent::Move { delta: [step, 0, 0] }),
                 "e" | "E" => {
                     let world = self.runtime.world();
-                    fixture::reachable(world).map(|m| fixture::metabolize(world, m))
+                    fixture::reachable(world).map(|m| fixture::metabolize(world, m, &self.volumes))
                 }
                 "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
                 _ => None,
             },
             Key::Named(NamedKey::Space) => {
                 let world = self.runtime.world();
-                fixture::reachable(world).map(|m| fixture::metabolize(world, m))
+                fixture::reachable(world).map(|m| fixture::metabolize(world, m, &self.volumes))
             }
             _ => None,
         }
@@ -207,7 +207,7 @@ impl Host {
         {
             let world = self.runtime.world();
             if let Some(target) = fixture::reachable(world) {
-                let intent = fixture::metabolize(world, target);
+                let intent = fixture::metabolize(world, target, &self.volumes);
                 self.runtime.queue(intent);
             }
         }

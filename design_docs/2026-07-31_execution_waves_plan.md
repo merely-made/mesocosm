@@ -384,3 +384,22 @@ round-trip:
   frame run produced 111 steps at 60 Hz, so the loop drew at ~162 fps while
   the simulation ticked fixed. 82 tests across the workspace, clippy clean.
   Five crates: core, runtime, mesh, render, genet.
+- **2026-07-31, wave 2.1 (playtest).** Mark ran the window and it found two
+  defects no test had. **Drawing only the body made the game unplayable**: the
+  camera framed body bounds and morsels were not drawn, so moving did nothing
+  visible and there was nothing to act on. Fixed by rendering scenes with a
+  following camera and dimming what is out of reach. **And placement stacked
+  parts**: the fixture cycled six faces by `body.len() % 6`, so the seventh
+  part landed on the first and a well-fed critter collapsed into a z-fighting
+  pile. Fixed by checking the flattened body for free space before proposing an
+  attachment, with a regression test asserting placed voxels equal expected
+  voxels, since an overlap silently loses voxels to overwriting.
+
+  The general lesson: **both defects were invisible to the test suite and
+  obvious within seconds of playing.** Tests assert that a part is drawn and
+  that the body grew; neither notices that the player cannot see the world or
+  that the body is a pile. Wave 2.1's standing caveat is doing real work.
+- **2026-07-31.** First free face gives **compact clumping**, not silhouette. A
+  real growth policy will want directional bias, symmetry, or trait-driven
+  morphology; the current one only guarantees no overlap. Recorded because a
+  blob that reads as a blob is a design question, not a bug.
