@@ -26,8 +26,16 @@ architecture that Paredros and Isometry also depend on.
 
 ## Terminology
 
-- **critter**: the plain organism word, wing-wide. Not "creature", not
-  "borg" (chat shorthand, a Gotcha Force loan with an IP shadow).
+- **critter**: the plain organism word, wing-wide, and the default. Not
+  "creature".
+- **borg** *(provisional word, ruled concept)*: a **named** critter. Ruled
+  2026-07-31 — a critter is an organism, a borg is a named critter made
+  incidentally by playing Mesocosm, a character is a faction-associated borg
+  made by playing Paredros. The **concept** is settled and load-bearing; the
+  **word** still carries a Gotcha Force loan and an IP shadow and has not
+  passed the usual checks. Use `critter` for organisms generally and reach for
+  borg only where the naming is the point. Do not treat this as clearance to
+  title anything Borg. See the wing founding record §1 and open question 3.
 - **animula**: the played soul — the little soul that guests in a body,
   across generations. In-product term only. **Never title anything Animula**;
   ANIMULA NOOK is a live Tencent mark in Class 9 game software.

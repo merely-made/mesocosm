@@ -563,6 +563,8 @@ maintainer's manual step.
 | **metabolize** | Mesocosm's single verb: world into self, self into world. |
 | **fili** | Lineage across worlds. Reserved in `mere/design_docs/TERMINOLOGY.md` for moot ancestry, forks, and genealogy. Not event history, not content descent. |
 | **tulpa** | The legend and memorial organ: what memory makes of history, sustained by continued attention. Proposed 2026-07-30, crates.io free, **lexicon inscription still pending the maintainer's ruling.** |
+| **borg** *(provisional)* | A **named** critter — the concept ruled 2026-07-31, the word not yet cleared. Made incidentally by playing Mesocosm: a critter accrues enough record to stop being a statistic. Carries a Gotcha Force loan and an IP shadow; see open question 3. |
+| **character** | A **faction-associated** borg, made by playing Paredros. Not a new coinage — Isometry already uses `character` for the same artifact, so the word is agreement between two vessels rather than a fourth term. |
 | **deme** | Banked, unspent. Biology's local interbreeding population; the leading candidate for Mesocosm's unit word if one is wanted. |
 
 Also banked clean and unspent: **coppice**, **diaspore**, **holobiont**.
@@ -630,8 +632,27 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
    **Paredros is not bound by this.** Renderers are per-vessel, and a close
    camera with real lighting is the case where an engine, or Renderling, would
    earn its keep.
-3. **Paredros' unit word.** "Borg" is chat shorthand — a Gotcha Force loan
-   with an IP shadow. The battle-frame noun is unnamed.
+3. **Paredros' unit word — resolved 2026-07-31, though not as this question
+   assumed.** It had "borg" pencilled in as Paredros' word. Mark's continuity
+   ruling (§1) puts borg in *Mesocosm's* output and gives Paredros
+   **character**: a critter is an organism, a borg is a named critter, a
+   character is a faction-associated borg. So Paredros' unit word is
+   `character`, which is also already Isometry's word for the same artifact —
+   agreement across two vessels rather than a coinage.
+
+   **What is still open is the word "borg", not the concept.** The concept is
+   now ruled and load-bearing: the wing needs a noun for *a critter that has a
+   name*. The word carries a Gotcha Force loan and an IP shadow, and that
+   caution has not been withdrawn — this repo's `CLAUDE.md` still lists borg
+   under terms not to use. Treat "borg" as **provisional shorthand for a ruled
+   concept** until it survives the usual crates.io, game, studio, and
+   trademark checks or a replacement is chosen. **deme** is banked and is not
+   a candidate here: it names a population, and this concept names an
+   individual.
+
+   The battle-frame noun — the machine a character pilots, if Paredros keeps
+   the Gotcha Force silhouette — remains genuinely unnamed and is a separate
+   question from the unit word.
 4. **Tulpa's inscription and shape**, including the attention mechanic that
    Law B depends on.
 5. **Fili v0**: home (beside chartulary and codicil in mere's eidetic
