@@ -26,4 +26,27 @@ mesocosm-runtime = { path = "crates/mesocosm-runtime", version = "0.0.1" }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 postcard = { version = "1", default-features = false, features = ["alloc"] }
 
+# ONE wgpu for the whole workspace. Two versions in one process are two
+# incompatible device types, and this game is meant to share a device with
+# netrender rather than create a second one.
+#
+# Pinned to 29 rather than upstream 30 because **vello gates it**, verified
+# 2026-07-31: netrender's sole rasterizer is `vello = "0.9"`, and vello 0.9.0
+# requires `wgpu ^29.0.3`, which semver-excludes 30. Every family repo that
+# touches wgpu is on 29 for the same reason. Bump when vello ships a wgpu-30
+# release, and bump the family together.
+#
+# Backends are named here because `default-features = false` turns them all
+# off, and an instance with no backend panics at construction rather than
+# reporting a missing adapter. Sibling repos omit them because their leaf
+# binaries supply them; this workspace is its own leaf.
+wgpu = { version = "29", default-features = false, features = [
+    "std",
+    "wgsl",
+    "dx12",
+    "vulkan",
+    "metal",
+    "gles",
+] }
+
 [dependencies]
