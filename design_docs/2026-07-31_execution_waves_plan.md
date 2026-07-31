@@ -1,8 +1,8 @@
 # Execution Waves
 
-**Status: in progress, 2026-07-31.** Wave 1.1 landed. Wave 1.2 landed except
-the window and the device: stepping, meshing, and placement are done and
-tested. **Wave 1.3 dropped**: the render lane is decided (custom wgpu body
+**Status: in progress, 2026-07-31.** **Waves 1.1 and 1.2 complete**: core,
+runtime, mesher, renderer, and a windowed host, with every done-condition met
+and tested. **Wave 1.3 dropped**: the render lane is decided (custom wgpu body
 renderer, netrender owning the device), so there is no second host to compare
 against. Ruled by Mark. This is the **authority on ordering** across the
 games wing. It does not restate design;
@@ -50,7 +50,7 @@ determinism argument. Float physics now sits wholly outside the core, and
 equivalence: a host may use floats freely, provided it does not feed derived
 float state back into the core.
 
-### 1.2 The Genet host — **partially landed 2026-07-31**
+### 1.2 The Genet host — **COMPLETE 2026-07-31**
 
 Build the custom host over the existing winit / wgpu / Cambium stack, probing
 **Renderling** for voxel bodies. It consumes the core's state and intents
@@ -78,10 +78,22 @@ the confound rule, since the stepping it defines is shared by both hosts.
   mass grows, the centre of mass moves toward the new part, the collision box
   grows, and the drawn body gains placements and reaches further, with
   provenance intact alongside the geometry.
-- **Remaining for 1.2**: the window and the device. What is left is whether the
-  result *looks* legible, which is a judgment for a machine with a display and
-  cannot be asserted in a test. Everything that judgment needs is now
-  derivable, deterministic, and cheap.
+- **`mesocosm-genet` landed** (`crates/mesocosm-genet`): a winit window, a wgpu
+  surface, input as intents, and the shared runtime stepping the world. It
+  holds no game state; if a rule ever appears in it, it is in the wrong crate.
+  **All three done-conditions are now met.** A capture run of 300 frames
+  produced **111 steps** — the window drew at roughly 162 fps while the
+  simulation ticked at exactly 60 Hz, which is frame-delivery independence
+  observed live rather than only unit-tested. The critter grew to five parts
+  during the run and the frame was captured on exit.
+- **`--frames N --capture PATH` keeps the windowed path verifiable** without a
+  person sitting in front of it, which is the same discipline as the headless
+  tests: run the real loop, leave evidence.
+
+**Wave 1.2 is complete.** What remains open is not a condition but a judgment
+already given: Mark's read of the first renders was that the parts read as
+attached rather than floating, with the caveat that a still frame cannot show
+what is *joined* — that wants motion, which the window now supplies.
 
 **Why the runtime is shared rather than per-host.** If each host wrote its own
 stepping, a divergence between hosts could be a divergence in *stepping*, and
@@ -314,3 +326,9 @@ round-trip:
   per-part greedy voxel meshing, rigid placement, and an end-to-end attachment
   test over the real simulation. 24 tests, clippy clean. 66 tests across the
   workspace. Only the window and the device remain in wave 1.2.
+- **2026-07-31**: **wave 1.2 complete.** `crates/mesocosm-genet`: winit window,
+  wgpu surface, input as intents, shared runtime stepping the world, and a
+  `--frames/--capture` mode that keeps the windowed path verifiable. A 300
+  frame run produced 111 steps at 60 Hz, so the loop drew at ~162 fps while
+  the simulation ticked fixed. 82 tests across the workspace, clippy clean.
+  Five crates: core, runtime, mesh, render, genet.

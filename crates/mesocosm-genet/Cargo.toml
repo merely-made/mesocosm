@@ -1,0 +1,26 @@
+[package]
+name = "mesocosm-genet"
+version = "0.0.1"
+edition = "2024"
+license = "MPL-2.0"
+description = "Mesocosm's windowed host: a winit window and wgpu surface driving the core through the shared runtime. Owns the loop and the device, never a rule."
+repository = "https://github.com/merely-made/mesocosm"
+publish = false
+
+# The host. It owns the window, the device, and the frame loop, and it holds
+# no game state: intents go in through mesocosm-runtime and the world comes
+# back out to be drawn. If a rule ever appears in this crate, it is in the
+# wrong crate.
+#
+# Named for the lane rather than the dependency. netrender compositing is the
+# intended arrangement and is not wired yet, so this currently drives its own
+# surface directly.
+[dependencies]
+mesocosm-core = { workspace = true }
+mesocosm-mesh = { workspace = true }
+mesocosm-render = { workspace = true }
+mesocosm-runtime = { workspace = true }
+wgpu = { workspace = true }
+winit = "0.30"
+pollster = "0.4"
+png = "0.17"

@@ -129,6 +129,7 @@ pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+    format: wgpu::TextureFormat,
     width: u32,
     height: u32,
 }
@@ -167,6 +168,18 @@ impl Renderer {
         queue: wgpu::Queue,
         width: u32,
         height: u32,
+    ) -> Self {
+        Self::with_format(device, queue, width, height, COLOUR_FORMAT)
+    }
+
+    /// As [`Self::with_device`], for a target whose format is not ours. A
+    /// window surface is usually BGRA, so a windowed host passes its own.
+    pub fn with_format(
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("mesocosm body"),
@@ -221,7 +234,7 @@ impl Renderer {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: COLOUR_FORMAT,
+                    format,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -253,17 +266,41 @@ impl Renderer {
             pipeline,
             camera_buffer,
             camera_bind_group,
+            format,
             width,
             height,
         }
     }
 
-    pub fn size(&self) -> (u32, u32) {
-        (self.width, self.height)
+    pub fn format(&self) -> wgpu::TextureFormat {
+        self.format
     }
 
-    /// Renders a body and reads the frame back.
-    pub fn render(&self, mesh: &BodyMesh, camera: &Camera) -> Result<Frame, RenderError> {
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.width = width.max(1);
+        self.height = height.max(1);
+    }
+
+    /// Records the body pass into an encoder, against a caller-owned target.
+    ///
+    /// This is the one drawing path. Headless rendering and a window differ
+    /// only in where the target view comes from and what happens afterwards,
+    /// which is what keeps the tested path and the shipped path identical.
+    pub fn draw(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        mesh: &BodyMesh,
+        camera: &Camera,
+    ) {
         let vertices = build_vertices(mesh);
         self.queue.write_buffer(
             &self.camera_buffer,
@@ -271,20 +308,6 @@ impl Renderer {
             bytemuck::cast_slice(&[camera.view_proj_array()]),
         );
 
-        let colour = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("frame"),
-            size: wgpu::Extent3d {
-                width: self.width,
-                height: self.height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: COLOUR_FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
         let depth = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("depth"),
             size: wgpu::Extent3d {
@@ -299,16 +322,12 @@ impl Renderer {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
-
-        let colour_view = colour.create_view(&Default::default());
         let depth_view = depth.create_view(&Default::default());
 
         let vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices"),
-                // An empty body still needs a buffer; zero-sized ones are
-                // rejected, so pad and draw nothing.
                 contents: if vertices.is_empty() {
                     bytemuck::cast_slice(&[Vertex { position: [0.0; 3], color: [0.0; 3] }])
                 } else {
@@ -317,46 +336,72 @@ impl Renderer {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("body"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: target,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: BACKGROUND[0],
+                        g: BACKGROUND[1],
+                        b: BACKGROUND[2],
+                        a: BACKGROUND[3],
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Discard,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+
+        if !vertices.is_empty() {
+            pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            pass.draw(0..vertices.len() as u32, 0..1);
+        }
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    /// Renders a body offscreen and reads the frame back.
+    ///
+    /// Goes through the same [`Self::draw`] a window uses, so what the tests
+    /// assert is what a host displays.
+    pub fn render(&self, mesh: &BodyMesh, camera: &Camera) -> Result<Frame, RenderError> {
+        let colour = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("frame"),
+            size: wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let colour_view = colour.create_view(&Default::default());
+
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("body") });
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("body"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &colour_view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: BACKGROUND[0],
-                            g: BACKGROUND[1],
-                            b: BACKGROUND[2],
-                            a: BACKGROUND[3],
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &depth_view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Discard,
-                    }),
-                    stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-
-            if !vertices.is_empty() {
-                pass.set_pipeline(&self.pipeline);
-                pass.set_bind_group(0, &self.camera_bind_group, &[]);
-                pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                pass.draw(0..vertices.len() as u32, 0..1);
-            }
-        }
+        self.draw(&mut encoder, &colour_view, mesh, camera);
 
         self.read_back(encoder, &colour)
     }
