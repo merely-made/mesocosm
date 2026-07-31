@@ -1,7 +1,8 @@
 # Execution Waves
 
-**Status: plan, 2026-07-31. Nothing implemented.** Ruled by Mark. This is the
-**authority on ordering** across the games wing. It does not restate design;
+**Status: in progress, 2026-07-31.** Wave 1.1 landed; wave 1.2's frame-delivery
+half landed. Ruled by Mark. This is the **authority on ordering** across the
+games wing. It does not restate design;
 it sequences the work the governing plans already specify and adds the
 constraints that only appear once the order is fixed.
 
