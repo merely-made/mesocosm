@@ -1,6 +1,6 @@
 # Wing phenotype contract: one body, sovereign readings
 
-**Status: cross-vessel decisions and proof plan, 2026-07-31. No v1 wire schema
+**Status: cross-vessel decisions and proof plan, revised 2026-08-01. No v1 wire schema
 is implemented.** This plan specifies what body identity means across
 Mesocosm, Paredros, and Isometry. It does not give the games one capability
 system, runtime, renderer, or biological simulation.
@@ -102,6 +102,23 @@ facet opaquely. It must not silently mint another anatomy for the same revision.
 If Paredros replaces a chassis, the character facet points to a new body
 revision. Skills and relationships remain on the subject's person facet. The
 old body may persist as an object, relic, corpse, or discarded revision.
+
+Crossing may preserve or reinterpret phenotype, by explicit choice:
+
+- **Carry this body** preserves current process allocation as faithfully as
+  the destination permits. World-required accommodations are explicit
+  adaptations and mint a causally linked body revision when they change the
+  body.
+- **Regrow here** preserves subject identity, genotype, developmental rules,
+  and provenance while realizing a phenotype under destination conditions. It
+  expects a new body revision and may look or function quite differently.
+
+Neither route imports a capability verdict. The receiver derives its own
+reading. The prior phenotype remains pointable, and an opaque consumer preserves
+the Mesocosm phenotype facet if the route promises lossless continuation.
+The destination declares compatibility and the cost of available
+accommodations; the traveler chooses among feasible routes. An incompatible
+carry is refused or redirected to regrowth rather than silently rewritten.
 
 ### A descendant is founded
 
@@ -325,7 +342,16 @@ ancestry; neither operation is implemented as a flat star rebuild.
   repository is pre-implementation.
 - **2026-07-31:** Isometry already proves opaque local-mirror decoding and
   additive history, but it does not yet consume topology.
+- **2026-08-01:** cross-world phenotype handling is a choice between carrying
+  the current body with explicit destination adaptations and regrowing a body
+  from genotype under destination conditions. Both preserve subject continuity
+  and point to the prior revision; neither imports capability verdicts. The
+  destination declares feasibility and cost while the traveler chooses.
 
 ## Progress
 
 - **2026-07-31:** founding contract written; no schema or code change made.
+- **2026-08-01:** carry-this-body and regrow-here routes added after the first
+  ProcessDef allocation design questions. No schema or code change made.
+- **2026-08-01:** crossing authority refined: destination offers feasible,
+  costed routes and the traveler chooses. No schema or code change made.

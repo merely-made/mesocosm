@@ -312,8 +312,8 @@ incorporation, and a metabolic budget.
 
 The [phenotype plan](2026-07-31_phenotype_plan.md) supplies the dependency
 order. P0 through P2 have now removed the special played-body model and proven
-one embodied consequence. P2's deferred biomass and upkeep account closes
-before the next state migration; body v1 still waits on the later local proofs.
+one embodied consequence. P2's deferred biomass and upkeep account landed in
+`d9af641`; body v1 still waits on the later local proofs.
 
 1. **P0, meal choice, mechanically landed:** burn or incorporate one meal,
    with mutually exclusive receipts and consistent venom. The headed playfeel
@@ -322,11 +322,11 @@ before the next state migration; body v1 still waits on the later local proofs.
    use the same body-bearing representation and control names an organism.
 3. **P2, one embodied consequence, landed 2026-08-01:** gameplay reach is
    derived from anatomy, and severing the contributing process path removes it.
-   Its deferred biomass and upkeep reconciliation is the active closeout.
-4. **Process identity before expression:** after that closeout, execute PD1 and
-   PD2 of the [ProcessDef plan](2026-08-01_processdef_plan.md) before branch
-   transfer, then prove the Piccolo expression ABI before phenotype-based
-   adaptation.
+   Its biomass and upkeep reconciliation is also landed.
+4. **Play before authoring infrastructure:** execute PD1's allocation design
+   and migration, then play one native process at PD2. P3 branch transfer
+   follows stable process identity and allocation. Static packs and Piccolo
+   then replace the native authoring path before phenotype-based adaptation.
 
 Branch transfer may begin after stable process identity. Phenotype-based
 adaptation consumes the validated expression path. Contested resource flow
@@ -731,7 +731,8 @@ round-trip:
   extinctions and the phase converges by round six, because every pressure has
   an answer and income is flat and uncontested. Contested income is the
   emergent fix and belongs to the epoch half; see §2.2.
-- **2026-08-01:** P1 and P2 are landed. The ProcessDef plan now inserts stable
-  native and pack process identity before P3 branch transfer, and the bounded
-  Piccolo expression proof before P4 adaptation. P2's biomass and upkeep
-  reconciliation remains the immediate closeout.
+- **2026-08-01:** P1, P2, and P2's biomass/upkeep reconciliation are landed.
+  The ProcessDef plan now gives allocation its own design pass, plays one
+  native process before pack and Lua infrastructure, schedules P3 branch
+  transfer after stable process identity, and keeps bounded Piccolo authoring
+  before P4 adaptation.

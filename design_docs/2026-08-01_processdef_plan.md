@@ -2,8 +2,9 @@
 
 **Status: plan, 2026-08-01. No ProcessDef schema, pack loader, or Mesocosm
 Piccolo host exists yet. P2's native `Contract`, `Intake`, `Sense`, and derived
-`Reach` are the starting proof. The biomass and upkeep reconciliation left by
-P2 is active in the checkout and finishes before this lane edits the core.**
+`Reach` are the starting proof. P2's biomass and upkeep reconciliation landed
+in `d9af641`; the next work is PD1's allocation design pass, not a registry
+refactor.**
 
 This plan owns Mesocosm's extensible process vocabulary, developmental
 expression boundary, content-pack shape, and Piccolo proof. The
@@ -30,7 +31,7 @@ The full causal ladder is:
 That distinction keeps the system broad without making it vague. A process
 definition can say that exposed tissue transforms light into usable energy.
 A developmental instruction can say where that tissue tends to grow and when
-it expresses. The current body records which sites actually expressed it.
+it expresses. The current phenotype records which sites actually expressed it.
 Mesocosm then decides whether those sites, their connections, the available
 light, and the body's costs produce a working capability.
 
@@ -56,6 +57,14 @@ organ: located on a particular part, paid for, connected or disconnected,
 conditioned by the environment, and pointable to its developmental and source
 provenance. Reshaping, starving, severing, or moving worlds can still make it
 stop working without editing a capability number.
+
+**Phenotypic plasticity is intended.** `BodyPlan` constrains structural growth;
+it does not uniquely determine the realized critter. The same body plan, and
+even the same inherited developmental program, may produce different process
+allocation when the environment, acquired sources, life history, or recorded
+entropy differs. Identical inputs and entropy still produce an identical
+phenotype. A lineage is therefore heritable without being a mold that stamps
+the same organism every time.
 
 ---
 
@@ -130,6 +139,13 @@ pub struct ExpressedProcess {
     pub cause: ExpressionCause,
     pub source: Option<Provenance>,
 }
+
+pub struct PartAllocation {
+    pub part: PartId,
+    pub capacity: u32,
+    pub sites: Vec<ExpressedProcess>,
+    pub topology: AllocationTopology, // ruled by PD1a
+}
 ```
 
 `QualifiedProcessId` is pack-qualified at the authoring and wire boundaries.
@@ -150,6 +166,68 @@ process, not a compatibility table.
 closure, filesystem path, clock, random generator, or rendering fact. It can
 therefore be admitted into a world's ruleset and evaluated by
 `mesocosm-core` without running a script in the simulation loop.
+
+### The allocation mosaic
+
+**Ruled 2026-08-01.** Each part has finite process capacity. Several processes
+may share it, and every expressed site consumes some of the same budget. A leaf
+may capture light, signal with pigment, and repair itself, but emphasizing one
+leaves less tissue for the others. This is the correct competition boundary:
+the tradeoff lives inside the organ rather than in a flat organism-wide score.
+
+The working UI is a Diablo-like inventory for each part: process sites occupy a
+small **allocation mosaic**, and their relations can be inspected and edited at
+developmental moments. Adjacency matters because processes that remain near
+one another across turns and epochs may cooperate, interfere, or become
+candidates for hybridization. The mosaic is phenotype state keyed to a stable
+`PartId`; it is not a capability verdict and it does not make renderer voxels
+simulation authority.
+
+**Ruled 2026-08-01: the mosaic is an authoritative graph of capacity cells.**
+A process site occupies a connected subgraph. The evaluator may inspect each
+cell's neighbours, a site's boundary, connected regions, and the entire
+part-mosaic. A Diablo-like 2D layout is a useful editor and inspector, but its
+screen coordinates are not authority; radically different parts do not have to
+pretend they are rectangles. Allocation still conserves capacity: occupied
+plus free cells equal the part's current capacity, and damage or shrinkage
+cannot leave a site occupying cells that no longer exist.
+
+### Hybridization across epochs
+
+**Ruled 2026-08-01.** Adjacency may produce a somatic compound during an
+embodied epoch: neighbouring sites can cooperate, interfere, or expose a new
+transformation without rewriting either parent. Use, survival, and repetition
+make that compound eligible for the adaptation bank. The adaptation phase may
+then stabilize it as a heritable form, citing both parent processes and the
+lived compound history.
+
+This gives the two game phases different jobs. The first-person epoch discovers
+the combination by living with it; the adaptation turn decides whether the
+lineage commits to it. A mid-epoch adjacency never silently rewrites genotype.
+Process hybridization is distinct from combining two biological lines, though
+a stabilized process may later participate in lineage hybridization. Still
+open is the stabilized form's identity: a newly admitted derived `ProcessDef`,
+or a heritable compound recipe evaluated through its parents.
+
+### Directed graft affinity
+
+The proposed balancing model is a directed affinity graph over tissue domains,
+not the existing `Kingdom::{Producer, Consumer, Decomposer}` trophic role. A
+default world might use animal-like -> fungal-like -> plant-like -> animal-like
+as the favoured cross-graft cycle, with the reverse edges disfavoured. The bare
+word `flora` remains reserved by the platform and is not a game-data label.
+
+The graph belongs to world or pack data rather than a universal three-value
+enum. Soup organisms, colonies, mineral life, and magical worlds may define
+different domains and edges. Same-domain grafts are ordinarily native. A
+cross-domain edge determines whether the boundary connects directly, requires
+an adapter process, or refuses.
+
+The adapter is embodied: it occupies cells near the graft boundary, consumes
+upkeep, or reduces channel throughput. A learned compatibility process can
+shrink that footprint or penalty, analogous to buying off a dual-wielding
+penalty. The remaining ruling is whether a disfavoured edge is normally a hard
+gate or an expensive but recoverable graft.
 
 ### What a definition may control
 
@@ -185,13 +263,19 @@ The host invokes expression at bounded triggers:
 - founding or filial regrowth;
 - a chosen adaptation;
 - assimilation or grafting;
-- lifecycle stage change;
-- injury and regeneration;
-- a discrete, quantized world-condition threshold crossing.
+- growth, paid remodeling, injury repair, or regeneration;
+- lifecycle stage change such as metamorphosis.
 
 It does not invoke Lua once per organism per ecology tick. Accepted output is
 lowered to native process allocations and channel-development instructions,
 which the core can evaluate repeatedly without the script.
+
+**Ruled 2026-08-01.** A changing environment does not itself rewrite the
+allocation mosaic. Existing processes may become active, dormant, efficient,
+or starved as their inputs change. Reallocating tissue requires a discrete
+developmental event with a cost and a causal record. That keeps a whole roster
+and several co-op players tractable: the simulation evaluates activity, while
+expression runs only when somebody actually changes.
 
 ### Request
 
@@ -358,7 +442,7 @@ exposed plate can earn energy in a bright world, costs tissue and upkeep, goes
 dormant in darkness, and disappears when the responsible part is severed. It
 crosses body, world, ecology, and explanation with one small definition.
 
-The exact first process is ruled at gate PD4. If light capture requires a flow
+The exact first process is ruled at gate PD2. If light capture requires a flow
 system larger than the proof, choose an existing mechanic such as venom
 secretion. Do not invent a dummy capability solely to make the pack pass.
 
@@ -380,6 +464,25 @@ This keeps the layered reading intact: a character may wrap a named critter's
 body and history, while body processes remain one composable facet rather than
 becoming the character schema.
 
+**Ruled 2026-08-01: crossing offers two phenotype routes.**
+
+1. **Carry this body:** preserve the current allocation mosaic as faithfully as
+   the destination permits. If the destination world requires gills, wings, or
+   another accommodation, each change is an explicit adaptation with a cause;
+   it does not silently overwrite the arriving phenotype.
+2. **Regrow here:** preserve genotype, developmental program, provenance, and
+   subject continuity, then realize a phenotype under destination conditions.
+   This intentionally may produce a different body from the same inherited
+   program.
+
+Either route may create a new body revision while retaining the same subject.
+The prior revision remains pointable. A receiving vessel still derives its own
+capabilities, and a weak consumer may preserve the Mesocosm phenotype facet
+opaquely. **The destination declares compatibility, available accommodations,
+and their costs; the traveler chooses among the feasible routes.** An
+incompatible body is refused or offered regrowth. It is never silently
+rewritten by either side.
+
 Do not revise body v1 for this lane before the wing contract's subject,
 body-revision, and part-address gates are stable. Local proof comes first.
 
@@ -387,68 +490,120 @@ body-revision, and part-address gates are stable. Local proof comes first.
 
 ## 9. Proof gates and file seams
 
-### PD0. Close P2's account
+### PD0. Close P2's account: **LANDED 2026-08-01**
 
-Finish the active biomass/upkeep reconciliation without ProcessDef edits.
+`d9af641` removed `Organism::mass_mg`, routed feeding, upkeep, starvation,
+death, carrion, and reproduction through body mass, and made upkeep scale with
+what a critter carries. Burning pays the budget; growing raises the standing
+cost.
 
-**Done when:** body mass is the ecology's mass account, larger bodies cost
-more to carry, burn-versus-incorporate can receive an honest headed playtest,
-and the worktree is clean enough that the next state migration has one owner.
+**Done:** body mass is the ecology's only mass account, larger bodies cost more
+to carry, the headed host shows budget and upkeep, and the next state migration
+has a clean landed base. P0's repeat-play judgment remains open because only a
+player can close it.
 
-### PD1. Native ProcessDef
+### PD1a. Allocation design pass
 
-Replace the closed `Process` enum as identity authority with a registry-backed
-`ProcessDef` representation for the three existing native processes. Geometry
-continues to express those built-ins, and `Reach` keeps exactly its P2
-semantics.
+Treat this as a state migration before touching the enum. Today `Process` is
+derived on every call and stored nowhere. Adding allocation creates state that
+must be constructed, updated with growth, tombstoned with loss, serialized,
+replayed, explained, and projected.
 
-Likely seams:
+One ownership ruling is already settled by the wing contract: functional links
+and process allocation are an **optional Mesocosm phenotype facet**, not
+required primitive topology in `mesocosm.body/v1`. Local Rust layout does not
+get to change that portable authority boundary.
+
+The design pass must compare at least:
+
+1. allocation fields carried locally beside each `Part` inside
+   `BodyDocument`, then projected into a separate phenotype facet;
+2. a `PhenotypeState` beside `BodyDocument`, keyed by stable `PartId`;
+3. a wrapper that owns anatomy and phenotype and makes mutations transactional.
+
+"Smallest diff" is not the criterion. The choice must prevent orphaned
+allocation when a part is attached or severed, keep structural topology usable
+without Mesocosm semantics, and let capability evaluation receive anatomy,
+phenotype, and environment explicitly.
+
+The state owner must hold one finite allocation mosaic per participating
+`PartId`. Process sites compete for its capacity; all rearrangement is an
+ordered developmental event; and mosaic adjacency must survive snapshot,
+replay, branch transfer, and the optional phenotype projection. The mosaic is
+an authoritative cell graph; any 2D inventory layout is a projection of it.
+
+**Done when:** one state owner is ruled with constructor, attach, sever,
+snapshot, replay, explanation, and body-v1 projection paths drawn; failure
+atomicity and capacity conservation are named; carry-body and regrow-here
+projection paths are distinguished; fixture changes are bounded; and the
+implementation gate has exact file seams and tests. No state migration lands
+in PD1a.
+
+### PD1b. Native ProcessDef migration
+
+Execute PD1a's ruling. Replace the closed `Process` enum as identity authority
+with registry-backed `ProcessDef` records for the three existing native
+processes. Existing geometry deterministically seeds their initial allocation,
+and `Reach` keeps exactly its P2 semantics.
+
+Expected seams, subject to PD1a:
 
 - `crates/mesocosm-core/src/process.rs`: ids, definitions, registry, allocation;
-- `crates/mesocosm-core/src/body.rs`: expressed-process attachment only if the
-  proof requires storage;
+- the ruled phenotype owner: allocation lifecycle and part addressing;
 - `crates/mesocosm-core/tests/embodied.rs`: parity, severing, explanations;
 - snapshot and replay fixtures: one intentional format bump, with no legacy
   compatibility shim for unreleased data.
 
-**Done when:** the three built-ins are ordinary definitions in the admitted
-ruleset, existing reach outcomes and refusal explanations hold, and a part
+**Done when:** the three built-ins are ordinary definitions, every living
+allocation names a living part, attach and sever cannot split anatomy from
+phenotype, every part mosaic conserves capacity, rearrangement occurs only
+through recorded events, existing reach outcomes and refusals hold, and a part
 still cannot acquire a capability by editing a number.
 
-### PD2. Static pack admission
+### PD2. One native played process
 
-Load one data-only process pack, validate it, lower it into the core ruleset,
-and expose its definitions to inspection. Lua is not involved yet.
+Hand-author one additional `ProcessDef` in Rust and play it before building the
+pack or Lua machinery. Light capture leads; venom secretion is the bounded
+fallback if light capture would require the whole channel evaluator.
+
+This is the mechanic proof. It may use a native developmental fixture or an
+explicit editor operation to allocate the process. That temporary authoring
+path is deleted when the pack/Piccolo path replaces it; it does not become a
+second permanent system.
+
+**Done when:** acquiring or expressing the process creates a readable choice;
+allocation locates it on a part and charges its cost; world conditions can make
+it useful or dormant; severing its dependency removes the consequence; and a
+headed receipt explains all four states.
+
+Only this gate chooses the first process. It does not open a catalog pass.
+
+### PD3. Static pack admission
+
+Encode the already-played PD2 definition in a data-only pack, validate it,
+lower it into the core ruleset, and remove the native authoring duplicate. Lua
+is not involved yet.
 
 Likely seam: a new MPL-2.0 `mesocosm-phenotype` crate for pack discovery,
 admission, and later Piccolo hosting. It may depend on `mesocosm-core`; core may
 not depend on it.
 
-**Done when:** namespaced ids do not collide, path escape and malformed schema
-are refused, changing one rule-bearing byte changes the ruleset digest, and a
-snapshot identifies the exact admitted ruleset.
+**Done when:** the packed definition lowers to the same `ProcessDef` and game
+outcome as the native proof; namespaced ids do not collide; path escape and
+malformed schema are refused; changing one rule-bearing byte changes the
+ruleset digest; and a snapshot identifies the exact admitted ruleset.
 
-### PD3. Piccolo expression proof
+### PD4. Piccolo authoring parity
 
 Add the typed request/proposal bridge, native validator, bounded runner, and one
-declared fixture pair.
+declared fixture pair for the process already proven at PD2 and packed at PD3.
 
-**Done when:** the same context and entropy produce the same proposal and draw
-trace; bright and dark or otherwise contrasting contexts express differently;
-unknown ids, invalid parts, excessive output, and exhausted fuel refuse cleanly;
-and Lua has no direct world mutation path.
-
-### PD4. One played authored process
-
-Let one non-native definition change an existing game outcome through an
-embodied path.
-
-**Done when:** acquiring or inheriting the process creates a readable choice;
-expression locates it on a part and charges its cost; world conditions can make
-it useful or dormant; severing its dependency removes the consequence; and a
-headed receipt explains all four states.
-
-This gate chooses the first process. It does not open a catalog pass.
+**Done when:** Piccolo can propose the same accepted allocation the native
+fixture produced; the same context and entropy produce the same proposal and
+draw trace; contrasting developmental contexts can produce different
+phenotypes from the same body plan; unknown ids, invalid parts, excessive
+output, and exhausted fuel refuse cleanly; Lua has no direct world mutation
+path; and the temporary native authoring path is gone.
 
 ### PD5. Filial expression
 
@@ -483,7 +638,7 @@ materializer rather than last-writer-wins.
 
 ### PD8. Extraction audit
 
-Compare Mesocosm's runner with Isometry's actual generator runtime after PD3
+Compare Mesocosm's runner with Isometry's actual generator runtime after PD4
 through PD7 are proven.
 
 **Done when:** either a small sandbox/entropy/tagged-value crate has two real
@@ -496,14 +651,16 @@ hosts are still meaningfully different. No extraction is also a valid receipt.
 
 This lane interleaves with the phenotype plan rather than replacing it:
 
-1. finish P2's biomass/upkeep account;
-2. land PD1 and PD2 so transferred branches can carry stable process identity;
-3. execute P3 branch transfer;
-4. land PD3 before P4 authors developmental expression;
-5. use PD4 and PD5 as P4's concrete phenotype replacement proof;
-6. add PD6 only when that process needs a non-local path;
-7. let P5 contested flow consume the proven process and ecology vocabularies;
-8. run PD7 and the wing projection gate before PD8 extraction.
+1. PD0 is complete;
+2. rule allocation ownership and mutation in PD1a, then migrate in PD1b;
+3. play one native process at PD2 before building authoring infrastructure;
+4. execute P3 branch transfer with stable process identity and allocation;
+5. encode the proven mechanic as a static pack at PD3;
+6. prove Piccolo authoring parity at PD4 before P4 adaptation;
+7. use PD5 as P4's filial phenotype replacement proof;
+8. add PD6 only when the played process needs a non-local path;
+9. let P5 contested flow consume the proven process and ecology vocabularies;
+10. run PD7 and the wing projection gate before PD8 extraction.
 
 P0's playfeel judgment remains a user test throughout. A technically correct
 process system does not answer whether burn or grow is worth choosing again.
@@ -516,7 +673,10 @@ process system does not answer whether burn or grow is worth choosing again.
 - Do not let Lua run the ecology loop or mutate world state directly.
 - Do not store capability verdicts on parts or organisms.
 - Do not accept a process without a native consumer for its flows.
-- Do not add a broad process catalog before PD4 is played.
+- Do not build pack or Lua infrastructure before PD2 proves a process worth
+  authoring.
+- Do not add a broad process catalog after PD2; one played process authorizes
+  an authoring path, not a biology encyclopedia.
 - Do not let scripts choose their own cost or bypass acquisition provenance.
 - Do not add a channel relation because an authored string names it.
 - Do not silently substitute a definition when a ruleset is missing.
@@ -535,18 +695,25 @@ process system does not answer whether burn or grow is worth choosing again.
 
 These are intentionally deferred to the gate with evidence:
 
-1. The first non-native played process: light capture is recommended; venom
-   secretion is the bounded fallback.
+1. The first non-native played process at PD2: light capture is recommended;
+   venom secretion is the bounded fallback.
 2. The exact portable shape of a lowered `ProcessDef`: settle after local
    snapshot and branch-transfer proofs, before body v1.
-3. Whether process allocation is stored on `BodyDocument` or in a phenotype
-   facet keyed by `PartId`: PD1 should choose the smaller state migration while
-   preserving part-addressed provenance.
+3. Local allocation layout: PD1a compares storage within `BodyDocument`, a
+   sibling `PhenotypeState`, and a transactional wrapper. Portable ownership is
+   already settled: allocation projects as an optional Mesocosm phenotype
+   facet, regardless of the local Rust layout.
 4. Whether a world embeds lowered rule definitions or content-addresses them
-   beside the snapshot: PD2 and PD7 must prove missing-pack behavior before
+   beside the snapshot: PD3 and PD7 must prove missing-pack behavior before
    choosing.
 5. Whether a second scripting backend is ever useful: no abstraction or ruling
    until another real consumer asks.
+6. Capacity source: how living mass, geometry, growth, and damage add or remove
+   graph cells, and whether cells need surface, interior, or junction kinds.
+7. Stabilized hybrid identity: a newly admitted derived `ProcessDef` versus a
+   heritable compound recipe that retains its parents at evaluation time.
+8. Disfavoured graft semantics: hard refusal by default versus an adapter tax
+   that a learned compatibility process can reduce.
 
 ---
 
@@ -565,9 +732,23 @@ These are intentionally deferred to the gate with evidence:
   path-contained declared pack assets, exact fixtures, and commit-result
   generation. The game-specific request and result types remain inside
   Isometry, which is the correct reuse boundary for Mesocosm too.
-- **2026-08-01, active worktree.** The P2 ledger reconciliation is currently
-  splitting organism ecology and routing mass through the body. This plan does
-  not edit those files and schedules PD1 after that work closes.
+- **2026-08-01, P2 closeout.** `d9af641` removed the scalar mass account,
+  split organism ecology into its own module, routed substance through body
+  parts, and made upkeep scale with biomass. PD0 is complete.
+- **2026-08-01, implementation review.** Registry, pack loading, and Piccolo
+  would otherwise put three infrastructure gates before the first new process
+  was played. PD2 now proves one hand-authored native mechanic first; PD3 and
+  PD4 then replace its authoring path with pack data and Piccolo.
+- **2026-08-01, maintainer design answers.** Processes share finite per-part
+  capacity; an authoritative cell graph makes local and whole-mosaic evaluation
+  available; somatic compounds may stabilize into heritable forms at an epoch;
+  allocation changes only through discrete developmental events; and the
+  destination declares feasible crossing routes while the traveler chooses.
+- **2026-08-01, graft-affinity proposal.** A default world's directed
+  animal-like, fungal-like, and plant-like affinity cycle can balance grafting
+  without becoming the trophic `Kingdom` enum. World data owns the graph; a
+  disfavoured boundary may demand a capacity-consuming adapter whose penalty
+  can be reduced by an evolved compatibility process.
 
 ---
 
@@ -576,3 +757,13 @@ These are intentionally deferred to the gate with evidence:
 - **2026-08-01:** `ProcessDef` accepted as the working name. Architecture,
   Piccolo boundary, pack and license gate, authority model, proof gates, stop
   rules, and execution interleave recorded. No implementation added.
+- **2026-08-01:** revised after implementing-agent review. PD0 marked landed;
+  PD1 split into design and migration; native play moved before pack and Lua;
+  phenotype-facet portability ruled separately from local Rust storage; and
+  phenotypic plasticity made explicit.
+- **2026-08-01:** first PD1a question pass recorded finite per-part mosaics,
+  event-driven remodeling, and the carry-body/regrow-here crossing choice.
+- **2026-08-01:** second question pass ruled authoritative cell-graph mosaics,
+  somatic compounds stabilized through adaptation, and destination-declared
+  crossing options chosen by the traveler. Directed graft affinity recorded
+  for the next pass.

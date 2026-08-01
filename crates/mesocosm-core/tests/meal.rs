@@ -33,7 +33,6 @@ fn fed() -> (World, mesocosm_core::OrganismId) {
             .organisms
             .iter()
             .filter(|o| o.biomass_mg() > 0 && Some(o.id) != world.controlled_id())
-            .filter(|o| Some(o.id) != world.controlled_id())
             .map(|o| (o.id, o.position))
             .min_by_key(|(_, at): &(_, [i32; 3])| {
                 (0..3).map(|a| (at[a] - world.position().unwrap()[a]).abs()).max().unwrap_or(0)
