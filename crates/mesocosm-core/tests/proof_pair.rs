@@ -22,7 +22,7 @@
 //! rests on: **additive facts, opaque preservation, deferred interpretation**.
 
 use mesocosm_core::{
-    Chronicle, Consequence, Deed, Intent, VolumeRef, World, chronicle::LOST_PART, generate,
+    Chronicle, Consequence, Deed, Intent, Route, VolumeRef, World, chronicle::LOST_PART, generate,
 };
 
 /// A critter somebody played: driven through the world until it has eaten.
@@ -44,7 +44,7 @@ fn played() -> Chronicle {
         if let Some(step) = toward(world.position, prey.1) {
             world.apply(Intent::Move { delta: step });
         } else {
-            world.apply(Intent::Incorporate { organism: prey.0 });
+            world.apply(Intent::Metabolize { organism: prey.0, route: Route::Incorporate });
         }
     }
 

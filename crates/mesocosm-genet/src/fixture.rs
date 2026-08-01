@@ -9,7 +9,7 @@
 //! because it is presentation-adjacent scaffolding, not world truth: the core
 //! carries content addresses and knows nothing about what a volume looks like.
 
-use mesocosm_core::{Intent, OrganismId, VolumeRef, World, world::organism_extent};
+use mesocosm_core::{Intent, OrganismId, Route, VolumeRef, World, world::organism_extent};
 use mesocosm_mesh::{Volume, VolumeMap};
 
 pub fn volumes() -> VolumeMap {
@@ -32,10 +32,15 @@ pub fn volumes() -> VolumeMap {
 
 /// Eating, the default way: the body plan decides where the part goes.
 ///
-/// Explicit placement still exists on `Intent::Metabolize` for an editor, but
+/// Explicit placement still exists as `Route::Place` for an editor, but
 /// automatic and symmetric is the resting state.
-pub fn metabolize(_world: &World, organism: OrganismId, _volumes: &VolumeMap) -> Intent {
-    Intent::Incorporate { organism }
+pub fn metabolize(
+    _world: &World,
+    organism: OrganismId,
+    _volumes: &VolumeMap,
+    route: Route,
+) -> Intent {
+    Intent::Metabolize { organism, route }
 }
 
 pub fn reachable(world: &World) -> Option<OrganismId> {
@@ -72,7 +77,7 @@ mod tests {
 
         for _ in 0..14 {
             let Some(target) = reachable(&world) else { break };
-            world.apply(metabolize(&world, target, &volumes));
+            world.apply(metabolize(&world, target, &volumes, Route::Incorporate));
         }
 
         assert!(world.body.len() > 6, "the fixture must out-eat one face cycle");
@@ -100,7 +105,7 @@ mod tests {
             let mut world = World::new(99, 60);
             for _ in 0..8 {
                 let Some(target) = reachable(&world) else { break };
-                world.apply(metabolize(&world, target, &volumes));
+                world.apply(metabolize(&world, target, &volumes, Route::Incorporate));
             }
             world.body
         };

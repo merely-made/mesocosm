@@ -441,12 +441,46 @@ observer knowledge. Mesocosm has not selected its full UI lane.
 This is dependency order for phenotype work. The execution waves plan decides
 when each proof runs.
 
-### P0. Meal choice
+### P0. Meal choice — **mechanically done 2026-07-31; the judgment is open**
 
 Burn and incorporate produce mutually exclusive receipts from the same meal.
 
 **Done when:** both paths replay identically; venom applies consistently; and
 the headed choice feels tense rather than clerical on the existing body.
+
+**Landed.** `Intent` now has one eating verb. `Intent::Incorporate` and the
+old explicit `Intent::Metabolize` collapsed into
+`Metabolize { organism, route }` over `Route::{Burn, Incorporate, Place}`,
+so the editor path became a route rather than a second verb. `Route::Place`
+holds the parent, offset, and yaw the editor arm used to carry inline.
+
+Three behaviours changed, and each was a defect rather than a tuning choice:
+
+- **Incorporating yields no immediate energy.** It used to grant
+  `eaten.mass_mg / 2` *and* a part, which is why the central verb asked
+  nothing. Burning yields the full mass and no part. A meal cannot be both
+  meals.
+- **Venom is charged on every route.** The explicit path subtracted it and the
+  automatic path did not, so the safe-looking verb was the dangerous one and a
+  warning signal was worth reading only in the editor.
+- **Placement resolves before the meal is consumed.** A refused incorporation
+  used to remove the organism and then re-insert it on failure; it now
+  reserves nothing until the placement is known, so a refusal cannot lose a
+  meal.
+
+Seven tests in `tests/meal.rs`, including that both routes replay identically
+across a snapshot boundary and that two worlds identical up to one meal diverge
+in exactly the claimed way. The chronicle fixtures are byte-identical
+afterwards, so the Isometry interchange is undisturbed.
+
+Host: `E` grows, `F` burns, space grows, and an unattended capture run grows so
+it still produces a body to look at.
+
+**Still open, and it is the part that matters.** Whether the choice is tense or
+clerical is Mark's judgment at the keyboard, and no test supplies it. Two
+things are known to be missing from a fair reading: burning has no use yet
+beyond deferring starvation, because energy only pays for movement, and there
+is no visible pressure that makes hoarding mass feel costly.
 
 ### P1. One organism model
 
@@ -525,6 +559,13 @@ real consumer.
 ---
 
 ## Findings
+
+- **2026-07-31:** the automatic incorporation path skipped the venom
+  subtraction the explicit path paid, so the default verb was strictly safer
+  than the editor one. Fixed in P0; it had been the reverse of the intent.
+- **2026-07-31:** incorporation removed the organism *before* resolving
+  placement and re-inserted it on failure. Correct in outcome, but it meant a
+  refusal briefly mutated the roster. P0 resolves placement first.
 
 - **2026-07-31:** `BodyDocument` can descend, measure depth, tombstone a
   severed subtree, and derive reach. Gameplay still uses fixed reach.

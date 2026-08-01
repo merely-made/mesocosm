@@ -14,7 +14,7 @@
 //! cargo run -p mesocosm-genet --example grow -- <output-dir> [meals]
 //! ```
 
-use mesocosm_core::World;
+use mesocosm_core::{Route, World};
 use mesocosm_mesh::{VolumeSource, flatten, mesh_body};
 use mesocosm_render::{Camera, Renderer, SceneItem};
 
@@ -41,7 +41,7 @@ fn main() {
         let Some(target) = fixture::reachable(&world) else {
             break;
         };
-        let intent = fixture::metabolize(&world, target, &volumes);
+        let intent = fixture::metabolize(&world, target, &volumes, Route::Incorporate);
         if matches!(
             world.apply(intent),
             mesocosm_core::Outcome::Incorporated { .. }

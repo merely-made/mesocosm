@@ -8,7 +8,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use mesocosm_core::{Intent, Kingdom, Organism, Signal, Stage};
+use mesocosm_core::{Intent, Kingdom, Organism, Route, Signal, Stage};
 use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
 use mesocosm_render::{Camera, Renderer, SceneItem, deadened, kingdom_colour};
 use mesocosm_runtime::Runtime;
@@ -193,6 +193,13 @@ impl Host {
 
     /// Turns a key into an intent. The host does not decide whether the intent
     /// is legal; the core does, and reports a rejection.
+    /// The next meal in reach, routed. `None` when nothing is close enough.
+    fn meal(&self, route: Route) -> Option<Intent> {
+        let world = self.runtime.world();
+        fixture::reachable(world)
+            .map(|m| fixture::metabolize(world, m, &self.volumes, route))
+    }
+
     fn intent_for(&self, key: &Key) -> Option<Intent> {
         let step = 2;
         match key {
@@ -201,17 +208,15 @@ impl Host {
                 "s" | "S" => Some(Intent::Move { delta: [0, 0, step] }),
                 "a" | "A" => Some(Intent::Move { delta: [-step, 0, 0] }),
                 "d" | "D" => Some(Intent::Move { delta: [step, 0, 0] }),
-                "e" | "E" => {
-                    let world = self.runtime.world();
-                    fixture::reachable(world).map(|m| fixture::metabolize(world, m, &self.volumes))
-                }
+                // The one verb, two destinations. Growing is the default
+                // because automatic symmetric growth is the resting state;
+                // burning is the deliberate one you reach for when hungry.
+                "e" | "E" => self.meal(Route::Incorporate),
+                "f" | "F" => self.meal(Route::Burn),
                 "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
                 _ => None,
             },
-            Key::Named(NamedKey::Space) => {
-                let world = self.runtime.world();
-                fixture::reachable(world).map(|m| fixture::metabolize(world, m, &self.volumes))
-            }
+            Key::Named(NamedKey::Space) => self.meal(Route::Incorporate),
             _ => None,
         }
     }
@@ -242,7 +247,10 @@ impl Host {
         {
             let world = self.runtime.world();
             if let Some(target) = fixture::reachable(world) {
-                let intent = fixture::metabolize(world, target, &self.volumes);
+                // A capture run grows rather than burns, so an unattended
+                // run still produces a body to look at.
+                let intent =
+                    fixture::metabolize(world, target, &self.volumes, Route::Incorporate);
                 self.runtime.queue(intent);
             }
         }

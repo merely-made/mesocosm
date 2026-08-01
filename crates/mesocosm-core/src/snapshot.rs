@@ -64,7 +64,7 @@ pub fn hash_bytes(bytes: &[u8]) -> u64 {
 mod tests {
     use super::*;
     use crate::body::Yaw;
-    use crate::world::{Intent, World};
+    use crate::world::{Intent, Route, World};
     use crate::organism::OrganismId;
 
     #[test]
@@ -113,12 +113,7 @@ mod tests {
     fn rejected_intents_are_part_of_the_recorded_state() {
         let mut a = World::new(13, 6);
         let mut b = World::new(13, 6);
-        a.apply(Intent::Metabolize {
-            organism: OrganismId(9999),
-            parent: a.body.root,
-            offset: [0, 0, 0],
-            yaw: Yaw::Zero,
-        });
+        a.apply(Intent::Metabolize { organism: OrganismId(9999), route: Route::Place { parent: a.body.root, offset: [0, 0, 0], yaw: Yaw::Zero } });
         b.apply(Intent::Idle);
         // Both were rejected-or-idle and advanced one tick, but the worlds are
         // still equal because neither changed anything else.

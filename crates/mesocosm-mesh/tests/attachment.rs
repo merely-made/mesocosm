@@ -14,7 +14,7 @@
 //! stays a judgment for the windowed host. What they do establish is that
 //! everything the screen would need is derivable, deterministic, and cheap.
 
-use mesocosm_core::{Intent, Origin, Outcome, PartId, VolumeRef, World, Yaw};
+use mesocosm_core::{Intent, Route, Origin, Outcome, PartId, VolumeRef, World, Yaw};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 
 /// Volumes for the fixture: a body, and one per organism tag the world mints.
@@ -50,12 +50,7 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     let drawn_before = mesh_body(&world.body, &source).unwrap();
 
     let target = reachable_organism(&world);
-    let outcome = world.apply(Intent::Metabolize {
-        organism: target,
-        parent: PartId(0),
-        offset: [9, 0, 0],
-        yaw: Yaw::Zero,
-    });
+    let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Place { parent: PartId(0), offset: [9, 0, 0], yaw: Yaw::Zero } });
     assert!(matches!(outcome, Outcome::Incorporated { .. }), "{outcome:?}");
 
     let drawn_after = mesh_body(&world.body, &source).unwrap();
@@ -96,12 +91,7 @@ fn an_eaten_part_still_says_whose_it_was() {
         .map(|m| m.species)
         .unwrap();
 
-    let Outcome::Incorporated { part } = world.apply(Intent::Metabolize {
-        organism: target,
-        parent: PartId(0),
-        offset: [7, 0, 0],
-        yaw: Yaw::Quarter,
-    }) else {
+    let Outcome::Incorporated { part } = world.apply(Intent::Metabolize { organism: target, route: Route::Place { parent: PartId(0), offset: [7, 0, 0], yaw: Yaw::Quarter } }) else {
         panic!("expected incorporation");
     };
 
@@ -130,12 +120,7 @@ fn attaching_remeshes_only_what_is_new() {
     let root_mesh_before = before.mesh_for(VolumeRef::from_tag(1)).cloned();
 
     let target = reachable_organism(&world);
-    world.apply(Intent::Metabolize {
-        organism: target,
-        parent: PartId(0),
-        offset: [6, 0, 0],
-        yaw: Yaw::Zero,
-    });
+    world.apply(Intent::Metabolize { organism: target, route: Route::Place { parent: PartId(0), offset: [6, 0, 0], yaw: Yaw::Zero } });
 
     let after = mesh_body(&world.body, &source).unwrap();
 
@@ -163,12 +148,7 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
             else {
                 break;
             };
-            world.apply(Intent::Metabolize {
-                organism: target,
-                parent: PartId(0),
-                offset: [5, 0, 0],
-                yaw: Yaw::Zero,
-            });
+            world.apply(Intent::Metabolize { organism: target, route: Route::Place { parent: PartId(0), offset: [5, 0, 0], yaw: Yaw::Zero } });
         }
         world
     };
