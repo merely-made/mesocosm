@@ -1,7 +1,9 @@
 # Mesocosm: Founding Plan
 
-**Status: plan, 2026-07-30. Nothing implemented.** Vessel 1 of the games
-wing. Shared architecture, the three pipeline laws, and the wing vocabulary
+**Status: active founding plan, updated 2026-07-31.** The deterministic core,
+body pipeline, host, epoch lab, and first Isometry projection are implemented;
+the repeated phenotype loop and later M-phases remain open. Vessel 1 of the
+games wing. Shared architecture, the three pipeline laws, and the wing vocabulary
 live in [the games wing founding record](2026-07-30_games_wing_founding.md)
 and are not repeated here.
 
@@ -50,9 +52,12 @@ algae and retains the functional chloroplasts.
 
 The consequence reaches the whole wing. Items and magic in later vessels
 **derive** from this rather than being bolted on: a faction's signature
-weapon in Isometry is an organism its ancestors ate. An "item" is a creature
-record — opaque body plan, fili ancestry, projection profile — so the
-interchange profile already carries everything an item needs.
+weapon in Isometry is an organism its ancestors ate. An "item" may carry an
+opaque body revision, biological-line reference, optional outer Fili
+provenance, and an appearance projection. The v0 proof carries only part of
+that record; the
+[wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md) scopes
+the stable identity and topology still needed at v1.
 
 ### The real axis is trait count, not cell count
 
@@ -703,13 +708,16 @@ another's, unprompted — notices a world running down for want of
 decomposers — and loses a lineage to something they watched another species
 decide to become.
 
-### M5 — Export
-Interchange profile v0 over `mere.pack/v1`, and the proof pair with Isometry
-(wing founding record §6).
+### M5: export, v0 proof complete; identity contract pending
+The direct v0 body and chronicle proof pair with Isometry is complete without a
+`mere.pack/v1` envelope (wing founding record §6). Body v1 adds stable subject,
+revision, part, and topology identity after those addresses are proven locally;
+the pack envelope still waits for a real federation consumer.
 
 **Done when** a played critter and an RNG critter enter Isometry through the
-same slot indistinguishably, and Mesocosm reads the descendant back with
-nothing lost.
+same slot indistinguishably; Isometry returns history without losing opaque
+body identity; and Mesocosm distinguishes the same returning subject from a
+new biological descendant.
 
 ---
 

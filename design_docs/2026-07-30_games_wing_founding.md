@@ -342,12 +342,19 @@ pawn-level rather than part-level. Without this carve-out, injury would compound
 into permanent character erosion, which is the Darkest Dungeon 2 failure the
 wing already flagged under attachment-creep.
 
-#### Booked consequence: the chronicle goes to v1
+#### Booked consequence: the body and chronicle split at v1
 
-`mesocosm.chronicle/v0` carries `parts` as a **flat list**. If the tree is
-shared identity, a record that drops the parent links is losing exactly the
-thing this rule says is not a vessel's to lose, and re-entry cannot rebuild what
-was never carried. Carrying parent links is therefore a v0 to v1 schema change.
+`mesocosm.body/v0` and `mesocosm.chronicle/v0` each carry `parts` as a **flat
+list**. If the tree is shared identity, neither is a sufficient anatomy record:
+the body profile drops parent links, while the chronicle duplicates a snapshot
+that can drift away from it.
+
+V1 therefore gives the two artifacts distinct jobs. `mesocosm.body/v1` carries
+stable subject, body-revision, and part addresses plus primitive parent links.
+`mesocosm.chronicle/v1` carries causal facts addressed to those identities; it
+does not carry another anatomy snapshot. The same subject crossing a vessel
+keeps its body revision. Founding a biological descendant mints a new subject
+and a newly grown body instead of pretending the ancestor returned.
 
 The refusal path built for the interchange on 2026-07-31 is what makes that
 cheap: magic and version sit ahead of the payload, both sides refuse an
@@ -355,9 +362,12 @@ unrecognised version before decoding, and a reader that meets a v1 record says
 so instead of mis-reading it. This is the first real schema change, and it is
 the case that machinery was built for.
 
-Note what does **not** follow. Law A still says morphology does not travel: the
-tree is topology and provenance, not geometry, and a descendant is still regrown
-under the receiving game's rules rather than restored voxel for voxel.
+Note what does **not** follow. Law A still says morphology does not travel as
+foreign rule authority: the portable tree is topology and provenance, exact
+geometry is an optional projection, and a descendant is still regrown under
+Mesocosm's rules rather than restored voxel for voxel. The full contract and
+proof gates live in the
+[wing phenotype plan](2026-07-31_wing_phenotype_contract_plan.md).
 
 ---
 
@@ -601,16 +611,18 @@ Receipts and findings in the
 
 Three things the build settled that this section had not:
 
-- **The profile is a projection, not the body document.** Putting body topology
-  on the wire, as listed below, forces the reader to link `mesocosm-core` — a
-  type dependency wearing a data dependency's clothes. What crosses is
-  primitives: a flattened grid, a parallel attribution grid naming the part
-  behind each voxel, and flat per-part provenance. **Per-part provenance was the
-  right keystone**; attachment frames and parent/child structure were not, and
-  stay home as morphology.
+- **The v0 profile is an appearance projection, not the body document.** Putting
+  `BodyDocument` itself on the wire would force the reader to link
+  `mesocosm-core`, a type dependency wearing a data dependency's clothes. The
+  proof instead carries primitives: a flattened grid, a parallel attribution
+  grid naming the part behind each voxel, and flat per-part provenance.
+  **Per-part provenance was the right keystone.** V0's omission of parent links
+  was a proof limitation, not the permanent contract; v1 can carry primitive
+  topology while preserving local mirror types.
 - **The record and the appearance are separate artifacts.** A chronicle carries
-  no geometry at all, which is Law A visible as an absence, and is why re-entry
-  regrows a body rather than restoring one.
+  no geometry, and v1 also stops using it as a second flat anatomy snapshot.
+  Re-entry of a descendant regrows a body; return of the same individual keeps
+  the addressed body revision.
 - **Law C's proof belongs in the consumer, and size is a tell.** A generator
   that only makes small creatures breaks the law with no marker at all, because
   the part count sorts them.
@@ -618,21 +630,21 @@ Three things the build settled that this section had not:
 The pair as originally specified:
 
 1. Mesocosm mints an organism.
-2. Isometry imports it as a token, preserving the opaque body plan,
-   biological descent, and any outer world-Fili provenance, rendering
-   appearance through the voxel recipe pipeline.
+2. Isometry imports it as a token, preserving the v0 appearance and flat
+   provenance through local mirror types. V1 adds opaque topology and stable
+   subject/body addresses without making Isometry interpret Mesocosm rules.
 3. Isometry appends a played history.
 4. Mesocosm reads the descendant back without either side losing facts.
 5. The same slot accepts an RNG-authored organism indistinguishably (Law C).
 
-This forces **interchange profile v0** into existence, which is the founding
-artifact of the wing. Its fields, sharpened 2026-07-30 and detailed in the
-[body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md) §3:
-body topology (parts, attachment frames, parent/child structure), **per-part
-provenance** (what each part used to be — the keystone, and Law A's raw
-material), mass and collision hints, a biological-lineage reference,
-optional Fili provenance for a world fork or graft, the Law A tradeoff record,
-Law B's loud inherited signatures, and **optional** projection recipes.
+This forced **interchange profile v0** into existence as the wing's first
+portable artifact. Its implemented fields are a flattened voxel projection,
+per-cell part attribution, flat **per-part provenance**, species, mass, and
+collision hints. The fuller topology once proposed for v0 is now the scoped v1
+contract in the
+[wing phenotype plan](2026-07-31_wing_phenotype_contract_plan.md): stable
+subject and body-revision identity, primitive parent links, source addresses,
+and optional projection data.
 
 Projection recipes are optional on purpose. `isometry-voxel` recipes are an
 excellent first projection codec and probably Isometry's, but making them

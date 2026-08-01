@@ -27,8 +27,8 @@ change.
 ## Status
 
 **Early.** The simulation, the body pipeline, and a windowed host run; the
-game does not exist yet. Wave 1 of the execution plan is complete apart from
-the cross-repo projection.
+repeated game loop does not yet. Wave 1 of the execution plan, including the
+cross-repo Isometry projection, is complete. Wave 2 playfeel is active.
 
 ```sh
 cargo run -p mesocosm-genet    # WASD move, E/Space eat, arrows orbit, Esc quit
@@ -46,6 +46,8 @@ cargo test --workspace
 - [Project description](design_docs/PROJECT_DESCRIPTION.md)
 - [Execution waves](design_docs/2026-07-31_execution_waves_plan.md) — what is built and what is next
 - [Founding plan](design_docs/2026-07-30_mesocosm_founding_plan.md) — design and phases M0–M5
+- [Phenotype plan](design_docs/2026-07-31_phenotype_plan.md): how anatomy becomes lived capability
+- [Wing phenotype contract](design_docs/2026-07-31_wing_phenotype_contract_plan.md): what body identity crosses games
 - [Games wing founding record](design_docs/2026-07-30_games_wing_founding.md) — shared architecture across Mesocosm, Paredros, and Isometry
 
 ## License

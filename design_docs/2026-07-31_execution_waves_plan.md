@@ -14,6 +14,8 @@ Governing plans, which own the *what*:
 - [body pipeline and host probe](2026-07-30_body_pipeline_and_host_probe_plan.md) — the shared organ, the body document, R-phases
 - [Mesocosm founding plan](2026-07-30_mesocosm_founding_plan.md) — vessel 1's design and M-phases
 - [games wing founding record](2026-07-30_games_wing_founding.md) — the laws, and the proof pair as the next architectural threshold
+- [phenotype plan](2026-07-31_phenotype_plan.md): Mesocosm's body rules and local proof dependencies
+- [wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md): portable body identity and sovereign readings
 
 ---
 
@@ -217,7 +219,7 @@ facings in which you can see what it ate.
 
 Four things the build settled that the ruling did not:
 
-**What crosses is a projection, not the body.** The first cut put a whole
+**V0 crosses a projection, not the body.** The first cut put a whole
 `BodyDocument` on the wire, and that quietly broke the ruling it was built to
 satisfy: a reader would have needed `mesocosm-core` — attachment graph, pivots,
 body plan and all — which is a type dependency wearing a data dependency's
@@ -225,13 +227,13 @@ clothes. "Isometry reads it with its own small adapter" is only true if the
 adapter is small. So every field on the wire is a primitive, a fixed-size
 array, or a `Vec` of those, and Isometry's mirror is about twenty lines.
 
-This is **Law A falling out of the encoding rather than being imposed on it**.
-What travels is choices under scarcity, not morphology: each part's provenance
-crosses because it records a choice, and the attachment graph stays home
-because it is morphology. A test named `the_profile_carries_no_core_types`
-decodes the payload into a structurally identical foreign mirror, so the next
-person to put a core type back on the wire gets a red test rather than a
-review comment.
+This proved that optional appearance and provenance can cross through local
+primitive mirrors. It did not prove that topology should stay home. The later
+anatomy ruling makes primitive parent links part of portable identity at v1,
+without putting a core type on the wire. A test named
+`the_profile_carries_no_core_types` decodes the payload into a structurally
+identical foreign mirror, so the next person to put a core type back on the
+wire gets a red test rather than a review comment.
 
 **The version field cannot live inside the payload.** Postcard is positional
 with no field tags, so when the layout changes the decoder cannot reach the
@@ -305,6 +307,23 @@ incorporation, and a metabolic budget.
 > receipts cannot substitute for the founding condition. **Somebody wants
 > another run.** No quantity of state-hash equivalence redeems a verb that is
 > not worth repeating.
+
+#### Phenotype gate inside 2.1, **ACTIVE 2026-07-31**
+
+The [phenotype plan](2026-07-31_phenotype_plan.md) now supplies the missing
+dependency order. Do not deepen the epoch lab or begin body v1 while the played
+critter remains a special `BodyDocument` beside scalar organisms.
+
+1. **P0, meal choice:** burn or incorporate one meal, with mutually exclusive
+   receipts and consistent venom.
+2. **P1, one organism model:** played and unplayed critters use the same
+   body-bearing representation and control names an organism.
+3. **P2, one embodied consequence:** replace fixed gameplay reach with derived
+   reach, then prove one connected biological process and its severed failure.
+
+Only after those receipts does Wave 2 schedule branch transfer, phenotype-based
+adaptation, or contested resource flow. The wing v1 schema waits for stable
+subject, body-revision, and part addresses from that local proof.
 
 ### 2.2 Epoch and ecology lab — **COMPLETE 2026-07-31**, with one finding
 

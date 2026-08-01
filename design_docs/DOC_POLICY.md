@@ -1,7 +1,7 @@
 # Documentation Policy
 
 Adapted from the Isometry DOC_POLICY, which was adapted from Woodshed's.
-Mesocosm is pre-implementation, so the policy is intentionally light.
+Mesocosm is in early implementation, so the policy remains intentionally light.
 
 ## Core Principles
 

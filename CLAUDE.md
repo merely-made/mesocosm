@@ -16,8 +16,9 @@ Vessel 1 of a three-game wing — Mesocosm (first person), Paredros (second
 person), Isometry (third person) — that shares a world substrate, a lineage
 model, and a trust plane, but no engine, genre, or schedule.
 
-**Pre-implementation.** The repo currently holds a name reservation and
-design docs. There is no game code yet.
+**Early implementation.** The repo has a deterministic simulation core, body
+pipeline, renderer, windowed host, epoch lab, and a proven Isometry projection.
+The repeated game loop and phenotype bridge are still under design and playtest.
 
 See `design_docs/PROJECT_DESCRIPTION.md` for the product description,
 `design_docs/DOC_README.md` for the doc index, and

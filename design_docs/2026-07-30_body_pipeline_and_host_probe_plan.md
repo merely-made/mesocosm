@@ -1,9 +1,11 @@
 # Body Pipeline and Host Probe
 
-**Status: plan, 2026-07-30. Nothing implemented.** Answers the question "can
-we plan a render lane usable by all three vessels?" — and the answer is no,
-not at that layer, but there is a shared organ underneath it that is worth
-planning now. Landscape and candidate inventory:
+**Status: partially implemented, updated 2026-07-31.** The canonical body,
+runtime attachment, live renderer, and Isometry v0 appearance projection are
+proven. The second-host probe was dropped; storage extraction and the v1 body
+identity contract remain open. Answers the question "can we plan a render lane
+usable by all three vessels?" The answer is no at that layer, but there is a
+shared organ underneath it. Landscape and candidate inventory:
 [engine and render lane landscape](2026-07-30_engine_and_render_lane_landscape.md).
 
 ---
@@ -60,24 +62,29 @@ because the epoch loop already has a natural seam where bodies change.
 
 ## 3. The portable artifact
 
-What crosses vessels is **not** a mesh and **not** a sprite:
+**Corrected after the v0 proof and the anatomy ruling.** The canonical
+`BodyDocument` and the portable artifact are related but not identical. A
+consumer mirrors primitive wire data locally; it never links Mesocosm's body
+type. V0 proves optional appearance and flat provenance. The proposed v1 body
+profile adds stable identity and primitive topology:
 
 | Field | Why |
 | ----- | --- |
-| Body topology | Parts, attachment frames, parent/child structure |
+| Body identity and topology | Subject, body revision, part ids, parent links, and state |
 | Per-part provenance | What each part used to be — the keystone, and Law A's raw material |
 | Mass and collision hints | So physics is derivable without shipping a collider format |
 | Loud inherited signatures | Law B's pointable few, so a village reads as *yours* |
-| Optional projection recipes | `isometry-voxel` recipes among them, as a hint rather than a requirement |
+| Optional projection data | Flattened voxels, sprites, or recipes as hints rather than authority |
 
 `isometry-voxel` recipes are **not canonical**. They are an excellent first
 projection codec and probably Isometry's, but making them the format lets
 today's renderer leak into the substrate. Each vessel derives its own
 presentation from topology.
 
-This artifact is the concrete content of interchange profile v0, which the
-wing founding record names as the next architectural threshold. Planning the
-body pipeline and planning the profile are the same work.
+The implemented `mesocosm.body/v0` is the smaller first proof: flattened
+voxels, cell attribution, flat provenance, species, mass, and collision hints.
+The [wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md) owns
+the v1 artifact split and its acceptance receipts.
 
 ### Authoring input, canonical body document, and caches
 
@@ -256,7 +263,7 @@ founding plan; R0–R2 are prerequisites for a meaningful M0.
 > the Bones experiment **inside the winning host** rather than as its own lane.
 > Where the two disagree on sequence, the waves plan wins.
 
-### R0 — The body format, and the determinism constraint
+### R0: the body format and determinism constraint, **LANDED 2026-07-31**
 Presentation-neutral topology: parts, attachment frames, per-part provenance,
 mass hints. Serde, no host dependencies, no wgpu.
 
@@ -285,9 +292,11 @@ assumption). Whole-heap snapshotting also scales with heap size, and an
 ecology with a species roster is precisely the large-mutable-state profile
 that makes it expensive — so measure before relying on it.
 
-**Done when** `isometry-voxel` can bake a sprite *from* a topology document,
-the document round-trips without losing provenance, and a recorded input
-trace replayed against the same seed produces an identical state hash.
+**Done.** `BodyDocument` round-trips in Mesocosm with topology and provenance;
+the v0 projection crosses to `isometry-voxel` through committed bytes; and a
+recorded input trace replayed against the same seed produces an identical state
+hash. Portable topology is now a separate v1 gate rather than an untrue v0
+claim.
 
 ### R1 — Live attachment (the hypothesis test)
 One critter, one world, in the live projection selected for the probe. Eat a
@@ -327,9 +336,10 @@ return one muddy answer for two questions.
 **Done when** one of them is chosen with a stated reason, or Bones is ruled
 out with one.
 
-### R3 — Projection backends
+### R3: projection backends, **LANDED 2026-07-31**
 Mesocosm's winning live projection and Isometry's baked-sprite projection,
-both deriving from the same R0 topology.
+both deriving from Mesocosm's authoritative body. Isometry receives the v0
+flattened appearance projection rather than the core topology type.
 
 **Done when** one critter appears in both vessels, recognisably itself, with
 neither vessel owning the other's renderer.
@@ -377,10 +387,12 @@ explicitly declined in writing.
   assertion passed while limbs floated beside the torso. Deferred until real
   authored parts exist, since the convention is easier to choose against them.
 
-- **2026-07-30**: `isometry-voxel` is a build-time bake pipeline (.vox ingest,
-  recipes, palette swaps, isometric sprite output). It does not demonstrate
-  runtime part attachment, so R1 is a genuine unknown rather than an
-  integration task.
+- **2026-07-30**: `isometry-voxel` was only a build-time bake pipeline (.vox
+  ingest, recipes, palette swaps, isometric sprite output), so runtime part
+  attachment began as a genuine unknown rather than an integration task.
+- **2026-07-31**: R1 and R3 are now proven. A live incorporation changes mass,
+  balance, reach, collision, and rendered placement; the resulting appearance
+  crosses to Isometry through local primitive mirror types.
 - **2026-07-31**: `.vox` is retained as the first authoring format while the
   portable source becomes an explicit parts graph over content-addressed
   volumes. Greedy meshes, rigid transforms, and sprite bakes are first
@@ -395,3 +407,5 @@ explicitly declined in writing.
 - **2026-07-31**: incorporated the renderer proposal at the body-pipeline
   boundary and kept terrain, deformation policy, and GPU bake identity out of
   the portable schema.
+- **2026-07-31**: reconciled the canonical body, v0 appearance projection, and
+  proposed v1 portable topology after the wing phenotype review.

@@ -16,7 +16,7 @@
 //! game's own artifact would invert the wing's rule that the federation layer
 //! is extracted from shipped games rather than built before them.
 //!
-//! # What crosses is a projection, not the body
+//! # V0 crosses a projection, not the body document
 //!
 //! The first cut of this module put a whole [`BodyDocument`] on the wire, and
 //! that quietly broke the ruling it was built to satisfy. A reader would have
@@ -29,11 +29,11 @@
 //! those. A reader mirrors [`BodyProfile`] in about twenty lines of plain
 //! structs, decodes with any postcard, and never links a line of this game.
 //!
-//! This is also Law A falling out of the encoding rather than being imposed on
-//! it. What travels is **choices under scarcity, not morphology**: each part's
-//! provenance crosses because it records a choice, and the attachment graph
-//! stays home because it is morphology. The body document remains the
-//! authority; this is what a neighbour is owed.
+//! V0 proves that appearance and provenance can cross through primitive local
+//! mirror types. It does not settle the permanent anatomy contract. The wing's
+//! later ruling makes primitive part identity and parent links portable at v1,
+//! while exact geometry remains an optional projection and each vessel derives
+//! its own capabilities. The live body document remains Mesocosm's authority.
 //!
 //! # Why the header is raw bytes
 //!
