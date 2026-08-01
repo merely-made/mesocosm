@@ -142,6 +142,11 @@ pub struct Part {
     /// `None` only for the root.
     pub attachment: Option<Attachment>,
     pub provenance: Provenance,
+    /// Lost, along with everything that hung off it. Tombstoned rather than
+    /// removed so `PartId` stays an index and the injury stays on the record.
+    /// See [`crate::anatomy`].
+    #[serde(default)]
+    pub severed: bool,
 }
 
 /// An axis-aligned box in body space.
@@ -219,6 +224,7 @@ impl BodyDocument {
                 pivot: half_extent,
                 attachment: None,
                 provenance: Provenance::founding(),
+                severed: false,
             }],
         }
     }
@@ -258,6 +264,7 @@ impl BodyDocument {
             pivot: half_extent,
             attachment: Some(attachment),
             provenance,
+            severed: false,
         });
         Ok(id)
     }
@@ -348,8 +355,10 @@ impl BodyDocument {
         None
     }
 
+    /// Mass of what is still attached. A creature does not carry the arm it
+    /// lost, so severed parts weigh nothing here.
     pub fn total_mass_mg(&self) -> u64 {
-        self.parts.iter().map(|p| p.mass_mg).sum()
+        self.living().map(|p| p.mass_mg).sum()
     }
 
     /// Mass-weighted centre in voxel units, rounded toward zero.
@@ -368,7 +377,7 @@ impl BodyDocument {
             return [0; 3];
         }
         let mut acc = [0i128; 3];
-        for part in &self.parts {
+        for part in self.living() {
             // A pivot is the part's centre, so this is a true mass-weighted
             // centre rather than an average of corners.
             let Some(centre) = self.world_pivot(part.id) else {
@@ -389,7 +398,7 @@ impl BodyDocument {
     /// The body's collision extent: the union of every part's box.
     pub fn aabb(&self) -> Aabb {
         let mut result: Option<Aabb> = None;
-        for part in &self.parts {
+        for part in self.living() {
             // `around` wants a centre. Passing the corner made every part's box
             // straddle its own edge; a pivot is the centre it always wanted.
             let Some(centre) = self.world_pivot(part.id) else {

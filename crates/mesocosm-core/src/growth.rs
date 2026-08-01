@@ -38,7 +38,7 @@ pub fn resolve(body: &BodyDocument, half_extent: [i32; 3]) -> Option<Growth> {
     for facing in body.plan.candidates(role) {
         // Nearest the root first, so a body grows outward rather than
         // sprouting from whatever it ate last.
-        for part in &body.parts {
+        for part in body.living() {
             let anchor = body.world_pivot(part.id)?;
             let offset = flush(part.half_extent, half_extent, facing);
             let at = [
@@ -98,7 +98,7 @@ fn flush(host_half: [i32; 3], own_half: [i32; 3], facing: Facing) -> [i32; 3] {
 
 /// Whether a part of `half` centred at `at` clears every existing part.
 fn free(body: &BodyDocument, at: [i32; 3], half: [i32; 3]) -> bool {
-    for part in &body.parts {
+    for part in body.living() {
         let Some(centre) = body.world_pivot(part.id) else {
             continue;
         };

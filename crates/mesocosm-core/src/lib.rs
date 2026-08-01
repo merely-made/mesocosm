@@ -40,6 +40,7 @@
 //!   └── snapshot()     the whole world, captured in one call
 //! ```
 
+pub mod anatomy;
 pub mod body;
 pub mod growth;
 pub mod organism;

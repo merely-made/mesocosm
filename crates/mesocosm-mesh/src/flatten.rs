@@ -78,7 +78,7 @@ pub fn flatten_attributed(
     let mut max = [i32::MIN; 3];
     let mut seen = false;
 
-    for part in &body.parts {
+    for part in body.living() {
         let (pivot_at, pivot, yaw, volume) = resolve(body, source, part.id)?;
         for corner in volume_corners(volume) {
             let placed = place_point(corner, yaw, pivot, pivot_at);
@@ -106,7 +106,8 @@ pub fn flatten_attributed(
     let cells = size.iter().map(|d| *d as usize).product::<usize>();
     let mut attribution = vec![0u16; cells];
 
-    for (slot, part) in body.parts.iter().enumerate() {
+    for part in body.living() {
+        let slot = part.id.0 as usize;
         let (pivot_at, pivot, yaw, volume) = resolve(body, source, part.id)?;
         // Slot + 1, so `0` can mean empty. A body with more parts than a u16
         // can name is far outside anything growth produces, but the artifact

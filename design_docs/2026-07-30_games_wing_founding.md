@@ -283,6 +283,82 @@ ecology, Paredros' settlement, and Isometry's campaign state will never be one
 in-memory model. They append compatible facts to one world. The shared thing
 is the **world identity and fact substrate**.
 
+
+### Bodies are part trees, and loss cascades
+
+**Ruled 2026-07-31 by Mark, wing-wide.** Lose an arm, lose the hand, lose the
+fingers.
+
+The citation is RimWorld, which ships this: a `BodyDef` is a tree of
+`BodyPartRecord`s, destroying a parent destroys its children, and capacities
+like Manipulation and Moving are computed as folds over the parts that survive.
+Mark's observation about it is the useful part of the evidence: **people mod to
+enrich that system rather than to replace it.** A mechanic whose community
+extends it has the right shape and not enough of it, which is a far better
+signal than a mechanic nobody touches.
+
+Three commitments follow, and they are one rule seen at three depths:
+
+1. **A body is a tree of parts**, not a bag of them. Every part but the root
+   names a parent.
+2. **Loss cascades to dependents.** Severing an edge takes the whole subtree.
+3. **Capability is a fold over surviving parts**, never a stored number. What a
+   creature can do is a consequence of what it currently has.
+
+#### What is shared, and what each vessel decides
+
+This section's own rule settles the split, and it is worth being explicit
+because the answer is not "everything":
+
+> A vessel must not create a private replacement for shared world identity,
+> provenance, and causal history.
+
+**The tree is identity.** How parts relate, and where each came from, is
+provenance and causal history in the most literal sense the wing has. So the
+*structure* is shared, and no vessel may mint a second private answer to it.
+
+**The fold is rules.** What capability falls out of an anatomy is exactly the
+kind of thing each vessel decides for itself, like a renderer or a camera.
+Mesocosm folds reach and upkeep out of geometry; Paredros folds a chassis into
+manipulation; Isometry folds nothing at all.
+
+Isometry is the interesting case and its own law already answers it: *the
+substrate stays geometry and turns; rules belong in system plugins*. So Isometry
+**carries the tree as data and mints no types for it.** A 5e character has hit
+points, not fingers, and the day the substrate grows a `BodyPart` is the day it
+has hard-coded a game system. The tree rides in the portable record; a system
+plugin that cares about limbs interprets it.
+
+#### The mind is not in the tree
+
+Paredros already ruled the carve-out, before this rule existed: *skills are
+use-based, accrued to the mind, surviving reassembly, so limb loss never costs
+skill* (the Kenshi rule). That stands, and it generalises.
+
+**Loss cascades through the body and stops at the person.** A creature that
+loses an arm loses the hand and the fingers and whatever the arm let it do, and
+loses none of what it knows. RimWorld agrees by construction, since skills are
+pawn-level rather than part-level. Without this carve-out, injury would compound
+into permanent character erosion, which is the Darkest Dungeon 2 failure the
+wing already flagged under attachment-creep.
+
+#### Booked consequence: the chronicle goes to v1
+
+`mesocosm.chronicle/v0` carries `parts` as a **flat list**. If the tree is
+shared identity, a record that drops the parent links is losing exactly the
+thing this rule says is not a vessel's to lose, and re-entry cannot rebuild what
+was never carried. Carrying parent links is therefore a v0 to v1 schema change.
+
+The refusal path built for the interchange on 2026-07-31 is what makes that
+cheap: magic and version sit ahead of the payload, both sides refuse an
+unrecognised version before decoding, and a reader that meets a v1 record says
+so instead of mis-reading it. This is the first real schema change, and it is
+the case that machinery was built for.
+
+Note what does **not** follow. Law A still says morphology does not travel: the
+tree is topology and provenance, not geometry, and a descendant is still regrown
+under the receiving game's rules rather than restored voxel for voxel.
+
 ---
 
 ## 3. The three pipeline laws
