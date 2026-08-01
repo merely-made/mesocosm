@@ -783,6 +783,112 @@ by which world state changes, and a control change made outside that path would
 replay every fact about a run except who was living it. Lineage switching is
 gameplay, so it belongs in the trace.
 
+### Population is lives
+
+**Ruled 2026-08-01, and it falls out of the mortality ruling rather than being
+added to it.** If death costs you a body and you then pick another, then **a
+lineage with twenty surviving individuals is a lineage with twenty
+perspectives**. Nobody had to design that; it is what the previous ruling
+already meant.
+
+Three consequences, and the second is the one this plan has been missing.
+
+**Reproduction becomes a survival resource.** Provisioning offspring is not a
+score, it is buying lives. That is the destination D5 needed: burning currently
+has no downside because nothing makes hoarding costly, and *provision* is the
+first route with real teeth, because spending a meal on a descendant is
+spending it on your own continuity.
+
+**Keeping the niche that supports your kin matters more than collecting
+upgrades.** A lineage whose food supply collapses loses lives, not points.
+
+**Extinction removes an embodiment option even when the lineage survives in the
+record.** The archive keeps what a form *was*; it does not keep somewhere to
+stand.
+
+#### The pools, and which of them are real
+
+The design names six pools. **Two exist, one is a query, three are new state,
+and one is not a pool at all** — worth separating before anyone builds six
+systems.
+
+| Pool | Status |
+| ---- | ------ |
+| Living population | **Exists**: `World::organisms`. |
+| Embodiment pool | **A query, not storage.** Living individuals the player may inhabit, which is a filter over the above. Storing it would let it drift. |
+| Known roster | **New state.** Lineages encountered, studied, or inhabited. This is observer knowledge, which D8 already says to start retaining before the journal that displays it exists. |
+| Dormant pool | **New state.** Spores, eggs, seeds, cysts, symbionts: forms that can return. |
+| Lineage archive | **New state**, partly derivable from chronicles. What an extinct form was and what it did. |
+| Possibility space | **Not a pool.** See below. |
+
+**Possibility space must be computed, never stored.** It is what current world
+conditions could generate, support, or admit, and the entire value of the idea
+is that world change *edits* it: oxygenation permits unfamiliar metabolisms,
+cooling closes tropical niches and opens cryophilic ones, a decomposer's
+extinction locks nutrients away. That only works if it is derived from world
+state on demand. Stored, it becomes a spawn table that drifts out of step with
+the world it claims to describe, and the world-change mechanic quietly stops
+working.
+
+This is the same rule as capability: **derived from what is actually there,
+never a number somebody maintains.** It is worth stating twice because it will
+be tempting twice.
+
+#### Two recovery routes
+
+- **Inhabit** an existing eligible organism. Its body, condition, relationships,
+  and location are already real, and you take them as they are.
+- **Found** a new simple organism from dormant or environmental material, below
+  the achieved complexity frontier.
+
+**Founding consumes actual world possibility**, which is what keeps "start
+something simpler" from being an infinite-life menu. An ocean with viable
+microbial life offers humble restarts indefinitely; a sterilised world offers
+none. That makes sterilisation a real loss condition without anyone authoring a
+game-over.
+
+#### The hazard to design against
+
+**More offspring means more lives, which makes fecundity strictly better at the
+meta level regardless of in-world fitness.** A lineage of two hundred algae has
+two hundred lives; a lineage of three apex predators has three. If lives are
+the currency, the dominant strategy is to play the simplest, most fecund thing
+in the world and never build anything.
+
+The counterweight has to be that **a simple critter's run is genuinely less
+capable** — fewer reachable actions, less it can eat, less it can survive.
+That is exactly what phenotype-derived capability provides, which makes this
+hazard another argument for P2 rather than a separate problem. Recorded now so
+that when someone tunes fecundity, they know which tension they are tuning.
+
+#### Death as the examination screen
+
+Disembodiment was already ruled a seam. This says what is *on* it: which bodies
+remain, which lineages are declining, which are dormant, why something can no
+longer survive here, and which environmental threshold has just been crossed.
+
+Choosing the next critter is respawning, reading the simulation, and deciding
+which part of the biosphere deserves care, in one act. **That is a better answer
+to the witnessing gap than a field journal**, because it arrives diegetically at
+a moment the player already has to stop, rather than as a screen they must
+remember to open. D8's interface question is not answered, but its *material*
+now has an obvious home.
+
+#### Event vocabulary
+
+- **Endogenous transitions** arise from the ecology: oxygenation, trophic
+  cascades, soil creation, reef building, invasive competition.
+- **Exogenous disturbances** arrive from outside: impacts, eruptions, orbital
+  changes, abrupt climate shifts.
+- **Storyteller pressure** chooses when and where a disturbance enters. **World
+  state determines its consequences.**
+
+That last split is the load-bearing one. Volcanism does not delete thirty
+percent of the roster; it changes light, temperature, acidity, and substrate,
+and the ecology decides what survives. A storyteller that picks the *outcome*
+is authoring a calamity; one that picks the *insult* is applying pressure to a
+world that answers for itself.
+
 ### The three ledgers
 
 **Named 2026-08-01, because "two truths" was the wrong framing and would have
@@ -818,6 +924,18 @@ and branch transfer. Those are P2 and P3, and they are the *reason* for P1
 rather than part of it.
 
 ## Findings
+
+- **2026-08-01:** there are **two eligibility rules that never meet**.
+  `World::is_eligible` gates `Intent::TakeControl` on being alive, while
+  `epoch::can_switch_to` implements the ruled complexity frontier and is called
+  by nothing outside its own tests. So the frontier is not enforced where
+  control actually moves: today you could inhabit anything alive, however
+  elaborate. It cannot be fixed by wiring one to the other, because
+  `can_switch_to` reasons over `epoch::Lineage` and its trait array while
+  control reasons over `Organism`. **It is the P1 problem again at the lineage
+  level: two creature models that do not share a notion of complexity.** The
+  frontier becomes enforceable when the trait array retires (D4), and until
+  then embodiment eligibility is deliberately weaker than the design says.
 
 - **2026-08-01:** P1's first cut let a dead critter keep playing. `controlled()`
   checked only that the id was in the roster, but natural death leaves an
