@@ -56,9 +56,6 @@ impl Default for HostConfig {
 /// critter moves across the view rather than the view rescaling around it.
 const WORLD_EXTENT: f32 = 26.0;
 
-/// Mirrors the core's reach. Presentation only: the core decides what is
-/// actually edible, this only decides what looks edible.
-const REACH: i32 = 8;
 
 /// One drawable thing in the world: its geometry, where it sits, and how
 /// brightly it reads.
@@ -173,9 +170,10 @@ impl Host {
             let Some(volume) = self.volumes.volume(organism.volume()) else {
                 continue;
             };
-            let in_reach = (0..3).all(|a| {
-                (organism.position[a] - world.position().unwrap()[a]).abs() <= REACH
-            });
+            // Ask the world rather than mirroring a constant. The host used to
+            // keep its own copy of the reach rule, which was wrong the moment
+            // reach became anatomy.
+            let in_reach = world.in_reach(organism.position);
             // Dim what cannot be reached; that is information the player is
             // entitled to. Whether the thing is telling the truth about itself
             // is not, and the renderer does not leak it.
@@ -251,9 +249,18 @@ impl Host {
             if let Some(target) = fixture::reachable(world) {
                 // A capture run grows rather than burns, so an unattended
                 // run still produces a body to look at.
-                let intent =
-                    fixture::metabolize(world, target, &self.volumes, Route::Incorporate { placement: Placement::Planned });
+                let intent = fixture::metabolize(
+                    world,
+                    target,
+                    &self.volumes,
+                    Route::Incorporate { placement: Placement::Planned },
+                );
                 self.runtime.queue(intent);
+            } else if let Some(step) = fixture::toward_prey(world) {
+                // **Hunt, do not wait.** Reach became anatomy in P2, so a
+                // starting critter touches about three voxels. An unattended
+                // run that stood still grew nothing in nine hundred frames.
+                self.runtime.queue(Intent::Move { delta: step });
             }
         }
 

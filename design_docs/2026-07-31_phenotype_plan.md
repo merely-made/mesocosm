@@ -551,7 +551,7 @@ the full Mesocosm-to-Isometry-and-back loop reproven, and the property asserted
 in place of hash stability is that **the same intent trace moves whoever is
 inhabited by the same amount**.
 
-### P2. One embodied consequence
+### P2. One embodied consequence — **LANDED 2026-08-01**
 
 Wire `BodyDocument::reach()` into actual interaction, then add one connected
 process path.
@@ -559,6 +559,48 @@ process path.
 **Done when:** two bodies have different reachable actions because of anatomy;
 severing a dependency removes the action; no capability number was edited; and
 the receipt and headed view state which embodied requirement failed.
+
+**Landed.** `const REACH: i32 = 8` is gone from the core, and gone again from
+the host, which had been keeping its own copy of the rule for presentation.
+
+`mesocosm-core::process` holds the whole vocabulary: three processes
+(`Contract`, `Intake`, `Sense`) and one capability (`Reach`). **Processes are
+read from geometry** through `classify`, never stored, so a part cannot be
+given an ability its shape does not imply. A long thin part is an actuator, a
+bulky one admits material, a small one senses, and a plate does neither while
+still being armour.
+
+Reach is a **satisfied path, not a measurement**: the distance to the furthest
+living part that contracts, plus that part's extent, floored at the body's own
+bulk. So a bare critter touches what is against it, a limb extends that, a
+longer limb extends it further, a plate buys nothing, and severing the limb
+takes the reach with it. Seven tests in `process.rs` and seven in
+`tests/embodied.rs`.
+
+**Refusals now name the unmet requirement.** `Rejection::OutOfReach(Unmet)`
+distinguishes *you have no actuator at all* from *your actuator does not extend
+that far*, because those are different problems and a player deserves to be
+told which.
+
+**What running it headed found, which no test did.** An unattended capture grew
+**one part in nine hundred frames**. Reach fell from 8 to about 3 for a
+starting critter, and the auto-eat driver stood still waiting for food to
+arrive. Fixed by making it hunt. Every fixture in the workspace had the same
+assumption baked in as a literal `<= 8`, including the shared replay trace,
+which now records itself by *driving* a scratch world rather than guessing
+which organisms are close enough.
+
+**The silhouette started showing capability**, which was predicted and is
+pleasant to see land: the limbs a critter grew for reach are the parts visibly
+sticking out of it. Colour already showed history; shape now shows what a body
+can do. Receipt: `Code/testing/mesocosm/10_derived_reach.png`, a 97-part
+critter after 452 steps.
+
+**Not done in P2, and it is the ledger reconciliation.** Anatomy now decides
+reach, but grazing and upkeep still move `Organism::mass_mg` where anatomy
+cannot see it, so a larger body still costs nothing to carry. Until that is
+fixed, "burn or grow" remains a choice without a downside. That is the next
+piece of work, and it is what P0's open judgment is actually waiting on.
 
 ### P3. Branch transfer
 
@@ -924,6 +966,16 @@ and branch transfer. Those are P2 and P3, and they are the *reason* for P1
 rather than part of it.
 
 ## Findings
+
+- **2026-08-01:** every fixture in the workspace had `REACH = 8` baked in as a
+  literal `<= 8`, including the shared replay trace, the host's presentation
+  dimming, and three test helpers. Deriving reach broke all of them at once,
+  which is the honest cost of replacing a constant that several modules had
+  quietly agreed on. The replay trace now records itself by driving.
+- **2026-08-01:** the headed run caught what the suite could not. With reach
+  derived, an unattended capture grew one part in nine hundred frames, because
+  the auto-eat driver waited for food instead of hunting. Every test passed
+  throughout.
 
 - **2026-08-01:** there are **two eligibility rules that never meet**.
   `World::is_eligible` gates `Intent::TakeControl` on being alive, while

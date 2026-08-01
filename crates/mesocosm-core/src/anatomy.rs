@@ -112,20 +112,6 @@ impl BodyDocument {
         lost
     }
 
-    /// The furthest any part's pivot sits from the root's, along any axis.
-    ///
-    /// A capability read straight off anatomy: grow a long limb and you reach
-    /// further, sever it and you do not. Nothing stores this.
-    pub fn reach(&self) -> i32 {
-        let Some(origin) = self.world_pivot(self.root) else {
-            return 0;
-        };
-        self.living()
-            .filter_map(|part| self.world_pivot(part.id))
-            .map(|at| (0..3).map(|axis| (at[axis] - origin[axis]).abs()).max().unwrap_or(0))
-            .max()
-            .unwrap_or(0)
-    }
 }
 
 #[cfg(test)]
@@ -137,11 +123,13 @@ mod tests {
     fn limbed() -> (BodyDocument, [PartId; 4]) {
         let mut body =
             BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
+        // Long in one axis, so `classify` reads these as limbs and they carry
+        // a Contract process. A cube would be a sensor and buy no reach.
         let link = |body: &mut BodyDocument, parent: PartId, offset: [i32; 3]| {
             body.attach(
                 VolumeRef::from_tag(2),
                 100,
-                [1, 1, 1],
+                [3, 1, 1],
                 Attachment { parent, offset, yaw: Yaw::Zero },
                 Provenance::founding(),
             )
@@ -240,3 +228,4 @@ mod tests {
         assert!(body.is_living(arm) && body.is_living(hand));
     }
 }
+

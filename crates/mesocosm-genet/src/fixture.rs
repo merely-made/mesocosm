@@ -43,6 +43,21 @@ pub fn metabolize(
     Intent::Metabolize { organism, route }
 }
 
+/// One step toward the nearest thing worth eating, or `None` when there is
+/// nothing left or it is already in reach.
+pub fn toward_prey(world: &World) -> Option<[i32; 3]> {
+    let here = world.position()?;
+    let at = world
+        .organisms
+        .iter()
+        .filter(|m| Some(m.id) != world.controlled_id() && m.is_alive())
+        .map(|m| m.position)
+        .min_by_key(|at: &[i32; 3]| (0..3).map(|a| (at[a] - here[a]).abs()).max().unwrap_or(0))?;
+
+    let step = [0, 1, 2].map(|a| (at[a] - here[a]).signum());
+    if step == [0, 0, 0] { None } else { Some(step) }
+}
+
 pub fn reachable(world: &World) -> Option<OrganismId> {
     world
         .organisms
@@ -50,8 +65,10 @@ pub fn reachable(world: &World) -> Option<OrganismId> {
         // Never offer the critter itself. Since P1 the played organism is in
         // this vector like everything else, so it is a candidate unless it is
         // filtered out.
-        .filter(|m| Some(m.id) != world.controlled_id())
-        .filter(|m| (0..3).all(|a| (m.position[a] - world.position().unwrap()[a]).abs() <= 8))
+        .filter(|m| Some(m.id) != world.controlled_id() && m.is_alive())
+        // Anatomy decides how far this critter can touch, not a constant. A
+        // stubby one reaches about three voxels; a limbed one reaches further.
+        .filter(|m| world.in_reach(m.position))
         .map(|m| m.id)
         .min()
 }
@@ -80,9 +97,36 @@ mod tests {
         let volumes = volumes();
         let mut world = World::new(2024, 80);
 
-        for _ in 0..14 {
-            let Some(target) = reachable(&world) else { break };
-            world.apply(metabolize(&world, target, &volumes, Route::Incorporate { placement: Placement::Planned }));
+        // Walk to prey rather than assuming it is adjacent: reach is anatomy
+        // now, and a starting critter touches very little.
+        let mut meals = 0;
+        for _ in 0..800 {
+            if meals >= 14 {
+                break;
+            }
+            if let Some(target) = reachable(&world) {
+                world.apply(metabolize(
+                    &world,
+                    target,
+                    &volumes,
+                    Route::Incorporate { placement: Placement::Planned },
+                ));
+                meals += 1;
+                continue;
+            }
+            let Some(here) = world.position() else { break };
+            let Some(at) = world
+                .organisms
+                .iter()
+                .filter(|m| Some(m.id) != world.controlled_id() && m.is_alive())
+                .map(|m| m.position)
+                .min_by_key(|at: &[i32; 3]| {
+                    (0..3).map(|a| (at[a] - here[a]).abs()).max().unwrap_or(0)
+                })
+            else {
+                break;
+            };
+            world.apply(Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) });
         }
 
         assert!(world.body().unwrap().len() > 6, "the fixture must out-eat one face cycle");

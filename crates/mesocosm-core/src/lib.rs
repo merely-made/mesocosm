@@ -45,6 +45,7 @@ pub mod body;
 pub mod growth;
 pub mod organism;
 pub mod plan;
+pub mod process;
 pub mod rng;
 pub mod snapshot;
 pub mod world;
@@ -62,6 +63,7 @@ pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initia
 pub use growth::{Growth, resolve};
 pub use wire::{WireError, frame, unframe};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
+pub use process::{BULK_REACH, Capability, Process, Unmet};
 pub use rng::Rng;
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};

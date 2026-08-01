@@ -13,7 +13,7 @@
 //! both hosts run this fixture and must agree on the final state hash.
 
 use mesocosm_core::{
-    BodyDocument, Intent, Placement, Route, OrganismId, Origin, Outcome, PartId, Provenance, SpeciesId, VolumeRef,
+    BodyDocument, Intent, Placement, Route, Origin, Outcome, PartId, Provenance, SpeciesId, VolumeRef,
     World, Yaw, snapshot, state_hash,
 };
 use mesocosm_core::body::Attachment;
@@ -23,23 +23,48 @@ const SEED: u64 = 0x5E5E_1234;
 const MORSELS: u32 = 32;
 
 /// The shared fixture trace. Hosts replay exactly this.
-fn fixture_trace(world: &World) -> Vec<Intent> {
-    // Choose targets by position rather than by iteration order of anything
-    // unordered, so the trace itself is reproducible.
-    let mut reachable: Vec<OrganismId> = world
-        .organisms
-        .iter()
-        .filter(|m| {
-            (0..3).all(|axis| (m.position[axis] - world.position().unwrap()[axis]).abs() <= 8)
-        })
-        .map(|m| m.id)
-        .collect();
-    reachable.sort();
-
+///
+/// **Recorded by driving, not by guessing.** It used to pick targets within a
+/// hardcoded eight voxels, which stopped being true when reach became anatomy:
+/// a starting critter touches about three. So the trace is captured the way a
+/// player would produce one, by walking to prey and eating what is actually in
+/// reach. Deterministic because the scratch world uses the same seed.
+fn fixture_trace(_world: &World) -> Vec<Intent> {
+    let mut scratch = World::new(SEED, MORSELS);
     let mut trace = vec![Intent::Move { delta: [1, 0, 1] }, Intent::Idle];
-    for (index, organism) in reachable.iter().take(3).enumerate() {
-        trace.push(Intent::Metabolize { organism: *organism, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [4 + index as i32 * 3, 0, 0], yaw: Yaw::Zero } } });
+    scratch.apply_all(&trace);
+
+    let mut meals = 0;
+    for _ in 0..600 {
+        if meals >= 3 {
+            break;
+        }
+        let Some(here) = scratch.position() else { break };
+        let Some((id, at)) = scratch
+            .organisms
+            .iter()
+            .filter(|m| Some(m.id) != scratch.controlled_id() && m.is_alive())
+            .map(|m| (m.id, m.position))
+            .min_by_key(|(_, at): &(_, [i32; 3])| {
+                (0..3).map(|a| (at[a] - here[a]).abs()).max().unwrap_or(0)
+            })
+        else {
+            break;
+        };
+
+        let intent = if scratch.in_reach(at) {
+            meals += 1;
+            Intent::Metabolize {
+                organism: id,
+                route: Route::Incorporate { placement: Placement::Planned },
+            }
+        } else {
+            Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) }
+        };
+        scratch.apply(intent);
+        trace.push(intent);
     }
+
     trace.push(Intent::Deposit { mass_mg: 40 });
     trace.push(Intent::Move { delta: [-1, 0, 2] });
     trace

@@ -17,6 +17,7 @@ use crate::body::{
     Aabb, Attachment, BodyDocument, Origin, PartId, Provenance, SpeciesId, VolumeRef, Yaw,
 };
 use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
+use crate::process::Unmet;
 use crate::rng::Rng;
 
 /// How an incorporated part finds its site.
@@ -92,7 +93,9 @@ pub enum Rejection {
     Disembodied,
     NoSuchOrganism(OrganismId),
     NoSuchParent(PartId),
-    OutOfReach,
+    /// The played critter could not touch it, and this says why: no actuator
+    /// at all, or one that does not extend far enough.
+    OutOfReach(Unmet),
     InsufficientMass,
     /// The body plan found nowhere for a part of this shape to go. Refusing is
     /// correct: forcing it would overlap existing parts, and a plan that
@@ -153,9 +156,6 @@ pub fn organism_extent(tag: u8) -> [i32; 3] {
         _ => [2, 2, 2],
     }
 }
-
-/// How far the critter can reach to eat, in voxel units.
-const REACH: i32 = 8;
 
 /// Energy spent per unit of movement, in milligrams.
 const MOVE_COST_MG: u64 = 1;
@@ -433,8 +433,8 @@ impl World {
         {
             return Outcome::Rejected(Rejection::NoSuchParent(parent));
         }
-        if !self.within_reach(self.organisms[index].position) {
-            return Outcome::Rejected(Rejection::OutOfReach);
+        if let Err(unmet) = self.reach_to(self.organisms[index].position) {
+            return Outcome::Rejected(Rejection::OutOfReach(unmet));
         }
 
         // Resolve planned placement before the meal is consumed, so a body
@@ -561,9 +561,34 @@ impl World {
         }
     }
 
+    /// Whether the played critter could touch `target`, and why not if not.
+    ///
+    /// **Anatomy answers this now.** It used to be `REACH = 8` regardless of
+    /// what a critter was shaped like, so a twelve-limbed creature and a cube
+    /// reached exactly as far.
+    fn reach_to(&self, target: [i32; 3]) -> Result<(), Unmet> {
+        let Some(me) = self.controlled() else {
+            return Err(Unmet::TooFar { reach: 0, distance: i32::MAX });
+        };
+        let distance = (0..3)
+            .map(|axis| (target[axis] - me.position[axis]).abs())
+            .max()
+            .unwrap_or(0);
+        me.body.can_reach(distance)
+    }
+
+    /// Whether the played critter can touch a point. Anatomy decides.
+    pub fn in_reach(&self, target: [i32; 3]) -> bool {
+        self.within_reach(target)
+    }
+
+    /// How far the played critter can touch, from its anatomy.
+    pub fn reach(&self) -> i32 {
+        self.body().map(|b| b.reach()).unwrap_or(0)
+    }
+
     fn within_reach(&self, target: [i32; 3]) -> bool {
-        let Some(here) = self.position() else { return false };
-        (0..3).all(|axis| (target[axis] - here[axis]).abs() <= REACH)
+        self.reach_to(target).is_ok()
     }
 
     /// The played body's collision extent in body space, when there is one.
@@ -585,14 +610,32 @@ impl World {
 mod tests {
     use super::*;
 
-    fn near_organism(world: &World) -> OrganismId {
-        world
-            .organisms
-            .iter()
-            .filter(|m| Some(m.id) != world.controlled_id())
-            .find(|m| world.within_reach(m.position))
-            .expect("fixture places at least one organism in reach")
-            .id
+    /// Walks the critter to its nearest neighbour and returns it.
+    ///
+    /// Since reach became anatomy rather than a constant, a starting critter
+    /// touches about three voxels, so a fixture has to travel like a player
+    /// does instead of assuming a meal is adjacent.
+    fn near_organism(world: &mut World) -> OrganismId {
+        for _ in 0..400 {
+            let here = world.position().expect("embodied");
+            let Some((id, at)) = world
+                .organisms
+                .iter()
+                .filter(|m| Some(m.id) != world.controlled_id() && m.is_alive())
+                .map(|m| (m.id, m.position))
+                .min_by_key(|(_, at): &(_, [i32; 3])| {
+                    (0..3).map(|a| (at[a] - here[a]).abs()).max().unwrap_or(0)
+                })
+            else {
+                break;
+            };
+            if world.in_reach(at) {
+                return id;
+            }
+            let step = [0, 1, 2].map(|a| (at[a] - here[a]).signum());
+            world.apply(Intent::Move { delta: step });
+        }
+        panic!("nothing came within reach")
     }
 
     #[test]
@@ -612,7 +655,7 @@ mod tests {
     #[test]
     fn metabolize_grows_mass_and_collision() {
         let mut world = World::new(99, 24);
-        let target = near_organism(&world);
+        let target = near_organism(&mut world);
         let mass_before = world.total_mass_mg();
         let box_before = world.collision().unwrap();
 
@@ -626,7 +669,7 @@ mod tests {
     #[test]
     fn metabolize_records_where_the_part_came_from() {
         let mut world = World::new(7, 24);
-        let target = near_organism(&world);
+        let target = near_organism(&mut world);
         let eaten_species = world
             .organisms
             .iter()
@@ -661,7 +704,12 @@ mod tests {
             )
         });
         let outcome = world.apply(Intent::Metabolize { organism: OrganismId(900), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().unwrap().root, offset: [1, 0, 0], yaw: Yaw::Zero } } });
-        assert_eq!(outcome, Outcome::Rejected(Rejection::OutOfReach));
+        // Five hundred voxels away, and the body says why rather than only
+        // that it failed.
+        assert!(matches!(
+            outcome,
+            Outcome::Rejected(Rejection::OutOfReach(crate::process::Unmet::NoProcess { .. }))
+        ), "got {outcome:?}");
     }
 
     #[test]

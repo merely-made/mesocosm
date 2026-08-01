@@ -28,17 +28,32 @@ fn source() -> VolumeMap {
     map
 }
 
-fn reachable_organism(world: &World) -> mesocosm_core::OrganismId {
-    let mut ids: Vec<_> = world
-        .organisms
-        .iter()
-        // The played critter is an organism too since P1; never eat yourself.
-        .filter(|m| Some(m.id) != world.controlled_id())
-        .filter(|m| (0..3).all(|a| (m.position[a] - world.position().unwrap()[a]).abs() <= 8))
-        .map(|m| m.id)
-        .collect();
-    ids.sort();
-    *ids.first().expect("fixture places a organism in reach")
+/// Walks the critter to its nearest neighbour and returns it.
+///
+/// Reach is anatomy since P2, so a starting critter touches about three
+/// voxels and a fixture has to travel like a player instead of assuming a
+/// meal is adjacent.
+fn reachable_organism(world: &mut World) -> mesocosm_core::OrganismId {
+    for _ in 0..600 {
+        let here = world.position().expect("embodied");
+        let Some((id, at)) = world
+            .organisms
+            .iter()
+            // The played critter is an organism too since P1; never eat yourself.
+            .filter(|m| Some(m.id) != world.controlled_id() && m.is_alive())
+            .map(|m| (m.id, m.position))
+            .min_by_key(|(_, at): &(_, [i32; 3])| {
+                (0..3).map(|a| (at[a] - here[a]).abs()).max().unwrap_or(0)
+            })
+        else {
+            break;
+        };
+        if world.in_reach(at) {
+            return id;
+        }
+        world.apply(Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) });
+    }
+    panic!("nothing came within reach")
 }
 
 #[test]
@@ -51,7 +66,7 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     let collision_before = world.collision().unwrap();
     let drawn_before = mesh_body(world.body().unwrap(), &source).unwrap();
 
-    let target = reachable_organism(&world);
+    let target = reachable_organism(&mut world);
     let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [9, 0, 0], yaw: Yaw::Zero } } });
     assert!(matches!(outcome, Outcome::Incorporated { .. }), "{outcome:?}");
 
@@ -85,7 +100,7 @@ fn eating_changes_mass_balance_collision_and_geometry() {
 fn an_eaten_part_still_says_whose_it_was() {
     let source = source();
     let mut world = World::new(4242, 40);
-    let target = reachable_organism(&world);
+    let target = reachable_organism(&mut world);
     let donor = world
         .organisms
         .iter()
@@ -121,7 +136,7 @@ fn attaching_remeshes_only_what_is_new() {
     let before = mesh_body(world.body().unwrap(), &source).unwrap();
     let root_mesh_before = before.mesh_for(VolumeRef::from_tag(1)).cloned();
 
-    let target = reachable_organism(&world);
+    let target = reachable_organism(&mut world);
     world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [6, 0, 0], yaw: Yaw::Zero } } });
 
     let after = mesh_body(world.body().unwrap(), &source).unwrap();
@@ -141,16 +156,7 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
     let grow = || {
         let mut world = World::new(9_001, 60);
         for _ in 0..5 {
-            let Some(target) = world
-                .organisms
-                .iter()
-                .filter(|m| Some(m.id) != world.controlled_id())
-                .filter(|m| (0..3).all(|a| (m.position[a] - world.position().unwrap()[a]).abs() <= 8))
-                .map(|m| m.id)
-                .min()
-            else {
-                break;
-            };
+            let target = reachable_organism(&mut world);
             world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [5, 0, 0], yaw: Yaw::Zero } } });
         }
         world
