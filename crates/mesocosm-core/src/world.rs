@@ -75,6 +75,14 @@ pub enum Intent {
 /// outcome, so a replay that rejects the same intents is still identical.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Rejection {
+    /// A critter cannot eat itself.
+    ///
+    /// Only expressible since the played critter joined the organism
+    /// vector: before that it was not a thing anyone could target.
+    Itself,
+    /// Nobody is being played, so there is nothing to act with. A world
+    /// running with no one in it is a legitimate state.
+    Disembodied,
     NoSuchOrganism(OrganismId),
     NoSuchParent(PartId),
     OutOfReach,
@@ -103,14 +111,18 @@ pub struct World {
     pub tick: u64,
     pub epoch: u64,
     rng: Rng,
-    pub position: [i32; 3],
-    pub body: BodyDocument,
+    /// Which organism the player is.
+    ///
+    /// **Control is a pointer, not a shape.** Switching lineage moves this and
+    /// reconstructs nothing; a played critter and an unplayed one serialize
+    /// identically; and no rule can branch on who is being played, because
+    /// there is no flag to branch on. The world does not require anyone to be
+    /// in it, which is what lets a lineage be left running.
+    controlled: OrganismId,
     /// Ordered by id, so iteration never depends on hashing.
     pub organisms: Vec<Organism>,
     next_organism: u32,
     last_tally: crate::organism::Tally,
-    /// Metabolic budget in milligrams. Spent by moving, gained by eating.
-    pub energy_mg: u64,
 }
 
 /// The half-extent of an organism, by its volume tag.
@@ -127,6 +139,12 @@ pub fn organism_extent(tag: u8) -> [i32; 3] {
     }
 }
 
+/// Returned when nobody is being played, so callers read an empty anatomy
+/// rather than handling an `Option` at every draw site.
+static EMPTY_BODY: std::sync::LazyLock<BodyDocument> = std::sync::LazyLock::new(|| {
+    BodyDocument::new(SpeciesId(0), VolumeRef([0; 32]), 0, [0, 0, 0])
+});
+
 /// How far the critter can reach to eat, in voxel units.
 const REACH: i32 = 8;
 
@@ -138,10 +156,21 @@ impl World {
     /// organisms drawn from the seeded stream.
     pub fn new(seed: u64, organism_count: u32) -> Self {
         let mut rng = Rng::from_seed(seed);
-        let body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
 
-        let mut organisms = Vec::with_capacity(organism_count as usize);
-        for index in 0..organism_count {
+        // The played critter is organism zero, built by the same constructor
+        // as everything else. It is distinguished only by being pointed at.
+        let mut organisms = Vec::with_capacity(organism_count as usize + 1);
+        organisms.push(Organism::founding(
+            OrganismId(0),
+            SpeciesId(1),
+            Kingdom::Consumer,
+            VolumeRef::from_tag(1),
+            [2, 2, 2],
+            [0, 0, 0],
+            1_000,
+        ));
+
+        for index in 1..=organism_count {
             // Draws happen in a fixed order, so the scatter is reproducible.
             let x = rng.range_i32(-16, 16);
             let y = rng.range_i32(-2, 2);
@@ -168,20 +197,28 @@ impl World {
                 2..=3 => (Signal::Warning, 60 + rng.below(60), kingdom),
                 _ => (Signal::Plain, 0, kingdom),
             };
+            let volume = VolumeRef::from_tag(16 + (index % 8) as u8);
+            let half_extent = organism_extent(16 + (index % 8) as u8);
             organisms.push(Organism {
-                id: OrganismId(index),
-                species,
-                kingdom,
-                volume: VolumeRef::from_tag(16 + (index % 8) as u8),
-                mass_mg: mass,
-                half_extent: organism_extent(16 + (index % 8) as u8),
+                body: BodyDocument::new(species, volume, mass, half_extent),
+                energy_mg: mass,
                 position: [x, y, z],
-                stage: Stage::Juvenile,
+                mass_mg: mass,
+                stage: Stage::Mature,
                 age,
-                since_offspring: rng.below(120) as u32,
+                since_offspring: 0,
                 signal,
                 venom_mg,
                 guise,
+                ..Organism::founding(
+                    OrganismId(index),
+                    species,
+                    kingdom,
+                    volume,
+                    half_extent,
+                    [x, y, z],
+                    mass,
+                )
             });
         }
 
@@ -189,13 +226,65 @@ impl World {
             tick: 0,
             epoch: 0,
             rng,
-            position: [0, 0, 0],
-            body,
+            controlled: OrganismId(0),
             organisms,
-            next_organism: organism_count,
+            next_organism: organism_count + 1,
             last_tally: crate::organism::Tally::default(),
-            energy_mg: 1_000,
         }
+    }
+
+    /// Which organism the player is.
+    pub fn controlled_id(&self) -> OrganismId {
+        self.controlled
+    }
+
+    /// The played organism, if it is still alive.
+    ///
+    /// `None` is a real answer, not an error. The controlled critter is
+    /// subject to the same ecology as everything else, so it can starve or be
+    /// eaten; exempting it would be a rule that branches on who is playing,
+    /// which is exactly what the wing's third law forbids.
+    pub fn controlled(&self) -> Option<&Organism> {
+        self.organisms.iter().find(|o| o.id == self.controlled)
+    }
+
+    fn controlled_mut(&mut self) -> Option<&mut Organism> {
+        let id = self.controlled;
+        self.organisms.iter_mut().find(|o| o.id == id)
+    }
+
+    /// Moves control to another organism.
+    ///
+    /// Refuses an organism that does not exist. Nothing else changes: no state
+    /// is rebuilt, nothing is copied, and the world does not notice.
+    pub fn take_control(&mut self, organism: OrganismId) -> bool {
+        if self.organisms.iter().any(|o| o.id == organism) {
+            self.controlled = organism;
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    /// The played critter's anatomy.
+    pub fn body(&self) -> &BodyDocument {
+        self.controlled().map(|o| &o.body).unwrap_or(&EMPTY_BODY)
+    }
+
+    /// Where the played critter is. The origin when there is nobody.
+    pub fn position(&self) -> [i32; 3] {
+        self.controlled().map(|o| o.position).unwrap_or([0, 0, 0])
+    }
+
+    /// The played critter's budget.
+    pub fn energy_mg(&self) -> u64 {
+        self.controlled().map(|o| o.energy_mg).unwrap_or(0)
+    }
+
+    /// Whether anyone is being played.
+    pub fn is_embodied(&self) -> bool {
+        self.controlled().is_some()
     }
 
     /// Applies one intent and advances the tick. This is the only way world
@@ -230,17 +319,26 @@ impl World {
     }
 
     fn resolve(&mut self, intent: Intent) -> Outcome {
+        // Every acting intent needs somebody to act. Nobody home is a
+        // refusal, not a panic: a world can outlive whoever was in it.
+        if !matches!(intent, Intent::Idle) && !self.is_embodied() {
+            return Outcome::Rejected(Rejection::Disembodied);
+        }
+
         match intent {
             Intent::Idle => Outcome::Idled,
 
             Intent::Move { delta } => {
                 let distance = delta.iter().map(|d| d.unsigned_abs() as u64).sum::<u64>();
                 let cost = distance * MOVE_COST_MG;
-                if cost > self.energy_mg {
+                let Some(me) = self.controlled_mut() else {
+                    return Outcome::Rejected(Rejection::Disembodied);
+                };
+                if cost > me.energy_mg {
                     return Outcome::Rejected(Rejection::InsufficientMass);
                 }
-                self.energy_mg -= cost;
-                for (axis, step) in self.position.iter_mut().zip(delta) {
+                me.energy_mg -= cost;
+                for (axis, step) in me.position.iter_mut().zip(delta) {
                     *axis += step;
                 }
                 Outcome::Moved
@@ -249,28 +347,35 @@ impl World {
             Intent::Metabolize { organism, route } => self.metabolize(organism, route),
 
             Intent::Deposit { mass_mg } => {
-                if mass_mg == 0 || mass_mg > self.energy_mg {
-                    return Outcome::Rejected(Rejection::InsufficientMass);
+                let (species, position) = {
+                    let Some(me) = self.controlled() else {
+                        return Outcome::Rejected(Rejection::Disembodied);
+                    };
+                    (me.species, me.position)
+                };
+                {
+                    let me = self.controlled_mut().expect("checked above");
+                    if mass_mg == 0 || mass_mg > me.energy_mg {
+                        return Outcome::Rejected(Rejection::InsufficientMass);
+                    }
+                    me.energy_mg -= mass_mg;
                 }
-                self.energy_mg -= mass_mg;
+
                 let id = OrganismId(self.next_organism);
                 self.next_organism += 1;
                 self.organisms.push(Organism {
-                    id,
-                    species: self.body.species,
                     // Deposited matter is dead matter: it feeds decomposers
                     // and returns to the world rather than growing.
-                    kingdom: Kingdom::Decomposer,
-                    volume: VolumeRef::from_tag(64),
-                    mass_mg,
-                    half_extent: [1, 1, 1],
-                    position: self.position,
                     stage: Stage::Carrion,
-                    age: 0,
-                    since_offspring: 0,
-                    signal: Signal::Plain,
-                    venom_mg: 0,
-                    guise: Kingdom::Decomposer,
+                    ..Organism::founding(
+                        id,
+                        species,
+                        Kingdom::Decomposer,
+                        VolumeRef::from_tag(64),
+                        [1, 1, 1],
+                        position,
+                        mass_mg,
+                    )
                 });
                 Outcome::Deposited { organism: id }
             }
@@ -287,11 +392,14 @@ impl World {
     /// cut consumed the meal and charged its venom before the attachment was
     /// known to succeed.
     fn metabolize(&mut self, organism: OrganismId, route: Route) -> Outcome {
+        if organism == self.controlled {
+            return Outcome::Rejected(Rejection::Itself);
+        }
         let Some(index) = self.organisms.iter().position(|m| m.id == organism) else {
             return Outcome::Rejected(Rejection::NoSuchOrganism(organism));
         };
         if let Route::Incorporate { placement: Placement::Explicit { parent, .. } } = route
-            && self.body.part(parent).is_none()
+            && self.body().part(parent).is_none()
         {
             return Outcome::Rejected(Rejection::NoSuchParent(parent));
         }
@@ -303,7 +411,8 @@ impl World {
         // with nowhere to put a part refuses without eating anything.
         let growth = match route {
             Route::Incorporate { placement: Placement::Planned } => {
-                match crate::growth::resolve(&self.body, self.organisms[index].half_extent) {
+                let extent = self.organisms[index].half_extent();
+                match crate::growth::resolve(self.body(), extent) {
                     Some(growth) => Some(growth),
                     None => return Outcome::Rejected(Rejection::NoRoom),
                 }
@@ -327,7 +436,9 @@ impl World {
         // The floor itself remains: energy is unsigned, so venom beyond what a
         // critter has is forgiven rather than owed. A debt or damage model is a
         // later decision, recorded in the phenotype plan.
-        self.energy_mg = (self.energy_mg + gain_mg).saturating_sub(eaten.venom_mg);
+        if let Some(me) = self.controlled_mut() {
+            me.energy_mg = (me.energy_mg + gain_mg).saturating_sub(eaten.venom_mg);
+        }
         outcome
     }
 
@@ -346,10 +457,10 @@ impl World {
             ),
             Route::Incorporate { placement: Placement::Explicit { parent, offset, yaw } } => {
                 let provenance = self.taken_from(eaten);
-                let attached = self.body.attach(
-                    eaten.volume,
+                let attached = self.controlled_body_mut().attach(
+                    eaten.volume(),
                     eaten.mass_mg,
-                    eaten.half_extent,
+                    eaten.half_extent(),
                     Attachment { parent, offset, yaw },
                     provenance,
                 );
@@ -367,10 +478,10 @@ impl World {
                 let parts = if growth.mirror.is_some() { 2 } else { 1 };
                 let each = eaten.mass_mg / parts;
 
-                let Ok(part) = self.body.attach(
-                    eaten.volume,
+                let Ok(part) = self.controlled_body_mut().attach(
+                    eaten.volume(),
                     each,
-                    eaten.half_extent,
+                    eaten.half_extent(),
                     crate::growth::attachment(&growth),
                     provenance.clone(),
                 ) else {
@@ -380,10 +491,10 @@ impl World {
                 // No energy. Growing is the slow answer, and a meal cannot be
                 // both meals.
                 let outcome = match crate::growth::mirror_attachment(&growth) {
-                    Some(mirrored) => match self.body.attach(
-                        eaten.volume,
+                    Some(mirrored) => match self.controlled_body_mut().attach(
+                        eaten.volume(),
                         each,
-                        eaten.half_extent,
+                        eaten.half_extent(),
                         mirrored,
                         provenance,
                     ) {
@@ -397,6 +508,18 @@ impl World {
         }
     }
 
+    /// The played critter's anatomy, mutably. Only reached after control
+    /// has been confirmed, so the fallback is unreachable in practice.
+    fn controlled_body_mut(&mut self) -> &mut BodyDocument {
+        let id = self.controlled;
+        &mut self
+            .organisms
+            .iter_mut()
+            .find(|o| o.id == id)
+            .expect("metabolize checks embodiment before landing a meal")
+            .body
+    }
+
     /// Provenance for a part taken off `eaten`.
     fn taken_from(&self, eaten: &Organism) -> Provenance {
         Provenance {
@@ -406,16 +529,16 @@ impl World {
     }
 
     fn within_reach(&self, target: [i32; 3]) -> bool {
-        (0..3).all(|axis| (target[axis] - self.position[axis]).abs() <= REACH)
+        (0..3).all(|axis| (target[axis] - self.position()[axis]).abs() <= REACH)
     }
 
     /// The body's collision extent in body space.
     pub fn collision(&self) -> Aabb {
-        self.body.aabb()
+        self.body().aabb()
     }
 
     pub fn total_mass_mg(&self) -> u64 {
-        self.body.total_mass_mg()
+        self.body().total_mass_mg()
     }
 
     /// Ends the current epoch. Bodies change between epochs, not during them.
@@ -432,6 +555,7 @@ mod tests {
         world
             .organisms
             .iter()
+            .filter(|m| m.id != world.controlled_id())
             .find(|m| world.within_reach(m.position))
             .expect("fixture places at least one organism in reach")
             .id
@@ -458,7 +582,7 @@ mod tests {
         let mass_before = world.total_mass_mg();
         let box_before = world.collision();
 
-        let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [5, 0, 0], yaw: Yaw::Zero } } });
+        let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().root, offset: [5, 0, 0], yaw: Yaw::Zero } } });
 
         assert!(matches!(outcome, Outcome::Incorporated { .. }));
         assert!(world.total_mass_mg() > mass_before);
@@ -476,11 +600,11 @@ mod tests {
             .map(|m| m.species)
             .unwrap();
 
-        let Outcome::Incorporated { part } = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [4, 0, 0], yaw: Yaw::Zero } } }) else {
+        let Outcome::Incorporated { part } = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().root, offset: [4, 0, 0], yaw: Yaw::Zero } } }) else {
             panic!("expected incorporation");
         };
 
-        let provenance = &world.body.part(part).unwrap().provenance;
+        let provenance = &world.body().part(part).unwrap().provenance;
         assert_eq!(
             provenance.origin,
             Origin::Incorporated { from_species: eaten_species, from_part: PartId(0) }
@@ -491,21 +615,18 @@ mod tests {
     fn out_of_reach_organisms_are_refused() {
         let mut world = World::new(5, 4);
         world.organisms.push(Organism {
-            id: OrganismId(900),
-            species: SpeciesId(3),
-            kingdom: Kingdom::Producer,
-            volume: VolumeRef::from_tag(2),
-            mass_mg: 100,
-            half_extent: [1, 1, 1],
-            position: [500, 0, 0],
             stage: Stage::Mature,
-            age: 0,
-            since_offspring: 0,
-            signal: Signal::Plain,
-            venom_mg: 0,
-            guise: Kingdom::Producer,
+            ..Organism::founding(
+                OrganismId(900),
+                SpeciesId(3),
+                Kingdom::Producer,
+                VolumeRef::from_tag(2),
+                [1, 1, 1],
+                [500, 0, 0],
+                100,
+            )
         });
-        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(900), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [1, 0, 0], yaw: Yaw::Zero } } });
+        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(900), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().root, offset: [1, 0, 0], yaw: Yaw::Zero } } });
         assert_eq!(outcome, Outcome::Rejected(Rejection::OutOfReach));
     }
 
@@ -513,7 +634,7 @@ mod tests {
     fn rejected_intents_still_advance_the_tick() {
         let mut world = World::new(11, 2);
         let before = world.tick;
-        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(4242), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [0, 0, 0], yaw: Yaw::Zero } } });
+        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(4242), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().root, offset: [0, 0, 0], yaw: Yaw::Zero } } });
         assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchOrganism(OrganismId(4242))));
         assert_eq!(world.tick, before + 1);
     }
@@ -521,9 +642,9 @@ mod tests {
     #[test]
     fn movement_spends_the_budget() {
         let mut world = World::new(3, 2);
-        let before = world.energy_mg;
+        let before = world.energy_mg();
         world.apply(Intent::Move { delta: [3, 0, -2] });
-        assert_eq!(world.energy_mg, before - 5);
+        assert_eq!(world.energy_mg(), before - 5);
     }
 
     #[test]

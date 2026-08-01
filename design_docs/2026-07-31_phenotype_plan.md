@@ -508,13 +508,48 @@ things are known to be missing from a fair reading: burning has no use yet
 beyond deferring starvation, because energy only pays for movement, and there
 is no visible pressure that makes hoarding mass feel costly.
 
-### P1. One organism model
+### P1. One organism model — **LANDED 2026-08-01**
 
 One authored prey and the controlled critter both use the body-bearing organism
 representation.
 
 **Done when:** changing control between them changes neither serialization nor
 ecology semantics, and the scene renderer discovers both through the same path.
+
+**Landed.** `Organism` carries a `BodyDocument` and an `energy_mg`; `volume` and
+`half_extent` became readings of the root part, so a body and the shape the
+world sees cannot disagree. `World` lost `position`, `body`, and `energy_mg`,
+and gained `controlled: OrganismId`. The played critter is organism zero, built
+by the same constructor as everything else.
+
+Ten tests in `tests/control.rs`. The load-bearing ones: taking control leaves
+the roster byte-identical, two worlds differing only in who is inhabited
+serialize to the same length, and forty ticks of ecology run identically
+whichever organism is pointed at.
+
+**Three things the migration surfaced that the design pass did not predict.**
+
+1. **A critter could eat itself.** Putting the player in the roster made
+   self-consumption expressible for the first time. Refused as
+   `Rejection::Itself`, and every prey search in the codebase now filters the
+   controlled organism out. This was found by a panic, not by review.
+2. **The played critter can now die.** The ecology retains on `stage != Spent`
+   and nothing exempts the player, which is correct: an exemption would be a
+   rule branching on who is playing. So `controlled()` returns `Option`,
+   acting while disembodied is `Rejection::Disembodied` rather than a panic,
+   and a world can outlive whoever was in it. That is what "leave the world
+   running" has to mean.
+3. **`mass_mg` and `body.total_mass_mg()` are now two truths.** Kept
+   deliberately: merging them means routing grazing and upkeep through parts,
+   which is the "bigger bodies cost more" work that belongs to P2. Recorded as
+   a finding rather than left silent.
+
+**Replay hashes moved, as predicted.** `World::new` now seeds one more organism
+and ids shift by one, so the played fixture's hunt finds different prey and
+grows to 36 parts where it grew to 47. Fixtures regenerated in the same commit,
+the full Mesocosm-to-Isometry-and-back loop reproven, and the property asserted
+in place of hash stability is that **the same intent trace moves whoever is
+inhabited by the same amount**.
 
 ### P2. One embodied consequence
 
@@ -695,10 +730,15 @@ precedent: a version boundary is honest, a silent reinterpretation is not.
   ecology semantics.
 - The scene renderer discovers the played critter through the same path as
   everything else.
-- A cohort round-trip conserves mass, energy, and lineage, and refuses to
-  aggregate a subject carrying a chronicle.
 - Replay holds within the new schema, with regenerated fixtures and a commit
   that says so.
+
+**Corrected 2026-08-01, before implementing.** An earlier draft of this list
+also required a cohort round-trip. That is P5's done-condition, duplicated here
+by mistake. §7.3 settles the cohort *rule contract*, which P1 satisfies by
+having nothing branch on realized-ness; the second storage arrives when
+scale demands it, and building an aggregation path with no consumer would be
+the speculative generality this plan's own stop rules forbid.
 
 ### Not in P1
 
@@ -707,6 +747,19 @@ and branch transfer. Those are P2 and P3, and they are the *reason* for P1
 rather than part of it.
 
 ## Findings
+
+- **2026-08-01:** P1 surfaced that the played critter could target itself once
+  it joined the organism roster. Refused, and every prey search now excludes
+  the controlled organism. Found by a panic in `controlled_body_mut`, which is
+  the kind of defect a state migration produces and a review does not.
+- **2026-08-01:** nothing exempts the played critter from the ecology's
+  `stage != Spent` retention, so it can die. Correct rather than a bug, since
+  an exemption would branch on who is playing, but it means embodiment is now
+  an `Option` and every acting intent needs a disembodied refusal.
+- **2026-08-01:** `Organism::mass_mg` and `Organism::body.total_mass_mg()` are
+  two accounts of the same quantity. P1 kept both on purpose; reconciling them
+  means routing grazing and upkeep through parts, which is P2's work and is
+  also what makes a large body cost something.
 
 - **2026-08-01:** P0's first cut typed the editor path as `Route::Place`, a
   destination beside `Burn`. That conflated *where a meal goes* with *how a

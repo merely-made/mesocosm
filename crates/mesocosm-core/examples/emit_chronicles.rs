@@ -52,16 +52,16 @@ fn played() -> Chronicle {
         let Some((prey, at)) = world
             .organisms
             .iter()
-            .filter(|organism| organism.mass_mg > 0)
+            .filter(|organism| organism.mass_mg > 0 && organism.id != world.controlled_id())
             .map(|organism| (organism.id, organism.position))
             .min_by_key(|(_, at): &(OrganismId, [i32; 3])| {
-                (0..3).map(|axis| (at[axis] - world.position[axis]).abs()).max().unwrap_or(0)
+                (0..3).map(|axis| (at[axis] - world.position()[axis]).abs()).max().unwrap_or(0)
             })
         else {
             break;
         };
 
-        let step = [0, 1, 2].map(|axis| (at[axis] - world.position[axis]).signum());
+        let step = [0, 1, 2].map(|axis| (at[axis] - world.position()[axis]).signum());
         if step == [0, 0, 0] {
             world.apply(Intent::Metabolize { organism: prey, route: Route::Incorporate { placement: Placement::Planned } });
         } else {
@@ -69,6 +69,6 @@ fn played() -> Chronicle {
         }
     }
 
-    assert!(world.body.len() > 1, "the played critter actually grew");
-    Chronicle::of(&world.body)
+    assert!(world.body().len() > 1, "the played critter actually grew");
+    Chronicle::of(world.body())
 }

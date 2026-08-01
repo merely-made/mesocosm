@@ -41,15 +41,15 @@ fn played() -> Chronicle {
     for _ in 0..400 {
         let Some(prey) = nearest(&world) else { break };
 
-        if let Some(step) = toward(world.position, prey.1) {
+        if let Some(step) = toward(world.position(), prey.1) {
             world.apply(Intent::Move { delta: step });
         } else {
             world.apply(Intent::Metabolize { organism: prey.0, route: Route::Incorporate { placement: Placement::Planned } });
         }
     }
 
-    assert!(world.body.len() > 1, "the played critter actually grew");
-    Chronicle::of(&world.body)
+    assert!(world.body().len() > 1, "the played critter actually grew");
+    Chronicle::of(world.body())
 }
 
 /// The closest living organism, by the same distance the reach rule uses.
@@ -57,10 +57,10 @@ fn nearest(world: &World) -> Option<(mesocosm_core::OrganismId, [i32; 3])> {
     world
         .organisms
         .iter()
-        .filter(|organism| organism.mass_mg > 0)
+        .filter(|organism| organism.mass_mg > 0 && organism.id != world.controlled_id())
         .map(|organism| (organism.id, organism.position))
         .min_by_key(|(_, at)| {
-            (0..3).map(|axis| (at[axis] - world.position[axis]).abs()).max().unwrap_or(0)
+            (0..3).map(|axis| (at[axis] - world.position()[axis]).abs()).max().unwrap_or(0)
         })
 }
 

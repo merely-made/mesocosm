@@ -30,7 +30,7 @@ fn fixture_trace(world: &World) -> Vec<Intent> {
         .organisms
         .iter()
         .filter(|m| {
-            (0..3).all(|axis| (m.position[axis] - world.position[axis]).abs() <= 8)
+            (0..3).all(|axis| (m.position[axis] - world.position()[axis]).abs() <= 8)
         })
         .map(|m| m.id)
         .collect();
@@ -83,7 +83,7 @@ fn fixture_incorporates_and_the_body_grows() {
 
     let mass_before = world.total_mass_mg();
     let box_before = world.collision();
-    let parts_before = world.body.len();
+    let parts_before = world.body().len();
 
     let outcomes = world.apply_all(&trace);
     let incorporated = outcomes
@@ -93,7 +93,7 @@ fn fixture_incorporates_and_the_body_grows() {
 
     assert!(incorporated > 0, "fixture must actually eat something");
     assert!(world.total_mass_mg() > mass_before, "mass must grow");
-    assert!(world.body.len() > parts_before, "body must gain parts");
+    assert!(world.body().len() > parts_before, "body must gain parts");
 
     let after = world.collision();
     assert!(
@@ -135,7 +135,7 @@ fn provenance_round_trips_through_the_wire() {
 fn provenance_survives_a_whole_world_snapshot() {
     let world = run_fixture();
     let donors: Vec<SpeciesId> = world
-        .body
+        .body()
         .incorporated()
         .map(|p| match p.provenance.origin {
             Origin::Incorporated { from_species, .. } => from_species,
@@ -147,7 +147,7 @@ fn provenance_survives_a_whole_world_snapshot() {
     let bytes = snapshot(&world).unwrap();
     let restored = restore(&bytes).unwrap();
     let restored_donors: Vec<SpeciesId> = restored
-        .body
+        .body()
         .incorporated()
         .map(|p| match p.provenance.origin {
             Origin::Incorporated { from_species, .. } => from_species,

@@ -20,6 +20,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::body::BodyDocument;
+
 use crate::body::{SpeciesId, VolumeRef};
 use crate::rng::Rng;
 
@@ -110,9 +112,25 @@ pub struct Organism {
     /// part you take always knows whose it was.
     pub species: SpeciesId,
     pub kingdom: Kingdom,
-    pub volume: VolumeRef,
-    pub half_extent: [i32; 3],
+    /// This organism's anatomy.
+    ///
+    /// **Every organism has one**, played or not. Before P1 only the critter
+    /// the player inhabited had a body and everything else was a `VolumeRef`
+    /// and a `half_extent`, which meant anatomy could never constrain an
+    /// unplayed creature and prey had no parts to lose. The pair it replaces
+    /// are now readings of the root part, so there is one place a shape is
+    /// written down.
+    ///
+    /// Most organisms carry a single root part. That is a body, not a special
+    /// case, and it grows by the same rules as any other.
+    pub body: BodyDocument,
     pub position: [i32; 3],
+    /// What this organism can spend. Distinct from [`Self::mass_mg`], which is
+    /// what it weighs.
+    ///
+    /// Before P1 only the played critter had a budget, so nothing else could
+    /// run out of one.
+    pub energy_mg: u64,
     pub mass_mg: u64,
     pub stage: Stage,
     pub age: u32,
@@ -137,6 +155,47 @@ pub struct Organism {
 }
 
 impl Organism {
+    /// A minimal organism: one root part, and the scalars the ecology moves.
+    #[allow(clippy::too_many_arguments)]
+    pub fn founding(
+        id: OrganismId,
+        species: SpeciesId,
+        kingdom: Kingdom,
+        volume: VolumeRef,
+        half_extent: [i32; 3],
+        position: [i32; 3],
+        mass_mg: u64,
+    ) -> Self {
+        Self {
+            id,
+            species,
+            kingdom,
+            body: BodyDocument::new(species, volume, mass_mg, half_extent),
+            position,
+            energy_mg: mass_mg,
+            mass_mg,
+            stage: Stage::Juvenile,
+            age: 0,
+            since_offspring: 0,
+            signal: Signal::Plain,
+            venom_mg: 0,
+            guise: kingdom,
+        }
+    }
+
+    /// The volume a projection should draw for this organism: its root part's.
+    pub fn volume(&self) -> VolumeRef {
+        self.body.part(self.body.root).map(|p| p.volume).unwrap_or(VolumeRef([0; 32]))
+    }
+
+    /// This organism's overall half-extent, read off its root part.
+    ///
+    /// A reading rather than a field, so a body and the shape the world sees
+    /// cannot disagree.
+    pub fn half_extent(&self) -> [i32; 3] {
+        self.body.part(self.body.root).map(|p| p.half_extent).unwrap_or([1, 1, 1])
+    }
+
     pub fn is_alive(&self) -> bool {
         self.stage.is_alive()
     }
@@ -345,8 +404,11 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
             id: OrganismId(*next_id),
             species: parent.species,
             kingdom: parent.kingdom,
-            volume: parent.volume,
-            half_extent: parent.half_extent,
+            // A child inherits its parent's anatomy. Not yet a developmental
+            // program regrowing a fresh phenotype -- that is P4 -- but it is
+            // no longer two scalars pretending to be a shape.
+            body: parent.body.clone(),
+            energy_mg: cost,
             position: [
                 parent.position[0] + scatter[0],
                 parent.position[1],
@@ -382,21 +444,15 @@ mod tests {
     use super::*;
 
     fn organism(kingdom: Kingdom, mass: u64) -> Organism {
-        Organism {
-            id: OrganismId(0),
-            species: SpeciesId(2),
+        Organism::founding(
+            OrganismId(0),
+            SpeciesId(2),
             kingdom,
-            volume: VolumeRef::from_tag(16),
-            half_extent: [1, 1, 1],
-            position: [0, 0, 0],
-            mass_mg: mass,
-            stage: Stage::Juvenile,
-            age: 0,
-            since_offspring: 0,
-            signal: Signal::Plain,
-            venom_mg: 0,
-            guise: kingdom,
-        }
+            VolumeRef::from_tag(16),
+            [1, 1, 1],
+            [0, 0, 0],
+            mass,
+        )
     }
 
     fn run(organisms: &mut Vec<Organism>, ticks: u32) -> Tally {

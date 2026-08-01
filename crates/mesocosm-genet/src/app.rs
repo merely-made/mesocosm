@@ -150,7 +150,7 @@ impl Host {
     fn camera(&self) -> Camera {
         let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
         let mut camera = Camera::following(
-            self.runtime.world().position,
+            self.runtime.world().position(),
             WORLD_EXTENT * self.view.zoom,
             aspect,
         );
@@ -164,15 +164,15 @@ impl Host {
     /// eaten reads without a UI element.
     fn scene(&self) -> Option<(BodyMesh, Vec<Placed>)> {
         let world = self.runtime.world();
-        let body = mesh_body(&world.body, &self.volumes).ok()?;
+        let body = mesh_body(world.body(), &self.volumes).ok()?;
 
         let mut loose = Vec::with_capacity(world.organisms.len());
         for organism in &world.organisms {
-            let Some(volume) = self.volumes.volume(organism.volume) else {
+            let Some(volume) = self.volumes.volume(organism.volume()) else {
                 continue;
             };
             let in_reach = (0..3).all(|a| {
-                (organism.position[a] - world.position[a]).abs() <= REACH
+                (organism.position[a] - world.position()[a]).abs() <= REACH
             });
             // Dim what cannot be reached; that is information the player is
             // entitled to. Whether the thing is telling the truth about itself
@@ -180,7 +180,7 @@ impl Host {
             let reach_tint = if in_reach { 1.0 } else { 0.45 };
             let (colour, scale) = look_of(organism);
             loose.push((
-                BodyMesh::single(organism.volume, volume),
+                BodyMesh::single(organism.volume(), volume),
                 organism.position,
                 reach_tint,
                 organism.signal == Signal::Warning,
@@ -259,7 +259,7 @@ impl Host {
 
         let camera = self.camera();
         let Some((body, loose)) = self.scene() else { return };
-        let critter_at = self.runtime.world().position;
+        let critter_at = self.runtime.world().position();
 
         let Some(gpu) = &mut self.gpu else { return };
         // wgpu 29 returns an enum rather than a Result here: a suboptimal
@@ -303,7 +303,7 @@ impl Host {
         let Some(path) = &self.config.capture else { return };
         let Some(gpu) = &self.gpu else { return };
         let Some((body, loose)) = self.scene() else { return };
-        let critter_at = self.runtime.world().position;
+        let critter_at = self.runtime.world().position();
 
         // The offscreen path wants our own colour format, not the surface's.
         let shot = Renderer::with_device(
@@ -336,7 +336,7 @@ impl Host {
             path.display(),
             self.frames,
             self.steps,
-            self.runtime.world().body.len()
+            self.runtime.world().body().len()
         );
     }
 }

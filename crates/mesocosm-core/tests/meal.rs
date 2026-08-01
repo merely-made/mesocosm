@@ -16,6 +16,13 @@
 
 use mesocosm_core::{Intent, Outcome, Rejection, Placement, Route, World, snapshot, state_hash};
 
+/// Sets the played critter's budget. Energy lives on the organism now, so a
+/// test that wants a starving critter has to say which one.
+fn set_energy(world: &mut World, energy_mg: u64) {
+    let id = world.controlled_id();
+    world.organisms.iter_mut().find(|o| o.id == id).unwrap().energy_mg = energy_mg;
+}
+
 /// A world with something in reach, and the id of what to eat.
 fn fed() -> (World, mesocosm_core::OrganismId) {
     let mut world = World::new(4_242, 24);
@@ -25,15 +32,16 @@ fn fed() -> (World, mesocosm_core::OrganismId) {
         let Some((prey, at)) = world
             .organisms
             .iter()
-            .filter(|o| o.mass_mg > 0)
+            .filter(|o| o.mass_mg > 0 && o.id != world.controlled_id())
+            .filter(|o| o.id != world.controlled_id())
             .map(|o| (o.id, o.position))
             .min_by_key(|(_, at): &(_, [i32; 3])| {
-                (0..3).map(|a| (at[a] - world.position[a]).abs()).max().unwrap_or(0)
+                (0..3).map(|a| (at[a] - world.position()[a]).abs()).max().unwrap_or(0)
             })
         else {
             break;
         };
-        let step = [0, 1, 2].map(|a| (at[a] - world.position[a]).signum());
+        let step = [0, 1, 2].map(|a| (at[a] - world.position()[a]).signum());
         if step == [0, 0, 0] {
             return (world, prey);
         }
@@ -45,14 +53,14 @@ fn fed() -> (World, mesocosm_core::OrganismId) {
 #[test]
 fn burning_gives_energy_and_no_body() {
     let (mut world, prey) = fed();
-    let parts = world.body.len();
-    let energy = world.energy_mg;
+    let parts = world.body().len();
+    let energy = world.energy_mg();
 
     let outcome = world.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
 
     assert!(matches!(outcome, Outcome::Burned { .. }), "got {outcome:?}");
-    assert_eq!(world.body.len(), parts, "burning grows nothing");
-    assert!(world.energy_mg > energy, "and it pays now");
+    assert_eq!(world.body().len(), parts, "burning grows nothing");
+    assert!(world.energy_mg() > energy, "and it pays now");
 }
 
 #[test]
@@ -60,8 +68,8 @@ fn incorporating_gives_body_and_no_energy() {
     // The half of the tradeoff that used to be free. Growth is the slow
     // answer, and a meal cannot be both meals.
     let (mut world, prey) = fed();
-    let parts = world.body.len();
-    let energy = world.energy_mg;
+    let parts = world.body().len();
+    let energy = world.energy_mg();
 
     let outcome = world.apply(Intent::Metabolize { organism: prey, route: Route::Incorporate { placement: Placement::Planned } });
 
@@ -69,8 +77,8 @@ fn incorporating_gives_body_and_no_energy() {
         matches!(outcome, Outcome::Incorporated { .. } | Outcome::IncorporatedPair { .. }),
         "got {outcome:?}"
     );
-    assert!(world.body.len() > parts, "the body grew");
-    assert!(world.energy_mg <= energy, "and it paid nothing immediately");
+    assert!(world.body().len() > parts, "the body grew");
+    assert!(world.energy_mg() <= energy, "and it paid nothing immediately");
 }
 
 #[test]
@@ -103,8 +111,8 @@ fn burning_and_growing_diverge_from_one_world() {
     grown.apply(Intent::Metabolize { organism: prey, route: Route::Incorporate { placement: Placement::Planned } });
 
     assert_ne!(state_hash(&burned), state_hash(&grown), "the routes are not the same act");
-    assert!(burned.energy_mg > grown.energy_mg, "one lives now");
-    assert!(grown.body.len() > burned.body.len(), "the other grows later");
+    assert!(burned.energy_mg() > grown.energy_mg(), "one lives now");
+    assert!(grown.body().len() > burned.body().len(), "the other grows later");
 }
 
 #[test]
@@ -113,63 +121,29 @@ fn venom_is_charged_whatever_the_meal_becomes() {
     // the automatic path did not, so the safe-looking verb was the dangerous
     // one. A warning signal is only worth reading if believing it changes what
     // happens, on every route.
-    let mut world = World::new(4_242, 24);
-
-    // Give everything in reach a real venom load, then walk to one.
-    for organism in world.organisms.iter_mut() {
-        organism.venom_mg = 40;
+    let (mut world, prey) = fed();
+    let venom = 40;
+    {
+        let o = world.organisms.iter_mut().find(|o| o.id == prey).unwrap();
+        o.venom_mg = venom;
     }
-    let (mut world, prey) = {
-        for _ in 0..400 {
-            let Some((_id, at)) = world
-                .organisms
-                .iter()
-                .map(|o| (o.id, o.position))
-                .min_by_key(|(_, at): &(_, [i32; 3])| {
-                    (0..3).map(|a| (at[a] - world.position[a]).abs()).max().unwrap_or(0)
-                })
-            else {
-                break;
-            };
-            let step = [0, 1, 2].map(|a| (at[a] - world.position[a]).signum());
-            if step == [0, 0, 0] {
-                break;
-            }
-            world.apply(Intent::Move { delta: step });
-        }
-        let prey = world
-            .organisms
-            .iter()
-            .find(|o| {
-                (0..3).all(|a| (o.position[a] - world.position[a]).abs() <= 8)
-            })
-            .map(|o| o.id)
-            .expect("something is in reach");
-        (world, prey)
-    };
 
-    let venom = world.organisms.iter().find(|o| o.id == prey).map(|o| o.venom_mg).unwrap();
-    assert!(venom > 0, "the fixture is actually venomous");
-
+    let mass = world.organisms.iter().find(|o| o.id == prey).map(|o| o.mass_mg).unwrap();
+    let before = world.energy_mg();
     let mut grown = world.clone();
-    let before = world.energy_mg;
 
-    let burned_energy = {
-        let mass = world.organisms.iter().find(|o| o.id == prey).map(|o| o.mass_mg).unwrap();
-        world.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
-        // **Gains before costs.** The earlier version subtracted venom first,
-        // which this assertion enshrined; with low energy the floor erased part
-        // of the toxin before the meal paid out.
-        assert_eq!(world.energy_mg, (before + mass).saturating_sub(venom));
-        world.energy_mg
-    };
+    world.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
+    // Gains before costs. The earlier version subtracted venom first, which
+    // this assertion enshrined; with low energy the floor erased part of the
+    // toxin before the meal paid out.
+    assert_eq!(world.energy_mg(), (before + mass).saturating_sub(venom));
 
     grown.apply(Intent::Metabolize {
         organism: prey,
         route: Route::Incorporate { placement: Placement::Planned },
     });
-    assert_eq!(grown.energy_mg, before.saturating_sub(venom), "growing pays it too");
-    assert!(burned_energy > grown.energy_mg);
+    assert_eq!(grown.energy_mg(), before.saturating_sub(venom), "growing pays it too");
+    assert!(world.energy_mg() > grown.energy_mg());
 }
 
 #[test]
@@ -185,12 +159,12 @@ fn being_nearly_starved_does_not_make_venom_safer() {
         o.venom_mg = 500;
         (o.mass_mg, o.venom_mg)
     };
-    world.energy_mg = 10; // nearly starved
-    assert!(venom > world.energy_mg + mass, "the toxin outweighs the meal");
+    set_energy(&mut world, 10); // nearly starved
+    assert!(venom > world.energy_mg() + mass, "the toxin outweighs the meal");
 
     world.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
 
-    assert_eq!(world.energy_mg, 0, "a meal that cannot cover its venom leaves nothing");
+    assert_eq!(world.energy_mg(), 0, "a meal that cannot cover its venom leaves nothing");
 }
 
 #[test]
@@ -204,16 +178,16 @@ fn a_full_critter_pays_the_same_toxin_as_a_starving_one() {
     for world in [&mut rich, &mut poor] {
         world.organisms.iter_mut().find(|o| o.id == prey).unwrap().venom_mg = 60;
     }
-    rich.energy_mg = 5_000;
-    poor.energy_mg = 1_000;
+    set_energy(&mut rich, 5_000);
+    set_energy(&mut poor, 1_000);
 
-    let (rich_before, poor_before) = (rich.energy_mg, poor.energy_mg);
+    let (rich_before, poor_before) = (rich.energy_mg(), poor.energy_mg());
     rich.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
     poor.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
 
     assert_eq!(
-        rich.energy_mg - rich_before,
-        poor.energy_mg - poor_before,
+        rich.energy_mg() - rich_before,
+        poor.energy_mg() - poor_before,
         "the same meal nets the same amount at any starting energy"
     );
 }
@@ -227,8 +201,8 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
     world.organisms.iter_mut().find(|o| o.id == prey).unwrap().venom_mg = 90;
 
     let roster = world.organisms.len();
-    let energy = world.energy_mg;
-    let parts = world.body.len();
+    let energy = world.energy_mg();
+    let parts = world.body().len();
 
     let outcome = world.apply(Intent::Metabolize {
         organism: prey,
@@ -242,8 +216,8 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
     });
 
     assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchParent(mesocosm_core::PartId(9_999))));
-    assert_eq!(world.energy_mg, energy, "no venom was charged");
-    assert_eq!(world.body.len(), parts, "nothing was grown");
+    assert_eq!(world.energy_mg(), energy, "no venom was charged");
+    assert_eq!(world.body().len(), parts, "nothing was grown");
     assert!(
         world.organisms.iter().any(|o| o.id == prey),
         "and the meal is still there to eat"
@@ -258,14 +232,14 @@ fn a_refused_meal_leaves_the_world_untouched() {
     let (mut world, _) = fed();
     let absent = mesocosm_core::OrganismId(9_999);
     let roster = world.organisms.len();
-    let parts = world.body.len();
-    let energy = world.energy_mg;
+    let parts = world.body().len();
+    let energy = world.energy_mg();
 
     let outcome = world.apply(Intent::Metabolize { organism: absent, route: Route::Incorporate { placement: Placement::Planned } });
 
     assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchOrganism(absent)));
-    assert_eq!(world.body.len(), parts, "nothing was grown");
-    assert_eq!(world.energy_mg, energy, "and nothing was charged");
+    assert_eq!(world.body().len(), parts, "nothing was grown");
+    assert_eq!(world.energy_mg(), energy, "and nothing was charged");
     // The ecology still stepped, so the roster may change by birth or death,
     // but no organism was eaten by this refusal.
     assert!(world.organisms.len() >= roster.saturating_sub(1));

@@ -32,7 +32,9 @@ fn reachable_organism(world: &World) -> mesocosm_core::OrganismId {
     let mut ids: Vec<_> = world
         .organisms
         .iter()
-        .filter(|m| (0..3).all(|a| (m.position[a] - world.position[a]).abs() <= 8))
+        // The played critter is an organism too since P1; never eat yourself.
+        .filter(|m| m.id != world.controlled_id())
+        .filter(|m| (0..3).all(|a| (m.position[a] - world.position()[a]).abs() <= 8))
         .map(|m| m.id)
         .collect();
     ids.sort();
@@ -45,21 +47,21 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     let mut world = World::new(0x00A7_7AC4, 40);
 
     let mass_before = world.total_mass_mg();
-    let centre_before = world.body.centre_of_mass();
+    let centre_before = world.body().centre_of_mass();
     let collision_before = world.collision();
-    let drawn_before = mesh_body(&world.body, &source).unwrap();
+    let drawn_before = mesh_body(world.body(), &source).unwrap();
 
     let target = reachable_organism(&world);
     let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [9, 0, 0], yaw: Yaw::Zero } } });
     assert!(matches!(outcome, Outcome::Incorporated { .. }), "{outcome:?}");
 
-    let drawn_after = mesh_body(&world.body, &source).unwrap();
+    let drawn_after = mesh_body(world.body(), &source).unwrap();
 
     // Mass.
     assert!(world.total_mass_mg() > mass_before, "the body got heavier");
 
     // Balance. The part landed to the +x side, so the centre must follow it.
-    let centre_after = world.body.centre_of_mass();
+    let centre_after = world.body().centre_of_mass();
     assert!(
         centre_after[0] > centre_before[0],
         "centre of mass moved toward the new part: {centre_before:?} -> {centre_after:?}"
@@ -96,7 +98,7 @@ fn an_eaten_part_still_says_whose_it_was() {
     };
 
     // The projection can place it...
-    let mesh = mesh_body(&world.body, &source).unwrap();
+    let mesh = mesh_body(world.body(), &source).unwrap();
     let placement = mesh
         .placements
         .iter()
@@ -105,7 +107,7 @@ fn an_eaten_part_still_says_whose_it_was() {
     assert_eq!(placement.yaw, Yaw::Quarter);
 
     // ...and the record of where it came from survives alongside the geometry.
-    match world.body.part(part).unwrap().provenance.origin {
+    match world.body().part(part).unwrap().provenance.origin {
         Origin::Incorporated { from_species, .. } => assert_eq!(from_species, donor),
         Origin::Founding => panic!("an eaten part is not founding stock"),
     }
@@ -116,13 +118,13 @@ fn attaching_remeshes_only_what_is_new() {
     let source = source();
     let mut world = World::new(31337, 40);
 
-    let before = mesh_body(&world.body, &source).unwrap();
+    let before = mesh_body(world.body(), &source).unwrap();
     let root_mesh_before = before.mesh_for(VolumeRef::from_tag(1)).cloned();
 
     let target = reachable_organism(&world);
     world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [6, 0, 0], yaw: Yaw::Zero } } });
 
-    let after = mesh_body(&world.body, &source).unwrap();
+    let after = mesh_body(world.body(), &source).unwrap();
 
     assert_eq!(
         after.mesh_for(VolumeRef::from_tag(1)).cloned(),
@@ -142,7 +144,8 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
             let Some(target) = world
                 .organisms
                 .iter()
-                .filter(|m| (0..3).all(|a| (m.position[a] - world.position[a]).abs() <= 8))
+                .filter(|m| m.id != world.controlled_id())
+                .filter(|m| (0..3).all(|a| (m.position[a] - world.position()[a]).abs() <= 8))
                 .map(|m| m.id)
                 .min()
             else {
@@ -155,10 +158,10 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
 
     let a = grow();
     let b = grow();
-    assert_eq!(a.body, b.body);
+    assert_eq!(a.body(), b.body());
 
-    let mesh_a = mesh_body(&a.body, &source).unwrap();
-    let mesh_b = mesh_body(&b.body, &source).unwrap();
+    let mesh_a = mesh_body(a.body(), &source).unwrap();
+    let mesh_b = mesh_body(b.body(), &source).unwrap();
     assert_eq!(mesh_a.placements, mesh_b.placements);
     assert_eq!(mesh_a.drawn_quads(), mesh_b.drawn_quads());
     assert!(mesh_a.placement_count() > 1, "the fixture actually ate something");
