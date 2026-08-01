@@ -50,7 +50,7 @@ fn main() {
         }
     }
 
-    let mesh = mesh_body(world.body(), &volumes).expect("every part resolves");
+    let mesh = mesh_body(world.body().unwrap(), &volumes).expect("every part resolves");
     let (min, max) = mesh.bounds().expect("geometry");
     let camera = Camera::framing(min, max, 1.0);
     let frame = renderer
@@ -69,9 +69,10 @@ fn main() {
         .expect("data");
 
     // The receipt that matters: no voxel was lost to an overlap.
-    let flat = flatten(world.body(), &volumes).expect("flatten");
+    let flat = flatten(world.body().unwrap(), &volumes).expect("flatten");
     let expected: usize = world
         .body()
+        .unwrap()
         .parts
         .iter()
         .filter_map(|p| volumes.volume(p.volume))
@@ -80,13 +81,14 @@ fn main() {
 
     // Lateral balance is the check that matters for a bilateral plan: a
     // mirrored body keeps its centre of mass on the midline.
-    let centre = world.body().centre_of_mass();
+    let centre = world.body().unwrap().centre_of_mass();
     let pairs = world
         .body()
+        .unwrap()
         .parts
         .iter()
         .filter(|p| {
-            let Some(at) = world.body().world_offset(p.id) else {
+            let Some(at) = world.body().unwrap().world_offset(p.id) else {
                 return false;
             };
             at[0] != 0
@@ -135,7 +137,7 @@ fn main() {
         "signals: {warning} warn, {armed} armed -> {bluffers} bluffing, {traps} trapping"
     );
 
-    println!("ate {eaten}, body has {} parts", world.body().len());
+    println!("ate {eaten}, body has {} parts", world.body().unwrap().len());
     // With pivots the root is centred on the origin, so the midline is zero.
     let midline = 0;
     println!(

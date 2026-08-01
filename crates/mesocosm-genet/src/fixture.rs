@@ -50,8 +50,8 @@ pub fn reachable(world: &World) -> Option<OrganismId> {
         // Never offer the critter itself. Since P1 the played organism is in
         // this vector like everything else, so it is a candidate unless it is
         // filtered out.
-        .filter(|m| m.id != world.controlled_id())
-        .filter(|m| (0..3).all(|a| (m.position[a] - world.position()[a]).abs() <= 8))
+        .filter(|m| Some(m.id) != world.controlled_id())
+        .filter(|m| (0..3).all(|a| (m.position[a] - world.position().unwrap()[a]).abs() <= 8))
         .map(|m| m.id)
         .min()
 }
@@ -66,7 +66,7 @@ mod tests {
     fn the_fixture_resolves_every_volume_a_world_mints() {
         let volumes = volumes();
         let world = World::new(7, 40);
-        assert!(mesocosm_mesh::mesh_body(world.body(), &volumes).is_ok());
+        assert!(mesocosm_mesh::mesh_body(world.body().unwrap(), &volumes).is_ok());
         for organism in &world.organisms {
             assert!(volumes.volume(organism.volume()).is_some());
         }
@@ -85,12 +85,13 @@ mod tests {
             world.apply(metabolize(&world, target, &volumes, Route::Incorporate { placement: Placement::Planned }));
         }
 
-        assert!(world.body().len() > 6, "the fixture must out-eat one face cycle");
+        assert!(world.body().unwrap().len() > 6, "the fixture must out-eat one face cycle");
 
         // Every solid voxel is accounted for exactly once: nothing overlaps.
-        let flat = flatten(world.body(), &volumes).unwrap();
+        let flat = flatten(world.body().unwrap(), &volumes).unwrap();
         let expected: usize = world
             .body()
+            .unwrap()
             .parts
             .iter()
             .filter_map(|p| volumes.volume(p.volume))
@@ -112,7 +113,7 @@ mod tests {
                 let Some(target) = reachable(&world) else { break };
                 world.apply(metabolize(&world, target, &volumes, Route::Incorporate { placement: Placement::Planned }));
             }
-            world.body().clone()
+            world.body().unwrap().clone()
         };
         assert_eq!(grow(), grow());
     }

@@ -100,7 +100,7 @@ fn reachable(world: &World) -> Option<OrganismId> {
     world
         .organisms
         .iter()
-        .filter(|m| (0..3).all(|a| (m.position[a] - world.position()[a]).abs() <= 8))
+        .filter(|m| (0..3).all(|a| (m.position[a] - world.position().unwrap()[a]).abs() <= 8))
         .map(|m| m.id)
         .min()
 }
@@ -132,10 +132,10 @@ fn main() {
     // Frame two: the same critter after incorporation.
     write_frame(&renderer, &world, &volumes, &out_dir, "02_grown.png");
 
-    println!("body parts:   {}", world.body().len());
+    println!("body parts:   {}", world.body().unwrap().len());
     println!("total mass:   {} mg", world.total_mass_mg());
-    println!("centre of mass: {:?}", world.body().centre_of_mass());
-    for part in world.body().incorporated() {
+    println!("centre of mass: {:?}", world.body().unwrap().centre_of_mass());
+    for part in world.body().unwrap().incorporated() {
         println!(
             "  part {:?} came from {:?}",
             part.id, part.provenance.origin
@@ -150,7 +150,7 @@ fn write_frame(
     dir: &Path,
     name: &str,
 ) {
-    let mesh = mesh_body(world.body(), volumes).expect("every part resolves");
+    let mesh = mesh_body(world.body().unwrap(), volumes).expect("every part resolves");
     let (min, max) = mesh.bounds().expect("the body has geometry");
     let camera = Camera::framing(min, max, 1.0);
     let frame = renderer.render(&mesh, &camera).expect("render");

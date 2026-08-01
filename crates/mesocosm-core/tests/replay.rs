@@ -30,7 +30,7 @@ fn fixture_trace(world: &World) -> Vec<Intent> {
         .organisms
         .iter()
         .filter(|m| {
-            (0..3).all(|axis| (m.position[axis] - world.position()[axis]).abs() <= 8)
+            (0..3).all(|axis| (m.position[axis] - world.position().unwrap()[axis]).abs() <= 8)
         })
         .map(|m| m.id)
         .collect();
@@ -82,8 +82,8 @@ fn fixture_incorporates_and_the_body_grows() {
     let trace = fixture_trace(&world);
 
     let mass_before = world.total_mass_mg();
-    let box_before = world.collision();
-    let parts_before = world.body().len();
+    let box_before = world.collision().unwrap();
+    let parts_before = world.body().unwrap().len();
 
     let outcomes = world.apply_all(&trace);
     let incorporated = outcomes
@@ -93,11 +93,11 @@ fn fixture_incorporates_and_the_body_grows() {
 
     assert!(incorporated > 0, "fixture must actually eat something");
     assert!(world.total_mass_mg() > mass_before, "mass must grow");
-    assert!(world.body().len() > parts_before, "body must gain parts");
+    assert!(world.body().unwrap().len() > parts_before, "body must gain parts");
 
     let after = world.collision();
     assert!(
-        after.extent()[0] > box_before.extent()[0],
+        after.unwrap().extent()[0] > box_before.extent()[0],
         "collision extent must grow along the attachment axis"
     );
 }
@@ -136,6 +136,7 @@ fn provenance_survives_a_whole_world_snapshot() {
     let world = run_fixture();
     let donors: Vec<SpeciesId> = world
         .body()
+        .unwrap()
         .incorporated()
         .map(|p| match p.provenance.origin {
             Origin::Incorporated { from_species, .. } => from_species,
@@ -148,6 +149,7 @@ fn provenance_survives_a_whole_world_snapshot() {
     let restored = restore(&bytes).unwrap();
     let restored_donors: Vec<SpeciesId> = restored
         .body()
+        .unwrap()
         .incorporated()
         .map(|p| match p.provenance.origin {
             Origin::Incorporated { from_species, .. } => from_species,

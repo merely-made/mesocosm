@@ -404,10 +404,21 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
             id: OrganismId(*next_id),
             species: parent.species,
             kingdom: parent.kingdom,
-            // A child inherits its parent's anatomy. Not yet a developmental
-            // program regrowing a fresh phenotype -- that is P4 -- but it is
-            // no longer two scalars pretending to be a shape.
-            body: parent.body.clone(),
+            // **A child starts small.** Cloning the parent's anatomy while
+            // charging a quarter of its scalar mass manufactured structural
+            // mass: a forty-part parent produced a forty-part child and paid
+            // for a fraction of one. So an offspring gets a fresh root sized
+            // to exactly what was paid, wearing its parent's shape.
+            //
+            // Inheriting a developmental program and regrowing a phenotype
+            // from it is P4. This is the honest placeholder until then, and it
+            // conserves mass, which the clone did not.
+            body: BodyDocument::new(
+                parent.species,
+                parent.volume(),
+                cost,
+                parent.half_extent(),
+            ),
             energy_mg: cost,
             position: [
                 parent.position[0] + scatter[0],

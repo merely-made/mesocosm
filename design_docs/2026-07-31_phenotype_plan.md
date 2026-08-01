@@ -667,8 +667,14 @@ what it can spend.
 
 ### 7.3 Realized individuals versus cohorts
 
-**The rule contract is one model; the storage is two.** Rules must never ask
-whether a subject is realized.
+**The rule contract is one model; the storage may split when scale demands
+it.** Rules must never ask whether a subject is realized.
+
+The split is a future optimisation with a gate, not a shape to build now.
+Nothing today needs it, and an aggregation path with no consumer would be the
+speculative generality this plan's own stop rules forbid. What is settled in
+advance is the *conservation and no-reroll* discipline below, so that when the
+split arrives it cannot quietly lose creatures.
 
 A subject is **realized** when it is played, nearby, named, injured, or
 otherwise consequential, and carries its own body revision. Everything else is
@@ -733,12 +739,77 @@ precedent: a version boundary is honest, a silent reinterpretation is not.
 - Replay holds within the new schema, with regenerated fixtures and a commit
   that says so.
 
+**The movement property expires at P2.** "The same trace moves whoever is
+inhabited by the same amount" is a P1 receipt and nothing more. P2 exists to
+make different bodies move and spend differently, so that assertion is
+*supposed* to stop being true. The lasting guarantees are narrower and should
+be the ones cited later: **deterministic replay within one schema**, and
+**changing control rebuilds neither organism**.
+
 **Corrected 2026-08-01, before implementing.** An earlier draft of this list
 also required a cohort round-trip. That is P5's done-condition, duplicated here
 by mistake. §7.3 settles the cohort *rule contract*, which P1 satisfies by
 having nothing branch on realized-ness; the second storage arrives when
 scale demands it, and building an aggregation path with no consumer would be
 the speculative generality this plan's own stop rules forbid.
+
+### Rulings taken during P1
+
+**Self-prey, ruled 2026-08-01.** A subject cannot target itself through
+`Metabolize`, and `Rejection::Itself` is correct. This forbids treating
+yourself as *prey*; it deliberately does **not** forbid future
+self-resorption, which is consuming one of your own parts under starvation or
+metamorphosis. That is a different, **part-addressed** operation and it stays
+open.
+
+**Mortality, ruled 2026-08-01.** The played organism receives no ecological
+immunity, and its death does not end the world. **Disembodiment is a seam**:
+it is where witnessing, world examination, adaptation, and choosing another
+eligible critter happen. `World::control_lost()` names whose body was lost on
+the tick it happened, so a host has something to react to rather than a state
+it must infer.
+
+Two consequences landed with it. Control now ends when the subject stops being
+*alive* rather than when its row leaves the roster: natural death makes an
+organism carrion, which lingers until it is spent, and an earlier cut that
+checked only for the id left a decomposing critter walking and eating.
+And `controlled` is `Option<OrganismId>` with no ghost body, because *nobody is
+embodied* and *this id no longer names anything* are different facts and a
+caller has to be able to tell them apart.
+
+**Control is a recorded intent, ruled 2026-08-01.** `Intent::TakeControl`
+replaces the public mutator P1 first shipped. Ordered intents are the only path
+by which world state changes, and a control change made outside that path would
+replay every fact about a run except who was living it. Lineage switching is
+gameplay, so it belongs in the trace.
+
+### The three ledgers
+
+**Named 2026-08-01, because "two truths" was the wrong framing and would have
+hardened into a permanent excuse.** There are three accounts, and until P2
+reconciles them each rule must say which one it reads:
+
+| Account | What it is | Authoritative for |
+| ------- | ---------- | ----------------- |
+| `body.total_mass_mg()` | **Body mass.** The sum of surviving parts. | Anatomy, growth, severing, and anything derived from the phenotype. |
+| `Organism::mass_mg` | **Reserve.** A provisional scalar the ecology moves by grazing, upkeep, death, and reproduction. | The ecology's own accounting only. Not a second body mass. |
+| `Organism::energy_mg` | **Budget.** What a subject can spend. | Acting: movement, and the cost side of metabolizing. |
+
+Only the first may be called body mass. The scalar is a **reserve** and should
+be renamed when P2 touches it.
+
+**One defect this naming exposed, fixed 2026-08-01.** Reproduction cloned the
+parent's whole anatomy while charging a quarter of its reserve, so a forty-part
+parent produced a forty-part child and paid for a fraction of one. Read
+literally across two ledgers, that manufactured structural mass out of nothing.
+An offspring now starts as a single root part sized to exactly what was paid.
+Inheriting a developmental program and regrowing a phenotype from it remains
+P4; this is the honest placeholder, and unlike the clone it conserves mass.
+
+**P2 must reconcile these before anatomy influences ecology.** Grazing and
+upkeep moving a scalar that anatomy cannot see is precisely what stops a large
+body from costing anything, which is also why "burn or grow" has no downside to
+weigh yet.
 
 ### Not in P1
 
@@ -747,6 +818,20 @@ and branch transfer. Those are P2 and P3, and they are the *reason* for P1
 rather than part of it.
 
 ## Findings
+
+- **2026-08-01:** P1's first cut let a dead critter keep playing. `controlled()`
+  checked only that the id was in the roster, but natural death leaves an
+  organism as carrion until it is spent, so a decomposing subject could still
+  move and eat. Control now requires the subject to be alive, and the test that
+  covered this removed the row by hand instead of killing it through the
+  ecology, which is why it passed.
+- **2026-08-01:** P1's `take_control` mutated the world outside `apply`,
+  contradicting the core's own boundary that ordered intents are the only
+  mutation path. A trace could reproduce everything about a run except who was
+  living it. Replaced by `Intent::TakeControl`.
+- **2026-08-01:** reproduction manufactured structural mass, cloning a parent's
+  whole anatomy for a quarter of its reserve. Found by naming the ledgers
+  rather than by a test, which is the argument for naming them.
 
 - **2026-08-01:** P1 surfaced that the played critter could target itself once
   it joined the organism roster. Refused, and every prey search now excludes
