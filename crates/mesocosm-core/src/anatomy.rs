@@ -137,7 +137,7 @@ mod tests {
     fn limbed() -> (BodyDocument, [PartId; 4]) {
         let mut body =
             BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
-        let mut link = |body: &mut BodyDocument, parent: PartId, offset: [i32; 3]| {
+        let link = |body: &mut BodyDocument, parent: PartId, offset: [i32; 3]| {
             body.attach(
                 VolumeRef::from_tag(2),
                 100,
