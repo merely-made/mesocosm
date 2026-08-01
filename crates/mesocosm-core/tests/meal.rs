@@ -32,7 +32,7 @@ fn fed() -> (World, mesocosm_core::OrganismId) {
         let Some((prey, at)) = world
             .organisms
             .iter()
-            .filter(|o| o.mass_mg > 0 && Some(o.id) != world.controlled_id())
+            .filter(|o| o.biomass_mg() > 0 && Some(o.id) != world.controlled_id())
             .filter(|o| Some(o.id) != world.controlled_id())
             .map(|o| (o.id, o.position))
             .min_by_key(|(_, at): &(_, [i32; 3])| {
@@ -128,22 +128,29 @@ fn venom_is_charged_whatever_the_meal_becomes() {
         o.venom_mg = venom;
     }
 
-    let mass = world.organisms.iter().find(|o| o.id == prey).map(|o| o.mass_mg).unwrap();
+    let mass = world.organisms.iter().find(|o| o.id == prey).map(|o| o.biomass_mg()).unwrap();
     let before = world.energy_mg().unwrap();
+    // Upkeep comes out of the same budget in the same tick, and it scales with
+    // the body, so the grown critter pays more of it than the burnt one.
+    let upkeep = world.controlled().unwrap().upkeep_mg();
     let mut grown = world.clone();
 
     world.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
     // Gains before costs. The earlier version subtracted venom first, which
     // this assertion enshrined; with low energy the floor erased part of the
     // toxin before the meal paid out.
-    assert_eq!(world.energy_mg().unwrap(), (before + mass).saturating_sub(venom));
+    assert_eq!(
+        world.energy_mg().unwrap(),
+        (before + mass).saturating_sub(venom).saturating_sub(upkeep)
+    );
 
     grown.apply(Intent::Metabolize {
         organism: prey,
         route: Route::Incorporate { placement: Placement::Planned },
     });
-    assert_eq!(grown.energy_mg().unwrap(), before.saturating_sub(venom), "growing pays it too");
-    assert!(world.energy_mg().unwrap() > grown.energy_mg().unwrap());
+    let grown_upkeep = grown.controlled().unwrap().upkeep_mg();
+    assert!(grown_upkeep >= upkeep, "growing raised the rent");
+    assert!(world.energy_mg().unwrap() > grown.energy_mg().unwrap(), "burning banked more");
 }
 
 #[test]
@@ -157,7 +164,7 @@ fn being_nearly_starved_does_not_make_venom_safer() {
     let (mass, venom) = {
         let o = world.organisms.iter_mut().find(|o| o.id == prey).unwrap();
         o.venom_mg = 500;
-        (o.mass_mg, o.venom_mg)
+        (o.biomass_mg(), o.venom_mg)
     };
     set_energy(&mut world, 10); // nearly starved
     assert!(venom > world.energy_mg().unwrap() + mass, "the toxin outweighs the meal");
@@ -202,6 +209,7 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
 
     let roster = world.organisms.len();
     let energy = world.energy_mg().unwrap();
+    let upkeep = world.controlled().unwrap().upkeep_mg();
     let parts = world.body().unwrap().len();
 
     let outcome = world.apply(Intent::Metabolize {
@@ -216,7 +224,7 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
     });
 
     assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchParent(mesocosm_core::PartId(9_999))));
-    assert_eq!(world.energy_mg().unwrap(), energy, "no venom was charged");
+    assert_eq!(world.energy_mg().unwrap(), energy - upkeep, "rent only: no venom was charged");
     assert_eq!(world.body().unwrap().len(), parts, "nothing was grown");
     assert!(
         world.organisms.iter().any(|o| o.id == prey),
@@ -235,11 +243,13 @@ fn a_refused_meal_leaves_the_world_untouched() {
     let parts = world.body().unwrap().len();
     let energy = world.energy_mg().unwrap();
 
+    let upkeep = world.controlled().unwrap().upkeep_mg();
     let outcome = world.apply(Intent::Metabolize { organism: absent, route: Route::Incorporate { placement: Placement::Planned } });
 
     assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchOrganism(absent)));
     assert_eq!(world.body().unwrap().len(), parts, "nothing was grown");
-    assert_eq!(world.energy_mg().unwrap(), energy, "and nothing was charged");
+    // Rent still came due, but the refusal itself cost nothing.
+    assert_eq!(world.energy_mg().unwrap(), energy - upkeep, "no venom, no meal, just rent");
     // The ecology still stepped, so the roster may change by birth or death,
     // but no organism was eaten by this refusal.
     assert!(world.organisms.len() >= roster.saturating_sub(1));

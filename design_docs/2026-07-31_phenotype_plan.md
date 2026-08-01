@@ -1,12 +1,15 @@
 # Phenotype: what a body is for
 
-**Status: decisions and proof plan, revised 2026-07-31. Anatomy descent,
+**Status: decisions and proof plan, revised 2026-08-01. Anatomy descent,
 depth, severing, and a first derived reach fold are built; the phenotype
 bridge described here is not.** This document owns Mesocosm's body rules. The
 cross-vessel boundary lives in the
 [wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md), and
 ordering remains with the
 [execution waves plan](2026-07-31_execution_waves_plan.md).
+The [ProcessDef plan](2026-08-01_processdef_plan.md) owns the extensible
+process vocabulary, developmental expression ABI, Piccolo host, and pack
+proofs. This document continues to own what those processes mean to a body.
 
 ---
 
@@ -314,6 +317,12 @@ for why a path did or did not work.
 **Rules: Mark.** The evaluator shape is an implementation decision after the
 process vocabulary is accepted.
 
+`ProcessDef` is now accepted as the working name for one namespaced
+transformation. The schema and authoring path are specified in the
+[ProcessDef plan](2026-08-01_processdef_plan.md). It is explicitly not the
+universal gene type: anatomy, material, regulation, lifecycle, signalling, and
+relationships remain distinct developmental consequences.
+
 ### D3. Where does the fold compute?
 
 `mesocosm-core` owns rules, but it deliberately cannot read voxel contents. A
@@ -596,11 +605,12 @@ sticking out of it. Colour already showed history; shape now shows what a body
 can do. Receipt: `Code/testing/mesocosm/10_derived_reach.png`, a 97-part
 critter after 452 steps.
 
-**Not done in P2, and it is the ledger reconciliation.** Anatomy now decides
-reach, but grazing and upkeep still move `Organism::mass_mg` where anatomy
-cannot see it, so a larger body still costs nothing to carry. Until that is
-fixed, "burn or grow" remains a choice without a downside. That is the next
-piece of work, and it is what P0's open judgment is actually waiting on.
+**The ledger reconciliation followed on the same day**, and it is what P0's
+open judgment was actually waiting on. `Organism::mass_mg` is gone, upkeep
+scales with the body, and upkeep takes the budget before it takes flesh. See
+the ledger section above. `organism.rs` was split first, into types and
+`organism/ecology.rs`, because it had passed this repo's line ceiling and the
+rule is to split before adding.
 
 ### P3. Branch transfer
 
@@ -937,16 +947,31 @@ world that answers for itself.
 hardened into a permanent excuse.** There are three accounts, and until P2
 reconciles them each rule must say which one it reads:
 
+**Reconciled 2026-08-01. There are two accounts now, not three.**
+
 | Account | What it is | Authoritative for |
 | ------- | ---------- | ----------------- |
-| `body.total_mass_mg()` | **Body mass.** The sum of surviving parts. | Anatomy, growth, severing, and anything derived from the phenotype. |
-| `Organism::mass_mg` | **Reserve.** A provisional scalar the ecology moves by grazing, upkeep, death, and reproduction. | The ecology's own accounting only. Not a second body mass. |
-| `Organism::energy_mg` | **Budget.** What a subject can spend. | Acting: movement, and the cost side of metabolizing. |
+| `Organism::biomass_mg()` | **Body mass**, read off the surviving parts. | Everything about substance: growth, feeding, starvation, reproduction, upkeep, and anything derived from the phenotype. |
+| `Organism::energy_mg` | **Budget.** What a subject can spend. | Acting: movement, the cost side of metabolizing, and the first call on upkeep. |
 
-Only the first may be called body mass. The scalar is a **reserve** and should
-be renamed when P2 touches it.
+~~`Organism::mass_mg`~~ is **gone**. The scalar the ecology moved is now the
+body itself: `gain_mass` and `spend_mass` write through to the root part, so
+grazing, upkeep, death, and reproduction all move the same quantity anatomy
+reads. There is no longer a place where the two can disagree.
 
-**One defect this naming exposed, fixed 2026-08-01.** Reproduction cloned the
+**Upkeep scales with the body**, which is the whole point:
+`UPKEEP_MG + biomass / UPKEEP_SHARE`. Flat upkeep is why a forty-part critter
+cost exactly what a single cell cost, and why growing had no downside.
+
+**Upkeep takes the budget first and the body second.** That ordering is what
+makes burning a meal worth something: banked energy buys survival directly, and
+a creature with nothing left consumes itself. Autophagy, and it falls out of
+the ordering rather than being a mechanic anybody added.
+
+So **burn or grow is finally a question**: burning fills the tank, growing
+enlarges the engine and raises the rent forever.
+
+**One defect the naming exposed before the reconciliation, fixed 2026-08-01.** Reproduction cloned the
 parent's whole anatomy while charging a quarter of its reserve, so a forty-part
 parent produced a forty-part child and paid for a fraction of one. Read
 literally across two ledgers, that manufactured structural mass out of nothing.
@@ -954,10 +979,7 @@ An offspring now starts as a single root part sized to exactly what was paid.
 Inheriting a developmental program and regrowing a phenotype from it remains
 P4; this is the honest placeholder, and unlike the clone it conserves mass.
 
-**P2 must reconcile these before anatomy influences ecology.** Grazing and
-upkeep moving a scalar that anatomy cannot see is precisely what stops a large
-body from costing anything, which is also why "burn or grow" has no downside to
-weigh yet.
+**Done.** Grazing and upkeep no longer move a scalar anatomy cannot see.
 
 ### Not in P1
 
@@ -966,6 +988,26 @@ and branch transfer. Those are P2 and P3, and they are the *reason* for P1
 rather than part of it.
 
 ## Findings
+
+- **2026-08-01:** making upkeep scale with the body changed what play can
+  reach. A hunting critter grew to 36 parts under flat upkeep and to 14 once
+  growth cost something, which **re-created the Law C size tell in the other
+  direction**: the generator still produced up to 50 parts, so a consumer could
+  again guess origin from a part count. Isometry's
+  `size_does_not_give_the_played_one_away` caught it, which is twice that test
+  has earned its keep. The generator's ceiling is now coupled to the world's
+  economics as a **standing maintenance obligation**: past some size a creature
+  cannot pay its own rent, and a generated creature larger than play can
+  sustain is not one the world could have produced.
+- **2026-08-01:** the ecology's tick-count tests became untunable once survival
+  depended on both body mass and a banked budget. Rewritten to run until an
+  outcome occurs rather than for a fixed number of ticks, which is what they
+  were always asserting.
+- **2026-08-01:** a well-fed mimic now holds its weight rather than visibly
+  wasting, because upkeep drains its budget before its flesh. The tell became
+  the *absence of growth beside a real plant* rather than visible decline,
+  which takes patience to read. That is a better tell, and it arrived as a
+  consequence rather than a design.
 
 - **2026-08-01:** every fixture in the workspace had `REACH = 8` baked in as a
   literal `<= 8`, including the shared replay trace, the host's presentation
@@ -1051,5 +1093,9 @@ rather than part of it.
 
 ## Progress
 
+- **2026-08-01:** `ProcessDef` accepted for one namespaced transformation. The
+  linked ProcessDef plan now owns extensible definitions, expression, packs,
+  and Piccolo while this plan retains body and capability semantics. No
+  implementation added by that planning pass.
 - **2026-07-31:** plan revised after the anatomy implementation and wing-scope
   audit. No phenotype implementation was added.

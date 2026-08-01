@@ -196,3 +196,63 @@ fn every_organism_answers_the_same_way() {
         );
     }
 }
+
+#[test]
+fn growing_raises_the_rent_and_burning_does_not() {
+    // **The reconciliation, and the reason P0's choice was not yet a choice.**
+    // Upkeep used to be a flat milligram, so a forty-part critter cost exactly
+    // what a single cell cost and incorporating had no downside to weigh
+    // burning against.
+    let base = World::new(4_242, 24);
+    let before = base.controlled().unwrap().upkeep_mg();
+
+    // Two critters, same meal, different destinations.
+    let mut grown = base.clone();
+    let me = grown.controlled_id().unwrap();
+    {
+        let organism = grown.organisms.iter_mut().find(|o| o.id == me).unwrap();
+        let root = organism.body.root;
+        organism
+            .body
+            .attach(
+                VolumeRef::from_tag(9),
+                4_000,
+                [7, 1, 1],
+                Attachment { parent: root, offset: [9, 0, 0], yaw: Yaw::Zero },
+                Provenance::founding(),
+            )
+            .unwrap();
+    }
+
+    let mut burnt = base;
+    burnt.controlled_id().unwrap();
+    {
+        let id = burnt.controlled_id().unwrap();
+        burnt.organisms.iter_mut().find(|o| o.id == id).unwrap().energy_mg += 4_000;
+    }
+
+    assert!(
+        grown.controlled().unwrap().upkeep_mg() > before,
+        "the grown critter pays more rent forever"
+    );
+    assert_eq!(
+        burnt.controlled().unwrap().upkeep_mg(),
+        before,
+        "the one that burned it pays exactly what it did before"
+    );
+}
+
+#[test]
+fn a_body_and_its_weight_are_one_account() {
+    // There is no scalar mass beside the anatomy any more. Adding substance
+    // shows up in the body, and the body is what everything reads.
+    let mut world = World::new(4_242, 24);
+    let me = world.controlled_id().unwrap();
+    let before = world.controlled().unwrap().biomass_mg();
+
+    world.organisms.iter_mut().find(|o| o.id == me).unwrap().gain_mass(500);
+
+    let after = world.controlled().unwrap();
+    assert_eq!(after.biomass_mg(), before + 500);
+    assert_eq!(after.biomass_mg(), after.body.total_mass_mg(), "one account, not two");
+}

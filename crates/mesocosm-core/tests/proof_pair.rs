@@ -57,7 +57,7 @@ fn nearest(world: &World) -> Option<(mesocosm_core::OrganismId, [i32; 3])> {
     world
         .organisms
         .iter()
-        .filter(|organism| organism.mass_mg > 0 && Some(organism.id) != world.controlled_id())
+        .filter(|organism| organism.biomass_mg() > 0 && Some(organism.id) != world.controlled_id())
         .map(|organism| (organism.id, organism.position))
         .min_by_key(|(_, at)| {
             (0..3).map(|axis| (at[axis] - world.position().unwrap()[axis]).abs()).max().unwrap_or(0)

@@ -292,14 +292,22 @@ fn interpret(deed: &Deed) -> Consequence {
 /// **The range matters as much as the provenance.** A generator that always
 /// made small creatures would leave *size* as an origin tell: a consumer could
 /// guess "forty parts, so somebody played this" without reading a marker,
-/// which defeats the law just as thoroughly as a marker would. A well-fed
-/// critter reaches dozens of parts, so a generated one has to be able to as
-/// well, and the distributions have to overlap rather than merely touch.
+/// which defeats the law just as thoroughly as a marker would. The
+/// distributions have to overlap rather than merely touch.
+///
+/// **This ceiling is coupled to the world's economics and must be kept in step
+/// with them.** Upkeep scales with body mass, so there is a size past which a
+/// creature cannot pay its own rent, and a generated creature larger than play
+/// can sustain is not one the world could have produced. When upkeep was flat,
+/// play reached dozens of parts and this was forty-eight; once growing started
+/// costing, play settled around a dozen and forty-eight became a tell in the
+/// other direction. Isometry's `size_does_not_give_the_played_one_away` is the
+/// tripwire, and it has now caught this twice.
 ///
 /// Deterministic from `seed`, so a generated lineage is reproducible.
 pub fn generate(seed: u64, species: u32) -> Chronicle {
     let mut rng = Rng::from_seed(seed);
-    let parts = 2 + rng.below(48) as usize;
+    let parts = 2 + rng.below(18) as usize;
 
     let mut chronicle = Chronicle { species, parts: Vec::with_capacity(parts), deeds: Vec::new() };
     chronicle.parts.push(PartOrigin { from_species: None, from_part: None, epoch: 0 });

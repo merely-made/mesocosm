@@ -190,8 +190,14 @@ fn dying_ends_control_rather_than_the_world() {
     let mut world = World::new(13, 16);
     let me = world.controlled_id().unwrap();
 
-    // Starve it. Upkeep does the rest, and nothing intervenes on its behalf.
-    world.organisms.iter_mut().find(|o| o.id == me).unwrap().mass_mg = 1;
+    // Starve it. Drain the budget and the body, then let upkeep finish the
+    // job; nothing intervenes on its behalf.
+    {
+        let me_now = world.organisms.iter_mut().find(|o| o.id == me).unwrap();
+        me_now.energy_mg = 0;
+        let all = me_now.biomass_mg();
+        me_now.spend_mass(all.saturating_sub(1));
+    }
 
     let mut ticks = 0;
     while world.is_embodied() && ticks < 500 {
@@ -306,7 +312,7 @@ fn reproduction_does_not_manufacture_body_mass() {
         for newborn in world.organisms.iter().filter(|o| o.age == 0) {
             assert_eq!(
                 newborn.body.total_mass_mg(),
-                newborn.mass_mg,
+                newborn.biomass_mg(),
                 "{:?} was born with anatomy it did not pay for",
                 newborn.id
             );

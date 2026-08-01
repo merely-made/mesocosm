@@ -1,6 +1,6 @@
 # Execution Waves
 
-**Status: in progress, 2026-07-31.** **Wave 1 is complete**: core, runtime,
+**Status: in progress, 2026-08-01.** **Wave 1 is complete**: core, runtime,
 mesher, renderer, a windowed host, and the Isometry projection, with every
 done-condition met and tested. **Wave 1.3 dropped**: the render lane is decided (custom wgpu body
 renderer, netrender owning the device), so there is no second host to compare
@@ -310,20 +310,28 @@ incorporation, and a metabolic budget.
 
 #### Phenotype gate inside 2.1, **ACTIVE 2026-07-31**
 
-The [phenotype plan](2026-07-31_phenotype_plan.md) now supplies the missing
-dependency order. Do not deepen the epoch lab or begin body v1 while the played
-critter remains a special `BodyDocument` beside scalar organisms.
+The [phenotype plan](2026-07-31_phenotype_plan.md) supplies the dependency
+order. P0 through P2 have now removed the special played-body model and proven
+one embodied consequence. P2's deferred biomass and upkeep account closes
+before the next state migration; body v1 still waits on the later local proofs.
 
-1. **P0, meal choice:** burn or incorporate one meal, with mutually exclusive
-   receipts and consistent venom.
-2. **P1, one organism model:** played and unplayed critters use the same
-   body-bearing representation and control names an organism.
-3. **P2, one embodied consequence:** replace fixed gameplay reach with derived
-   reach, then prove one connected biological process and its severed failure.
+1. **P0, meal choice, mechanically landed:** burn or incorporate one meal,
+   with mutually exclusive receipts and consistent venom. The headed playfeel
+   judgment remains open.
+2. **P1, one organism model, landed 2026-08-01:** played and unplayed critters
+   use the same body-bearing representation and control names an organism.
+3. **P2, one embodied consequence, landed 2026-08-01:** gameplay reach is
+   derived from anatomy, and severing the contributing process path removes it.
+   Its deferred biomass and upkeep reconciliation is the active closeout.
+4. **Process identity before expression:** after that closeout, execute PD1 and
+   PD2 of the [ProcessDef plan](2026-08-01_processdef_plan.md) before branch
+   transfer, then prove the Piccolo expression ABI before phenotype-based
+   adaptation.
 
-Only after those receipts does Wave 2 schedule branch transfer, phenotype-based
-adaptation, or contested resource flow. The wing v1 schema waits for stable
-subject, body-revision, and part addresses from that local proof.
+Branch transfer may begin after stable process identity. Phenotype-based
+adaptation consumes the validated expression path. Contested resource flow
+then consumes both. The wing v1 schema still waits for stable subject,
+body-revision, part-address, and local process-reference proofs.
 
 ### 2.2 Epoch and ecology lab — **COMPLETE 2026-07-31**, with one finding
 
@@ -723,3 +731,7 @@ round-trip:
   extinctions and the phase converges by round six, because every pressure has
   an answer and income is flat and uncontested. Contested income is the
   emergent fix and belongs to the epoch half; see §2.2.
+- **2026-08-01:** P1 and P2 are landed. The ProcessDef plan now inserts stable
+  native and pack process identity before P3 branch transfer, and the bounded
+  Piccolo expression proof before P4 adaptation. P2's biomass and upkeep
+  reconciliation remains the immediate closeout.

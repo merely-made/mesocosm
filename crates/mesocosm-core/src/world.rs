@@ -212,7 +212,6 @@ impl World {
                 body: BodyDocument::new(species, volume, mass, half_extent),
                 energy_mg: mass,
                 position: [x, y, z],
-                mass_mg: mass,
                 stage: Stage::Mature,
                 age,
                 since_offspring: 0,
@@ -485,14 +484,14 @@ impl World {
     ) -> (Outcome, u64) {
         match route {
             Route::Burn => (
-                Outcome::Burned { organism: eaten.id, energy_mg: eaten.mass_mg },
-                eaten.mass_mg,
+                Outcome::Burned { organism: eaten.id, energy_mg: eaten.biomass_mg() },
+                eaten.biomass_mg(),
             ),
             Route::Incorporate { placement: Placement::Explicit { parent, offset, yaw } } => {
                 let provenance = self.taken_from(eaten);
                 let attached = self.controlled_body_mut().attach(
                     eaten.volume(),
-                    eaten.mass_mg,
+                    eaten.biomass_mg(),
                     eaten.half_extent(),
                     Attachment { parent, offset, yaw },
                     provenance,
@@ -509,7 +508,7 @@ impl World {
                 // A mirrored pair splits the mass it came from, so the budget
                 // stays honest however symmetric the body becomes.
                 let parts = if growth.mirror.is_some() { 2 } else { 1 };
-                let each = eaten.mass_mg / parts;
+                let each = eaten.biomass_mg() / parts;
 
                 let Ok(part) = self.controlled_body_mut().attach(
                     eaten.volume(),
@@ -723,10 +722,38 @@ mod tests {
 
     #[test]
     fn movement_spends_the_budget() {
+        // Movement is five, and upkeep takes its share of the same budget in
+        // the same tick. Before the ledgers were reconciled, upkeep came out
+        // of a scalar the player's budget could not see.
         let mut world = World::new(3, 2);
         let before = world.energy_mg().unwrap();
+        let upkeep = world.controlled().unwrap().upkeep_mg();
+
         world.apply(Intent::Move { delta: [3, 0, -2] });
-        assert_eq!(world.energy_mg().unwrap(), before - 5);
+
+        assert_eq!(world.energy_mg().unwrap(), before - 5 - upkeep);
+    }
+
+    #[test]
+    fn a_bigger_body_costs_more_to_carry() {
+        // The reconciliation, in one assertion: upkeep is a function of what
+        // a critter is made of. Flat upkeep is why growing used to be free.
+        let world = World::new(3, 2);
+        let small = world.controlled().unwrap().upkeep_mg();
+
+        let mut grown = world.clone();
+        let me = grown.controlled_id().unwrap();
+        {
+            let organism = grown.organisms.iter_mut().find(|o| o.id == me).unwrap();
+            organism.gain_mass(5_000);
+        }
+
+        assert!(
+            grown.controlled().unwrap().upkeep_mg() > small,
+            "a heavier body pays more rent: {} vs {}",
+            grown.controlled().unwrap().upkeep_mg(),
+            small
+        );
     }
 
     #[test]
