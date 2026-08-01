@@ -55,6 +55,7 @@ pub fn reachable(world: &World) -> Option<OrganismId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mesocosm_core::Placement;
     use mesocosm_mesh::{VolumeSource, flatten};
 
     #[test]
@@ -77,7 +78,7 @@ mod tests {
 
         for _ in 0..14 {
             let Some(target) = reachable(&world) else { break };
-            world.apply(metabolize(&world, target, &volumes, Route::Incorporate));
+            world.apply(metabolize(&world, target, &volumes, Route::Incorporate { placement: Placement::Planned }));
         }
 
         assert!(world.body.len() > 6, "the fixture must out-eat one face cycle");
@@ -105,7 +106,7 @@ mod tests {
             let mut world = World::new(99, 60);
             for _ in 0..8 {
                 let Some(target) = reachable(&world) else { break };
-                world.apply(metabolize(&world, target, &volumes, Route::Incorporate));
+                world.apply(metabolize(&world, target, &volumes, Route::Incorporate { placement: Placement::Planned }));
             }
             world.body
         };

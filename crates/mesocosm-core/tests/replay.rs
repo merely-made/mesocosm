@@ -13,7 +13,7 @@
 //! both hosts run this fixture and must agree on the final state hash.
 
 use mesocosm_core::{
-    BodyDocument, Intent, Route, OrganismId, Origin, Outcome, PartId, Provenance, SpeciesId, VolumeRef,
+    BodyDocument, Intent, Placement, Route, OrganismId, Origin, Outcome, PartId, Provenance, SpeciesId, VolumeRef,
     World, Yaw, snapshot, state_hash,
 };
 use mesocosm_core::body::Attachment;
@@ -38,7 +38,7 @@ fn fixture_trace(world: &World) -> Vec<Intent> {
 
     let mut trace = vec![Intent::Move { delta: [1, 0, 1] }, Intent::Idle];
     for (index, organism) in reachable.iter().take(3).enumerate() {
-        trace.push(Intent::Metabolize { organism: *organism, route: Route::Place { parent: PartId(0), offset: [4 + index as i32 * 3, 0, 0], yaw: Yaw::Zero } });
+        trace.push(Intent::Metabolize { organism: *organism, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [4 + index as i32 * 3, 0, 0], yaw: Yaw::Zero } } });
     }
     trace.push(Intent::Deposit { mass_mg: 40 });
     trace.push(Intent::Move { delta: [-1, 0, 2] });

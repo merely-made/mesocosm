@@ -19,6 +19,21 @@ use crate::body::{
 use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
 use crate::rng::Rng;
 
+/// How an incorporated part finds its site.
+///
+/// A **policy**, not a destination. Placing a part explicitly is a different
+/// way of growing, not a different thing to do with a meal, and folding it in
+/// beside `Burn` conflated the two questions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Placement {
+    /// The body plan decides. **The default**: growth is automatic and
+    /// symmetric, and the player shapes the plan rather than the placement.
+    Planned,
+    /// An explicit site. The editor path: total control is possible, but it is
+    /// never the resting state.
+    Explicit { parent: PartId, offset: [i32; 3], yaw: Yaw },
+}
+
 /// Where a meal goes.
 ///
 /// **This is the game's central question, and before it existed there was no
@@ -27,24 +42,16 @@ use crate::rng::Rng;
 /// is what makes every meal ask: live now, or grow later?
 ///
 /// Later destinations arrive when the systems that receive them do:
-/// provisioning reproduction, depositing or building a niche, and grafting a
-/// source subtree with its topology intact. Each is a different answer to
-/// *where does this capability live: in me, in a relationship, or in the
-/// world?*
+/// provisioning reproduction, depositing or building a niche, and cultivating
+/// something outside the skin. Each is a different answer to *where does this
+/// capability live: in me, in a relationship, or in the world?*
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Route {
     /// Burn it now. Full mass becomes usable energy and no part is kept.
-    ///
-    /// The immediate answer, and the one that leaves you no bigger.
     Burn,
-    /// Commit it to growth and let the body plan choose where. **The default.**
-    ///
-    /// Growth is automatic and symmetric; the player shapes the plan, not the
-    /// placement. Yields **no** immediate energy, which is the whole tradeoff.
-    Incorporate,
-    /// Commit it to growth at an explicit site. The editor path: total control
-    /// is possible, but it is never the resting state.
-    Place { parent: PartId, offset: [i32; 3], yaw: Yaw },
+    /// Commit it to growth. Yields **no** immediate energy, which is the whole
+    /// tradeoff.
+    Incorporate { placement: Placement },
 }
 
 /// What a host may ask the world to do. Hosts send intents; they never mutate
@@ -273,11 +280,17 @@ impl World {
     /// Eats a organism and grows it where the plan says.
     /// Eat something and route it. The one verb, in one place, so every meal
     /// pays the same costs whatever it becomes.
+    ///
+    /// **One transaction.** Everything that can refuse is checked before the
+    /// organism leaves the roster, a failed attachment puts it back, and the
+    /// energy ledger moves only once the meal has actually landed. An earlier
+    /// cut consumed the meal and charged its venom before the attachment was
+    /// known to succeed.
     fn metabolize(&mut self, organism: OrganismId, route: Route) -> Outcome {
         let Some(index) = self.organisms.iter().position(|m| m.id == organism) else {
             return Outcome::Rejected(Rejection::NoSuchOrganism(organism));
         };
-        if let Route::Place { parent, .. } = route
+        if let Route::Incorporate { placement: Placement::Explicit { parent, .. } } = route
             && self.body.part(parent).is_none()
         {
             return Outcome::Rejected(Rejection::NoSuchParent(parent));
@@ -286,48 +299,68 @@ impl World {
             return Outcome::Rejected(Rejection::OutOfReach);
         }
 
-        // Resolve placement before the meal is consumed, so a refusal leaves
-        // the world untouched rather than eating something and losing it.
+        // Resolve planned placement before the meal is consumed, so a body
+        // with nowhere to put a part refuses without eating anything.
         let growth = match route {
-            Route::Incorporate => {
+            Route::Incorporate { placement: Placement::Planned } => {
                 match crate::growth::resolve(&self.body, self.organisms[index].half_extent) {
                     Some(growth) => Some(growth),
                     None => return Outcome::Rejected(Rejection::NoRoom),
                 }
             }
-            Route::Burn | Route::Place { .. } => None,
+            _ => None,
         };
 
         let eaten = self.organisms.remove(index);
+        let (outcome, gain_mg) = self.land(&eaten, route, growth);
 
-        // **Venom is charged on every route.** Before this, burning was not a
-        // route at all and the automatic path skipped the subtraction the
-        // explicit one paid, so the safe-looking verb was the dangerous one.
-        // A signal is only worth reading if believing it changes what happens.
-        self.energy_mg = self.energy_mg.saturating_sub(eaten.venom_mg);
+        if matches!(outcome, Outcome::Rejected(_)) {
+            // Nothing landed, so nothing was eaten and nothing is owed.
+            self.organisms.insert(index, eaten);
+            return outcome;
+        }
 
+        // **Gains before costs.** Subtracting venom first let a nearly starved
+        // critter lose part of a toxin to the zero floor and then collect the
+        // full meal, so being close to death made a venomous thing *safer*.
+        //
+        // The floor itself remains: energy is unsigned, so venom beyond what a
+        // critter has is forgiven rather than owed. A debt or damage model is a
+        // later decision, recorded in the phenotype plan.
+        self.energy_mg = (self.energy_mg + gain_mg).saturating_sub(eaten.venom_mg);
+        outcome
+    }
+
+    /// Attempts the routed outcome, returning it and the energy it yields.
+    /// Mutates the body but never the roster or the ledger.
+    fn land(
+        &mut self,
+        eaten: &Organism,
+        route: Route,
+        growth: Option<crate::growth::Growth>,
+    ) -> (Outcome, u64) {
         match route {
-            Route::Burn => {
-                let energy_mg = eaten.mass_mg;
-                self.energy_mg += energy_mg;
-                Outcome::Burned { organism, energy_mg }
-            }
-            Route::Place { parent, offset, yaw } => {
-                let provenance = self.taken_from(&eaten);
-                match self.body.attach(
+            Route::Burn => (
+                Outcome::Burned { organism: eaten.id, energy_mg: eaten.mass_mg },
+                eaten.mass_mg,
+            ),
+            Route::Incorporate { placement: Placement::Explicit { parent, offset, yaw } } => {
+                let provenance = self.taken_from(eaten);
+                let attached = self.body.attach(
                     eaten.volume,
                     eaten.mass_mg,
                     eaten.half_extent,
                     Attachment { parent, offset, yaw },
                     provenance,
-                ) {
-                    Ok(part) => Outcome::Incorporated { part },
-                    Err(_) => Outcome::Rejected(Rejection::NoSuchParent(parent)),
+                );
+                match attached {
+                    Ok(part) => (Outcome::Incorporated { part }, 0),
+                    Err(_) => (Outcome::Rejected(Rejection::NoSuchParent(parent)), 0),
                 }
             }
-            Route::Incorporate => {
+            Route::Incorporate { placement: Placement::Planned } => {
                 let growth = growth.expect("resolved above for this route");
-                let provenance = self.taken_from(&eaten);
+                let provenance = self.taken_from(eaten);
 
                 // A mirrored pair splits the mass it came from, so the budget
                 // stays honest however symmetric the body becomes.
@@ -341,12 +374,12 @@ impl World {
                     crate::growth::attachment(&growth),
                     provenance.clone(),
                 ) else {
-                    return Outcome::Rejected(Rejection::NoRoom);
+                    return (Outcome::Rejected(Rejection::NoRoom), 0);
                 };
 
                 // No energy. Growing is the slow answer, and a meal cannot be
                 // both meals.
-                match crate::growth::mirror_attachment(&growth) {
+                let outcome = match crate::growth::mirror_attachment(&growth) {
                     Some(mirrored) => match self.body.attach(
                         eaten.volume,
                         each,
@@ -358,7 +391,8 @@ impl World {
                         Err(_) => Outcome::Incorporated { part },
                     },
                     None => Outcome::Incorporated { part },
-                }
+                };
+                (outcome, 0)
             }
         }
     }
@@ -424,7 +458,7 @@ mod tests {
         let mass_before = world.total_mass_mg();
         let box_before = world.collision();
 
-        let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Place { parent: world.body.root, offset: [5, 0, 0], yaw: Yaw::Zero } });
+        let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [5, 0, 0], yaw: Yaw::Zero } } });
 
         assert!(matches!(outcome, Outcome::Incorporated { .. }));
         assert!(world.total_mass_mg() > mass_before);
@@ -442,7 +476,7 @@ mod tests {
             .map(|m| m.species)
             .unwrap();
 
-        let Outcome::Incorporated { part } = world.apply(Intent::Metabolize { organism: target, route: Route::Place { parent: world.body.root, offset: [4, 0, 0], yaw: Yaw::Zero } }) else {
+        let Outcome::Incorporated { part } = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [4, 0, 0], yaw: Yaw::Zero } } }) else {
             panic!("expected incorporation");
         };
 
@@ -471,7 +505,7 @@ mod tests {
             venom_mg: 0,
             guise: Kingdom::Producer,
         });
-        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(900), route: Route::Place { parent: world.body.root, offset: [1, 0, 0], yaw: Yaw::Zero } });
+        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(900), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [1, 0, 0], yaw: Yaw::Zero } } });
         assert_eq!(outcome, Outcome::Rejected(Rejection::OutOfReach));
     }
 
@@ -479,7 +513,7 @@ mod tests {
     fn rejected_intents_still_advance_the_tick() {
         let mut world = World::new(11, 2);
         let before = world.tick;
-        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(4242), route: Route::Place { parent: world.body.root, offset: [0, 0, 0], yaw: Yaw::Zero } });
+        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(4242), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body.root, offset: [0, 0, 0], yaw: Yaw::Zero } } });
         assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchOrganism(OrganismId(4242))));
         assert_eq!(world.tick, before + 1);
     }

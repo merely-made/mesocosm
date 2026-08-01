@@ -21,7 +21,7 @@
 
 use std::{fs, path::PathBuf};
 
-use mesocosm_core::{Chronicle, Intent, Route, OrganismId, World, generate};
+use mesocosm_core::{Chronicle, Intent, Placement, Route, OrganismId, World, generate};
 
 fn main() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures");
@@ -63,7 +63,7 @@ fn played() -> Chronicle {
 
         let step = [0, 1, 2].map(|axis| (at[axis] - world.position[axis]).signum());
         if step == [0, 0, 0] {
-            world.apply(Intent::Metabolize { organism: prey, route: Route::Incorporate });
+            world.apply(Intent::Metabolize { organism: prey, route: Route::Incorporate { placement: Placement::Planned } });
         } else {
             world.apply(Intent::Move { delta: step });
         }

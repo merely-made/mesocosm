@@ -8,7 +8,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use mesocosm_core::{Intent, Kingdom, Organism, Route, Signal, Stage};
+use mesocosm_core::{Intent, Kingdom, Organism, Placement, Route, Signal, Stage};
 use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
 use mesocosm_render::{Camera, Renderer, SceneItem, deadened, kingdom_colour};
 use mesocosm_runtime::Runtime;
@@ -211,12 +211,12 @@ impl Host {
                 // The one verb, two destinations. Growing is the default
                 // because automatic symmetric growth is the resting state;
                 // burning is the deliberate one you reach for when hungry.
-                "e" | "E" => self.meal(Route::Incorporate),
+                "e" | "E" => self.meal(Route::Incorporate { placement: Placement::Planned }),
                 "f" | "F" => self.meal(Route::Burn),
                 "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
                 _ => None,
             },
-            Key::Named(NamedKey::Space) => self.meal(Route::Incorporate),
+            Key::Named(NamedKey::Space) => self.meal(Route::Incorporate { placement: Placement::Planned }),
             _ => None,
         }
     }
@@ -250,7 +250,7 @@ impl Host {
                 // A capture run grows rather than burns, so an unattended
                 // run still produces a body to look at.
                 let intent =
-                    fixture::metabolize(world, target, &self.volumes, Route::Incorporate);
+                    fixture::metabolize(world, target, &self.volumes, Route::Incorporate { placement: Placement::Planned });
                 self.runtime.queue(intent);
             }
         }

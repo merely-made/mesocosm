@@ -65,4 +65,4 @@ pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use rng::Rng;
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};
-pub use world::{Intent, Outcome, Rejection, Route, World};
+pub use world::{Intent, Outcome, Placement, Rejection, Route, World};

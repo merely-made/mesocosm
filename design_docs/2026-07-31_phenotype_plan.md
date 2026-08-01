@@ -149,13 +149,20 @@ this game wants: a choice with a cost rather than a fact about biology.
 
 Three corrections before any of it is built.
 
-**The control pattern is probably not its own layer.** Each archetype above is
-a *distribution of channel requirements across parts*, not a separate authored
-system: a vertebrate is mostly `centralized`, an octopus is `local` limbs under
-some `centralized` behaviour, a mycelium is `redundant` throughout, a plant is
+**The control pattern is not its own authored layer.** Each archetype above is
+a *distribution of channel requirements across parts*, not a separate system: a
+vertebrate is mostly `centralized`, an octopus is `local` limbs under some
+`centralized` behaviour, a mycelium is `redundant` throughout, a plant is
 `routed` with nothing `centralized`, a colony is `quorum`. Collapsing four
-layers to three means the archetypes *emerge* instead of being enumerated,
-which is fewer authored systems and better anti-Spore discipline.
+layers to three means the archetypes *emerge* instead of being enumerated.
+
+**But keep it as a derived reading.** "Centralized", "distributed", and
+"quorum-controlled" are exactly what a field journal or an inspector should say
+about a creature, and they are cheap to compute from the requirements currently
+being satisfied. The rule is that **requirements attach to actions and
+processes, never to the organism**: a creature may be centralized for
+locomotion and quorum-governed for reproduction at the same moment, and a label
+stored on the organism would erase that.
 
 **Every requirement kind needs to name the relation it is evaluated over, and
 one of them does not have one yet.** `local` needs no graph. `routed`,
@@ -165,14 +172,17 @@ diffusing through *neighbouring tissue*, and neighbouring is ambiguous: two
 plates both attached to the root are spatially in contact and are not adjacent
 in either the structural tree or, necessarily, the channel graph.
 
-So broadcast either (a) means bounded `routed`, a path within a hop limit, or
-(b) needs a **third relation, spatial contact**, computable from `world_pivot`
-and `half_extent` but quadratic and genuinely distinct from the other two.
-**Resolve as (a).** It costs nothing, it keeps the model at two relations plus
-a fold, and mycelial resilience still works because that is `redundant` over a
-cyclic channel graph rather than diffusion. True spatial diffusion can arrive
-later if some phenotype actually needs it, and it should have to earn its way
-in.
+So broadcast either means bounded `routed`, a path within a hop limit, or it
+needs a **third relation, spatial contact**, computable from `world_pivot` and
+`half_extent` but quadratic and genuinely distinct from the other two.
+
+**Cut it from the initial vocabulary rather than picking one.** Defining it as
+bounded routing would still be authoring a semantic before anything needs it,
+and the choice between the two readings is exactly the kind of thing a real
+phenotype should settle. Mycelial resilience does not depend on it: that is
+`redundant` over a cyclic channel graph, not diffusion. When some creature
+genuinely needs propagation, it will show which relation it needs, and that
+evidence is worth more than the guess.
 
 **Grafting is where catalog pressure will arrive.** The graft routes are
 excellent fiction: pay for awkward adapters, assimilate the process into
@@ -180,9 +190,17 @@ host-grown anatomy, let it stay partly autonomous, cultivate a symbiont that
 translates, or accidentally install a parasite that hijacks the network. But
 "its cut boundary may not speak your body's language" needs a *type* on the
 channel endpoint, and a rich endpoint type is a compatibility matrix, which is
-a catalog wearing a lab coat. **Keep endpoint compatibility expressed in the
-same tiny process vocabulary**, so a graft check is one set-membership test
-rather than a table that grows with every part ever authored.
+a catalog wearing a lab coat.
+
+**The endpoint type is a flow, not a process.** An earlier draft here said to
+reuse the process vocabulary, and that was wrong: **processes transform things,
+channels carry them**, and typing an endpoint by its process conflates
+"digestion" with what digestion receives and emits. The endpoint vocabulary is
+therefore the smaller one — energy, matter, signal, force, medium. Matching
+flows connect directly, and a mismatch is repaired by an explicit **adapter
+process** that transforms one flow into another, which is a part doing work
+rather than a table granting an exception. That keeps compatibility as one
+comparison and makes the cost of an awkward graft a visible organ.
 
 ### The same question at widening boundaries
 
@@ -221,9 +239,17 @@ over-generalize into a physics of everything. The discussion already says the
 two remain separate authorities using a common grammar. Make that a rule rather
 than an intention:
 
-> **The shared flow vocabulary is a glossary, not an engine.** Two authorities,
-> one set of words, no common evaluator. The day an ecology tick and a body
-> evaluation call the same solver, the substrate has grown a second engine.
+> **Do not share an evaluator before two sovereign rule systems have
+> independently proven the same mechanism.** Two authorities, one set of words,
+> and no common solver until each has earned its own.
+
+Stated as a gate rather than a prohibition, because the absolute form was too
+strong to keep. If a body evaluation and an ecology tick later grow two genuine
+implementations of the same bounded flow primitive, extraction should be
+available; that is the wing's standing rule everywhere else, where a shared
+thing is extracted after two real consumers rather than declared in advance.
+What must not happen is the reverse order: one solver written first and two
+domains bent to fit it.
 
 ---
 
@@ -549,16 +575,156 @@ real consumer.
 - Do not version the wire before identity and part addressing are settled.
 - Do not build the journal before observation events distinguish appearance
   from hidden truth.
-- Do not give a channel requirement a relation it cannot name; resolve
-  broadcast as bounded routing rather than adding a spatial-contact graph.
-- Do not let graft compatibility grow an endpoint type richer than the
-  process vocabulary; a compatibility matrix is a catalog.
-- Do not let the body evaluator and the ecology tick share an evaluator.
-  The flow vocabulary is a glossary, not an engine.
+- Do not give a channel requirement a relation it cannot name. Broadcast is
+  cut from the initial vocabulary until a phenotype proves which relation
+  it needs.
+- Do not store a control archetype on an organism. Requirements attach to
+  actions and processes; centralized or quorum is a derived reading.
+- Do not type a channel endpoint by its process. Endpoints are flows;
+  processes transform them, and a mismatch is an adapter part rather than
+  a compatibility table.
+- Do not share an evaluator between the body and the ecology before each
+  has independently proven the same mechanism.
 
 ---
 
+---
+
+## 7. P1 design pass: one organism model
+
+**Written 2026-08-01, before implementation, because P1 is a state migration
+rather than a feature.** Five things must be settled first. Nothing here is
+built; each entry states the question, the answer, and why the alternatives
+lose.
+
+Current shape, verified: `World` holds `position`, `energy_mg`, and one
+`BodyDocument` for the played critter, beside `organisms: Vec<Organism>` where
+each organism is a scalar record with `volume`, `half_extent`, `position`,
+`mass_mg`, `stage`, `signal`, `venom_mg`, and `guise`. The played critter is
+not in that vector.
+
+### 7.1 What does control name?
+
+**`controlled: OrganismId` on `World`.** Control is a pointer, not a shape.
+
+Everything else follows from this one line. Switching lineage becomes moving a
+pointer rather than reconstructing state, an unplayed critter and a played one
+serialize identically, and the wing's third law holds at the level of the
+simulation rather than only the file format. It also makes "leave the world
+running" expressible: nothing about a world requires anyone to be in it.
+
+The alternative, a `played: bool` on the organism, reintroduces exactly the
+marker Law C forbids and would let rules branch on it.
+
+### 7.2 Where do position, energy, and body live?
+
+**All three move onto `Organism`.** `World::position` and `World::energy_mg`
+become fields every organism has, and `World::body` becomes a body every
+organism may have.
+
+Position is uncontroversial: organisms already carry one, and the played
+critter's separate copy is the anomaly. Energy is the load-bearing one, because
+**an unplayed critter that cannot run out of energy cannot starve**, and the
+ecology's existing `mass_mg` drain is a different quantity doing a similar job.
+Those two want reconciling during the migration rather than after it, and the
+honest reading is that `mass_mg` is what a body weighs while `energy_mg` is
+what it can spend.
+
+### 7.3 Realized individuals versus cohorts
+
+**The rule contract is one model; the storage is two.** Rules must never ask
+whether a subject is realized.
+
+A subject is **realized** when it is played, nearby, named, injured, or
+otherwise consequential, and carries its own body revision. Everything else is
+a **cohort**: a species, a count, conserved mass and energy, a developmental
+distribution, and a causal seed.
+
+Two operations, and they must be exact inverses on the conserved quantities:
+
+- **Materialize**: draw an individual out of a cohort, deterministically from
+  the seed, subtracting its mass and energy from the cohort's totals.
+- **Aggregate**: return an individual to its cohort, adding those quantities
+  back. **Refuses** for any subject with a chronicle, a name, or player
+  history, because folding those back into a distribution is the fact loss the
+  wing's keystone forbids.
+
+The failure mode to design against is rerolling: crossing the boundary twice
+must not resample a creature into a different one. That is why the seed is part
+of cohort state rather than drawn at materialization.
+
+### 7.4 How are bodies referenced?
+
+**By value on realized subjects, interned by developmental identity for
+cohorts.** A cohort does not hold N bodies; it holds the rules that would grow
+them and the statistics of what did grow.
+
+Interning shared *immutable* volume data is already the pattern (`VolumeRef` is
+a content address and the core never reads through it). Bodies are mutable and
+individual, so they are not interned; what can be shared is the developmental
+program behind them.
+
+**Do not intern bodies by structural equality.** Two critters that currently
+look identical have different futures and different provenance, and sharing
+their anatomy would make one's injury the other's.
+
+### 7.5 How does the current player migrate without changing replay?
+
+**It does not migrate silently.** The existing replay fixtures encode a world
+whose player is not in the organism vector, so any faithful migration changes
+the state hash. Pretending otherwise would be the more expensive mistake.
+
+The plan is therefore:
+
+1. Land the migration with the fixtures **regenerated in the same commit**, and
+   state plainly in that commit that hashes moved and why.
+2. Keep the pre-migration fixture bytes alongside, so the old trace can still be
+   decoded and compared structurally even though it no longer hashes equal.
+3. Assert the property that actually matters, which is not hash stability across
+   a schema change but **that the same intent trace produces the same result
+   before and after control moves between two subjects**.
+
+The determinism guarantee is about a build replaying its own traces, not about
+a schema never changing. The refusal machinery built for the interchange is the
+precedent: a version boundary is honest, a silent reinterpretation is not.
+
+### Done when
+
+- `World` has no player-specific `position`, `energy_mg`, or `body`.
+- Control is an `OrganismId`, and moving it changes neither serialization nor
+  ecology semantics.
+- The scene renderer discovers the played critter through the same path as
+  everything else.
+- A cohort round-trip conserves mass, energy, and lineage, and refuses to
+  aggregate a subject carrying a chronicle.
+- Replay holds within the new schema, with regenerated fixtures and a commit
+  that says so.
+
+### Not in P1
+
+Damage to specific parts, prey that lose subtrees, phenotype-granted actions,
+and branch transfer. Those are P2 and P3, and they are the *reason* for P1
+rather than part of it.
+
 ## Findings
+
+- **2026-08-01:** P0's first cut typed the editor path as `Route::Place`, a
+  destination beside `Burn`. That conflated *where a meal goes* with *how a
+  part finds its site*. Corrected to `Route::Incorporate { placement }`, so
+  burn, grow, and the later destinations stay one axis and placement is a
+  policy of growing.
+- **2026-08-01:** P0 subtracted venom before adding burned mass, so a nearly
+  starved critter lost part of a toxin to the zero floor and then collected the
+  full meal. Approaching death was a discount on poison, and the original test
+  enshrined the ordering. Gains now land before costs. The floor itself
+  remains: energy is unsigned, so venom beyond what a critter holds is forgiven
+  rather than owed, and a debt or damage model is a later decision.
+- **2026-08-01:** P0 removed the organism and charged its venom before the
+  attachment was known to succeed, and dropped the roster restore the previous
+  code had. Unreachable with today's `attach`, and reachable as soon as graft
+  compatibility exists. Now one transaction: everything that can refuse is
+  checked first, a failed landing puts the meal back, and the ledger moves only
+  once the meal has landed.
 
 - **2026-07-31:** the automatic incorporation path skipped the venom
   subtraction the explicit path paid, so the default verb was strictly safer

@@ -14,7 +14,7 @@
 
 use std::path::{Path, PathBuf};
 
-use mesocosm_core::{Intent, OrganismId, Outcome, PartId, Route, VolumeRef, World, Yaw};
+use mesocosm_core::{Intent, OrganismId, Outcome, PartId, Placement, Route, VolumeRef, World, Yaw};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 use mesocosm_render::{Camera, Renderer};
 
@@ -77,7 +77,7 @@ fn grow(world: &mut World, meals: usize) -> usize {
         // its corner, so a rotated limb swings off the joint it was flush to.
         if let Outcome::Incorporated { .. } = world.apply(Intent::Metabolize {
             organism: target,
-            route: Route::Place { parent: PartId(0), offset, yaw: Yaw::Zero },
+            route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset, yaw: Yaw::Zero } },
         }) {
             eaten += 1;
         }
