@@ -49,6 +49,7 @@ pub mod snapshot;
 pub mod world;
 
 pub mod chronicle;
+pub mod epoch;
 pub mod wire;
 
 pub use body::{
@@ -56,6 +57,7 @@ pub use body::{
     VolumeRef, Yaw,
 };
 pub use chronicle::{Chronicle, Consequence, Deed, PartOrigin, generate};
+pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use growth::{Growth, resolve};
 pub use wire::{WireError, frame, unframe};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};

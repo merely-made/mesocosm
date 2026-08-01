@@ -306,15 +306,76 @@ incorporation, and a metabolic budget.
 > another run.** No quantity of state-hash equivalence redeems a verb that is
 > not worth repeating.
 
-### 2.2 Epoch and ecology lab
+### 2.2 Epoch and ecology lab — **COMPLETE 2026-07-31**, with one finding
 
-A headless or lightly visualised model of the epoch loop's turn structure:
-complex-first initiative, simpler-lineage response, complexity-frontier
-switching, and autonomous inactive lineages.
+`mesocosm-core::epoch` models the adaptation phase headlessly: descending-complexity
+initiative, simpler-lineage response, the complexity frontier, autonomous inactive
+lineages, and three authored worlds. 35 tests. `cargo run -p mesocosm-core --example
+ecology_lab` is the watching half.
 
-**Three authored worlds from the Exocosm-informed grammar**, not procedural
-world generation. Authored worlds are legible enough to debug an ecology
-against; generated ones move the question before it is answered.
+**The initiative rule needed a type to be more than decoration.** Ordering by
+complexity means nothing if every lineage scores against the same frozen world. So
+`Standing` computes what a lineage faces from the roster's *current* state — world
+pressure plus what the neighbours currently are — and commits land immediately. A
+lineage acting later is answering a world the earlier ones have already changed,
+which is exactly the compressed generation tempo the rule was ruled for.
+
+**Complexity is derived, never stored.** It is the sum of what a lineage carries, so
+initiative cannot be bought: acting first means being genuinely expensive, and upkeep
+is superlinear so being expensive is charged for. That is what keeps a fruit fly
+viable next to a cicada.
+
+**Nothing in the round reads `played`.** Unplayed lineages adapt by the same code, so
+a line the player left keeps changing while they are elsewhere. A test runs the same
+round over a played and an unplayed roster and asserts the transcripts are identical.
+Law C holding at the level of the simulation rather than the file format.
+
+**Fitness punishes the worst answer, not the average.** Squared deficits, so a lineage
+dies of the thing it is worst at and adaptation shores up weaknesses instead of piling
+onto strengths. A linear score would let a lineage rationally ignore a lethal pressure
+because it was excellent somewhere else.
+
+**The three authored worlds produce three different creatures**, which is the whole
+reason to author three. On the tidal shelf (crowding 8, dark 5) everything converges on
+sense and fecundity; in the heavy deep (gravity 9, corrosive 6) on frame and shell; in
+the long year (cold 8, drought 7) on insulation and water. Same code, same founders,
+different answers.
+
+#### The finding: the phase converges, and nothing ever dies
+
+Measured across five seeds x forty rounds x three worlds — 600 lineage-rounds:
+
+- **Zero extinctions.** Not one, in any world, at any seed.
+- **Convergence by round ~6.** After round eight essentially every remaining change
+  is a `+1` tweak. Activity continues, but nothing consequential happens.
+
+This is not a tuning problem. `EXTINCTION_FLOOR` is -400 and final fitnesses sit
+around -12 to -24 — the roster is not near the floor, it is comfortable. The cause is
+structural: **every pressure has a trait that answers it, and income is flat and
+uncontested, so every lineage eventually solves its world and then stops.** Nothing
+in the model can make a lineage lose.
+
+Open question 3 in the [founding plan](2026-07-30_mesocosm_founding_plan.md) framed
+extinction as emergent-preferred with evented pressure "only to keep worlds from
+settling". **The lab says emergent extinction does not arise on its own under these
+conditions**, so that "only" is doing more work than it looked like. Two candidate
+answers, and the choice is a design ruling rather than a tuning pass:
+
+1. **Contested income.** Bank is currently flat per lineage per round. If income were
+   a share of a finite pool weighted by fitness, a lineage that fell behind would
+   adapt more slowly, fall further behind, and eventually fail — extinction as a
+   consequence of competition rather than of a threshold. This is the emergent answer
+   open question 3 prefers, and it makes crowding mean something the fitness function
+   cannot currently express. It also belongs to the **epoch** half, since how bank is
+   earned is what the played phase is for, which is why the lab left it flat.
+2. **Evented disturbance.** A world throws a glaciation, an impact, a plague: pressures
+   move and a settled roster is suddenly wrong. Cheaper to build and immediately
+   legible, but it makes the drama authored rather than grown.
+
+They are not exclusive, and the honest reading is that **1 is the fix and 2 is the
+seasoning**. Recorded rather than built: disturbances are not in this wave's target,
+and contested income is a ruling about the epoch half that should not arrive as a side
+effect of the adaptation lab.
 
 ### 2.3 Paredros social proof
 
@@ -635,3 +696,11 @@ round-trip:
   count becomes the tell; and a verb two games both act on is a contract
   needing an agreed payload, distinct from a game's own opaque vocabulary.
   Details in §2.4.
+- **2026-07-31**: **wave 2.2 complete.** `mesocosm-core::epoch`: initiative by
+  derived complexity, `Standing` so commits land before the next lineage
+  scores, the frontier gate, and three authored worlds that produce three
+  different creatures. 198 tests across the workspace, clippy clean. **One
+  finding worth a ruling**: across 600 lineage-rounds there were zero
+  extinctions and the phase converges by round six, because every pressure has
+  an answer and income is flat and uncontested. Contested income is the
+  emergent fix and belongs to the epoch half; see §2.2.
