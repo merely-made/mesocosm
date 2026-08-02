@@ -12,7 +12,7 @@
 
 use std::collections::VecDeque;
 
-use mesocosm_core::{Intent, Outcome, World, state_hash};
+use mesocosm_core::{History, Intent, Outcome, Reading, World, state_hash};
 
 use crate::clock::Clock;
 
@@ -28,6 +28,13 @@ pub struct Runtime {
     queued: VecDeque<Intent>,
     /// The ordered trace of every intent actually applied.
     trace: Vec<Intent>,
+    /// What happened, drained tick by tick.
+    ///
+    /// The world buffers one tick and a caller drains it, so somebody has to be
+    /// that caller or a shipped run has no past at all. This is the caller: the
+    /// driver already records every intent, and recording every consequence
+    /// belongs beside it.
+    history: History,
     last: Vec<Outcome>,
     max_steps: u64,
     seed: u64,
@@ -41,6 +48,7 @@ impl Runtime {
             clock: Clock::new(ticks_per_second),
             queued: VecDeque::new(),
             trace: Vec::new(),
+            history: History::new(),
             last: Vec::new(),
             max_steps: DEFAULT_MAX_STEPS_PER_ADVANCE,
             seed,
@@ -73,6 +81,7 @@ impl Runtime {
             let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
             let outcome = self.world.apply(intent.clone());
             self.trace.push(intent);
+            self.history.record_all(self.world.drain_events());
             self.last.push(outcome);
         }
         advance.steps
@@ -86,12 +95,31 @@ impl Runtime {
             let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
             let outcome = self.world.apply(intent.clone());
             self.trace.push(intent);
+            self.history.record_all(self.world.drain_events());
             self.last.push(outcome);
         }
     }
 
     pub fn world(&self) -> &World {
         &self.world
+    }
+
+    /// What this run has seen happen.
+    pub fn history(&self) -> &History {
+        &self.history
+    }
+
+    /// What each lineage has done, without noting any of it.
+    ///
+    /// The reading half on its own, so a host can show a standing without
+    /// ending an epoch to find it out.
+    pub fn readings(&self) -> Vec<Reading> {
+        mesocosm_core::readings(&self.world, &self.history)
+    }
+
+    /// Ends the epoch and writes what it came to into the world's record.
+    pub fn end_epoch(&mut self) -> Vec<Reading> {
+        self.world.end_epoch(&self.history)
     }
 
     /// The ordered trace of applied intents. Together with the seed and organism
@@ -120,12 +148,22 @@ impl Runtime {
         }
     }
 
-    /// Rebuilds a world from a seed and trace, without any host at all. Two
-    /// hosts agree exactly when their traces replay to the same hash here.
-    pub fn replay(seed: u64, organisms: u32, trace: &[Intent]) -> World {
+    /// Rebuilds a run from a seed and trace, without any host at all. Two hosts
+    /// agree exactly when their traces replay to the same hash here.
+    ///
+    /// Returns the past as well as the world, because it has to: a driven run
+    /// drains its events every tick and a replay that did not would end holding
+    /// a tick of undrained ones, which is a difference in the snapshot and so a
+    /// difference in the hash. Reproducing the history rather than discarding it
+    /// is also the claim that keeps it out of the snapshot, made executable.
+    pub fn replay(seed: u64, organisms: u32, trace: &[Intent]) -> (World, History) {
         let mut world = World::new(seed, organisms);
-        world.apply_all(trace);
-        world
+        let mut history = History::new();
+        for intent in trace {
+            world.apply(intent.clone());
+            history.record_all(world.drain_events());
+        }
+        (world, history)
     }
 }
 
@@ -227,8 +265,32 @@ mod tests {
         }
         rt.advance(200_000);
 
-        let replayed = Runtime::replay(555, 20, rt.trace());
+        let (replayed, past) = Runtime::replay(555, 20, rt.trace());
         assert_eq!(state_hash(&replayed), rt.state_hash());
+        assert_eq!(&past, rt.history(), "and the same run has the same past");
+    }
+
+    #[test]
+    fn a_driven_run_keeps_its_past() {
+        // The world buffers one tick and drops it if nobody drains. Before the
+        // driver recorded, every shipped run had a present and no history.
+        let mut rt = Runtime::new(4_242, 40, 60);
+        rt.step(200);
+
+        assert!(!rt.history().is_empty(), "two hundred ticks left a record");
+        assert!(!rt.readings().is_empty(), "and it comes to something");
+    }
+
+    #[test]
+    fn ending_an_epoch_notes_what_the_run_did() {
+        let mut rt = Runtime::new(4_242, 40, 60);
+        rt.step(200);
+
+        assert_eq!(rt.world().record().filled(), 0);
+        let readings = rt.end_epoch();
+        assert!(!readings.is_empty());
+        assert!(rt.world().record().filled() > 0, "the record has it now");
+        assert_eq!(rt.world().epoch, 1);
     }
 
     #[test]

@@ -340,12 +340,22 @@ impl Host {
         if let Ok(mut writer) = encoder.write_header() {
             let _ = writer.write_image_data(&frame.pixels);
         }
+        // Reported rather than merely rendered: places, history, and scoring
+        // are all invisible on screen, so a capture run that quietly stopped
+        // recording would look exactly like one that did not.
+        let world = self.runtime.world();
         println!(
-            "captured {} after {} frames, {} steps, {} body parts",
+            "captured {} after {} frames, {} steps, {} body parts, in place {:?} of {}, \
+             {} lineages, {} events, {} readings",
             path.display(),
             self.frames,
             self.steps,
-            self.runtime.world().body().unwrap().len()
+            world.body().map(|b| b.len()).unwrap_or(0),
+            world.place(),
+            world.places().len(),
+            world.lineages().len(),
+            self.runtime.history().len(),
+            self.runtime.readings().len(),
         );
     }
 }

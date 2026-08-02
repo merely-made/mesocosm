@@ -206,7 +206,7 @@ All four verified absent on 2026-08-01.
 | ~~An event log~~ | significance, the world record, world events | **Built 2026-08-02** as `mesocosm-core::history`, on codicil's causal log. |
 | ~~A species tree~~ | speciation, ancestral distance | **Built 2026-08-02** as `mesocosm-core::species`. Ancestral distance is computable. |
 | ~~A world record~~ | abnormality, goal verification | **Built 2026-08-01** as `WorldRecord`. Not an index over the log; a handful of integers beside it. |
-| **A place graph** | locality and magnitude | `CROWD_CELL` is an 8-voxel grid for density, not named regions. Worldwide, regional, and local need somewhere to be. |
+| ~~A place graph~~ | locality and magnitude | **Built 2026-08-02** as `mesocosm-core::places`. All four are now in. |
 
 Two of these have homes already suggested elsewhere. **The event log's growth
 problem is what tulpa was invented for**: codicil holds everything, tulpa holds
@@ -411,6 +411,106 @@ significance still needs scoring, which needs places. The player half stands
 alone because naming needs nothing but a player.
 ---
 
+## 12. Places, and the reckoning all four pieces were for
+
+**Built 2026-08-02.** The last of the four, and then the thing they were each
+missing a piece of.
+
+### An enclosure gets somewhere in it
+
+`Scale` had three variants and no way to tell them apart. `CROWD_CELL` looked
+like the missing piece and is not: an eight-voxel bucket for counting
+neighbours, recomputed every tick, with no identity to remember and nothing
+next to anything.
+
+`mesocosm-core::places` is two facts that are not the same fact.
+
+**A partition**, because everything in the enclosure is already at a position
+and has to be *in* somewhere: sites scattered one per cell of a coarse grid and
+jittered inside it, with a position belonging to the nearest. Stratifying rather
+than scattering freely keeps regions from collapsing into slivers; the jitter
+keeps the result from looking like the grid it came from.
+
+**A graph**, because three regions in a row and three scattered across the
+enclosure are the same count and a different fact. `spread` is the hop diameter
+of a touched set, which is the plan's *locality* axis: how confined it was, as
+distinct from how much it covered. Adjacency is the grid's, so no seed can
+produce an enclosure with an unreachable corner.
+
+Height is not a place. The enclosure is a few voxels deep and nothing lives in a
+layer, which is the same reading of position `organism::ecology` already takes.
+
+Places draw from **their own stream**, salted off the world seed. Drawing from
+the world's would shift every draw after it, so dividing an enclosure would
+silently rearrange the creatures scattered across it.
+
+### Scale is read, never declared
+
+One region is Local; a strict majority of the enclosure is Worldwide; between
+them is Regional. A majority is the least arbitrary reading of "most of the
+world" available, and the alternative was picking a fraction.
+
+**A lineage's range is a high-water set** — the same shape as the frontier, one
+scale down, and the fifth place that pattern has turned up. Where a creature has
+been is not readable from where it is, and a lineage that withdrew from half the
+enclosure still reached it. Union is commutative, associative, and idempotent,
+so two worlds' ranges join the way their records do, without a protocol.
+
+### The reckoning
+
+`WorldRecord::note` was built on 2026-08-01 because its *shape* was the question,
+and it had no callers through three sessions. `mesocosm-core::score` is the
+caller, and it is last rather than first because a reckoning needs all four at
+once: the log to read what happened, the species tree to have lineages worth
+telling apart, places for `Scale` to mean anything, and the record to write into.
+
+`World::end_epoch` takes the past, because history lives beside a world rather
+than inside it: a world can say what is, never what happened. It returns every
+reading with whether it took the record, which is what an epoch-boundary screen
+is made of — not the numbers, but which of them nobody had reached before.
+
+Nothing here is a counter the simulation maintains. Every figure is read off the
+world and its past when the epoch ends, which is the same discipline capability,
+temperament, and the possibility space already run on.
+
+**Predation is the log paying for itself.** Taking from the living and taking
+from the dead are the same `Fed` event, and the difference between a predator
+and a scavenger is *only* answerable because the log preserves order: a meal
+counts as predation when no `Died` about that creature came before it. Nothing
+else could have recovered that afterwards.
+
+**Two axes stay empty on purpose.** Nothing yet gives to another creature or
+changes the enclosure, so `Symbiosis` and `Construction` are never noted. That is
+worth more than a zero: `untouched` answers *has anyone ever*, and writing
+zeroes would close the question permanently on every world's first epoch.
+
+### The runtime finally records
+
+The world buffers one tick of events and a caller drains them, and **nothing in
+the shipped app was that caller** — every driven run had a present and no past,
+while only the tests had a history. `Runtime` now records beside the trace it
+already keeps.
+
+That made `Runtime::replay` wrong in a way worth keeping: a driven run drains
+every tick and a replay that did not ended holding a tick of undrained events,
+which is a difference in the snapshot and so in the state hash. `replay` returns
+the past as well as the world now, which turns the claim that history is
+derivable — the reason it stays out of the snapshot — into something executable.
+
+### Still not built
+
+- **Events carry no place.** A feat is scaled by how far the lineage that
+  performed it reaches, not by where each act happened, because the events say
+  who and how much and not where. That is the next thing places want.
+- **Events carry no tick**, so `Endurance` is read from the living. A creature
+  that lived long and died between two reckonings is not counted.
+- **Nothing names a place.** Naming arrives with the reward that grants it, the
+  same promotion that makes a critter a borg and a lineage a species, so `Place`
+  deliberately has no name field yet.
+- **NPC speciation**, which was waiting on scoring, is now only waiting on the
+  rule for what counts as significant enough to split a line.
+---
+
 ## 7. Stop rules
 
 - Do not speciate on a similarity threshold. Splitting is an act with a record
@@ -429,6 +529,10 @@ alone because naming needs nothing but a player.
   it is load-bearing rather than decorative.
 - Do not make the world record answer traversal questions. Abnormality is a
   lookup; what-depended-on-this is the causal log.
+- Do not note a zero. `untouched` answers "has anyone ever", and a zero mark
+  answers it yes forever.
+- Do not compute a range from where a lineage is. It is a high-water set, for
+  the same reason the frontier is a high-water mark.
 - Do not break the semilattice. Any change to `Mark::join` must keep merging
   commutative, associative, and idempotent, or worlds stop combining without a
   protocol.
@@ -460,6 +564,13 @@ alone because naming needs nothing but a player.
 ---
 
 ## Findings
+
+- **2026-08-02:** nothing in the shipped app drained the world's event buffer,
+  so every driven run had a present and no past. History existed only in tests.
+- **2026-08-02:** `Runtime::replay` diverged from the run it replayed once the
+  driver started draining, because undrained events are part of the snapshot and
+  therefore part of the state hash. Reproducing the history is the fix, and it
+  is also the derivability claim made executable.
 
 - **2026-08-02:** the complexity frontier had never been enforced anywhere
   control moved. It lived in `epoch::can_switch_to`, called by nothing outside
