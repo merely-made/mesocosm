@@ -50,6 +50,7 @@ pub mod process;
 pub mod record;
 pub mod rng;
 pub mod snapshot;
+pub mod species;
 pub mod world;
 
 pub mod chronicle;
@@ -70,5 +71,6 @@ pub use process::{BULK_REACH, Capability, Process, Unmet};
 pub use record::{Feat, Mark, Scale, WorldRecord};
 pub use rng::Rng;
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
+pub use species::{Lineages, Species};
 pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};
 pub use world::{Ineligible, Intent, Outcome, Placement, Rejection, Route, World};

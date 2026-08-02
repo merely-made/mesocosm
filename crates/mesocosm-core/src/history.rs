@@ -73,6 +73,8 @@ pub enum Event {
     Returned { organism: OrganismId },
     /// The player took a body.
     Inhabited { organism: OrganismId },
+    /// A line split off another, and was named.
+    Speciated { species: SpeciesId, from: SpeciesId, founder: OrganismId },
 }
 
 impl Event {
@@ -93,6 +95,10 @@ impl Event {
             | Event::Died { organism, .. }
             | Event::Returned { organism }
             | Event::Inhabited { organism } => vec![organism],
+            // The founder's line continues through the split, which is what
+            // makes a speciation visible in its own history rather than only
+            // in the world's.
+            Event::Speciated { founder, .. } => vec![founder],
         }
     }
 }

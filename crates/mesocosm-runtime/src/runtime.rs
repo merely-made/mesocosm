@@ -71,7 +71,7 @@ impl Runtime {
         self.last.clear();
         for _ in 0..advance.steps {
             let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
-            let outcome = self.world.apply(intent);
+            let outcome = self.world.apply(intent.clone());
             self.trace.push(intent);
             self.last.push(outcome);
         }
@@ -84,7 +84,7 @@ impl Runtime {
         self.last.clear();
         for _ in 0..steps {
             let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
-            let outcome = self.world.apply(intent);
+            let outcome = self.world.apply(intent.clone());
             self.trace.push(intent);
             self.last.push(outcome);
         }

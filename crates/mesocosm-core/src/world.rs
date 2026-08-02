@@ -57,7 +57,9 @@ pub enum Route {
 
 /// What a host may ask the world to do. Hosts send intents; they never mutate
 /// world state directly.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// `Clone` rather than `Copy`, because naming a lineage carries a name.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Intent {
     /// Move the critter by a voxel delta.
     Move { delta: [i32; 3] },
@@ -68,6 +70,13 @@ pub enum Intent {
     Metabolize { organism: OrganismId, route: Route },
     /// Return mass to the enclosure as carrion.
     Deposit { mass_mg: u64 },
+    /// Split the line you are in, and name it.
+    ///
+    /// **The act that makes a species.** Splitting is not a threshold anybody
+    /// crosses; it is something a player does, and the name is the doing.
+    /// Takes the creature you are holding and nothing else, so a new line
+    /// begins with one founder and its former kin keep the old one.
+    Speciate { name: String },
     /// Inhabit another critter.
     ///
     /// **A recorded intent, not a side door.** Lineage switching is gameplay,
@@ -129,6 +138,8 @@ pub enum Outcome {
     Deposited { organism: OrganismId },
     /// Control moved to another critter.
     Inhabited { organism: OrganismId },
+    /// A line split, and was named.
+    Speciated { species: SpeciesId, from: SpeciesId, founder: OrganismId },
     Idled,
     Rejected(Rejection),
 }
@@ -168,6 +179,9 @@ pub struct World {
     /// cost.
     #[serde(default)]
     frontier: i32,
+    /// Which lineages exist, what they are called, and what they came from.
+    #[serde(default)]
+    lineages: crate::species::Lineages,
     /// Ordered by id, so iteration never depends on hashing.
     pub organisms: Vec<Organism>,
     next_organism: u32,
@@ -203,6 +217,9 @@ fn event_for(outcome: &Outcome, actor: Option<OrganismId>) -> Option<crate::hist
             Some(Event::Grew { organism: actor?, part })
         }
         Outcome::Inhabited { organism } => Some(Event::Inhabited { organism }),
+        Outcome::Speciated { species, from, founder } => {
+            Some(Event::Speciated { species, from, founder })
+        }
         Outcome::Moved | Outcome::Deposited { .. } | Outcome::Idled | Outcome::Rejected(_) => None,
     }
 }
@@ -316,6 +333,15 @@ impl World {
             // The starting body already counts: the player is holding it, so
             // the frontier begins where they begin rather than at nothing.
             frontier: organisms.first().map(Organism::complexity).unwrap_or(0),
+            lineages: {
+                // Everything the world began with is a founding lineage: no
+                // parent, no name, because nobody was there to give it one.
+                let mut lineages = crate::species::Lineages::new();
+                for organism in &organisms {
+                    lineages.found(organism.species);
+                }
+                lineages
+            },
             organisms,
             next_organism: organism_count + 1,
             last_tally: crate::organism::Tally::default(),
@@ -389,6 +415,20 @@ impl World {
     /// The ceiling a new lineage must sit below, and it only goes up.
     pub fn frontier(&self) -> i32 {
         self.frontier
+    }
+
+    /// Which lineages exist, and how they are related.
+    pub fn lineages(&self) -> &crate::species::Lineages {
+        &self.lineages
+    }
+
+    /// How far apart two creatures' ancestries are, in forks.
+    ///
+    /// One of the axes graft compatibility was ruled to scale with. It was
+    /// uncomputable until lineages could split: every pair was identical.
+    pub fn kinship(&self, a: OrganismId, b: OrganismId) -> Option<u32> {
+        let species = |id: OrganismId| self.organisms.iter().find(|o| o.id == id).map(|o| o.species);
+        self.lineages.distance(species(a)?, species(b)?)
     }
 
     /// Lineages the player has inhabited.
@@ -493,7 +533,7 @@ impl World {
 
     /// Applies an ordered trace, returning every outcome in order.
     pub fn apply_all(&mut self, trace: &[Intent]) -> Vec<Outcome> {
-        trace.iter().map(|i| self.apply(*i)).collect()
+        trace.iter().map(|i| self.apply(i.clone())).collect()
     }
 
     fn resolve(&mut self, intent: Intent) -> Outcome {
@@ -520,6 +560,26 @@ impl World {
                     *axis += step;
                 }
                 Outcome::Moved
+            }
+
+            Intent::Speciate { ref name } => {
+                let Some(me) = self.controlled().map(|o| (o.id, o.species)) else {
+                    return Outcome::Rejected(Rejection::Disembodied);
+                };
+                let (id, from) = me;
+                let Some(species) = self.lineages.fork(from, name.clone(), self.tick) else {
+                    return Outcome::Rejected(Rejection::NoSuchOrganism(id));
+                };
+
+                // Only the founder crosses. Its offspring inherit the new line;
+                // its former kin keep the old one, which is what makes forking
+                // a commitment rather than a rename.
+                if let Some(organism) = self.organisms.iter_mut().find(|o| o.id == id) {
+                    organism.species = species;
+                    organism.body.species = species;
+                }
+                self.unlocked.insert(species);
+                Outcome::Speciated { species, from, founder: id }
             }
 
             Intent::TakeControl { organism } => {

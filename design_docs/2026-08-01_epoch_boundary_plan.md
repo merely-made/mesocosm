@@ -204,7 +204,7 @@ All four verified absent on 2026-08-01.
 | Missing | Needed by | Note |
 | ------- | --------- | ---- |
 | ~~An event log~~ | significance, the world record, world events | **Built 2026-08-02** as `mesocosm-core::history`, on codicil's causal log. |
-| **A species tree** | speciation, ancestral distance | Reproduction copies `species` verbatim; there is no parentage record anywhere. |
+| ~~A species tree~~ | speciation, ancestral distance | **Built 2026-08-02** as `mesocosm-core::species`. Ancestral distance is computable. |
 | ~~A world record~~ | abnormality, goal verification | **Built 2026-08-01** as `WorldRecord`. Not an index over the log; a handful of integers beside it. |
 | **A place graph** | locality and magnitude | `CROWD_CELL` is an 8-voxel grid for density, not named regions. Worldwide, regional, and local need somewhere to be. |
 
@@ -336,6 +336,81 @@ places for `Scale` to mean anything and speciation for a lineage to be forkable.
 `WorldRecord::note` still has no callers.
 ---
 
+## 11. Speciation, and the frontier that finally binds
+
+**Built 2026-08-02.** Two things landed together because they are the same
+subject: what a lineage *is*, and who may be one.
+
+### Splitting is an act
+
+`Intent::Speciate { name }` forks the line the player is holding. The ruling
+was that splitting happens because something *happened*, not because a metric
+crossed a line, and for the player that act is naming. So the name is not
+metadata on the event, it *is* the event.
+
+**A founder crosses alone.** Forking takes the creature you are holding and
+nothing else; its offspring inherit the new line and its former kin keep the
+old one. That makes it a commitment rather than a free rename, and it is how a
+founder effect actually works.
+
+`mesocosm-core::species` holds the registry: what exists, what it is called,
+what it came from, when. A world's opening lineages are **unnamed**, because
+nobody was there to name them, which makes naming the same promotion one level
+up from a critter becoming a borg.
+
+Nothing is ever removed. Pruning an extinct lineage would erase the ancestry of
+everything descended from it, and a distance measured against a forgotten
+ancestor is not a distance.
+
+### Kinship is computable now
+
+`Lineages::distance` is the longer walk to a common ancestor, so a parent and
+child are one apart and two siblings are also one. Two founding lineages return
+**`None`** rather than a large number, which is the honest answer: they are not
+related, and inventing a shared ancestor to make the arithmetic work would be a
+lie the graft rule then acts on.
+
+That closes one of the three axes Mark named for graft compatibility. It was
+uncomputable before, because lineages never split and every pair was either
+identical or unrelated.
+
+### The frontier binds where control moves
+
+The complexity-frontier rule was ruled long ago and lived in
+`epoch::can_switch_to`, which nothing outside its own tests ever called. Control
+could take anything alive, however elaborate. It now binds in
+`World::eligibility`, on **anatomy-derived complexity** rather than the
+provisional trait array, which P1 made possible by giving every organism a body.
+
+Two corrections found by tests rather than review, and the first is the
+important one:
+
+- **The frontier is a high-water mark.** My first cut read it from living
+  organisms of unlocked species, so a lineage dying out collapsed it to zero and
+  left the world **permanently uninhabitable**. That contradicts the ruling that
+  disembodiment is a seam rather than a dead end: losing a body must not unearn
+  what reaching it cost. Same max-register shape as the world record, which is
+  now the fourth place that pattern has turned up.
+- **It seeds from the starting body**, because the player is already holding
+  something. At zero, a fresh world could not switch to anything at all.
+
+A line you have lived is always yours to return to. The frontier gates reaching
+*outward*, not going home, or growing a body would lock you out of the line you
+grew it in.
+
+### What this cost
+
+`Intent` is no longer `Copy`, because a name is a `String`. Twelve call sites
+clone instead. Worth it: the alternative was naming as a second act, which
+would have made the name metadata rather than the deed.
+
+### Still not built
+
+**NPC speciation.** An unplayed lineage splits on a significant event, and
+significance still needs scoring, which needs places. The player half stands
+alone because naming needs nothing but a player.
+---
+
 ## 7. Stop rules
 
 - Do not speciate on a similarity threshold. Splitting is an act with a record
@@ -385,6 +460,17 @@ places for `Scale` to mean anything and speciation for a lineage to be forkable.
 ---
 
 ## Findings
+
+- **2026-08-02:** the complexity frontier had never been enforced anywhere
+  control moved. It lived in `epoch::can_switch_to`, called by nothing outside
+  its own tests, so any living creature could be inhabited however elaborate.
+  It could not simply be wired up either, because that function reasons over
+  `epoch::Lineage`'s trait array while control reasons over organisms; P1's
+  body-on-every-organism is what made an anatomy-derived complexity available
+  to both.
+- **2026-08-02:** computing the frontier from *living* organisms made a
+  lineage's extinction permanently end the game. A high-water mark is the only
+  reading compatible with disembodiment being a seam.
 
 - **2026-08-02:** `#[serde(skip_serializing_if)]` is a trap with postcard,
   which is positional: a field written conditionally cannot be read back. It

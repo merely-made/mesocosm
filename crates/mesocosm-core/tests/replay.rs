@@ -61,7 +61,7 @@ fn fixture_trace(_world: &World) -> Vec<Intent> {
         } else {
             Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) }
         };
-        scratch.apply(intent);
+        scratch.apply(intent.clone());
         trace.push(intent);
     }
 
