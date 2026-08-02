@@ -450,7 +450,7 @@ One region is Local; a strict majority of the enclosure is Worldwide; between
 them is Regional. A majority is the least arbitrary reading of "most of the
 world" available, and the alternative was picking a fraction.
 
-**A lineage's range is a high-water set** — the same shape as the frontier, one
+**A lineage's range is a high-water set**, the same shape as the frontier one
 scale down, and the fifth place that pattern has turned up. Where a creature has
 been is not readable from where it is, and a lineage that withdrew from half the
 enclosure still reached it. Union is commutative, associative, and idempotent,
@@ -467,7 +467,7 @@ telling apart, places for `Scale` to mean anything, and the record to write into
 `World::end_epoch` takes the past, because history lives beside a world rather
 than inside it: a world can say what is, never what happened. It returns every
 reading with whether it took the record, which is what an epoch-boundary screen
-is made of — not the numbers, but which of them nobody had reached before.
+is made of: not the numbers, but which of them nobody had reached before.
 
 Nothing here is a counter the simulation maintains. Every figure is read off the
 world and its past when the epoch ends, which is the same discipline capability,
@@ -487,7 +487,7 @@ zeroes would close the question permanently on every world's first epoch.
 ### The runtime finally records
 
 The world buffers one tick of events and a caller drains them, and **nothing in
-the shipped app was that caller** — every driven run had a present and no past,
+the shipped app was that caller.** Every driven run had a present and no past,
 while only the tests had a history. `Runtime` now records beside the trace it
 already keeps.
 
@@ -495,7 +495,8 @@ That made `Runtime::replay` wrong in a way worth keeping: a driven run drains
 every tick and a replay that did not ended holding a tick of undrained events,
 which is a difference in the snapshot and so in the state hash. `replay` returns
 the past as well as the world now, which turns the claim that history is
-derivable — the reason it stays out of the snapshot — into something executable.
+derivable, which is the reason it stays out of the snapshot, into something
+executable.
 
 ### Still not built
 
