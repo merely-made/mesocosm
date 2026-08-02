@@ -83,6 +83,8 @@ pub enum Intent {
 /// outcome, so a replay that rejects the same intents is still identical.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Rejection {
+    /// Nobody may inhabit that, and this says why.
+    Ineligible(Ineligible),
     /// A critter cannot eat itself.
     ///
     /// Only expressible since the played critter joined the organism
@@ -101,6 +103,19 @@ pub enum Rejection {
     /// correct: forcing it would overlap existing parts, and a plan that
     /// cannot place something is telling you to change the plan.
     NoRoom,
+}
+
+/// Why an organism cannot be inhabited.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Ineligible {
+    NoSuchOrganism,
+    /// A carcass is not a critter you can play.
+    NotAlive,
+    /// More elaborate than anything you have earned.
+    ///
+    /// Stepping *down* into a newly viable niche is the point of switching;
+    /// stepping across into an unearned peer is what this refuses.
+    AboveTheFrontier { frontier: i32, target: i32 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -137,6 +152,22 @@ pub struct World {
     controlled: Option<OrganismId>,
     /// Who the world stopped being able to play on the most recent tick.
     control_lost: Option<OrganismId>,
+    /// Lineages the player has inhabited.
+    ///
+    /// What "unlocked" means for the complexity frontier. Ordered, so the
+    /// frontier is deterministic.
+    #[serde(default)]
+    unlocked: std::collections::BTreeSet<SpeciesId>,
+    /// The most elaborate thing the player has ever held.
+    ///
+    /// **A high-water mark, not a current reading.** An earlier cut computed
+    /// this from living organisms of unlocked species, which meant a lineage
+    /// dying out collapsed the frontier to zero and left the world permanently
+    /// uninhabitable. That contradicts the ruling that disembodiment is a seam
+    /// rather than a dead end: losing a body must not unearn what reaching it
+    /// cost.
+    #[serde(default)]
+    frontier: i32,
     /// Ordered by id, so iteration never depends on hashing.
     pub organisms: Vec<Organism>,
     next_organism: u32,
@@ -281,6 +312,10 @@ impl World {
             rng,
             controlled: Some(OrganismId(0)),
             control_lost: None,
+            unlocked: std::collections::BTreeSet::from([SpeciesId(1)]),
+            // The starting body already counts: the player is holding it, so
+            // the frontier begins where they begin rather than at nothing.
+            frontier: organisms.first().map(Organism::complexity).unwrap_or(0),
             organisms,
             next_organism: organism_count + 1,
             last_tally: crate::organism::Tally::default(),
@@ -312,7 +347,53 @@ impl World {
 
     /// Whether a given organism could be played.
     pub fn is_eligible(&self, organism: OrganismId) -> bool {
-        self.organisms.iter().any(|o| o.id == organism && o.is_alive())
+        self.eligibility(organism).is_ok()
+    }
+
+    /// Whether an organism could be played, and why not if not.
+    ///
+    /// **This is where the complexity frontier finally binds.** The rule was
+    /// ruled long ago -- an unlocked lineage must be *more* metabolically
+    /// complex than the target, so stepping downward into a newly viable niche
+    /// is the point and minting an unearned peer at the frontier is not -- and
+    /// until now it lived in `epoch::can_switch_to`, which nothing outside its
+    /// own tests called. Control could take anything alive, however elaborate.
+    ///
+    /// It binds here rather than there because that function reasons over
+    /// `epoch::Lineage` and its provisional trait array, while control reasons
+    /// over organisms. Since P1 every organism has a body, so complexity can
+    /// come from anatomy and the two models no longer have to agree first.
+    pub fn eligibility(&self, organism: OrganismId) -> Result<(), Ineligible> {
+        let Some(target) = self.organisms.iter().find(|o| o.id == organism) else {
+            return Err(Ineligible::NoSuchOrganism);
+        };
+        if !target.is_alive() {
+            return Err(Ineligible::NotAlive);
+        }
+        // A line you have already lived is always yours to return to. The
+        // frontier gates reaching *outward*, not going home.
+        if self.unlocked.contains(&target.species) {
+            return Ok(());
+        }
+
+        let frontier = self.frontier();
+        if target.complexity() < frontier {
+            Ok(())
+        } else {
+            Err(Ineligible::AboveTheFrontier { frontier, target: target.complexity() })
+        }
+    }
+
+    /// The most elaborate thing the player has ever held.
+    ///
+    /// The ceiling a new lineage must sit below, and it only goes up.
+    pub fn frontier(&self) -> i32 {
+        self.frontier
+    }
+
+    /// Lineages the player has inhabited.
+    pub fn unlocked(&self) -> impl Iterator<Item = SpeciesId> + '_ {
+        self.unlocked.iter().copied()
     }
 
     /// The played critter's anatomy.
@@ -366,6 +447,13 @@ impl World {
             &mut self.rng,
             &mut self.pending,
         );
+
+        // What you reach, you keep. The frontier rises with the body you are
+        // holding and never falls, so a lineage dying out costs you that body
+        // rather than everything it earned.
+        if let Some(held) = self.controlled().map(Organism::complexity) {
+            self.frontier = self.frontier.max(held);
+        }
 
         // Control ends with the life it was attached to. Nothing exempts the
         // played critter from the ecology, so this is where a run can lose its
@@ -435,8 +523,14 @@ impl World {
             }
 
             Intent::TakeControl { organism } => {
-                if !self.is_eligible(organism) {
-                    return Outcome::Rejected(Rejection::NoSuchOrganism(organism));
+                if let Err(why) = self.eligibility(organism) {
+                    return Outcome::Rejected(Rejection::Ineligible(why));
+                }
+                if let Some(species) = self.organisms.iter().find(|o| o.id == organism).map(|o| o.species) {
+                    self.unlocked.insert(species);
+                }
+                if let Some(taken) = self.organisms.iter().find(|o| o.id == organism) {
+                    self.frontier = self.frontier.max(taken.complexity());
                 }
                 self.controlled = Some(organism);
                 Outcome::Inhabited { organism }

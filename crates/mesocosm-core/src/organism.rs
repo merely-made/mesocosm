@@ -200,6 +200,21 @@ impl Organism {
         mg - paid
     }
 
+    /// How elaborate this organism is.
+    ///
+    /// **Derived from anatomy**, like everything else a body decides. Parts
+    /// carry more weight than substance, because a creature is complex by
+    /// having many things rather than by being large, and each part is
+    /// something that has to be fed and connected.
+    ///
+    /// `epoch::Lineage` has its own complexity over a trait array. That one is
+    /// the provisional scaffolding the phenotype plan schedules for deletion;
+    /// this is the one the world uses.
+    pub fn complexity(&self) -> i32 {
+        let parts = self.body.living().count() as i32;
+        parts * 4 + (self.biomass_mg() / 500) as i32
+    }
+
     /// What this organism spends per tick simply existing.
     ///
     /// **Scales with what it is carrying**, which is the whole point of

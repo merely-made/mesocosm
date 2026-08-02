@@ -71,4 +71,4 @@ pub use record::{Feat, Mark, Scale, WorldRecord};
 pub use rng::Rng;
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};
-pub use world::{Intent, Outcome, Placement, Rejection, Route, World};
+pub use world::{Ineligible, Intent, Outcome, Placement, Rejection, Route, World};

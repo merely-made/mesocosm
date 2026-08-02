@@ -112,7 +112,7 @@ fn control_refuses_an_organism_that_cannot_be_played() {
     let absent = OrganismId(9_999);
     assert_eq!(
         world.apply(Intent::TakeControl { organism: absent }),
-        Outcome::Rejected(Rejection::NoSuchOrganism(absent))
+        Outcome::Rejected(Rejection::Ineligible(mesocosm_core::Ineligible::NoSuchOrganism))
     );
     assert_eq!(world.controlled_id(), before, "control did not move");
 }
@@ -136,9 +136,27 @@ fn serialization_does_not_distinguish_the_played_critter() {
     world.drain_events();
     moved.drain_events();
 
+    // The *organisms* are what must be indistinguishable. Taking control also
+    // unlocks a lineage, which is player progress rather than a fact about any
+    // creature, so it legitimately costs a little. Law C forbids a marker on
+    // the creature, not a record of where the player has been.
+    assert_eq!(
+        world.organisms.len(),
+        moved.organisms.len(),
+        "no creature was added or removed by inhabiting one"
+    );
+    for (mine, theirs) in world.organisms.iter().zip(&moved.organisms) {
+        assert_eq!(mine.body, theirs.body, "and no body differs");
+    }
+
     let a = snapshot(&world).unwrap();
     let b = snapshot(&moved).unwrap();
-    assert_eq!(a.len(), b.len(), "control costs no representation");
+    assert!(
+        a.len().abs_diff(b.len()) < 8,
+        "inhabiting costs a lineage id, not a representation ({} vs {})",
+        a.len(),
+        b.len()
+    );
 
     assert_eq!(restore(&a).unwrap(), world);
     assert_eq!(restore(&b).unwrap(), moved);
@@ -264,16 +282,31 @@ fn a_disembodied_world_can_be_inhabited_again() {
     let me = world.controlled_id().unwrap();
     let heir = prey(&world);
 
+    // Hold it long enough to earn a frontier, then lose the body entirely.
+    world.apply(Intent::Idle);
+    let earned = world.frontier();
+    assert!(earned > 0, "holding a body earns a frontier");
+
     world.organisms.retain(|o| o.id != me);
     world.apply(Intent::Idle);
     assert!(!world.is_embodied());
+    assert_eq!(world.frontier(), earned, "losing a body does not unearn it");
+
+    // Something simpler than what was reached is a legitimate heir.
+    let simpler = world
+        .organisms
+        .iter()
+        .filter(|o| o.is_alive() && o.complexity() < earned)
+        .map(|o| o.id)
+        .min()
+        .unwrap_or(heir);
 
     assert_eq!(
-        world.apply(Intent::TakeControl { organism: heir }),
-        Outcome::Inhabited { organism: heir }
+        world.apply(Intent::TakeControl { organism: simpler }),
+        Outcome::Inhabited { organism: simpler },
+        "a world nobody is in can be entered again"
     );
     assert!(world.is_embodied());
-    assert_eq!(world.controlled_id(), Some(heir));
 }
 
 #[test]
@@ -331,4 +364,123 @@ fn reproduction_does_not_manufacture_body_mass() {
     }
 
     assert!(checked > 0, "the fixture actually reproduced");
+}
+
+#[test]
+fn you_may_step_down_but_not_across() {
+    // The complexity frontier, finally binding at the point control moves.
+    // It was ruled long ago and lived in `epoch::can_switch_to`, which nothing
+    // outside its own tests ever called, so control could take anything alive
+    // however elaborate.
+    let world = World::new(4_242, 40);
+    let frontier = world.frontier();
+
+    let simpler = world
+        .organisms
+        .iter()
+        .find(|o| o.is_alive() && o.complexity() < frontier && Some(o.id) != world.controlled_id())
+        .map(|o| o.id)
+        .expect("something in the world is simpler than the player");
+
+    assert!(world.is_eligible(simpler), "stepping down into a simpler niche is the point");
+
+    // Something more elaborate than anything earned is refused, and says why.
+    let mut world = World::new(4_242, 40);
+    let grand = OrganismId(9_500);
+    world.organisms.push(mesocosm_core::Organism {
+        stage: mesocosm_core::Stage::Mature,
+        ..mesocosm_core::Organism::founding(
+            grand,
+            mesocosm_core::SpeciesId(99),
+            mesocosm_core::Kingdom::Consumer,
+            mesocosm_core::VolumeRef::from_tag(3),
+            [4, 4, 4],
+            world.position().unwrap(),
+            50_000,
+        )
+    });
+
+    assert!(matches!(
+        world.eligibility(grand),
+        Err(mesocosm_core::Ineligible::AboveTheFrontier { .. })
+    ), "an unearned peer is refused");
+    assert!(matches!(
+        world.apply(Intent::TakeControl { organism: grand }),
+        Outcome::Rejected(Rejection::Ineligible(mesocosm_core::Ineligible::AboveTheFrontier { .. }))
+    ));
+    let _ = simpler;
+}
+
+#[test]
+fn a_line_you_have_lived_is_always_yours_to_return_to() {
+    // The frontier gates reaching outward, not going home. Otherwise growing a
+    // body would lock you out of the line you grew it in.
+    let mut world = World::new(4_242, 40);
+    let mine = world.controlled().unwrap().species;
+
+    for _ in 0..40 {
+        world.apply(Intent::Idle);
+    }
+
+    let kin = world
+        .organisms
+        .iter()
+        .find(|o| o.species == mine && o.is_alive() && Some(o.id) != world.controlled_id())
+        .map(|o| o.id);
+
+    if let Some(kin) = kin {
+        assert!(world.is_eligible(kin), "your own kind is never above your frontier");
+    }
+    assert!(world.unlocked().any(|s| s == mine));
+}
+
+#[test]
+fn the_frontier_only_goes_up() {
+    // What you reach, you keep. An earlier cut read the frontier from living
+    // organisms, so a lineage dying out collapsed it to zero and left the
+    // world permanently uninhabitable, which contradicts disembodiment being a
+    // seam rather than a dead end.
+    let mut world = World::new(4_242, 40);
+    world.apply(Intent::Idle);
+    let earned = world.frontier();
+    assert!(earned > 0);
+
+    let me = world.controlled_id().unwrap();
+    world.organisms.retain(|o| o.id != me);
+    for _ in 0..20 {
+        world.apply(Intent::Idle);
+    }
+
+    assert!(!world.is_embodied(), "the body is gone");
+    assert_eq!(world.frontier(), earned, "and the standing it earned is not");
+}
+
+#[test]
+fn growing_raises_the_frontier() {
+    // A body you grow is a body you have held, so the ceiling follows it up.
+    let mut world = World::new(4_242, 40);
+    let before = world.frontier();
+    let me = world.controlled_id().unwrap();
+
+    {
+        let organism = world.organisms.iter_mut().find(|o| o.id == me).unwrap();
+        let root = organism.body.root;
+        organism
+            .body
+            .attach(
+                mesocosm_core::VolumeRef::from_tag(9),
+                400,
+                [3, 1, 1],
+                mesocosm_core::Attachment {
+                    parent: root,
+                    offset: [5, 0, 0],
+                    yaw: mesocosm_core::Yaw::Zero,
+                },
+                mesocosm_core::Provenance::founding(),
+            )
+            .unwrap();
+    }
+    world.apply(Intent::Idle);
+
+    assert!(world.frontier() > before, "the ceiling rose with the body");
 }
