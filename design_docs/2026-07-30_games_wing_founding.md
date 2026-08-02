@@ -816,6 +816,14 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
    player is simply another input stream. One API rule regardless of
    implementation: **co-op must not appear in a game core's API at all.**
 
+   Mesocosm now supplies the first concrete same-lineage conflict rule. Two
+   writers may propose adaptation from one parent revision. Explicit agreement
+   adopts one shared child; disagreement lets the proposer follow a child
+   branch while preserving the other continuation. This is a domain
+   materializer applying **adopt or branch**, not evidence for a universal
+   CRDT. The detailed rule belongs to the
+   [epoch-boundary plan](2026-08-01_epoch_boundary_plan.md).
+
    Honest caveats: whole-heap snapshotting scales with heap size and an ecology
    is a large-mutable-state profile; cross-platform float determinism is the
    classic killer; and Tangle itself is web-only, TypeScript-hosted, and last

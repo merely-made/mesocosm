@@ -61,6 +61,31 @@ same event**. A player is not choosing between "take the prize" and "found a
 species"; founding one *is* the prize, and it costs the run nothing except
 that the new line is now a thing you can be held to.
 
+### Shared lineage authorship
+
+**Ruled by Mark.** Two players inhabiting the same biological lineage share a
+parent lineage revision, not one mutable lineage document. Every committed
+adaptation creates an immutable child revision:
+
+- if both players agree to the arrangement, they adopt the same child as the
+  line's shared continuation;
+- if one player proposes an arrangement and the other does not adopt it, the
+  proposer follows a child branch while the other remains on the prior
+  continuation;
+- neither result edits the parent or field-merges two arrangements.
+
+A revision is not automatically a species. Ordinary agreed adaptation may
+advance one line without naming a new one. A divergent child is a lineage
+branch; the naming and significance rules above decide when that branch is
+claimed as a distinct species.
+
+This is **adopt or branch**, not a CRDT. Concurrent arrangements may both be
+valid descendants of the same parent, but their cells are not merged into a
+third body by a generic conflict resolver. The game core does not need a
+`Player` concept to enforce this: it receives a parent revision, validated
+adaptation proposals, and explicit adoptions, then records the resulting child
+revision or revisions.
+
 ---
 
 ## 3. Significance is abnormality against the world's record
@@ -178,7 +203,7 @@ All four verified absent on 2026-08-01.
 
 | Missing | Needed by | Note |
 | ------- | --------- | ---- |
-| **An event log** | significance, the world record, world events | `apply_all` returns outcomes and drops them; the runtime keeps one tick. |
+| ~~An event log~~ | significance, the world record, world events | **Built 2026-08-02** as `mesocosm-core::history`, on codicil's causal log. |
 | **A species tree** | speciation, ancestral distance | Reproduction copies `species` verbatim; there is no parentage record anywhere. |
 | ~~A world record~~ | abnormality, goal verification | **Built 2026-08-01** as `WorldRecord`. Not an index over the log; a handful of integers beside it. |
 | **A place graph** | locality and magnitude | `CROWD_CELL` is an 8-voxel grid for density, not named regions. Worldwide, regional, and local need somewhere to be. |
@@ -258,10 +283,65 @@ and on speciation. The record is the piece those three will need, built first
 because it was the piece whose *shape* was in question.
 ---
 
+## 10. The past, and why it lives beside the world
+
+**Built 2026-08-02** in `mesocosm-core::history`, on the codicil upgrade of the
+day before.
+
+A `History` is a `Codicil<Event>` plus one `Seq` per organism. That single map
+is the whole causal apparatus: every event cites **the last event about each
+subject it touches**, so a creature's events form its line, and an event
+touching two creatures joins theirs. Feeding is therefore the operation that
+makes this a graph rather than a bundle of chains, which is exactly right,
+because eating somebody is the moment two independent histories stop being
+independent.
+
+### It is beside the world, not in it
+
+History is **derivable**: a seed plus ordered intents reproduces it exactly,
+and there is a test asserting two identical runs produce identical pasts. So
+keeping it in the snapshot would grow whole-state capture without bound and
+cost the cheap memcpy the wing's rollback thinking depends on, in exchange for
+nothing that could not be recomputed.
+
+The world therefore buffers **one tick** of events and a caller drains them.
+Two tests hold that line: the buffer does not accumulate across undrained
+ticks, and a long-lived world's snapshot is not proportional to its history.
+
+### What the ecology now reports
+
+`step` took counts and gave back counts, so a history had nothing but
+aggregates to record. It now reports individuals as well: births, maturings,
+feedings, deaths, and returns, alongside the `Tally` a host shows. Significance
+needs to know *who*, and a count cannot say.
+
+The founding population is recorded too. Without it a seeded creature's first
+event is whatever happened *to* it, so its origin is invisible and its causal
+line begins in the middle. That was found by a test asserting the first meal
+had antecedents; it did not, and the assertion was right.
+
+### On real data
+
+`tests/past.rs` runs an enclosure and checks the shape rather than the plumbing.
+The one worth naming: **most pairs of events in a live ecology are concurrent**,
+by a majority, because creatures act independently. A flat log would have had to
+invent an order between them and then imply it meant something.
+
+### What it unblocks and what it does not
+
+Significance's traversal half now has something to traverse:
+`consequences(seq)` answers what followed from an event, which is the
+retroactive definition. What it does not do is *score*, because that needs
+places for `Scale` to mean anything and speciation for a lineage to be forkable.
+`WorldRecord::note` still has no callers.
+---
+
 ## 7. Stop rules
 
 - Do not speciate on a similarity threshold. Splitting is an act with a record
   of why.
+- Do not edit a lineage revision in place or merge concurrent arrangements
+  cell by cell. Agreement adopts one child; disagreement preserves descent.
 - Do not author a significance table. Significance is measured against the
   world's own record or it is not significance.
 - Do not collapse retroactive abnormality and selected goals into one system.
@@ -297,10 +377,26 @@ because it was the piece whose *shape* was in question.
    carries part provenance by species id; two worlds' species ids mean nothing
    to each other, so cross-world distance needs the wing contract's subject
    identity rather than a local id.
+6. **Who must adopt a shared continuation?** The same-session case is clear,
+   but persistent and asynchronous play still needs a standing rule. Requiring
+   every historical inhabitant would freeze old lineages; treating silence as
+   consent would rewrite somebody else's continuation.
 
 ---
 
 ## Findings
+
+- **2026-08-02:** `#[serde(skip_serializing_if)]` is a trap with postcard,
+  which is positional: a field written conditionally cannot be read back. It
+  broke a world snapshot here, and the same mistake had already shipped into
+  codicil the day before, where muniment's pluggable codec would have hit it
+  for any consumer persisting a causeless log. This stack has now paid for that
+  lesson three times, counting the body profile's out-of-payload version
+  header.
+- **2026-08-02:** the ecology reported only counts, so the first meal in a
+  recorded history had no antecedents: the founding population had no births.
+  Seeded organisms are now recorded as born, because a creature whose origin is
+  absent has a causal line that begins in the middle.
 
 - **2026-08-01:** sibylla is **not** a substitute for a text index, and an
   earlier claim here that it was is wrong. It is a semantic retrieval seam:
@@ -322,9 +418,16 @@ because it was the piece whose *shape* was in question.
   worth in `last`. Every proposal in this plan that reads history needs one.
 - **2026-08-01:** worlds have no places. `CROWD_CELL` is a density grid, so
   locality and magnitude have nothing to be measured against yet.
+- **2026-08-01:** shared-lineage adaptation is the first concrete domain where
+  multi-writer disagreement should preserve two descendants rather than merge
+  fields. It needs immutable lineage revisions and explicit adoption, not a
+  general conflict-free document.
 
 ## Progress
 
 - **2026-08-01:** speciation-by-act, significance-as-abnormality, the scoring
   axes, the reward ladder, goal selection, and life-stage plasticity recorded
   from dialogue. No implementation added.
+- **2026-08-01:** recorded shared-lineage authorship: every adaptation produces
+  an immutable child revision; agreement shares a continuation and disagreement
+  branches without forcing every revision to become a species.

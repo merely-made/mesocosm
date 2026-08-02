@@ -429,6 +429,11 @@ their current descendants, not restoring the exact body that was left.
 Creative mode may offer an explicit freeze setting, but stasis is not the
 default fiction.
 
+When multiple players currently inhabit the same line, adaptation follows the
+[epoch-boundary plan's shared-lineage rule](2026-08-01_epoch_boundary_plan.md):
+agreement adopts one descendant revision, while disagreement branches without
+editing the shared parent in place.
+
 Lines can advantage or disadvantage one another, so a mature world may hold
 a player-shaped producer line and consumer line that support each other.
 Favoritism is real: some lines are outcompeted entirely and leave only traces,

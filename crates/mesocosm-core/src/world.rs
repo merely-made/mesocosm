@@ -141,6 +141,39 @@ pub struct World {
     pub organisms: Vec<Organism>,
     next_organism: u32,
     last_tally: crate::organism::Tally,
+    /// What happened on the most recent tick, waiting to be drained.
+    ///
+    /// **One tick, never more.** History is derivable from a seed and ordered
+    /// intents, so keeping it in the world would grow every snapshot without
+    /// bound and cost the cheap whole-state capture the wing's rollback
+    /// thinking rests on. A caller drains this into a [`History`], which lives
+    /// beside the world and persists in its own slot.
+    /// Not skipped when empty: postcard is positional, so a field written
+    /// conditionally cannot be read back. That trap already cost one decode
+    /// failure here.
+    #[serde(default)]
+    pending: Vec<crate::history::Event>,
+}
+
+/// The event an outcome amounts to, if any.
+///
+/// Refusals produce nothing: a history records what happened, and a rejected
+/// intent is a thing that did not.
+fn event_for(outcome: &Outcome, actor: Option<OrganismId>) -> Option<crate::history::Event> {
+    use crate::history::Event;
+    match *outcome {
+        // Burning names the meal, growing names the grower. Both need the
+        // actor, because a history is keyed by who a thing happened to and an
+        // event citing nobody would fork that creature's line.
+        Outcome::Burned { energy_mg, .. } => {
+            Some(Event::Burned { organism: actor?, energy_mg })
+        }
+        Outcome::Incorporated { part } | Outcome::IncorporatedPair { part, .. } => {
+            Some(Event::Grew { organism: actor?, part })
+        }
+        Outcome::Inhabited { organism } => Some(Event::Inhabited { organism }),
+        Outcome::Moved | Outcome::Deposited { .. } | Outcome::Idled | Outcome::Rejected(_) => None,
+    }
 }
 
 /// The half-extent of an organism, by its volume tag.
@@ -230,6 +263,18 @@ impl World {
             });
         }
 
+        // The founding population enters the record. Without this a seeded
+        // creature's first event is whatever happened *to* it, so its origin
+        // is invisible and its causal line begins in the middle.
+        let pending = organisms
+            .iter()
+            .map(|o| crate::history::Event::Born {
+                organism: o.id,
+                species: o.species,
+                parent: None,
+            })
+            .collect();
+
         Self {
             tick: 0,
             epoch: 0,
@@ -239,6 +284,7 @@ impl World {
             organisms,
             next_organism: organism_count + 1,
             last_tally: crate::organism::Tally::default(),
+            pending,
         }
     }
 
@@ -300,7 +346,17 @@ impl World {
     /// Applies one intent and advances the tick. This is the only way world
     /// state changes.
     pub fn apply(&mut self, intent: Intent) -> Outcome {
+        let actor = self.controlled;
         let outcome = self.resolve(intent);
+
+        // Recorded before the ecology steps, because that is the order these
+        // happened in and a history that reversed them would let a creature's
+        // death precede its last act. It also means the actor is still whoever
+        // acted, even if this tick kills them.
+        if let Some(event) = event_for(&outcome, actor) {
+            self.pending.push(event);
+        }
+
         // The enclosure lives whether or not the player acted. This is what
         // separates an ecology from a field of pickups: things grow, breed,
         // starve, and rot on their own schedule.
@@ -308,7 +364,9 @@ impl World {
             &mut self.organisms,
             &mut self.next_organism,
             &mut self.rng,
+            &mut self.pending,
         );
+
         // Control ends with the life it was attached to. Nothing exempts the
         // played critter from the ecology, so this is where a run can lose its
         // body without the world ending.
@@ -322,6 +380,17 @@ impl World {
 
         self.tick += 1;
         outcome
+    }
+
+    /// Takes the events of the most recent tick, leaving the world empty of
+    /// them. Recording them is a caller's business; the world only reports.
+    pub fn drain_events(&mut self) -> Vec<crate::history::Event> {
+        std::mem::take(&mut self.pending)
+    }
+
+    /// The events of the most recent tick, without taking them.
+    pub fn events(&self) -> &[crate::history::Event] {
+        &self.pending
     }
 
     /// What the most recent tick did to the enclosure.

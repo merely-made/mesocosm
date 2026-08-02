@@ -25,6 +25,9 @@ members = [
 ]
 
 [workspace.dependencies]
+# The append-only log, from mere's eidetic family. Branch-tracked rather
+# than pinned; its causal shape landed 2026-08-01 for exactly this use.
+codicil = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 mesocosm-core = { path = "crates/mesocosm-core", version = "0.0.1" }
 mesocosm-mesh = { path = "crates/mesocosm-mesh", version = "0.0.1" }
 mesocosm-render = { path = "crates/mesocosm-render", version = "0.0.1" }

@@ -18,6 +18,8 @@ use std::collections::BTreeMap;
 use crate::body::BodyDocument;
 use crate::rng::Rng;
 
+use crate::history::Event;
+
 use super::{Kingdom, Organism, OrganismId, Stage, Tally};
 
 /// Ticks of growth before an organism can reproduce.
@@ -75,7 +77,17 @@ fn cell_of(position: [i32; 3]) -> (i32, i32) {
 /// Deterministic: organisms are visited in id order, offspring are appended in
 /// the order their parents produced them, and every random value comes from
 /// the seeded stream.
-pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> Tally {
+/// One tick of the enclosure.
+///
+/// `events` collects what happened to *individuals*. [`Tally`] counts, which is
+/// what a host shows; the events are what a history records, and significance
+/// needs to know who rather than how many.
+pub fn step(
+    organisms: &mut Vec<Organism>,
+    next_id: &mut u32,
+    rng: &mut Rng,
+    events: &mut Vec<Event>,
+) -> Tally {
     let mut tally = Tally::default();
 
     // Crowding, counted once per tick on a coarse grid. A BTreeMap keeps
@@ -105,6 +117,9 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
         .collect();
 
     let mut drained: Vec<(usize, u64)> = Vec::new();
+    // Feeding is recorded by index and resolved to ids after the pass, because
+    // the borrow that reads the pasture cannot also name the eaten.
+    let mut fed: Vec<(OrganismId, usize, u64)> = Vec::new();
     let mut newborns: Vec<Organism> = Vec::new();
 
     for organism in organisms.iter_mut() {
@@ -146,6 +161,7 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
                         }) {
                             organism.gain_mass(GRAZES_MG);
                             drained.push((prey, GRAZES_MG));
+                            fed.push((organism.id, prey, GRAZES_MG));
                         }
                     }
                     // Decomposers only earn where something has died.
@@ -155,12 +171,14 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
                         }) {
                             organism.gain_mass(DECAYS_MG);
                             drained.push((source, DECAYS_MG));
+                            fed.push((organism.id, source, DECAYS_MG));
                         }
                     }
                 }
 
                 if organism.stage == Stage::Juvenile && organism.age >= MATURITY {
                     organism.stage = Stage::Mature;
+                    events.push(Event::Matured { organism: organism.id });
                     tally.matured += 1;
                 }
 
@@ -170,6 +188,10 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
                 let aged = organism.age >= LIFESPAN;
                 if starved || aged {
                     organism.stage = Stage::Carrion;
+                    events.push(Event::Died {
+                        organism: organism.id,
+                        species: organism.species,
+                    });
                     organism.since_offspring = 0;
                     tally.died += 1;
                 }
@@ -181,6 +203,7 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
                 organism.spend_mass(1);
                 if organism.biomass_mg() == 0 {
                     organism.stage = Stage::Spent;
+                    events.push(Event::Returned { organism: organism.id });
                     tally.returned += 1;
                 }
             }
@@ -191,14 +214,22 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
 
     // What was fed on pays for it. Grazed prey can be killed outright, which
     // is how a consumer turns a producer into carrion for a decomposer.
+    for (eater, index, mass_mg) in fed {
+        if let Some(from) = organisms.get(index).map(|o| o.id) {
+            events.push(Event::Fed { eater, from, mass_mg });
+        }
+    }
+
     for (index, amount) in drained {
         let eaten = &mut organisms[index];
         eaten.spend_mass(amount);
         if eaten.biomass_mg() == 0 {
             eaten.stage = Stage::Spent;
+            events.push(Event::Returned { organism: eaten.id });
             tally.returned += 1;
         } else if eaten.is_alive() && eaten.biomass_mg() <= STARVATION_MG {
             eaten.stage = Stage::Carrion;
+            events.push(Event::Died { organism: eaten.id, species: eaten.species });
             eaten.since_offspring = 0;
             tally.died += 1;
         }
@@ -259,6 +290,11 @@ pub fn step(organisms: &mut Vec<Organism>, next_id: &mut u32, rng: &mut Rng) -> 
             guise: parent.guise,
         };
         *next_id += 1;
+        events.push(Event::Born {
+            organism: child.id,
+            species: child.species,
+            parent: Some(parent.id),
+        });
         newborns.push(child);
 
         let parent = &mut organisms[index];
@@ -295,7 +331,7 @@ mod tests {
         let mut next = 100;
         let mut total = Tally::default();
         for _ in 0..ticks {
-            let t = step(organisms, &mut next, &mut rng);
+            let t = step(organisms, &mut next, &mut rng, &mut Vec::new());
             total.matured += t.matured;
             total.born += t.born;
             total.died += t.died;
@@ -316,7 +352,7 @@ mod tests {
             if done(world) {
                 return true;
             }
-            step(world, &mut next_id, &mut rng);
+            step(world, &mut next_id, &mut rng, &mut Vec::new());
         }
         done(world)
     }

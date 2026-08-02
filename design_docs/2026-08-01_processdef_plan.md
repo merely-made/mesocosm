@@ -446,6 +446,28 @@ The exact first process is ruled at gate PD2. If light capture requires a flow
 system larger than the proof, choose an existing mechanic such as venom
 secretion. Do not invent a dummy capability solely to make the pack pass.
 
+### Direct and automatic arrangement
+
+**Ruled 2026-08-01.** During adaptation, a player may arrange the inhabited
+lineage's allocation mosaics directly or ask the game to auto-arrange them.
+Unplayed lineages use the automatic path. These are two proposal sources over
+one developmental validator, not player biology and simulation biology:
+
+- both consume the same acquired candidates, capacity, material, and
+  plasticity budgets;
+- both must satisfy the same site, adjacency, connectivity, graft, channel,
+  and cost rules;
+- both produce the same causal record and immutable lineage revision;
+- automatic arrangement may optimize a declared aim, but cannot invoke a
+  privileged mutation or skip a refusal the direct editor would receive.
+
+The editor exposes authorship, not authority. A screen arrangement lowers to
+the authoritative cell graph, and the validator decides whether it can exist.
+The [epoch-boundary plan](2026-08-01_epoch_boundary_plan.md) owns the
+multi-writer result: players on one lineage may adopt one validated child
+together, while disagreement preserves the proposal as a branch rather than
+merging mosaics cell by cell.
+
 ---
 
 ## 8. Wing boundary
@@ -536,8 +558,10 @@ an authoritative cell graph; any 2D inventory layout is a projection of it.
 snapshot, replay, explanation, and body-v1 projection paths drawn; failure
 atomicity and capacity conservation are named; carry-body and regrow-here
 projection paths are distinguished; fixture changes are bounded; and the
-implementation gate has exact file seams and tests. No state migration lands
-in PD1a.
+implementation gate has exact file seams and tests. The pass also names one
+proposal shape and validator used by both direct and automatic arrangement,
+with lineage revision and adoption owned by the epoch boundary. No state
+migration lands in PD1a.
 
 ### PD1b. Native ProcessDef migration
 
@@ -558,7 +582,10 @@ Expected seams, subject to PD1a:
 allocation names a living part, attach and sever cannot split anatomy from
 phenotype, every part mosaic conserves capacity, rearrangement occurs only
 through recorded events, existing reach outcomes and refusals hold, and a part
-still cannot acquire a capability by editing a number.
+still cannot acquire a capability by editing a number. The same valid
+arrangement submitted through direct and automatic proposal sources lowers to
+the same committed phenotype, and the same invalid arrangement receives the
+same refusal.
 
 ### PD2. One native played process
 
@@ -673,6 +700,8 @@ process system does not answer whether burn or grow is worth choosing again.
 - Do not let Lua run the ecology loop or mutate world state directly.
 - Do not store capability verdicts on parts or organisms.
 - Do not accept a process without a native consumer for its flows.
+- Do not give direct arrangement or auto-arrange separate validation rules.
+  They are proposal sources over one developmental authority.
 - Do not build pack or Lua infrastructure before PD2 proves a process worth
   authoring.
 - Do not add a broad process catalog after PD2; one played process authorizes
@@ -749,6 +778,10 @@ These are intentionally deferred to the gate with evidence:
   without becoming the trophic `Kingdom` enum. World data owns the graph; a
   disfavoured boundary may demand a capacity-consuming adapter whose penalty
   can be reduced by an evolved compatibility process.
+- **2026-08-01, arrangement authorship.** Direct editing and auto-arrange are
+  two sources of the same validated developmental proposal. Shared-lineage
+  agreement adopts one child revision; disagreement branches at the epoch
+  boundary rather than merging allocation cells.
 
 ---
 
@@ -767,3 +800,6 @@ These are intentionally deferred to the gate with evidence:
   somatic compounds stabilized through adaptation, and destination-declared
   crossing options chosen by the traveler. Directed graft affinity recorded
   for the next pass.
+- **2026-08-01:** third question pass ruled direct and automatic arrangement
+  through one validator, with shared-lineage disagreement resolved by immutable
+  descent rather than mutation in place or cell-wise merge.

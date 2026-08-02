@@ -43,6 +43,7 @@
 pub mod anatomy;
 pub mod body;
 pub mod growth;
+pub mod history;
 pub mod organism;
 pub mod plan;
 pub mod process;
@@ -62,6 +63,7 @@ pub use body::{
 pub use chronicle::{Chronicle, Consequence, Deed, PartOrigin, generate};
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use growth::{Growth, resolve};
+pub use history::{Event, History};
 pub use wire::{WireError, frame, unframe};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use process::{BULK_REACH, Capability, Process, Unmet};

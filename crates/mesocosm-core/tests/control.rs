@@ -130,6 +130,12 @@ fn serialization_does_not_distinguish_the_played_critter() {
     moved.apply(Intent::TakeControl { organism: other });
     world.apply(Intent::Idle);
 
+    // Drained first, because the two worlds did different things and so carry
+    // different pending events. The claim is about the *pointer* costing
+    // nothing, not about two action histories weighing the same.
+    world.drain_events();
+    moved.drain_events();
+
     let a = snapshot(&world).unwrap();
     let b = snapshot(&moved).unwrap();
     assert_eq!(a.len(), b.len(), "control costs no representation");
