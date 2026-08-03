@@ -273,3 +273,103 @@ five stages that shared no renderer.
 - **2026-07-30**: `block-mesh` remains the meshing reference —
   `visible_block_faces` ≈ 40M quads/s on one core, `greedy_quads` ≈ ⅓ the
   triangles at ~3× the time.
+
+---
+
+## 7. The person ladder and the hybrid lens (research round 2026-08-03)
+
+Prompted by the pivot: the custom prism pipeline dies, the game wants a
+Barony-flavoured first-person view of a No Man's Sky-flavoured biosphere, the
+player should feel like slugcat, and Mark asked whether the stack's 2D
+strengths can carry it, and whether sprites can be more than billboards,
+cheap. Research, no decision; probes decide.
+
+### The contradiction dissolves into three dimensionalities
+
+"Sacrifice 3D" and "height and gravity should count for wings" stop
+conflicting once simulation, world rendering, and body rendering are allowed
+different answers:
+
+- **Simulation: 2.5D columns.** Terrain is an integer heightfield per
+  column plus an air band above it. Height and gravity are real rules
+  (staying aloft costs energy; wings occupy the band; falling is a thing),
+  but nothing stacks, which is what places already ruled ("height is not a
+  place") and what worldgen, crowding, and dispersal already assume.
+- **World rendering: raycast the heightfield.** The Voxel Space lineage
+  (Comanche 1992): each screen column marches a ray across a heightmap and
+  fills vertical spans. The modern GPU form is one fullscreen shader (a
+  hobby implementation reports ~500fps), and the engine's entire input is
+  **two images: a heightmap and a colormap**. That is the load-bearing fact
+  for this stack: the vello lane can *paint* those images. Worldgen
+  generates biome maps per place; the renderer just marches them. Rolling
+  organic terrain, fog, no meshes, no scene graph.
+- **Bodies: the parts graph, not a billboard.** Three candidate forms, in
+  ascending ambition, all driven by the same anatomy:
+  1. **Per-part cards**: one small quad per part, placed by its attachment
+     frame in 3D, texture painted by vello, chains driven host-side by
+     seiche. Parts occlude and parallax as the body turns; all art stays
+     2D. The Rain World technique is exactly this (2D chains, IK feet)
+     lifted into a 3D placement.
+  2. **Sprite stacking**: a part as a stack of horizontal slices (the
+     MagicaVoxel-to-slices pipeline; SpriteStack, many GameMaker/PICO-8
+     games). Genuinely 3D-reading rotation from 2D draws, thousands of
+     sprites cheap. Honest limit: it reads from above-ish and degrades at
+     eye level, so it serves Paredros' over-shoulder and Isometry's
+     pulled-back distances better than Mesocosm's first person.
+  3. **Skeleton-driven SDF capsules**: model a critter as smooth-unioned
+     capsules along its part chains and raymarch it (iq's canon; the
+     technique behind Claybook-style clay). Squash, stretch, breathing,
+     and morphing are math on the field rather than rig work, and
+     **smooth-union is kleptoplasty made visible**: a grafted part blends
+     into the body exactly the way the mechanic means it. Cost: a
+     fullscreen march is real GPU work and an art-direction commitment
+     (the clay look), and debugging lives in shaders.
+
+### The unified-raymarch candidate
+
+The three lanes above share one loop. A single fullscreen pass can march
+terrain heightfield and critter capsule-fields together: the same ray, the
+same fog, one engine measured in hundreds of lines of WGSL rather than a
+renderer. Everything it consumes is 2D data the stack generates (height and
+colour maps from vello; capsule chains from the parts graph via seiche).
+The camera ladder becomes a parameter: Mesocosm holds the camera at a
+critter's eye, Paredros pulls it over a shoulder, Isometry lifts it to the
+scene, and no vessel grows an engine, which is the anti-Spore law satisfied
+by construction rather than discipline.
+
+Netrender is the frame owner in this shape: its render graph takes encode
+callbacks as tasks, so the march is a `Task` between vello layers, the HUD
+composites above, and `mesocosm-render`'s custom pipeline dies into a graph
+node rather than being replaced by a second custom pipeline.
+
+### What the stack contributes, named
+
+vello paints every input (terrain maps, part textures, HUD); seiche drives
+chains host-side (f32 presentation, integer core untouched); netrender owns
+the frame and the composite; genet's cambium lane arrives for the epoch
+screen; the sprite-hull tracer turns rendered art into collision hulls. The
+raymarch shader is the one genuinely new piece, and it is small enough to
+become a shared component (a biosphere lens) if Paredros pulls.
+
+### Probes, with targets
+
+- **Terrain probe**: vello paints a biome height+colour map pair; the
+  fullscreen march renders it; receipt = a first-person capture flying over
+  painted terrain. Kills or confirms the whole direction.
+- **Critter probe**: one capsule-chain critter, seiche-driven, marched in
+  the same shader, loping over that terrain; receipt = it reads as an
+  animal, not a blob. The slugcat-feel gate.
+- **Fallback**: if the march disappoints on perf or art, per-part cards on
+  the same chains are the retreat, and sprite stacking stays evaluated for
+  the two pulled-back vessels.
+
+### Open questions for Mark
+
+1. **The look is a soul decision**: low-res integer-scaled retro (Comanche
+   grain, kin to isometry's GBA doctrine) versus smooth SDF clay. The
+   probes can render both, but the palette and resolution choice shapes
+   everything downstream.
+2. Whether the unified shader excites or worries: it concentrates the
+   presentation in one WGSL file, which is small but specialist.
+3. How large critters should read on screen at first person, which gates
+   how much anatomy detail the body form must carry.
