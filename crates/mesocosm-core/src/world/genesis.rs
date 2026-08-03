@@ -13,7 +13,7 @@ use crate::body::{BodyDocument, SpeciesId, VolumeRef};
 use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
 use crate::rng::Rng;
 
-use super::{ENCLOSURE, PLACE_SALT, PLACE_SIDE, World, organism_extent};
+use super::{ENCLOSURE, PLACE_SALT, PLACE_SIDE, RECIPE_SALT, World, organism_extent};
 
 impl World {
     /// Builds the standard fixture: one critter and a deterministic scatter of
@@ -97,7 +97,7 @@ impl World {
             })
             .collect();
 
-        Self {
+        let mut world = Self {
             tick: 0,
             epoch: 0,
             rng,
@@ -106,13 +106,25 @@ impl World {
             unlocked: std::collections::BTreeSet::from([SpeciesId(1)]),
             // The starting body already counts: the player is holding it, so
             // the frontier begins where they begin rather than at nothing.
-            frontier: organisms.first().map(Organism::complexity).unwrap_or(0),
+            // Filled after the registry exists, since intricacy reads it.
+            frontier: 0,
             lineages: {
                 // Everything the world began with is a founding lineage: no
                 // parent, no name, because nobody was there to give it one.
                 let mut lineages = crate::species::Lineages::new();
                 for organism in &organisms {
                     lineages.found(organism.species);
+                }
+                // Each founding line draws its own body recipe, from its own
+                // stream so the ecology's sequence is untouched. Producers
+                // stay simple; anything that moves gets stretches and limbs.
+                for organism in &organisms {
+                    if lineages.get(organism.species).is_some_and(|s| s.recipe.appendages() > 1) {
+                        continue;
+                    }
+                    let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ organism.species.0 as u64);
+                    let limbed = organism.kingdom != Kingdom::Producer;
+                    lineages.set_recipe(organism.species, crate::axis::seed(&mut stream, limbed));
                 }
                 lineages
             },
@@ -129,6 +141,16 @@ impl World {
             next_organism: organism_count + 1,
             last_tally: crate::organism::Tally::default(),
             pending,
-        }
+        };
+
+        // The starting body already counts, and intricacy needs the registry,
+        // so the high-water mark is set once the world exists rather than in
+        // the initialiser.
+        world.frontier = world
+            .organisms
+            .first()
+            .map(|o| world.intricacy(o))
+            .unwrap_or(0);
+        world
     }
 }

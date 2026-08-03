@@ -47,6 +47,13 @@ use crate::body::SpeciesId;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Species {
     pub id: SpeciesId,
+    /// What this line's bodies are made from.
+    ///
+    /// The theme its members vary on: segments, tagmata, and the lexicon of
+    /// appendage kinds it has acquired by eating. Heritable, so a fork
+    /// inherits its parent's recipe and diverges from there.
+    #[serde(default = "crate::axis::Recipe::default_founding")]
+    pub recipe: crate::axis::Recipe,
     /// What it is called, if anyone named it.
     ///
     /// `None` for the lineages a world begins with: they were there before
@@ -86,7 +93,13 @@ impl Lineages {
         self.next = self.next.max(id.0 + 1);
         self.species
             .entry(id)
-            .or_insert(Species { id, name: None, parent: None, founded: 0 })
+            .or_insert(Species {
+                id,
+                recipe: crate::axis::Recipe::default_founding(),
+                name: None,
+                parent: None,
+                founded: 0,
+            })
     }
 
     /// Splits a new lineage off an existing one.
@@ -99,13 +112,29 @@ impl Lineages {
         }
         let id = SpeciesId(self.next);
         self.next += 1;
-        self.species
-            .insert(id, Species { id, name: Some(name), parent: Some(parent), founded: at });
+        // A fork inherits its parent's body recipe, vocabulary included: a
+        // founder does not forget what its line had learned to grow.
+        let recipe = self.species[&parent].recipe.clone();
+        self.species.insert(
+            id,
+            Species { id, recipe, name: Some(name), parent: Some(parent), founded: at },
+        );
         Some(id)
     }
 
     pub fn get(&self, id: SpeciesId) -> Option<&Species> {
         self.species.get(&id)
+    }
+
+    pub fn get_mut(&mut self, id: SpeciesId) -> Option<&mut Species> {
+        self.species.get_mut(&id)
+    }
+
+    /// Installs a recipe on a lineage, which worldgen does when it seeds one.
+    pub fn set_recipe(&mut self, id: SpeciesId, recipe: crate::axis::Recipe) {
+        if let Some(species) = self.species.get_mut(&id) {
+            species.recipe = recipe;
+        }
     }
 
     pub fn len(&self) -> usize {

@@ -158,7 +158,7 @@ impl Chain {
     }
 }
 
-use mesocosm_core::axis::{Appendage, Lineage, Soma};
+use mesocosm_core::axis::{Appendage, Recipe, Soma};
 
 /// One capsule of a rendered body: two endpoints with radii.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -199,7 +199,7 @@ impl Body {
     /// body segment, and appendages appear where the recipe puts them: a
     /// centipede grows legs the whole way down, an insect only on its thorax,
     /// a snake nowhere. Nothing here decides morphology; it reads it.
-    pub fn from_plan(plan: &Lineage, soma: &Soma, scale: f32) -> Self {
+    pub fn from_plan(plan: &Recipe, soma: &Soma, scale: f32) -> Self {
         let total: usize = soma.segments.iter().map(|s| *s as usize).sum();
         let chain = Chain::tapered(total.clamp(2, 22), scale);
 

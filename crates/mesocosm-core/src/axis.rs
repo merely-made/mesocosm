@@ -45,7 +45,7 @@
 //! it. That is why a plan carries a lexicon and refuses assignments outside
 //! it.
 //!
-//! [`lexicon`]: Lineage::lexicon
+//! [`lexicon`]: Recipe::lexicon
 
 use std::collections::BTreeSet;
 
@@ -143,10 +143,15 @@ impl Tagma {
 
 /// A lineage's heritable axial recipe: the theme its members vary on.
 ///
+/// Named `Recipe` rather than `Lineage` because [`species::Lineages`] already
+/// owns lineage identity; this is what a lineage's bodies are made from.
+///
+/// [`species::Lineages`]: crate::species::Lineages
+///
 /// Epoch-bounded by ruling, because changing this is a regional-identity
 /// change and bodies change between epochs rather than during them.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Lineage {
+pub struct Recipe {
     /// Stretches head to tail. At least one.
     pub tagmata: Vec<Tagma>,
     /// How far an individual's segment count may stray per tagma, either way.
@@ -166,7 +171,7 @@ pub enum Unspeakable {
     NoSuchTagma(usize),
 }
 
-impl Lineage {
+impl Recipe {
     /// The simplest body there is: one bare stretch.
     ///
     /// Every lineage starts here and grows a vocabulary by eating.
@@ -178,6 +183,11 @@ impl Lineage {
             }
         }
         Self { tagmata: vec![Tagma::bare(segments.max(1))], variance: 1, lexicon }
+    }
+
+    /// The recipe a lineage has before worldgen gives it one.
+    pub fn default_founding() -> Self {
+        Self::founding(4)
     }
 
     /// Builds a recipe directly. Used by the catalogue and by tests; a played
@@ -271,7 +281,16 @@ impl Lineage {
             .map(|t| t.appendage)
             .filter(|a| *a != Appendage::None)
             .collect();
-        self.segments() / 8 + self.tagmata.len() as u32 * 4 + kinds.len() as u32 * 8
+        // The lexicon counts too, at half weight: a line that *could* grow
+        // five kinds has come further than one that could grow one, even
+        // before it assigns them. This is also what keeps the frontier
+        // connected to play, now that a bigger body no longer raises it:
+        // eating something new teaches a word, and the ceiling lifts.
+        let vocabulary = self.lexicon.iter().filter(|a| !a.is_innate()).count() as u32;
+        self.segments() / 8
+            + self.tagmata.len() as u32 * 4
+            + kinds.len() as u32 * 8
+            + vocabulary * 4
     }
 }
 
@@ -295,7 +314,7 @@ impl Soma {
     ///
     /// Pure function of the two, so a creature's body is reproducible from
     /// its identity the way everything else in the core is.
-    pub fn develop(lineage: &Lineage, seed: u64) -> Self {
+    pub fn develop(lineage: &Recipe, seed: u64) -> Self {
         let mut rng = Rng::from_seed(seed);
         let mut segments = Vec::with_capacity(lineage.tagmata.len());
         for tagma in &lineage.tagmata {
@@ -328,76 +347,49 @@ impl Soma {
     }
 }
 
-/// Recipes for real animals, as evidence that the method generates the
-/// catalogue rather than one creature.
+/// Seeds a lineage's recipe from a stream.
 ///
-/// These are reference points, not content: worldgen seeds lineages and play
-/// mutates them. They exist so a test can assert that the same four rules
-/// reach a centipede and a tetrapod without special cases.
-pub mod catalogue {
-    use super::*;
+/// **Worldgen's job, not the catalogue's.** A seeded world's lines are not
+/// centipedes and insects; they are their own creatures drawn from the same
+/// rules, which is the difference between a generator and a bestiary. Kingdom
+/// shapes the draw: producers stay simple and radial-ish, consumers get
+/// stretches and limbs, decomposers stay small and many-segmented.
+pub fn seed(rng: &mut Rng, limbed: bool) -> Recipe {
+    let stretches = 1 + rng.below(if limbed { 4 } else { 2 }) as usize;
+    let mut tagmata = Vec::with_capacity(stretches + 1);
 
-    /// Many segments, one trunk, a limb pair on every one.
-    pub fn centipede(segments: u8) -> Lineage {
-        Lineage::of(vec![
-            Tagma::new(1, Appendage::Feeler),
-            Tagma::new(segments, Appendage::Limb),
-        ])
-    }
+    // A head, always: something has to be the front.
+    tagmata.push(Tagma::new(1, Appendage::Mouth));
 
-    /// A centipede with fused segments: two limb pairs per apparent one.
-    pub fn millipede(segments: u8) -> Lineage {
-        Lineage::of(vec![
-            Tagma::new(1, Appendage::Feeler),
-            Tagma::new(segments, Appendage::Limb).with_per_segment(2),
-        ])
-    }
-
-    /// Head, thorax, abdomen: legs on the thorax only, wings on part of it.
-    pub fn insect() -> Lineage {
-        Lineage::of(vec![
-            Tagma::new(1, Appendage::Feeler),
-            Tagma::new(1, Appendage::Mouth),
-            Tagma::new(3, Appendage::Limb),
-            Tagma::new(2, Appendage::Vane),
-            Tagma::bare(11),
-        ])
-    }
-
-    /// Two stretches: four leg pairs forward, nothing behind.
-    pub fn spider() -> Lineage {
-        Lineage::of(vec![
-            Tagma::new(1, Appendage::Mouth),
-            Tagma::new(4, Appendage::Limb),
-            Tagma::bare(10),
-        ])
-    }
-
-    /// A long trunk with limbs only at two girdles.
-    pub fn tetrapod(trunk: u8) -> Lineage {
-        Lineage::of(vec![
-            Tagma::new(1, Appendage::Feeler),
-            Tagma::new(1, Appendage::Limb),
-            Tagma::bare(trunk),
-            Tagma::new(1, Appendage::Limb),
-            Tagma::bare(trunk / 2),
-        ])
-    }
-
-    /// A tetrapod with its girdles suppressed and its trunk multiplied: the
-    /// single clearest demonstration that these are variations on a theme.
-    pub fn snake(trunk: u8) -> Lineage {
-        let mut plan = tetrapod(trunk);
-        for tagma in &mut plan.tagmata {
-            if tagma.appendage == Appendage::Limb {
-                tagma.per_segment = 0;
-                tagma.appendage = Appendage::None;
+    for index in 0..stretches {
+        let segments = (1 + rng.below(6)) as u8;
+        let appendage = if !limbed {
+            Appendage::None
+        } else {
+            // Most stretches are bare; the ones that are not carry limbs,
+            // and rarely something else. Sparse assignment is what makes a
+            // silhouette read rather than bristle.
+            match rng.below(6) {
+                0 | 1 => Appendage::Limb,
+                2 if index == 0 => Appendage::Feeler,
+                3 if index + 1 == stretches => Appendage::Plate,
+                _ => Appendage::None,
             }
-        }
-        plan.tagmata[2].segments = trunk;
-        plan
+        };
+        let tagma = if appendage == Appendage::None {
+            Tagma::bare(segments)
+        } else {
+            Tagma::new(segments, appendage).with_per_segment(1 + (rng.below(8) == 0) as u8)
+        };
+        tagmata.push(tagma);
     }
+
+    let mut recipe = Recipe::of(tagmata);
+    recipe.variance = 1 + rng.below(2) as u8;
+    recipe
 }
+
+pub mod catalogue;
 
 #[cfg(test)]
 mod tests {
@@ -441,7 +433,7 @@ mod tests {
     fn dividing_a_worm_is_how_a_body_becomes_regional() {
         // A one-stretch creature growing a head: tagmatization, which is the
         // mutation that makes every other plan reachable.
-        let mut worm = Lineage::founding(12);
+        let mut worm = Recipe::founding(12);
         assert_eq!(worm.tagmata.len(), 1);
 
         let tail = worm.divide(0, 3).unwrap();
@@ -455,14 +447,16 @@ mod tests {
     fn a_line_cannot_say_a_word_it_has_not_eaten() {
         // The acquisition rule: kleptoplasty teaches vocabulary, and a plan
         // refuses to express what the lineage has never incorporated.
-        let mut worm = Lineage::founding(8);
+        let mut worm = Recipe::founding(8);
         assert!(!worm.can_express(Appendage::Limb));
         assert_eq!(
             worm.assign(0, Appendage::Limb),
             Err(Unspeakable::NotInLexicon(Appendage::Limb))
         );
 
+        let before = worm.complexity();
         assert!(worm.acquire(Appendage::Limb), "the first one is a discovery");
+        assert!(worm.complexity() > before, "learning a word is coming further");
         assert!(!worm.acquire(Appendage::Limb), "the second is a meal");
         assert!(worm.assign(0, Appendage::Limb).is_ok());
         assert_eq!(worm.appendages(), 8);
@@ -520,9 +514,39 @@ mod tests {
     }
 
     #[test]
+    fn seeded_recipes_vary_and_stay_buildable() {
+        // Worldgen draws creatures, not catalogue entries.
+        let recipes: Vec<Recipe> =
+            (0..40).map(|s| seed(&mut Rng::from_seed(s), true)).collect();
+
+        let shapes: BTreeSet<String> =
+            recipes.iter().map(|r| format!("{:?}", r.tagmata)).collect();
+        assert!(shapes.len() > 20, "forty draws gave {} shapes", shapes.len());
+
+        for recipe in &recipes {
+            assert!(recipe.segments() > 0);
+            assert!(!recipe.tagmata.is_empty());
+            // Everything a seeded recipe assigns, it can say.
+            for tagma in &recipe.tagmata {
+                assert!(recipe.can_express(tagma.appendage));
+            }
+        }
+        assert!(
+            recipes.iter().any(|r| r.appendages() > 1),
+            "some seeded lines have appendages beyond a mouth"
+        );
+    }
+
+    #[test]
+    fn a_producer_stays_simple() {
+        let simple = seed(&mut Rng::from_seed(5), false);
+        assert_eq!(simple.appendages(), 1, "a mouth and nothing else");
+    }
+
+    #[test]
     fn a_recipe_round_trips() {
         let plan = insect();
         let bytes = crate::snapshot::encode(&plan).unwrap();
-        assert_eq!(crate::snapshot::decode::<Lineage>(&bytes).unwrap(), plan);
+        assert_eq!(crate::snapshot::decode::<Recipe>(&bytes).unwrap(), plan);
     }
 }

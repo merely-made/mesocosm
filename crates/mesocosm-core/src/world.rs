@@ -41,6 +41,9 @@ pub const PLACE_SIDE: u16 = 3;
 /// silently rearrange the creatures in it.
 pub const PLACE_SALT: u64 = 0x504C_4143_4553_0001;
 
+/// Body recipes draw from their own stream too, per lineage.
+pub const RECIPE_SALT: u64 = 0x5245_4349_5045_0001;
+
 /// How an incorporated part finds its site.
 ///
 /// A **policy**, not a destination. Placing a part explicitly is a different
@@ -281,6 +284,11 @@ impl World {
     /// state changes.
     pub fn apply(&mut self, intent: Intent) -> Outcome {
         let actor = self.controlled;
+        // Where the act's own consequences begin. Resolving can record
+        // events of its own (learning a word from a meal), and those follow
+        // from the act rather than preceding it, so the act is inserted at
+        // this boundary rather than pushed after them.
+        let boundary = self.pending.len();
         let outcome = self.resolve(intent);
 
         // Recorded before the ecology steps, because that is the order these
@@ -288,7 +296,7 @@ impl World {
         // death precede its last act. It also means the actor is still whoever
         // acted, even if this tick kills them.
         if let Some(event) = event_for(&outcome, actor) {
-            self.pending.push(event);
+            self.pending.insert(boundary, event);
         }
 
         // The enclosure lives whether or not the player acted. This is what
@@ -304,7 +312,7 @@ impl World {
         // What you reach, you keep. The frontier rises with the body you are
         // holding and never falls, so a lineage dying out costs you that body
         // rather than everything it earned.
-        if let Some(held) = self.controlled().map(Organism::complexity) {
+        if let Some(held) = self.controlled().map(|o| self.intricacy(o)) {
             self.frontier = self.frontier.max(held);
         }
 

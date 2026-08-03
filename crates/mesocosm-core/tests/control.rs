@@ -457,32 +457,23 @@ fn the_frontier_only_goes_up() {
 
 #[test]
 fn growing_raises_the_frontier() {
-    // A body you grow is a body you have held, so the ceiling follows it up.
     let mut world = World::new(4_242, 40);
     let before = world.frontier();
-    let me = world.controlled_id().unwrap();
 
+    // Since 2026-08-03 the frontier reads the *recipe's* intricacy rather than
+    // the body's part count, so bulk does not lift it. Learning does: teach
+    // the line a word it did not have and the ceiling rises.
+    let mine = world.controlled().unwrap().species;
     {
-        let organism = world.organisms.iter_mut().find(|o| o.id == me).unwrap();
-        let root = organism.body.root;
-        organism
-            .body
-            .attach(
-                mesocosm_core::VolumeRef::from_tag(9),
-                400,
-                [3, 1, 1],
-                mesocosm_core::Attachment {
-                    parent: root,
-                    offset: [5, 0, 0],
-                    yaw: mesocosm_core::Yaw::Zero,
-                },
-                mesocosm_core::Provenance::founding(),
-            )
-            .unwrap();
+        let species = world.lineages_mut().get_mut(mine).unwrap();
+        assert!(species.recipe.acquire(mesocosm_core::Appendage::Vane));
     }
     world.apply(Intent::Idle);
 
-    assert!(world.frontier() > before, "the ceiling rose with the body");
+    assert!(
+        world.frontier() > before,
+        "the ceiling rose with what the line learned"
+    );
 }
 
 #[test]
@@ -604,4 +595,72 @@ fn a_split_is_recorded_in_the_founders_own_history() {
         .iter()
         .any(|e| matches!(e, Event::Speciated { founder, .. } if *founder == me));
     assert!(split, "the founder's line shows where it forked");
+}
+
+#[test]
+fn eating_teaches_the_line_a_word() {
+    // The acquisition half of kleptoplasty, ruled 2026-08-03: a lineage cannot
+    // express an appendage it has never eaten, and a meal that teaches is a
+    // different kind of event from a meal that feeds.
+    let mut world = World::new(4_242, 40);
+    let mine = world.controlled().unwrap().species;
+
+    // Find something whose line grows an appendage ours has not learned.
+    let unknown: Vec<_> = world
+        .lineages()
+        .all()
+        .flat_map(|s| s.recipe.tagmata.iter().map(|t| t.appendage).collect::<Vec<_>>())
+        .filter(|a| !a.is_innate())
+        .filter(|a| !world.lineages().get(mine).unwrap().recipe.can_express(*a))
+        .collect();
+    assert!(!unknown.is_empty(), "the enclosure holds words we do not have");
+
+    // Teach it directly and confirm the rule the world enforces.
+    let word = unknown[0];
+    assert!(!world.lineages().get(mine).unwrap().recipe.can_express(word));
+    assert!(world.lineages_mut().get_mut(mine).unwrap().recipe.acquire(word));
+    assert!(world.lineages().get(mine).unwrap().recipe.can_express(word));
+    assert!(
+        !world.lineages_mut().get_mut(mine).unwrap().recipe.acquire(word),
+        "the second one is just a meal"
+    );
+}
+
+#[test]
+fn a_seeded_world_holds_several_body_plans() {
+    // The enclosure used to be one shape at several sizes. Every founding
+    // line now draws its own recipe.
+    let world = World::new(4_242, 40);
+    let shapes: std::collections::BTreeSet<String> = world
+        .lineages()
+        .all()
+        .map(|s| format!("{:?}", s.recipe.tagmata))
+        .collect();
+
+    assert!(shapes.len() > 1, "a world of one plan is the old world");
+    assert!(
+        world.lineages().all().any(|s| s.recipe.appendages() > 1),
+        "something out there has appendages"
+    );
+}
+
+#[test]
+fn a_fork_inherits_what_its_parent_learned() {
+    let mut world = World::new(4_242, 40);
+    let mine = world.controlled().unwrap().species;
+    world
+        .lineages_mut()
+        .get_mut(mine)
+        .unwrap()
+        .recipe
+        .acquire(mesocosm_core::Appendage::Vane);
+
+    let Outcome::Speciated { species, .. } = world.apply(Intent::Speciate { name: "heir".into() })
+    else {
+        panic!("the fork happened");
+    };
+    assert!(
+        world.lineages().get(species).unwrap().recipe.can_express(mesocosm_core::Appendage::Vane),
+        "a founder does not forget what its line had learned"
+    );
 }

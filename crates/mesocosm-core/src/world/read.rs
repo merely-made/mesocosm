@@ -48,6 +48,20 @@ impl World {
         self.eligibility(organism).is_ok()
     }
 
+    /// How elaborate an organism's lineage is, as the frontier reads it.
+    ///
+    /// The **recipe's** intricacy, not the body's part count: repetition is
+    /// cheap and vocabulary is expensive, so reaching a new lineage means
+    /// reaching a richer recipe rather than a longer creature. Falls back to
+    /// anatomy for an organism whose lineage the registry has lost, which a
+    /// consistent world never has.
+    pub fn intricacy(&self, organism: &Organism) -> i32 {
+        self.lineages
+            .get(organism.species)
+            .map(|species| species.recipe.complexity() as i32)
+            .unwrap_or_else(|| organism.complexity())
+    }
+
     /// Whether an organism could be played, and why not if not.
     ///
     /// **This is where the complexity frontier finally binds.** The rule was
@@ -75,10 +89,11 @@ impl World {
         }
 
         let frontier = self.frontier();
-        if target.complexity() < frontier {
+        let reach = self.intricacy(target);
+        if reach < frontier {
             Ok(())
         } else {
-            Err(Ineligible::AboveTheFrontier { frontier, target: target.complexity() })
+            Err(Ineligible::AboveTheFrontier { frontier, target: reach })
         }
     }
 
@@ -92,6 +107,12 @@ impl World {
     /// Which lineages exist, and how they are related.
     pub fn lineages(&self) -> &crate::species::Lineages {
         &self.lineages
+    }
+
+    /// The lineage registry, mutably. The adaptation phase edits recipes
+    /// through here; ordinary play does not.
+    pub fn lineages_mut(&mut self) -> &mut crate::species::Lineages {
+        &mut self.lineages
     }
 
     /// How far apart two creatures' ancestries are, in forks.

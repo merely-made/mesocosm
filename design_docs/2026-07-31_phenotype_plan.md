@@ -1,8 +1,8 @@
 # Phenotype: what a body is for
 
-**Status: decisions and proof plan, revised 2026-08-01. Anatomy descent,
-depth, severing, and a first derived reach fold are built; the phenotype
-bridge described here is not.** This document owns Mesocosm's body rules. The
+**Status: decisions and proof plan, revised 2026-08-03. Anatomy descent,
+depth, severing, derived reach, and the axial developmental recipe are built;
+the phenotype bridge described here is not.** This document owns Mesocosm's body rules. The
 cross-vessel boundary lives in the
 [wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md), and
 ordering remains with the
@@ -100,6 +100,26 @@ An eaten limb is therefore not automatically a heritable limb. Its geometry,
 processes, and provenance may influence what becomes heritable, but the epoch
 choice decides what the next body tends to grow. This is the bridge between the
 embodied run and the adaptation round.
+
+### What adaptation commits
+
+**Ruled by Mark, 2026-08-03.** The adaptation editor may directly arrange a
+candidate body, but the lineage commits to a **developmental program**, not the
+candidate's literal phenotype or allocation mosaic. The editor renders one
+founder preview: what that program is expected to grow from the current world,
+materials, budgets, and life-stage conditions.
+
+The preview is a prediction and an explanation receipt. A descendant grown
+under the same declared inputs should reproduce it; another descendant may
+realize differently under different materials, medium, injury, plasticity, or
+world conditions. That variance is expression of one inherited program rather
+than an implicit mutation.
+
+Direct arrangement and auto-arrange therefore author the same kind of program
+through the same validator. For a shared lineage, co-players adopt that program
+together. They do not promise that every descendant will carry an identical
+body. The [epoch-boundary plan](2026-08-01_epoch_boundary_plan.md) owns what
+happens when one player does not adopt the proposal.
 
 ### Processes and paths
 
@@ -627,8 +647,11 @@ Grow several candidate developmental changes and score their phenotypes in one
 authored world.
 
 **Done when:** a chosen mutation cites a lived scarcity, produces a visibly and
-mechanically different descendant, unplayed lineages use the same evaluator,
-and the old trait array has a concrete deletion receipt.
+mechanically different descendant, commits a developmental program rather than
+a body snapshot, and reproduces its founder preview under identical declared
+inputs. A changed environment may realize a legibly different phenotype from
+that same program; unplayed lineages use the same evaluator; and the old trait
+array has a concrete deletion receipt.
 
 ### P5. Contested flow
 
@@ -656,6 +679,8 @@ real consumer.
 - Do not make the player the only organism with anatomy.
 - Do not confuse one organism rule contract with one permanently realized voxel
   tree for every distant life form.
+- Do not store an adaptation preview as the lineage's body template. The
+  heritable authority is the developmental program; phenotype is a realization.
 - Do not force circulation, exchange, or other cyclic biological networks into
   the structural dependency tree.
 - Do not use a global fitness-weighted pool as a substitute for resource flow.
@@ -1093,6 +1118,10 @@ rather than part of it.
 
 ## Progress
 
+- **2026-08-03:** confirmed that direct and automatic adaptation arrange a
+  founder preview while committing a heritable developmental program. The
+  axial recipe and `BodyPlan` are the first implemented pieces of that program;
+  world-conditioned phenotype realization remains P4.
 - **2026-08-01:** `ProcessDef` accepted for one namespaced transformation. The
   linked ProcessDef plan now owns extensible definitions, expression, packs,
   and Piccolo while this plan retains body and capability semantics. No
@@ -1155,10 +1184,46 @@ most. A hundred-segment worm is long; a short creature expressing five kinds
 across five stretches is intricate. Tested: an insect out-scores both a
 longer centipede and a much longer snake.
 
-### Not yet wired
+### Wired into the world (same day)
 
-- `World` still grows organisms without recipes; worldgen must seed lineages.
-- Incorporation does not call `acquire` yet, so nothing learns words in play.
-- The complexity frontier still reads living part count rather than
-  `Lineage::complexity`.
-- `Appendage::role` maps to the parts graph but no growth path consumes it.
+All four gaps closed, and one of them changed a rule:
+
+- **Worldgen seeds a recipe per founding lineage**, from its own salted
+  stream so the ecology's draws are untouched. Producers stay simple;
+  anything that moves gets stretches and limbs. A seeded world now holds
+  several body plans rather than one shape at several sizes.
+- **Eating teaches a word.** `World::learn_from` runs after a meal lands: the
+  eater's line acquires every non-innate appendage kind the eaten line could
+  grow, and a *new* kind records an `Event::Learned`. A word already known is
+  just food, which is what makes the first one a discovery.
+- **A fork inherits its parent's recipe**, vocabulary included. A founder
+  does not forget what its line had learned.
+- **The frontier reads recipe intricacy**, not part count.
+
+**The rule that changed**: growing a body no longer raises the frontier,
+because bulk is not intricacy. That threatened to disconnect the frontier
+from play entirely, so the lexicon counts toward complexity at half weight:
+a line that *could* grow five kinds has come further than one that could grow
+one. The loop is now **eat something new, learn a word, the ceiling lifts**,
+which ties acquisition directly to the thing it should gate.
+
+One ordering bug found on the way: a lesson was landing in history before the
+meal that taught it, because resolution records its own consequences before
+`apply` records the act. The act is now inserted at the boundary where
+resolution began, so an act always precedes what it caused.
+
+### Still open
+
+- `Appendage::role` maps to the parts graph, but no growth path consumes it:
+  bodies are still grown by incorporation rather than developed from the
+  recipe. That is the next join, and it is where `Soma` stops being renderer
+  input and becomes the organism's actual anatomy.
+- NPC lineages never mutate their recipes; only the player's acquires.
+
+### Design ruling after the generator
+
+- **2026-08-03:** the adaptation editor previews a founder phenotype but
+  commits changes to the axial recipe, `BodyPlan`, process-expression rules,
+  and later developmental instructions as one heritable program. This confirms
+  the generator's recipe boundary rather than turning its first rendered body
+  into a lineage template.

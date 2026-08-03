@@ -1,7 +1,10 @@
 # The epoch boundary: significance, speciation, and what youth costs
 
-**Status: design plan, 2026-08-01. Nothing here is built.** Rulings are Mark's
-from the dialogue of 2026-08-01 and are marked where the reasoning is mine.
+**Status: partially built, revised 2026-08-03.** The world record, causal event
+log, species tree, places, reckoning, and player speciation are built. Shared
+lineage adaptation, goals, NPC speciation, and life-stage plasticity remain
+design. Rulings are Mark's from the dialogue through 2026-08-03 and are marked
+where the reasoning is mine.
 
 This owns what happens *between* epochs: how a run is judged, how a lineage
 splits, what a player may aim at, and why a young critter is different from an
@@ -67,24 +70,29 @@ that the new line is now a thing you can be held to.
 parent lineage revision, not one mutable lineage document. Every committed
 adaptation creates an immutable child revision:
 
-- if both players agree to the arrangement, they adopt the same child as the
-  line's shared continuation;
-- if one player proposes an arrangement and the other does not adopt it, the
-  proposer follows a child branch while the other remains on the prior
-  continuation;
-- neither result edits the parent or field-merges two arrangements.
+- if both players agree to the proposed developmental program, they adopt the
+  same child as the line's shared continuation;
+- if one player proposes a program and the other does not adopt it, the proposer
+  follows a child branch while the other remains on the prior continuation;
+- neither result edits the parent or field-merges the proposals.
+
+**Ruled by Mark, 2026-08-03:** agreement covers the heritable developmental
+program, not the literal allocation mosaic shown in the editor. The editor's
+body is a founder preview under declared conditions. Descendants may realize
+that shared program differently when their materials, world, injury, or
+plasticity differ.
 
 A revision is not automatically a species. Ordinary agreed adaptation may
 advance one line without naming a new one. A divergent child is a lineage
 branch; the naming and significance rules above decide when that branch is
 claimed as a distinct species.
 
-This is **adopt or branch**, not a CRDT. Concurrent arrangements may both be
-valid descendants of the same parent, but their cells are not merged into a
-third body by a generic conflict resolver. The game core does not need a
-`Player` concept to enforce this: it receives a parent revision, validated
-adaptation proposals, and explicit adoptions, then records the resulting child
-revision or revisions.
+This is **adopt or branch**, not a CRDT. Concurrent developmental proposals may
+both be valid descendants of the same parent, but their preview cells are not
+merged into a third program by a generic conflict resolver. The game core does
+not need a `Player` concept to enforce this: it receives a parent revision,
+validated adaptation proposals, and explicit adoptions, then records the
+resulting child revision or revisions.
 
 ---
 
@@ -197,9 +205,9 @@ biological one.
 
 ---
 
-## 6. What this needs that does not exist
+## 6. Four foundations, now built
 
-All four verified absent on 2026-08-01.
+All four were verified absent on 2026-08-01 and landed by 2026-08-02.
 
 | Missing | Needed by | Note |
 | ------- | --------- | ---- |
@@ -216,9 +224,8 @@ place-graph granularity the wing already uses for shared space**, so locality
 scoring and cross-vessel space want the same structure.
 
 In-world biological descent is explicitly **not** fili, which is world-lineage
-across forks and grafts. The species tree needs its own home and does not have
-one. Build it beside `chartulary::stemma` rather than on it, per the standing
-rule.
+across forks and grafts. Its local home is now `mesocosm-core::species`, beside
+rather than on the platform's lineage organs.
 
 ---
 
@@ -516,8 +523,9 @@ executable.
 
 - Do not speciate on a similarity threshold. Splitting is an act with a record
   of why.
-- Do not edit a lineage revision in place or merge concurrent arrangements
-  cell by cell. Agreement adopts one child; disagreement preserves descent.
+- Do not edit a lineage revision in place or merge concurrent developmental
+  proposals cell by cell. Agreement adopts one child; disagreement preserves
+  descent.
 - Do not author a significance table. Significance is measured against the
   world's own record or it is not significance.
 - Do not collapse retroactive abnormality and selected goals into one system.
@@ -620,6 +628,9 @@ executable.
   multi-writer disagreement should preserve two descendants rather than merge
   fields. It needs immutable lineage revisions and explicit adoption, not a
   general conflict-free document.
+- **2026-08-03:** the shared object being adopted is the developmental program.
+  The arranged body is a reproducible founder preview, not a promise that every
+  descendant will express one literal phenotype.
 
 ## Progress
 
@@ -629,3 +640,6 @@ executable.
 - **2026-08-01:** recorded shared-lineage authorship: every adaptation produces
   an immutable child revision; agreement shares a continuation and disagreement
   branches without forcing every revision to become a species.
+- **2026-08-03:** resolved the co-signing target: co-players adopt one
+  developmental program, while world-conditioned phenotype realization remains
+  free to vary.

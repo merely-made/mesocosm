@@ -72,7 +72,7 @@ impl World {
                     self.unlocked.insert(species);
                 }
                 if let Some(taken) = self.organisms.iter().find(|o| o.id == organism) {
-                    self.frontier = self.frontier.max(taken.complexity());
+                    self.frontier = self.frontier.max(self.intricacy(taken));
                 }
                 self.controlled = Some(organism);
                 Outcome::Inhabited { organism }
@@ -176,7 +176,47 @@ impl World {
         if let Some(me) = self.controlled_mut() {
             me.energy_mg = (me.energy_mg + gain_mg).saturating_sub(eaten.venom_mg);
         }
+        self.learn_from(&eaten);
         outcome
+    }
+
+    /// Teaches the eater's line whatever the meal knew how to grow.
+    ///
+    /// **The acquisition half of kleptoplasty**, ruled 2026-08-03: a lineage
+    /// cannot express an appendage it has never eaten, so incorporation is
+    /// developmental rather than decorative. Eating teaches your line a word;
+    /// the recipe decides where to say it. A word already known is just food,
+    /// which is what makes the first one a discovery.
+    fn learn_from(&mut self, eaten: &Organism) {
+        let Some(eater) = self.controlled().map(|o| (o.id, o.species)) else {
+            return;
+        };
+        let Some(taught) = self.lineages.get(eaten.species).map(|s| {
+            s.recipe
+                .tagmata
+                .iter()
+                .map(|t| t.appendage)
+                .filter(|a| !a.is_innate())
+                .collect::<Vec<_>>()
+        }) else {
+            return;
+        };
+
+        let mut learned = Vec::new();
+        if let Some(species) = self.lineages.get_mut(eater.1) {
+            for appendage in taught {
+                if species.recipe.acquire(appendage) {
+                    learned.push(appendage);
+                }
+            }
+        }
+        for appendage in learned {
+            self.pending.push(crate::history::Event::Learned {
+                organism: eater.0,
+                species: eater.1,
+                appendage,
+            });
+        }
     }
 
     /// Attempts the routed outcome, returning it and the energy it yields.

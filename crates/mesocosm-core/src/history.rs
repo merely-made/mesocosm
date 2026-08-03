@@ -75,6 +75,11 @@ pub enum Event {
     Inhabited { organism: OrganismId },
     /// A line split off another, and was named.
     Speciated { species: SpeciesId, from: SpeciesId, founder: OrganismId },
+    /// A line learned to grow something, by eating something that had it.
+    ///
+    /// The discovery half of kleptoplasty: a meal that teaches is a different
+    /// kind of event from a meal that feeds, and only the first is recorded.
+    Learned { organism: OrganismId, species: SpeciesId, appendage: crate::axis::Appendage },
 }
 
 impl Event {
@@ -99,6 +104,7 @@ impl Event {
             // makes a speciation visible in its own history rather than only
             // in the world's.
             Event::Speciated { founder, .. } => vec![founder],
+            Event::Learned { organism, .. } => vec![organism],
         }
     }
 }

@@ -448,25 +448,31 @@ secretion. Do not invent a dummy capability solely to make the pack pass.
 
 ### Direct and automatic arrangement
 
-**Ruled 2026-08-01.** During adaptation, a player may arrange the inhabited
-lineage's allocation mosaics directly or ask the game to auto-arrange them.
-Unplayed lineages use the automatic path. These are two proposal sources over
-one developmental validator, not player biology and simulation biology:
+**Ruled 2026-08-01, clarified 2026-08-03.** During adaptation, a player may
+arrange a candidate founder phenotype directly or ask the game to auto-arrange
+it. Unplayed lineages use the automatic path. These are two proposal sources
+over one developmental validator, not player biology and simulation biology:
 
 - both consume the same acquired candidates, capacity, material, and
   plasticity budgets;
 - both must satisfy the same site, adjacency, connectivity, graft, channel,
   and cost rules;
-- both produce the same causal record and immutable lineage revision;
+- both lower an accepted candidate into the same kind of heritable
+  developmental instruction and causal record;
 - automatic arrangement may optimize a declared aim, but cannot invoke a
   privileged mutation or skip a refusal the direct editor would receive.
 
-The editor exposes authorship, not authority. A screen arrangement lowers to
-the authoritative cell graph, and the validator decides whether it can exist.
+The editor exposes authorship, not authority. Its screen arrangement lowers to
+an authoritative candidate cell graph, and the validator decides whether it
+can exist under the preview's declared conditions. The lineage commits the
+developmental program that produced that candidate, not the literal mosaic.
+Later bodies realize their own phenotype mosaics from that program and their
+actual conditions.
+
 The [epoch-boundary plan](2026-08-01_epoch_boundary_plan.md) owns the
-multi-writer result: players on one lineage may adopt one validated child
+multi-writer result: players on one lineage may adopt one validated program
 together, while disagreement preserves the proposal as a branch rather than
-merging mosaics cell by cell.
+merging preview mosaics cell by cell.
 
 ---
 
@@ -560,8 +566,9 @@ atomicity and capacity conservation are named; carry-body and regrow-here
 projection paths are distinguished; fixture changes are bounded; and the
 implementation gate has exact file seams and tests. The pass also names one
 proposal shape and validator used by both direct and automatic arrangement,
-with lineage revision and adoption owned by the epoch boundary. No state
-migration lands in PD1a.
+draws the boundary between a candidate phenotype and its committed
+developmental program, and leaves lineage revision and adoption to the epoch
+boundary. No state migration lands in PD1a.
 
 ### PD1b. Native ProcessDef migration
 
@@ -583,9 +590,10 @@ allocation names a living part, attach and sever cannot split anatomy from
 phenotype, every part mosaic conserves capacity, rearrangement occurs only
 through recorded events, existing reach outcomes and refusals hold, and a part
 still cannot acquire a capability by editing a number. The same valid
-arrangement submitted through direct and automatic proposal sources lowers to
-the same committed phenotype, and the same invalid arrangement receives the
-same refusal.
+candidate submitted through direct and automatic proposal sources lowers to
+the same developmental instruction, and the same invalid candidate receives
+the same refusal. Re-realization under changed declared conditions may produce
+a different valid phenotype without changing process identity or provenance.
 
 ### PD2. One native played process
 
@@ -782,6 +790,9 @@ These are intentionally deferred to the gate with evidence:
   two sources of the same validated developmental proposal. Shared-lineage
   agreement adopts one child revision; disagreement branches at the epoch
   boundary rather than merging allocation cells.
+- **2026-08-03, co-signing target.** The concrete mosaic is a founder preview.
+  Direct and automatic arrangement author a developmental program, and that
+  program is what shared-lineage players adopt or branch from.
 
 ---
 
@@ -803,3 +814,6 @@ These are intentionally deferred to the gate with evidence:
 - **2026-08-01:** third question pass ruled direct and automatic arrangement
   through one validator, with shared-lineage disagreement resolved by immutable
   descent rather than mutation in place or cell-wise merge.
+- **2026-08-03:** clarified that arrangement previews a phenotype while the
+  accepted, co-signed artifact is its developmental program. Changed world and
+  body conditions may realize that program differently.

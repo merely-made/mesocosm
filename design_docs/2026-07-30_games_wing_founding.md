@@ -236,6 +236,23 @@ The distinction worth holding: Katamari's accretion is comic and terminal, a
 run that ends when the timer does. Here it is generational and consequential,
 because a part carries provenance and the world keeps what you did to it.
 
+**Voxatron** joined 2026-08-03 as Mark's closest match for the wing's original
+vision. It is the material-language lodestar rather than a core-loop template:
+
+- body, terrain, prop, construction, and damage all read as uses or states of
+  one low-resolution substance;
+- adding, subtracting, breaking, and rearranging that substance form one
+  interaction grammar rather than separate editor, combat, and building
+  fictions;
+- the toy-like scale keeps procedural variation readable enough to inspect,
+  remember, and care about.
+
+This does not make a voxel grid shared simulation authority. Mesocosm's body
+graph and developmental recipe, Paredros' close presentation, and Isometry's
+sprite projection remain sovereign representations. The wing-level target is
+the perceptual continuity: each vessel should make the same buildable,
+damageable material history recognizable through its own lens.
+
 
 Gotcha Force, RimWorld, Phantasy Star Online, Mount & Blade, Zelda: Four
 Swords, FF Crystal Chronicles, XCOM 2, Caves of Qud, Vagante, Tactics Ogre:
