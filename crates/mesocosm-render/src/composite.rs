@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! Compositing a chrome texture over a rendered frame.
+//! Compositing a layer over a rendered frame.
 //!
 //! Vello overwrites its entire target (`ColorLoad::Load` is documented as
 //! clear-to-transparent), so HUD content cannot be rasterized straight onto
@@ -11,9 +11,15 @@
 //! pass blends that texture over the frame at a destination rectangle.
 //!
 //! Premultiplied-alpha blending, because that is what vello emits.
+//!
+//! **Named for the operation, not a position.** An earlier cut called this
+//! `Overlay`, which is cambium's word for anchored floating UI (`overlay_at`,
+//! `OverlaySurface`) and means a *thing*, not an act. `composite` is the
+//! stack's existing word for blending layers into a frame, matching
+//! netrender's `Compositor` and `paint_list_render::composite`.
 
 /// The blit-with-blend pipeline. Built once per (device, surface format).
-pub struct Overlay {
+pub struct Composite {
     pipeline: wgpu::RenderPipeline,
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
@@ -55,14 +61,14 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
 }
 "#;
 
-impl Overlay {
+impl Composite {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("overlay"),
+            label: Some("composite"),
             source: wgpu::ShaderSource::Wgsl(SHADER.into()),
         });
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("overlay"),
+            label: Some("composite"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -93,12 +99,12 @@ impl Overlay {
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("overlay"),
+            label: Some("composite"),
             bind_group_layouts: &[Some(&layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("overlay"),
+            label: Some("composite"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -124,13 +130,13 @@ impl Overlay {
             cache: None,
         });
         let rect = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("overlay dest"),
+            label: Some("composite dest"),
             size: 16,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("overlay"),
+            label: Some("composite"),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
@@ -165,7 +171,7 @@ impl Overlay {
         queue.write_buffer(&self.rect, 0, bytemuck::cast_slice(&ndc));
 
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("overlay"),
+            label: Some("composite"),
             layout: &self.layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -184,7 +190,7 @@ impl Overlay {
         });
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("overlay"),
+            label: Some("composite"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: target,
                 depth_slice: None,

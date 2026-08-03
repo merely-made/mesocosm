@@ -13,7 +13,7 @@
 //! lettering.
 
 use mesocosm_core::World;
-use mesocosm_render::overlay::Overlay;
+use mesocosm_render::composite::Composite;
 use mesocosm_render::{Camera, Renderer, SceneItem};
 use mesocosm_views::MinimapLeaf;
 use netrender::{ColorLoad, Renderer as NetRenderer, WgpuHandles, create_netrender_instance};
@@ -30,11 +30,16 @@ const MARGIN: f32 = 12.0;
 /// generated, not per-frame: the enclosure drifts on ecology time, and a
 /// cadence keeps the world's self-portrait current without paying a second
 /// scene render every frame.
+///
+/// **A backdrop in the stack's sense**: a live sim painted behind for
+/// context, the same tier as mere's ambient backdrops. It is not an
+/// environment. Nothing in it has a hull, exerts a field, or is navigable,
+/// because the world it portrays has no such thing yet.
 const BACKDROP_CADENCE: u64 = 10;
 
 pub struct Hud {
     net: NetRenderer,
-    overlay: Overlay,
+    composite: Composite,
     leaf: MinimapLeaf,
     view: wgpu::TextureView,
     /// The same texels in an sRGB-tagged twin, for compositing.
@@ -128,7 +133,7 @@ impl Hud {
 
         Some(Self {
             net,
-            overlay: Overlay::new(&device, format),
+            composite: Composite::new(&device, format),
             leaf: mesocosm_views::minimap_leaf(world),
             view,
             sample_view,
@@ -203,7 +208,7 @@ impl Hud {
     }
 
     /// Composites into a capture frame, which uses the offscreen format
-    /// rather than the surface's. Builds a one-shot overlay pipeline; capture
+    /// rather than the surface's. Builds a one-shot composite pipeline; capture
     /// is rare and evidence beats economy there.
     pub fn capture_composite(
         &self,
@@ -214,11 +219,11 @@ impl Hud {
         target: &wgpu::TextureView,
         frame: (u32, u32),
     ) {
-        let overlay = Overlay::new(device, format);
+        let composite = Composite::new(device, format);
         let x = frame.0 as f32 - SIDE as f32 - MARGIN;
         let dest = (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32);
-        overlay.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
-        overlay.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
+        composite.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
+        composite.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
     }
 
     /// Blends the minimap into the frame's top-right corner.
@@ -234,7 +239,7 @@ impl Hud {
         let dest = (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32);
         // Terrain under territory: the world's own image first, the cells
         // whose translucency exists for exactly this on top.
-        self.overlay.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
-        self.overlay.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
+        self.composite.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
+        self.composite.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
     }
 }

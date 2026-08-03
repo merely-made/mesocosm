@@ -63,7 +63,7 @@ fn read_texture(
 fn the_composited_ground_is_the_background_colour() {
     // The backdrop chain crosses three textures: an sRGB scene render, a
     // linear vello raster, and the target. This walks a bare backdrop (no
-    // cells) through Overlay and checks the ground arrives unchanged.
+    // cells) through Composite and checks the ground arrives unchanged.
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let Ok(adapter) =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
@@ -105,7 +105,7 @@ fn the_composited_ground_is_the_background_colour() {
     let direct = read_texture(&device, &queue, &backdrop, SIDE);
     println!("backdrop texel: {:?}", &direct[0..4]);
 
-    let overlay = mesocosm_render::overlay::Overlay::new(&device, shot.format());
+    let composite = mesocosm_render::composite::Composite::new(&device, shot.format());
     let mut encoder = device.create_command_encoder(&Default::default());
     {
         // Clear the target to a sentinel so pass-through is visible.
@@ -126,7 +126,7 @@ fn the_composited_ground_is_the_background_colour() {
             multiview_mask: None,
         });
     }
-    overlay.draw(
+    composite.draw(
         &device,
         &queue,
         &mut encoder,
@@ -145,7 +145,7 @@ fn the_composited_ground_is_the_background_colour() {
         .unwrap();
     assert!(
         drift <= 2,
-        "the ground changed crossing the overlay: {:?} became {:?}",
+        "the ground changed crossing the composite: {:?} became {:?}",
         &direct[0..4],
         &composited[0..4]
     );

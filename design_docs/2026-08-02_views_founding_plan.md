@@ -89,6 +89,34 @@ The minimap's 35%-alpha cells rendered as a white sheet. Fixed at the owning
 layer (netrender, with a regression test); `hud_raster.rs` keeps a headless
 probe of the exact leaf-to-texture path with a premultiply bound.
 
+### Layer vocabulary, checked against the stack (2026-08-02)
+
+The words were spent before they were checked, so here they are, grounded:
+
+| Word | Meaning in the stack | Owner |
+| ---- | -------------------- | ----- |
+| **underlay** | the painted scene content beneath host chrome | mere `canvas::underlay` |
+| **backdrop** | a live sim painted behind for context, not interactive | mere `canvas::ambient` |
+| **overlay** | anchored floating UI above content | cambium `overlay_at` / `OverlaySurface` |
+| **composite** | the act of blending layers into a frame | netrender `Compositor`, `paint_list_render::composite` |
+
+Two consequences. The minimap's ground *is* a backdrop in the stack's sense
+(a live sim painted behind, the same tier as mere's Game of Life ambient),
+so the word was accidentally right. But `mesocosm-render::Overlay` was
+wrong: cambium's overlay is anchored floating UI, a thing rather than an
+act, and the operation's existing name is **composite**. Renamed.
+
+**The gap the check exposed**: none of these four name an *inhabited*
+environment, and it is not a layer at all. Props with hulls, fields with
+physical implications, terrain critters navigate: that is world truth the
+simulation reasons about, not something painted behind it. A backdrop is
+scenery; the thing Mark described is a place you can be stuck in.
+
+It needs no new primitive, though. The hulls lane already rules that
+drawing a hull composes **group + region + optional field**, so a prop is a
+region with a field, which is exactly the composition that shipped
+2026-08-02. What it needs is a name, and naming rounds here get checks.
+
 ### The backdrop, landed 2026-08-02
 
 The world renders its own enclosure top-down (an overhead orthographic

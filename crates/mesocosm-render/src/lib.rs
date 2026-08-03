@@ -23,7 +23,7 @@
 //! back. Gameplay identity lives in the core's state hash, never in a raster.
 
 pub mod camera;
-pub mod overlay;
+pub mod composite;
 pub mod geometry;
 
 use mesocosm_mesh::BodyMesh;
