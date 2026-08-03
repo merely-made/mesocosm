@@ -133,7 +133,7 @@ impl Chain {
 
     /// A phase clock derived from where the head is, so the gait is a pure
     /// function of position: replaying a path replays the wriggle.
-    fn wave_clock(&self, head: [f32; 3]) -> f32 {
+    pub(crate) fn wave_clock(&self, head: [f32; 3]) -> f32 {
         (head[0] + head[2]) * 0.55
     }
 
@@ -155,6 +155,117 @@ impl Chain {
             .map(|s| distance(s.at, centre) + s.radius)
             .fold(0.0, f32::max);
         (centre, radius + 1.0)
+    }
+}
+
+/// One capsule of a rendered body: two endpoints with radii.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Capsule {
+    pub a: [f32; 3],
+    pub ra: f32,
+    pub b: [f32; 3],
+    pub rb: f32,
+}
+
+/// A whole body: the spine chain plus stepped legs and eye dots.
+///
+/// This is the probe's stand-in for the parts-graph binding: legs are what
+/// `Role::Limb` parts will supply and eyes what `Role::Sensor` parts will,
+/// attached to spine segments exactly as attachment frames attach parts.
+/// What separates an animal from a blob is mostly these: appendages that
+/// step, a head that looks somewhere, a silhouette that breaks.
+#[derive(Clone, Debug)]
+pub struct Body {
+    pub chain: Chain,
+    /// (spine index, side) per leg. Three pairs, tripod-phased.
+    legs: Vec<(usize, f32)>,
+}
+
+impl Body {
+    pub fn caterpillar(length: usize, scale: f32) -> Self {
+        let legs = [2usize, 4, 6]
+            .iter()
+            .flat_map(|&spine| [(spine, -1.0), (spine, 1.0)])
+            .filter(|(spine, _)| *spine + 1 < length)
+            .collect();
+        Self { chain: Chain::tapered(length, scale), legs }
+    }
+
+    pub fn step(&mut self, target: [f32; 3], ground: impl Fn(f32, f32) -> f32) {
+        self.chain.step(target, ground);
+    }
+
+    /// Every capsule of the posed body, legs stepped from the gait clock.
+    pub fn capsules(&self, ground: impl Fn(f32, f32) -> f32) -> Vec<Capsule> {
+        let mut out = Vec::with_capacity(self.chain.segments.len() + self.legs.len() * 2);
+        for pair in self.chain.segments.windows(2) {
+            out.push(Capsule {
+                a: pair[0].at,
+                ra: pair[0].radius,
+                b: pair[1].at,
+                rb: pair[1].radius,
+            });
+        }
+
+        let clock = self.chain.wave_clock(self.chain.segments[0].at) * 2.2;
+        for (index, &(spine, side)) in self.legs.iter().enumerate() {
+            let hip = self.chain.segments[spine];
+            let next = self.chain.segments[spine + 1];
+            let along = [next.at[0] - hip.at[0], next.at[2] - hip.at[2]];
+            let len = (along[0] * along[0] + along[1] * along[1]).sqrt().max(1e-5);
+            let heading = [along[0] / len, along[1] / len];
+            let out_dir = [-heading[1] * side, heading[0] * side];
+
+            // Tripod phasing: opposite corners swing together. The triangle
+            // wave slides the foot fore and aft; the lift arc raises it only
+            // through the swing half of the cycle.
+            let phase = clock + if (index % 2 == 0) == (index < 3) { 0.0 } else { std::f32::consts::PI };
+            let cycle = phase.sin();
+            let swing = phase.cos().max(0.0);
+
+            let stance = hip.radius * 1.9;
+            let stride = self.chain.spacing * 0.55;
+            let foot_x = hip.at[0] + out_dir[0] * stance + heading[0] * cycle * stride;
+            let foot_z = hip.at[2] + out_dir[1] * stance + heading[1] * cycle * stride;
+            let foot = [
+                foot_x,
+                ground(foot_x, foot_z) + 0.25 + swing * hip.radius * 0.9,
+                foot_z,
+            ];
+
+            // Knee: between hip and foot, pushed outward and up, so the leg
+            // reads jointed rather than telescoping.
+            let knee = [
+                (hip.at[0] + foot[0]) * 0.5 + out_dir[0] * hip.radius * 0.8,
+                (hip.at[1] + foot[1]) * 0.5 + hip.radius * 0.5,
+                (hip.at[2] + foot[2]) * 0.5 + out_dir[1] * hip.radius * 0.8,
+            ];
+
+            let thigh = hip.radius * 0.38;
+            out.push(Capsule { a: hip.at, ra: thigh, b: knee, rb: thigh * 0.8 });
+            out.push(Capsule { a: knee, ra: thigh * 0.8, b: foot, rb: thigh * 0.6 });
+        }
+        out
+    }
+
+    /// Two eye dots on the head, looking along the body's heading.
+    pub fn eyes(&self) -> [[f32; 4]; 2] {
+        let head = self.chain.segments[0];
+        let neck = self.chain.segments[1];
+        let along = [head.at[0] - neck.at[0], head.at[2] - neck.at[2]];
+        let len = (along[0] * along[0] + along[1] * along[1]).sqrt().max(1e-5);
+        let heading = [along[0] / len, along[1] / len];
+        let side = [-heading[1], heading[0]];
+        let r = head.radius;
+        let eye = |s: f32| -> [f32; 4] {
+            [
+                head.at[0] + heading[0] * r * 0.6 + side[0] * s * r * 0.55,
+                head.at[1] + r * 0.45,
+                head.at[2] + heading[1] * r * 0.6 + side[1] * s * r * 0.55,
+                r * 0.28,
+            ]
+        };
+        [eye(-1.0), eye(1.0)]
     }
 }
 

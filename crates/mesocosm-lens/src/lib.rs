@@ -89,18 +89,43 @@ struct MarchParams {
 /// The body in frame, if any, as the shader wants it.
 #[derive(Clone, Debug, Default)]
 pub struct CritterPose {
-    pub segments: Vec<([f32; 3], f32)>,
+    pub capsules: Vec<critter::Capsule>,
+    pub eyes: [[f32; 4]; 2],
     pub bounds_centre: [f32; 3],
     pub bounds_radius: f32,
     pub tint: [f32; 3],
 }
 
 impl CritterPose {
-    pub fn from_chain(chain: &critter::Chain, tint: [f32; 3]) -> Self {
-        let (bounds_centre, bounds_radius) = chain.bounds();
+    pub fn from_body(
+        body: &critter::Body,
+        ground: impl Fn(f32, f32) -> f32,
+        tint: [f32; 3],
+    ) -> Self {
+        let capsules = body.capsules(ground);
+        let mut centre = [0.0f32; 3];
+        for capsule in &capsules {
+            for (axis, value) in centre.iter_mut().enumerate() {
+                *value += (capsule.a[axis] + capsule.b[axis]) * 0.5;
+            }
+        }
+        let n = capsules.len().max(1) as f32;
+        for value in &mut centre {
+            *value /= n;
+        }
+        let bounds_radius = capsules
+            .iter()
+            .flat_map(|c| [(c.a, c.ra), (c.b, c.rb)])
+            .map(|(at, r)| {
+                let d = [at[0] - centre[0], at[1] - centre[1], at[2] - centre[2]];
+                (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt() + r
+            })
+            .fold(0.0, f32::max)
+            + 1.0;
         Self {
-            segments: chain.segments.iter().map(|s| (s.at, s.radius)).collect(),
-            bounds_centre,
+            capsules,
+            eyes: body.eyes(),
+            bounds_centre: centre,
             bounds_radius,
             tint,
         }
@@ -112,9 +137,12 @@ impl CritterPose {
 struct CritterParams {
     /// xyz centre, w radius.
     bounds: [f32; 4],
-    /// xyz tint, w segment count.
+    /// xyz tint, w capsule count.
     tint_count: [f32; 4],
-    segments: [[f32; 4]; 16],
+    /// Two eye spheres: xyz centre, w radius.
+    eyes: [[f32; 4]; 2],
+    /// Capsule j is pairs[2j] (a, ra) to pairs[2j+1] (b, rb).
+    pairs: [[f32; 4]; 48],
 }
 
 #[repr(C)]
@@ -384,11 +412,13 @@ impl Lens {
                 map_side: maps.side as f32,
             }),
         );
-        let mut segments = [[0.0f32; 4]; 16];
-        let (mut bounds, mut tint_count) = ([0.0f32; 4], [0.0f32; 4]);
+        let mut pairs = [[0.0f32; 4]; 48];
+        let (mut bounds, mut tint_count, mut eyes) =
+            ([0.0f32; 4], [0.0f32; 4], [[0.0f32; 4]; 2]);
         if let Some(pose) = pose {
-            for (i, (at, radius)) in pose.segments.iter().take(16).enumerate() {
-                segments[i] = [at[0], at[1], at[2], *radius];
+            for (j, capsule) in pose.capsules.iter().take(24).enumerate() {
+                pairs[2 * j] = [capsule.a[0], capsule.a[1], capsule.a[2], capsule.ra];
+                pairs[2 * j + 1] = [capsule.b[0], capsule.b[1], capsule.b[2], capsule.rb];
             }
             bounds = [
                 pose.bounds_centre[0],
@@ -400,8 +430,9 @@ impl Lens {
                 pose.tint[0],
                 pose.tint[1],
                 pose.tint[2],
-                pose.segments.len().min(16) as f32,
+                pose.capsules.len().min(24) as f32,
             ];
+            eyes = pose.eyes;
         }
         let critter_params = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("critter params"),
@@ -412,7 +443,7 @@ impl Lens {
         self.queue.write_buffer(
             &critter_params,
             0,
-            bytemuck::bytes_of(&CritterParams { bounds, tint_count, segments }),
+            bytemuck::bytes_of(&CritterParams { bounds, tint_count, eyes, pairs }),
         );
 
         let grade_params = self.device.create_buffer(&wgpu::BufferDescriptor {

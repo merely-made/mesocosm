@@ -30,9 +30,12 @@ struct MarchParams {
 struct CritterParams {
     // xyz = bounds centre, w = bounds radius.
     bounds: vec4<f32>,
-    // xyz = tint, w = segment count.
+    // xyz = tint, w = capsule count.
     tint_count: vec4<f32>,
-    segments: array<vec4<f32>, 16>,
+    // Two eye spheres: xyz centre, w radius.
+    eyes: array<vec4<f32>, 2>,
+    // Capsule j is pairs[2j] (a.xyz, ra) to pairs[2j+1] (b.xyz, rb).
+    pairs: array<vec4<f32>, 48>,
 };
 
 @group(0) @binding(0) var height_map: texture_2d<f32>;
@@ -78,31 +81,36 @@ fn capsule_distance(p: vec3<f32>, a: vec3<f32>, b: vec3<f32>, r: f32) -> f32 {
 // The body's distance field: capsules between consecutive segments, blended
 // by a smooth minimum. The blend IS the biology reading: parts flow into
 // each other the way kleptoplasty means them to.
+fn one_capsule(p: vec3<f32>, j: u32) -> f32 {
+    let a = critter.pairs[2u * j];
+    let b = critter.pairs[2u * j + 1u];
+    return capsule_distance(p, a.xyz, b.xyz, (a.w + b.w) * 0.5);
+}
+
 fn critter_distance(p: vec3<f32>) -> f32 {
-    let seg_count = u32(critter.tint_count.w);
+    let count = u32(critter.tint_count.w);
     // Seeded from the first capsule, never from a big sentinel: mix(1e9,
     // cd, 1.0) computes 1e9 + (cd - 1e9) at f32 precision, which cancels
     // catastrophically to ~0 and turns the whole field into a hit. The
     // giant-sphere artefact that cost this probe an evening was exactly
     // that: a distance field reading zero everywhere inside the bounds.
-    var d = capsule_distance(
-        p,
-        critter.segments[0].xyz,
-        critter.segments[1].xyz,
-        (critter.segments[0].w + critter.segments[1].w) * 0.5,
-    );
+    var d = one_capsule(p, 0u);
     // Small against the segment radii: enough to fillet the joints, not
     // enough to inflate the body into a ball.
     let k = 0.4;
-    for (var i = 1u; i + 1u < seg_count; i = i + 1u) {
-        let a = critter.segments[i];
-        let b = critter.segments[i + 1u];
-        let cd = capsule_distance(p, a.xyz, b.xyz, (a.w + b.w) * 0.5);
+    for (var j = 1u; j < count; j = j + 1u) {
+        let cd = one_capsule(p, j);
         // Polynomial smooth min.
         let h = clamp(0.5 + 0.5 * (d - cd) / k, 0.0, 1.0);
         d = mix(d, cd, h) - k * h * (1.0 - h);
     }
     return d;
+}
+
+fn eye_distance(p: vec3<f32>) -> f32 {
+    let a = length(p - critter.eyes[0].xyz) - critter.eyes[0].w;
+    let b = length(p - critter.eyes[1].xyz) - critter.eyes[1].w;
+    return min(a, b);
 }
 
 fn critter_normal(p: vec3<f32>) -> vec3<f32> {
@@ -116,7 +124,7 @@ fn critter_normal(p: vec3<f32>) -> vec3<f32> {
 
 // Sphere-trace the body along the ray; returns hit distance or -1.
 fn trace_critter(eye: vec3<f32>, dir: vec3<f32>) -> f32 {
-    if (critter.tint_count.w < 1.5) {
+    if (critter.tint_count.w < 0.5) {
         return -1.0;
     }
     // Ray-sphere prefilter against the bounds.
@@ -190,7 +198,13 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
         // A rim term so the silhouette pops off the terrain, which is most
         // of small-body legibility under a starved palette.
         let rim = pow(1.0 - clamp(dot(normal, -dir), 0.0, 1.0), 2.0) * 0.35;
-        let lit = critter.tint_count.xyz * (0.4 + 0.6 * light) + vec3(rim);
+        var base = critter.tint_count.xyz;
+        // An eye is a dark dot wherever the eye field comes closer than the
+        // body surface: the cheapest face a creature can have.
+        if (eye_distance(p) < 0.05) {
+            base = base * 0.12;
+        }
+        let lit = base * (0.4 + 0.6 * light) + vec3(rim * 0.6);
         return vec4(lit, clamp(body_t / params.far, 0.0, 0.999));
     }
 

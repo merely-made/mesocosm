@@ -78,10 +78,10 @@ fn main() {
 
     // Walk the critter in along a wander so each captured frame is a real
     // gait phase, not a posed chain.
-    let mut chain = critter::Chain::tapered(9, 1.4);
+    let mut body = critter::Body::caterpillar(9, 1.4);
     for step in 0..12 {
         let [x, z] = critter::wander(4_242, origin, step);
-        chain.step([x, ground(x, z) + 2.2, z], ground);
+        body.step([x, ground(x, z) + 2.2, z], ground);
     }
 
     // A moss-lineage tint, the golden-angle rule's first entry.
@@ -96,14 +96,14 @@ fn main() {
             // consecutive gait phases: the motion-legibility evidence.
             for step in 0..2 {
                 let [x, z] = critter::wander(4_242, origin, 12 + frame * 2 + step);
-                chain.step([x, ground(x, z) + 2.2, z], ground);
+                body.step([x, ground(x, z) + 2.2, z], ground);
             }
-            let pose = CritterPose::from_chain(&chain, tint);
+            let pose = CritterPose::from_body(&body, ground, tint);
 
             // Side-on, slightly above: the pose that shows a gait. The
             // camera stands off the body's flank and looks at its middle.
-            let head = chain.segments[0].at;
-            let tail = chain.segments.last().unwrap().at;
+            let head = body.chain.segments[0].at;
+            let tail = body.chain.segments.last().unwrap().at;
             let mid = [
                 (head[0] + tail[0]) * 0.5,
                 (head[1] + tail[1]) * 0.5,
