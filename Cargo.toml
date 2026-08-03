@@ -22,17 +22,26 @@ members = [
     "crates/mesocosm-mesh",
     "crates/mesocosm-render",
     "crates/mesocosm-runtime",
+    "crates/mesocosm-views",
 ]
 
 [workspace.dependencies]
 # The append-only log, from mere's eidetic family. Branch-tracked rather
 # than pinned; its causal shape landed 2026-08-01 for exactly this use.
 codicil = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+# The scenograph projection contract and its solvers: the adapter-first UI
+# posture. Mesocosm discloses facts as a score; scenomise places them; a host
+# realizes the scene. Views never hand-roll layout.
+sceno = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+scenomise = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+# Custom-paint leaves, from genet's cambium family. Git-only, never crates.io.
+sprigging = { git = "https://github.com/merely-made/genet.git", branch = "main" }
 mesocosm-core = { path = "crates/mesocosm-core", version = "0.0.1" }
 mesocosm-mesh = { path = "crates/mesocosm-mesh", version = "0.0.1" }
 mesocosm-render = { path = "crates/mesocosm-render", version = "0.0.1" }
 mesocosm-genet = { path = "crates/mesocosm-genet", version = "0.0.1" }
 mesocosm-runtime = { path = "crates/mesocosm-runtime", version = "0.0.1" }
+mesocosm-views = { path = "crates/mesocosm-views", version = "0.0.1" }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 postcard = { version = "1", default-features = false, features = ["alloc"] }
 
