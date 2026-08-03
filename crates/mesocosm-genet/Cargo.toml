@@ -20,6 +20,11 @@ mesocosm-core = { workspace = true }
 mesocosm-mesh = { workspace = true }
 mesocosm-render = { workspace = true }
 mesocosm-runtime = { workspace = true }
+mesocosm-views = { workspace = true }
+netrender = { workspace = true }
+paint_list_api = { workspace = true }
+paint_list_render = { workspace = true }
+sprigging = { workspace = true }
 wgpu = { workspace = true }
 winit = "0.30"
 pollster = "0.4"

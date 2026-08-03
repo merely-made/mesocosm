@@ -36,6 +36,12 @@ sceno = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 scenomise = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # Custom-paint leaves, from genet's cambium family. Git-only, never crates.io.
 sprigging = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+# The HUD lane (route A, ruled 2026-08-02): leaves paint PaintCmds,
+# paint_list_render lowers them, netrender rasterizes on the game's own
+# device. The wgpu-29 pin below exists for exactly this sharing.
+netrender = { git = "https://github.com/merely-made/netrender.git", branch = "main" }
+paint_list_api = { git = "https://github.com/merely-made/netrender.git", branch = "main" }
+paint_list_render = { git = "https://github.com/merely-made/netrender.git", branch = "main" }
 mesocosm-core = { path = "crates/mesocosm-core", version = "0.0.1" }
 mesocosm-mesh = { path = "crates/mesocosm-mesh", version = "0.0.1" }
 mesocosm-render = { path = "crates/mesocosm-render", version = "0.0.1" }

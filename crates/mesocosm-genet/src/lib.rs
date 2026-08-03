@@ -16,5 +16,6 @@
 
 pub mod app;
 pub mod fixture;
+pub mod hud;
 
 pub use app::{Host, HostConfig};

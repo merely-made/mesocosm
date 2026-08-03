@@ -20,5 +20,6 @@ pub mod minimap;
 
 pub use leaf::MinimapLeaf;
 pub use minimap::{
-    MINIMAP_ADAPTER, dominant_lineages, lineage_tint, minimap_scene, minimap_score,
+    MINIMAP_ADAPTER, dominant_lineages, lineage_tint, minimap_leaf, minimap_scene,
+    minimap_score,
 };

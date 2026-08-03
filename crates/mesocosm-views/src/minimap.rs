@@ -123,6 +123,32 @@ fn hsl(h: f32, s: f32, l: f32) -> (f32, f32, f32) {
     (r + m, g + m, b + m)
 }
 
+/// The whole minimap, assembled: solved scene, resolved tints, player mark.
+///
+/// The one call a host makes per refresh. Tint resolution walks scene regions
+/// back through their member's source ref, so the leaf never learns what a
+/// place is.
+pub fn minimap_leaf(world: &World) -> crate::leaf::MinimapLeaf {
+    let scene = minimap_scene(world);
+    let holders = dominant_lineages(world);
+    let tints = scene
+        .regions
+        .iter()
+        .map(|region| {
+            let item = &scene.items[region.members[0].0 as usize];
+            let source = &scene.sources[item.source.0 as usize];
+            let id: u16 = source
+                .id
+                .trim_start_matches("place:")
+                .parse()
+                .expect("minimap sources are places");
+            holders.get(&PlaceId(id)).copied().flatten().map(lineage_tint)
+        })
+        .collect();
+    let player = world.position().map(|p| (p[0] as f32, p[2] as f32));
+    crate::leaf::MinimapLeaf::new(scene, tints, player)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

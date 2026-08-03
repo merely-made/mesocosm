@@ -63,6 +63,12 @@ impl MinimapLeaf {
         self.dirty = true;
     }
 
+    /// Adopts a freshly assembled projection, keeping this leaf's paint
+    /// retention: identical projections stay settled.
+    pub fn refresh_from(&mut self, fresh: MinimapLeaf) {
+        self.update(fresh.scene, fresh.tints, fresh.player);
+    }
+
     /// Scene units to leaf pixels: fit the scene bounds into the leaf,
     /// preserving aspect.
     fn to_px(&self, p: Vec2) -> (f32, f32) {
@@ -155,7 +161,7 @@ impl Leaf for MinimapLeaf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::minimap::{dominant_lineages, lineage_tint, minimap_scene};
+    use crate::minimap::minimap_leaf;
     use mesocosm_core::{Intent, World};
     use sprigging::PaintCmd;
 
@@ -164,20 +170,7 @@ mod tests {
         for _ in 0..50 {
             world.apply(Intent::Idle);
         }
-        let scene = minimap_scene(&world);
-        let holders = dominant_lineages(&world);
-        let tints = scene
-            .regions
-            .iter()
-            .map(|region| {
-                let item = &scene.items[region.members[0].0 as usize];
-                let source = &scene.sources[item.source.0 as usize];
-                let id: u16 = source.id.trim_start_matches("place:").parse().unwrap();
-                holders[&mesocosm_core::PlaceId(id)].map(lineage_tint)
-            })
-            .collect();
-        let player = world.position().map(|p| (p[0] as f32, p[2] as f32));
-        MinimapLeaf::new(minimap_scene(&world), tints, player)
+        minimap_leaf(&world)
     }
 
     fn painted(leaf: &mut MinimapLeaf) -> Vec<PaintCmd> {

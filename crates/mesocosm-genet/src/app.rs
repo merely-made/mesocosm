@@ -117,6 +117,9 @@ struct Gpu {
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     renderer: Renderer,
+    /// The chrome lane. `None` when netrender declined the device; the game
+    /// runs chromeless rather than not at all.
+    hud: Option<crate::hud::Hud>,
 }
 
 impl Host {
@@ -294,6 +297,16 @@ impl Host {
             items.push(SceneItem::creature(mesh, *at, *tint, *warns, *colour, *scale));
         }
         gpu.renderer.draw_scene(&mut encoder, &view, &items, &camera);
+        if let Some(hud) = &mut gpu.hud {
+            hud.refresh(self.runtime.world());
+            hud.composite(
+                gpu.renderer.device(),
+                gpu.renderer.queue(),
+                &mut encoder,
+                &view,
+                (gpu.config.width, gpu.config.height),
+            );
+        }
         gpu.renderer.queue().submit(Some(encoder.finish()));
         surface_texture.present();
 
@@ -326,7 +339,21 @@ impl Host {
         for (mesh, at, tint, warns, colour, scale) in &loose {
             items.push(SceneItem::creature(mesh, *at, *tint, *warns, *colour, *scale));
         }
-        let Ok(frame) = shot.render_scene(&items, &self.camera()) else {
+        let camera = self.camera();
+        let rendered = shot.render_scene_with(&items, &camera, |encoder, view| {
+            // The capture shows what the window shows, chrome included.
+            if let Some(hud) = &gpu.hud {
+                hud.capture_composite(
+                    shot.device(),
+                    shot.queue(),
+                    shot.format(),
+                    encoder,
+                    view,
+                    (self.config.width, self.config.height),
+                );
+            }
+        });
+        let Ok(frame) = rendered else {
             return;
         };
 
@@ -421,14 +448,22 @@ impl ApplicationHandler for Host {
         // The renderer targets the surface's format, which is usually BGRA
         // rather than the offscreen RGBA the tests use.
         let renderer = Renderer::with_format(
-            device,
-            queue,
+            device.clone(),
+            queue.clone(),
             self.config.width,
             self.config.height,
             format,
         );
 
-        self.gpu = Some(Gpu { surface, config, renderer });
+        // The HUD shares the game's device rather than creating a second one,
+        // which is the arrangement the workspace's wgpu pin exists for.
+        let hud = crate::hud::Hud::new(
+            netrender::WgpuHandles { instance, adapter, device, queue },
+            format,
+            self.runtime.world(),
+        );
+
+        self.gpu = Some(Gpu { surface, config, renderer, hud });
         self.window = Some(window);
     }
 

@@ -23,6 +23,7 @@
 //! back. Gameplay identity lives in the core's state hash, never in a raster.
 
 pub mod camera;
+pub mod overlay;
 pub mod geometry;
 
 use mesocosm_mesh::BodyMesh;
@@ -408,6 +409,18 @@ impl Renderer {
         items: &[SceneItem],
         camera: &Camera,
     ) -> Result<Frame, RenderError> {
+        self.render_scene_with(items, camera, |_, _| {})
+    }
+
+    /// Like [`Self::render_scene`], with a caller pass between the scene and
+    /// the readback. The capture path composites chrome through this, so a
+    /// capture shows exactly what a window shows.
+    pub fn render_scene_with(
+        &self,
+        items: &[SceneItem],
+        camera: &Camera,
+        after: impl FnOnce(&mut wgpu::CommandEncoder, &wgpu::TextureView),
+    ) -> Result<Frame, RenderError> {
         let colour = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("frame"),
             size: wgpu::Extent3d {
@@ -428,6 +441,7 @@ impl Renderer {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("body") });
         self.draw_scene(&mut encoder, &colour_view, items, camera);
+        after(&mut encoder, &colour_view);
 
         self.read_back(encoder, &colour)
     }
