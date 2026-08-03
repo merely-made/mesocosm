@@ -31,10 +31,13 @@ const MARGIN: f32 = 12.0;
 /// cadence keeps the world's self-portrait current without paying a second
 /// scene render every frame.
 ///
-/// **A backdrop in the stack's sense**: a live sim painted behind for
-/// context, the same tier as mere's ambient backdrops. It is not an
-/// environment. Nothing in it has a hull, exerts a field, or is navigable,
-/// because the world it portrays has no such thing yet.
+/// **An ambient background**: the non-interactive backdrop subtype, mere's
+/// Game of Life tier. Backdrop names where a layer sits, not whether it
+/// acts (ruled 2026-08-03); this one does not act. Nothing in it has a
+/// hull, exerts a field, or is navigable, because the world it portrays
+/// has no such thing yet. When the world grows props and fields, their
+/// projection enters as an interactive backdrop through the scene lane,
+/// not by enriching this one.
 const BACKDROP_CADENCE: u64 = 10;
 
 pub struct Hud {

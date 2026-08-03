@@ -96,26 +96,30 @@ The words were spent before they were checked, so here they are, grounded:
 | Word | Meaning in the stack | Owner |
 | ---- | -------------------- | ----- |
 | **underlay** | the painted scene content beneath host chrome | mere `canvas::underlay` |
-| **backdrop** | a live sim painted behind for context, not interactive | mere `canvas::ambient` |
+| **backdrop** | a layer behind the actors; **may be interactive** | family word, ruled 2026-08-03 |
+| **ambient background** | the non-interactive backdrop subtype: pure context | mere `canvas::ambient` |
 | **overlay** | anchored floating UI above content | cambium `overlay_at` / `OverlaySurface` |
 | **composite** | the act of blending layers into a frame | netrender `Compositor`, `paint_list_render::composite` |
 
-Two consequences. The minimap's ground *is* a backdrop in the stack's sense
-(a live sim painted behind, the same tier as mere's Game of Life ambient),
-so the word was accidentally right. But `mesocosm-render::Overlay` was
-wrong: cambium's overlay is anchored floating UI, a thing rather than an
-act, and the operation's existing name is **composite**. Renamed.
+**Backdrop names where a layer sits, not whether it acts** (Mark,
+2026-08-03). A backdrop may carry props with hulls and fields with physical
+implications; the non-interactive kind is the *ambient* subtype, which is
+what mere's Game of Life tier holds and what the minimap's ground is. The
+earlier table conflated the family with its passive subtype; mere's
+`ambient` module docs now carry the distinction at the source.
 
-**The gap the check exposed**: none of these four name an *inhabited*
-environment, and it is not a layer at all. Props with hulls, fields with
-physical implications, terrain critters navigate: that is world truth the
-simulation reasons about, not something painted behind it. A backdrop is
-scenery; the thing Mark described is a place you can be stuck in.
+`mesocosm-render::Overlay` was separately wrong: cambium's overlay is
+anchored floating UI, a thing rather than an act, and the operation's
+existing name is **composite**. Renamed.
 
-It needs no new primitive, though. The hulls lane already rules that
-drawing a hull composes **group + region + optional field**, so a prop is a
-region with a field, which is exactly the composition that shipped
-2026-08-02. What it needs is a name, and naming rounds here get checks.
+The split this taxonomy makes clean: an **interactive backdrop projects
+world truth** (props, hulls, fields the simulation reasons about) and
+enters through a scene lane; an ambient background is pure presentation and
+never touches the world. The inhabited-environment lane is therefore "build
+the world truth, then back-drop it", not "enrich the ambient sim". It needs
+no new primitive, since the hulls lane already rules that a hull composes
+**group + region + optional field**; a prop is a region with a field. What
+the *assembly* is called still awaits a naming round.
 
 ### The backdrop, landed 2026-08-02
 
