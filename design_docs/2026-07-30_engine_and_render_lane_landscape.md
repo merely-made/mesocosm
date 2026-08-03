@@ -353,12 +353,23 @@ become a shared component (a biosphere lens) if Paredros pulls.
 
 ### Probes, with targets
 
-- **Terrain probe**: vello paints a biome height+colour map pair; the
-  fullscreen march renders it; receipt = a first-person capture flying over
-  painted terrain. Kills or confirms the whole direction.
-- **Critter probe**: one capsule-chain critter, seiche-driven, marched in
-  the same shader, loping over that terrain; receipt = it reads as an
-  animal, not a blob. The slugcat-feel gate.
+- ~~**Terrain probe**~~ **LANDED 2026-08-03** as `crates/mesocosm-lens`:
+  two passes (march + grade), maps synthesised from a `Places` partition
+  (one biome per place, golden-angle tints, fbm relief), both souls
+  captured along a flight at `testing/mesocosm/16_lens_*.png`. The vista
+  shots show rolling multi-biome terrain into banded dithered fog (retro)
+  and smooth haze (clay) from the same march. The probe confirms: the
+  engine is two small WGSL files, the world is two images, a soul is a
+  uniform block, and place borders read as biome borders. CPU map
+  synthesis stands in for the vello lane without changing the contract.
+  Two findings: the march's step-growth budget silently capped view
+  distance at ~155 units until the growth rate matched the far plane (a
+  vista rendered as pure sky), and banded fog plus starved palette carries
+  most of the retro soul on its own. Dither-in-motion remains a headed
+  judgement; three consecutive frames per soul are captured for it.
+- **Critter probe** (next): one capsule-chain critter, seiche-driven,
+  marched in the same shader, loping over that terrain; receipt = it reads
+  as an animal, not a blob. The slugcat-feel gate.
 - **Fallback**: if the march disappoints on perf or art, per-part cards on
   the same chains are the retreat, and sprite stacking stays evaluated for
   the two pulled-back vessels.

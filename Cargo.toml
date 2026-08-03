@@ -19,6 +19,7 @@ exclude = ["design_docs/"]
 members = [
     "crates/mesocosm-core",
     "crates/mesocosm-genet",
+    "crates/mesocosm-lens",
     "crates/mesocosm-mesh",
     "crates/mesocosm-render",
     "crates/mesocosm-runtime",

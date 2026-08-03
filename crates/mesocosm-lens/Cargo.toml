@@ -1,0 +1,21 @@
+[package]
+name = "mesocosm-lens"
+version = "0.0.1"
+edition = "2024"
+license = "MPL-2.0"
+description = "The biosphere lens probe: a fullscreen heightfield raymarch plus a parametric grade stage. Terrain in, two souls out."
+repository = "https://github.com/merely-made/mesocosm"
+publish = false
+
+# The probe for the unified-raymarch candidate (render lane landscape §7).
+# Everything it consumes is 2D data: a heightmap, a colormap, a grade block.
+# If this earns its keep it dies into a netrender render-graph task; it never
+# grows into a second custom pipeline.
+[dependencies]
+mesocosm-core = { workspace = true }
+wgpu = { workspace = true }
+bytemuck = { version = "1", features = ["derive"] }
+pollster = "0.4"
+
+[dev-dependencies]
+png = "0.17"
