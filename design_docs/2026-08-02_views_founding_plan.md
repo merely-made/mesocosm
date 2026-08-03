@@ -89,11 +89,31 @@ The minimap's 35%-alpha cells rendered as a white sheet. Fixed at the owning
 layer (netrender, with a regression test); `hud_raster.rs` keeps a headless
 probe of the exact leaf-to-texture path with a premultiply bound.
 
+### The backdrop, landed 2026-08-02
+
+The world renders its own enclosure top-down (an overhead orthographic
+camera aligned with the minimap's mapping: world +x right, +z down), on a
+step cadence rather than per frame, into the Hud's own small renderer.
+Composited under the cells, whose 35% translucency existed for exactly
+this. Verified at `testing/mesocosm/15_backdrop.png`: terrain under
+territory, the dense centre reading light because the world's centre is
+dense.
+
+Two colour-space facts the capture chain forced into the open:
+
+- **Vello's target must be plain `Rgba8Unorm`** (it writes through a
+  storage binding, which sRGB formats cannot be), and its output is
+  display-encoded. Sampling those bytes as linear and writing to an sRGB
+  target encodes twice and brightens everything, so each raster is
+  byte-copied into a copy-compatible sRGB twin whose decode-on-sample
+  cancels the target's encode. The probe test walks the backdrop chain and
+  pins the ground colour through the overlay.
+- The residual: vello premultiplies in display space, so alpha compositing
+  of its output is colourimetrically approximate. Deterministic and fine
+  for a HUD; noted so nobody chases it as a bug later.
+
 ## 4. Not yet built
 
-- **The generated backdrop.** The world rendering its own enclosure
-  top-down, composited under the minimap. The overlay pass and capture seam
-  are ready for it.
 - **Interactivity.** Cells as hit targets wait for the route B DOM host.
 - **Fields over cells.** `FieldExtent::Polygon` exists; nothing evaluates a
   field over a place yet. Consumer-pull holds.
@@ -102,8 +122,8 @@ probe of the exact leaf-to-texture path with a premultiply bound.
 
 ## 5. Done conditions
 
-- ~~The minimap visible in the windowed host~~ **done 2026-08-02**, backdrop
-  still open.
+- ~~The minimap visible in the windowed host, over a generated backdrop~~
+  **done 2026-08-02**: `15_backdrop.png`.
 - Dominance shifts on screen when the ecology shifts (verifiable with a
   scenario run: two captures, different holders).
 - ~~A `testing/mesocosm/` capture showing it~~ **done**: `14_minimap.png`.

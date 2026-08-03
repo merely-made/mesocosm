@@ -60,6 +60,98 @@ fn read_texture(
 }
 
 #[test]
+fn the_composited_ground_is_the_background_colour() {
+    // The backdrop chain crosses three textures: an sRGB scene render, a
+    // linear vello raster, and the target. This walks a bare backdrop (no
+    // cells) through Overlay and checks the ground arrives unchanged.
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let Ok(adapter) =
+        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
+    else {
+        eprintln!("no adapter; skipping");
+        return;
+    };
+    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default()))
+        .expect("a headless device");
+
+    const SIDE: u32 = 32;
+    let shot = mesocosm_render::Renderer::with_device(device.clone(), queue.clone(), SIDE, SIDE);
+    let make = |format: wgpu::TextureFormat, extra: wgpu::TextureUsages| {
+        device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | extra,
+            view_formats: &[],
+        })
+    };
+    let backdrop = make(shot.format(), wgpu::TextureUsages::empty());
+    let backdrop_view = backdrop.create_view(&Default::default());
+    let target = make(shot.format(), wgpu::TextureUsages::empty());
+    let target_view = target.create_view(&Default::default());
+
+    // An empty scene: pure background.
+    let camera = mesocosm_render::Camera::default();
+    let mut encoder = device.create_command_encoder(&Default::default());
+    shot.draw_scene(&mut encoder, &backdrop_view, &[], &camera);
+    queue.submit(Some(encoder.finish()));
+
+    let direct = read_texture(&device, &queue, &backdrop, SIDE);
+    println!("backdrop texel: {:?}", &direct[0..4]);
+
+    let overlay = mesocosm_render::overlay::Overlay::new(&device, shot.format());
+    let mut encoder = device.create_command_encoder(&Default::default());
+    {
+        // Clear the target to a sentinel so pass-through is visible.
+        let _ = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &target_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::RED),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+    }
+    overlay.draw(
+        &device,
+        &queue,
+        &mut encoder,
+        &target_view,
+        &backdrop_view,
+        (0.0, 0.0, SIDE as f32, SIDE as f32),
+        (SIDE, SIDE),
+    );
+    queue.submit(Some(encoder.finish()));
+
+    let composited = read_texture(&device, &queue, &target, SIDE);
+    println!("composited texel: {:?}", &composited[0..4]);
+    let drift = (0..3)
+        .map(|c| (direct[c] as i32 - composited[c] as i32).abs())
+        .max()
+        .unwrap();
+    assert!(
+        drift <= 2,
+        "the ground changed crossing the overlay: {:?} became {:?}",
+        &direct[0..4],
+        &composited[0..4]
+    );
+}
+
+#[test]
 fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let Ok(adapter) =

@@ -14,6 +14,7 @@
 
 use mesocosm_core::World;
 use mesocosm_render::overlay::Overlay;
+use mesocosm_render::{Camera, Renderer, SceneItem};
 use mesocosm_views::MinimapLeaf;
 use netrender::{ColorLoad, Renderer as NetRenderer, WgpuHandles, create_netrender_instance};
 use sprigging::{Leaf, PaintCx, Size};
@@ -25,13 +26,49 @@ const SIDE: u32 = 160;
 /// Distance from the frame's corner.
 const MARGIN: f32 = 12.0;
 
+/// Steps between backdrop re-renders. The ruling asks for dynamically
+/// generated, not per-frame: the enclosure drifts on ecology time, and a
+/// cadence keeps the world's self-portrait current without paying a second
+/// scene render every frame.
+const BACKDROP_CADENCE: u64 = 10;
+
 pub struct Hud {
     net: NetRenderer,
     overlay: Overlay,
     leaf: MinimapLeaf,
     view: wgpu::TextureView,
-    /// Keeps the texture alive for its view.
-    _texture: wgpu::Texture,
+    /// The same texels in an sRGB-tagged twin, for compositing.
+    ///
+    /// Vello writes display-encoded values into a linear-tagged texture (its
+    /// target must be plain Unorm because it writes through a storage
+    /// binding, which sRGB formats cannot be). Sampling those bytes raw and
+    /// writing to an sRGB target encodes twice and brightens everything, so
+    /// each raster is byte-copied into this copy-compatible sRGB texture,
+    /// whose decode-on-sample cancels the target's encode.
+    sample_view: wgpu::TextureView,
+    sample_texture: wgpu::Texture,
+    /// Keeps the vello target alive for its view.
+    texture: wgpu::Texture,
+    /// The backdrop's own small renderer, sized to the minimap.
+    shot: Renderer,
+    backdrop_view: wgpu::TextureView,
+    _backdrop: wgpu::Texture,
+    /// The step count the backdrop was last rendered at.
+    rendered_at: Option<u64>,
+}
+
+/// Straight down at the whole enclosure, aligned with the minimap's mapping:
+/// world +x reads right and +z reads down, so the cells sit over the terrain
+/// they govern. Pitch stops a degree short of vertical because a look-at with
+/// view parallel to up is singular.
+fn overhead() -> Camera {
+    Camera {
+        target: [0.0, 0.0, 0.0],
+        extent: mesocosm_core::world::ENCLOSURE as f32 + 2.0,
+        yaw: std::f32::consts::FRAC_PI_2,
+        pitch: 1.553_343_f32,
+        aspect: 1.0,
+    }
 }
 
 impl Hud {
@@ -39,6 +76,7 @@ impl Hud {
     /// device, in which case the game simply runs chromeless.
     pub fn new(handles: WgpuHandles, format: wgpu::TextureFormat, world: &World) -> Option<Self> {
         let device = handles.device.clone();
+        let queue = handles.queue.clone();
         let net = create_netrender_instance(
             handles,
             netrender::NetrenderOptions {
@@ -59,18 +97,69 @@ impl Hud {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::COPY_DST,
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         let view = texture.create_view(&Default::default());
+        let sample_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("minimap srgb"),
+            size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        let sample_view = sample_texture.create_view(&Default::default());
+
+        let shot = Renderer::with_device(device.clone(), queue, SIDE, SIDE);
+        let backdrop = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("minimap backdrop"),
+            size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: shot.format(),
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let backdrop_view = backdrop.create_view(&Default::default());
 
         Some(Self {
             net,
             overlay: Overlay::new(&device, format),
             leaf: mesocosm_views::minimap_leaf(world),
             view,
-            _texture: texture,
+            sample_view,
+            sample_texture,
+            texture,
+            shot,
+            backdrop_view,
+            _backdrop: backdrop,
+            rendered_at: None,
         })
+    }
+
+    /// Re-renders the enclosure's self-portrait if the cadence has elapsed.
+    ///
+    /// The same scene items the frame draws, seen from straight above: the
+    /// backdrop is the world's own image, generated, never an asset.
+    pub fn render_backdrop(&mut self, items: &[SceneItem], steps: u64) {
+        if self
+            .rendered_at
+            .is_some_and(|then| steps.saturating_sub(then) < BACKDROP_CADENCE)
+        {
+            return;
+        }
+        self.rendered_at = Some(steps);
+
+        let mut encoder = self
+            .shot
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("backdrop") });
+        self.shot.draw_scene(&mut encoder, &self.backdrop_view, items, &overhead());
+        self.shot.queue().submit(Some(encoder.finish()));
     }
 
     /// Reprojects the world and rasterizes the minimap if anything changed.
@@ -98,6 +187,19 @@ impl Hud {
             &self.view,
             ColorLoad::Clear(wgpu::Color::TRANSPARENT),
         );
+
+        // Into the sRGB twin the composite samples. Byte-identical; only the
+        // format tag differs, which is the entire point.
+        let mut encoder = self
+            .shot
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("srgb twin") });
+        encoder.copy_texture_to_texture(
+            self.texture.as_image_copy(),
+            self.sample_texture.as_image_copy(),
+            wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+        );
+        self.shot.queue().submit(Some(encoder.finish()));
     }
 
     /// Composites into a capture frame, which uses the offscreen format
@@ -114,15 +216,9 @@ impl Hud {
     ) {
         let overlay = Overlay::new(device, format);
         let x = frame.0 as f32 - SIDE as f32 - MARGIN;
-        overlay.draw(
-            device,
-            queue,
-            encoder,
-            target,
-            &self.view,
-            (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32),
-            frame,
-        );
+        let dest = (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32);
+        overlay.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
+        overlay.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
     }
 
     /// Blends the minimap into the frame's top-right corner.
@@ -135,14 +231,10 @@ impl Hud {
         frame: (u32, u32),
     ) {
         let x = frame.0 as f32 - SIDE as f32 - MARGIN;
-        self.overlay.draw(
-            device,
-            queue,
-            encoder,
-            target,
-            &self.view,
-            (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32),
-            frame,
-        );
+        let dest = (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32);
+        // Terrain under territory: the world's own image first, the cells
+        // whose translucency exists for exactly this on top.
+        self.overlay.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
+        self.overlay.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
     }
 }

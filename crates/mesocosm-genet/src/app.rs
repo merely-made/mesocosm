@@ -298,6 +298,7 @@ impl Host {
         }
         gpu.renderer.draw_scene(&mut encoder, &view, &items, &camera);
         if let Some(hud) = &mut gpu.hud {
+            hud.render_backdrop(&items, self.steps);
             hud.refresh(self.runtime.world());
             hud.composite(
                 gpu.renderer.device(),
