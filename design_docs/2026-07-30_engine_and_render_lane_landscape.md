@@ -367,9 +367,24 @@ become a shared component (a biosphere lens) if Paredros pulls.
   vista rendered as pure sky), and banded fog plus starved palette carries
   most of the retro soul on its own. Dither-in-motion remains a headed
   judgement; three consecutive frames per soul are captured for it.
-- **Critter probe** (next): one capsule-chain critter, seiche-driven,
-  marched in the same shader, loping over that terrain; receipt = it reads
-  as an animal, not a blob. The slugcat-feel gate.
+- ~~**Critter probe**~~ **LANDED 2026-08-03**: a follow-the-leader capsule
+  chain (`lens::critter`, the Rain World constraint technique, ~100 lines,
+  no physics engine) smooth-unioned into the same march, walking a wander
+  over the terrain. Receipts at `testing/mesocosm/17_critter_*.png`: a
+  tapered caterpillar-form body cresting a ridge with visible ground
+  contact, fully legible under both grades; the retro dither reads as body
+  texture rather than noise. **The gate passes: it reads as an animal.**
+  Chain findings: spacing must be ~2x segment radius or the body blends
+  into a blob; the smooth-min k must be small against the radii; a relax
+  term toward the leader's heading is what lets a still body settle
+  instead of freezing its wiggle; and turn radii must exceed a body length
+  or a loper reads as a coiler. One shader bug worth remembering: seeding
+  a smooth-min from a 1e9 sentinel makes `mix(1e9, d, 1.0)` cancel
+  catastrophically at f32 and the whole field reads as a hit -- the
+  giant-sphere artefact. Seed from the first primitive, never a sentinel.
+  Deliberately absent yet: legs, eyes, contact shadows, and the
+  parts-graph binding (the probe chain is hand-shaped; the game's chains
+  derive from anatomy).
 - **Fallback**: if the march disappoints on perf or art, per-part cards on
   the same chains are the retreat, and sprite stacking stays evaluated for
   the two pulled-back vessels.

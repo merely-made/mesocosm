@@ -15,6 +15,7 @@
 //! hands in painted maps and a camera. If the probe earns its keep this
 //! becomes a netrender render-graph task, never a second custom pipeline.
 
+pub mod critter;
 pub mod maps;
 
 use bytemuck::{Pod, Zeroable};
@@ -83,6 +84,37 @@ struct MarchParams {
     fov: f32,
     far: f32,
     map_side: f32,
+}
+
+/// The body in frame, if any, as the shader wants it.
+#[derive(Clone, Debug, Default)]
+pub struct CritterPose {
+    pub segments: Vec<([f32; 3], f32)>,
+    pub bounds_centre: [f32; 3],
+    pub bounds_radius: f32,
+    pub tint: [f32; 3],
+}
+
+impl CritterPose {
+    pub fn from_chain(chain: &critter::Chain, tint: [f32; 3]) -> Self {
+        let (bounds_centre, bounds_radius) = chain.bounds();
+        Self {
+            segments: chain.segments.iter().map(|s| (s.at, s.radius)).collect(),
+            bounds_centre,
+            bounds_radius,
+            tint,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct CritterParams {
+    /// xyz centre, w radius.
+    bounds: [f32; 4],
+    /// xyz tint, w segment count.
+    tint_count: [f32; 4],
+    segments: [[f32; 4]; 16],
 }
 
 #[repr(C)]
@@ -163,6 +195,7 @@ impl Lens {
                 texture_entry(1),
                 sampler_entry(2),
                 uniform_entry(3),
+                uniform_entry(4),
             ],
         });
         let grade_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -282,6 +315,17 @@ impl Lens {
 
     /// Renders one frame through march and grade, returning RGBA pixels.
     pub fn render(&self, maps: &maps::BiomeMaps, flight: &Flight, look: &Grade) -> Vec<u8> {
+        self.render_with(maps, flight, look, None)
+    }
+
+    /// As [`Self::render`], with a body in frame.
+    pub fn render_with(
+        &self,
+        maps: &maps::BiomeMaps,
+        flight: &Flight,
+        look: &Grade,
+        pose: Option<&CritterPose>,
+    ) -> Vec<u8> {
         let height_view =
             self.upload("height", wgpu::TextureFormat::R8Unorm, maps.side, maps.side, 1, &maps.height);
         let color_view =
@@ -340,6 +384,37 @@ impl Lens {
                 map_side: maps.side as f32,
             }),
         );
+        let mut segments = [[0.0f32; 4]; 16];
+        let (mut bounds, mut tint_count) = ([0.0f32; 4], [0.0f32; 4]);
+        if let Some(pose) = pose {
+            for (i, (at, radius)) in pose.segments.iter().take(16).enumerate() {
+                segments[i] = [at[0], at[1], at[2], *radius];
+            }
+            bounds = [
+                pose.bounds_centre[0],
+                pose.bounds_centre[1],
+                pose.bounds_centre[2],
+                pose.bounds_radius,
+            ];
+            tint_count = [
+                pose.tint[0],
+                pose.tint[1],
+                pose.tint[2],
+                pose.segments.len().min(16) as f32,
+            ];
+        }
+        let critter_params = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("critter params"),
+            size: std::mem::size_of::<CritterParams>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(
+            &critter_params,
+            0,
+            bytemuck::bytes_of(&CritterParams { bounds, tint_count, segments }),
+        );
+
         let grade_params = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("grade params"),
             size: std::mem::size_of::<GradeParams>() as u64,
@@ -367,6 +442,7 @@ impl Lens {
                 wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&color_view) },
                 wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(&self.sampler) },
                 wgpu::BindGroupEntry { binding: 3, resource: march_params.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 4, resource: critter_params.as_entire_binding() },
             ],
         });
         let grade_bind = self.device.create_bind_group(&wgpu::BindGroupDescriptor {

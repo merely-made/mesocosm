@@ -21,10 +21,25 @@ struct MarchParams {
     map_side: f32,
 };
 
+// A capsule-chain body: up to 16 segments, each xyz + radius, smooth-
+// unioned. seg_count = 0 means no critter in frame. The bounding sphere
+// lets rays that miss skip the whole trace.
+// vec4-only on purpose: vec3 uniform packing is where layouts quietly
+// disagree between host and shader, and this struct already lost one debug
+// session to a perfectly round artefact.
+struct CritterParams {
+    // xyz = bounds centre, w = bounds radius.
+    bounds: vec4<f32>,
+    // xyz = tint, w = segment count.
+    tint_count: vec4<f32>,
+    segments: array<vec4<f32>, 16>,
+};
+
 @group(0) @binding(0) var height_map: texture_2d<f32>;
 @group(0) @binding(1) var color_map: texture_2d<f32>;
 @group(0) @binding(2) var map_sampler: sampler;
 @group(0) @binding(3) var<uniform> params: MarchParams;
+@group(0) @binding(4) var<uniform> critter: CritterParams;
 
 struct VsOut {
     @builtin(position) pos: vec4<f32>,
@@ -51,6 +66,83 @@ fn terrain_height(at: vec2<f32>) -> f32 {
 fn terrain_color(at: vec2<f32>) -> vec3<f32> {
     let uv = at / params.map_side;
     return textureSampleLevel(color_map, map_sampler, uv, 0.0).rgb;
+}
+
+fn capsule_distance(p: vec3<f32>, a: vec3<f32>, b: vec3<f32>, r: f32) -> f32 {
+    let pa = p - a;
+    let ba = b - a;
+    let h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0);
+    return length(pa - ba * h) - r;
+}
+
+// The body's distance field: capsules between consecutive segments, blended
+// by a smooth minimum. The blend IS the biology reading: parts flow into
+// each other the way kleptoplasty means them to.
+fn critter_distance(p: vec3<f32>) -> f32 {
+    let seg_count = u32(critter.tint_count.w);
+    // Seeded from the first capsule, never from a big sentinel: mix(1e9,
+    // cd, 1.0) computes 1e9 + (cd - 1e9) at f32 precision, which cancels
+    // catastrophically to ~0 and turns the whole field into a hit. The
+    // giant-sphere artefact that cost this probe an evening was exactly
+    // that: a distance field reading zero everywhere inside the bounds.
+    var d = capsule_distance(
+        p,
+        critter.segments[0].xyz,
+        critter.segments[1].xyz,
+        (critter.segments[0].w + critter.segments[1].w) * 0.5,
+    );
+    // Small against the segment radii: enough to fillet the joints, not
+    // enough to inflate the body into a ball.
+    let k = 0.4;
+    for (var i = 1u; i + 1u < seg_count; i = i + 1u) {
+        let a = critter.segments[i];
+        let b = critter.segments[i + 1u];
+        let cd = capsule_distance(p, a.xyz, b.xyz, (a.w + b.w) * 0.5);
+        // Polynomial smooth min.
+        let h = clamp(0.5 + 0.5 * (d - cd) / k, 0.0, 1.0);
+        d = mix(d, cd, h) - k * h * (1.0 - h);
+    }
+    return d;
+}
+
+fn critter_normal(p: vec3<f32>) -> vec3<f32> {
+    let e = 0.08;
+    return normalize(vec3(
+        critter_distance(p + vec3(e, 0.0, 0.0)) - critter_distance(p - vec3(e, 0.0, 0.0)),
+        critter_distance(p + vec3(0.0, e, 0.0)) - critter_distance(p - vec3(0.0, e, 0.0)),
+        critter_distance(p + vec3(0.0, 0.0, e)) - critter_distance(p - vec3(0.0, 0.0, e)),
+    ));
+}
+
+// Sphere-trace the body along the ray; returns hit distance or -1.
+fn trace_critter(eye: vec3<f32>, dir: vec3<f32>) -> f32 {
+    if (critter.tint_count.w < 1.5) {
+        return -1.0;
+    }
+    // Ray-sphere prefilter against the bounds.
+    let oc = eye - critter.bounds.xyz;
+    let b = dot(oc, dir);
+    let c = dot(oc, oc) - critter.bounds.w * critter.bounds.w;
+    if (b > 0.0 && c > 0.0) {
+        return -1.0;
+    }
+    let disc = b * b - c;
+    if (disc < 0.0) {
+        return -1.0;
+    }
+    var t = max(-b - sqrt(disc), 0.05);
+    let t_exit = -b + sqrt(disc);
+    for (var i = 0; i < 48; i = i + 1) {
+        let d = critter_distance(eye + dir * t);
+        if (d < 0.02) {
+            return t;
+        }
+        t = t + max(d, 0.015);
+        if (t > t_exit) {
+            break;
+        }
+    }
+    return -1.0;
 }
 
 @fragment
@@ -87,6 +179,19 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
             break;
         }
         t = t + max(0.35, t * 0.03);
+    }
+
+    let body_t = trace_critter(params.eye, dir);
+    if (body_t > 0.0 && (!hit || body_t < t)) {
+        let p = params.eye + dir * body_t;
+        let normal = critter_normal(p);
+        let sun = normalize(vec3(0.4, 0.8, 0.3));
+        let light = clamp(dot(normal, sun), 0.0, 1.0);
+        // A rim term so the silhouette pops off the terrain, which is most
+        // of small-body legibility under a starved palette.
+        let rim = pow(1.0 - clamp(dot(normal, -dir), 0.0, 1.0), 2.0) * 0.35;
+        let lit = critter.tint_count.xyz * (0.4 + 0.6 * light) + vec3(rim);
+        return vec4(lit, clamp(body_t / params.far, 0.0, 0.999));
     }
 
     if (!hit) {
