@@ -142,7 +142,7 @@ struct CritterParams {
     /// Two eye spheres: xyz centre, w radius.
     eyes: [[f32; 4]; 2],
     /// Capsule j is pairs[2j] (a, ra) to pairs[2j+1] (b, rb).
-    pairs: [[f32; 4]; 48],
+    pairs: [[f32; 4]; 192],
 }
 
 #[repr(C)]
@@ -412,11 +412,11 @@ impl Lens {
                 map_side: maps.side as f32,
             }),
         );
-        let mut pairs = [[0.0f32; 4]; 48];
+        let mut pairs = [[0.0f32; 4]; 192];
         let (mut bounds, mut tint_count, mut eyes) =
             ([0.0f32; 4], [0.0f32; 4], [[0.0f32; 4]; 2]);
         if let Some(pose) = pose {
-            for (j, capsule) in pose.capsules.iter().take(24).enumerate() {
+            for (j, capsule) in pose.capsules.iter().take(96).enumerate() {
                 pairs[2 * j] = [capsule.a[0], capsule.a[1], capsule.a[2], capsule.ra];
                 pairs[2 * j + 1] = [capsule.b[0], capsule.b[1], capsule.b[2], capsule.rb];
             }
@@ -430,7 +430,7 @@ impl Lens {
                 pose.tint[0],
                 pose.tint[1],
                 pose.tint[2],
-                pose.capsules.len().min(24) as f32,
+                pose.capsules.len().min(96) as f32,
             ];
             eyes = pose.eyes;
         }

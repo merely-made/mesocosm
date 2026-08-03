@@ -35,7 +35,7 @@ struct CritterParams {
     // Two eye spheres: xyz centre, w radius.
     eyes: array<vec4<f32>, 2>,
     // Capsule j is pairs[2j] (a.xyz, ra) to pairs[2j+1] (b.xyz, rb).
-    pairs: array<vec4<f32>, 48>,
+    pairs: array<vec4<f32>, 192>,
 };
 
 @group(0) @binding(0) var height_map: texture_2d<f32>;

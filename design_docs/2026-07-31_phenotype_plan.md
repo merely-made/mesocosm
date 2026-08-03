@@ -1099,3 +1099,66 @@ rather than part of it.
   implementation added by that planning pass.
 - **2026-07-31:** plan revised after the anatomy implementation and wing-scope
   audit. No phenotype implementation was added.
+
+---
+
+## The axial generator (built 2026-08-03)
+
+Bodies were being sculpted, one creature at a time with no relatives. Ruled
+and built: body plans come from an **axial recipe** read head to tail, in
+`mesocosm-core::axis`.
+
+Four rules, which are biology's own: **segments** repeated along one axis
+(metamerism); **serial homology**, every segment carrying the same appendage
+machinery; **tagmata**, segments grouped into named stretches; and **regional
+identity**, a stretch deciding what its segments bear or suppressing them.
+Symmetry, already in `BodyPlan`, is the fifth.
+
+**It composes rather than replaces** (Mark, 2026-08-03). `BodyPlan` stays the
+placement policy that growth consumes and adaptation edits; the axial recipe
+is the scaffold above it. The scaffold says a thoracic segment bears a limb;
+the policy says which way a limb points and whether it mirrors.
+
+### The catalogue is the test
+
+`axis::catalogue` builds centipede, millipede, insect, spider, tetrapod, and
+snake from the same four rules, and the tests assert the relationships rather
+than the shapes: a millipede is a centipede with `per_segment` set to two; a
+snake is a tetrapod with its girdles suppressed and its trunk lengthened, same
+number of stretches; dividing a one-stretch worm is how tagmatisation arises.
+**Homeosis is one field**: `assign` is *antennapedia*, the Hox mutant that
+grows legs where feelers belong.
+
+Rendered proof at `testing/mesocosm/18_plan_*.png`, five plans through one
+renderer with nothing per-creature in it: the centipede walks legs the whole
+way down, the insect clusters them on its thorax and trails a bare abdomen,
+the snake has none.
+
+### Acquisition is Hox-like (the kleptoplasty ruling)
+
+A lineage carries a **lexicon** of appendage kinds and cannot express one it
+has never eaten. `acquire` returns whether the kind was new, so a meal is a
+discovery rather than a calorie, and `assign` refuses anything unspeakable.
+Only `None` and `Mouth` are innate.
+
+This makes incorporation *developmental*: eating something teaches your line a
+word, and the plan decides where to say it. A grafted part is not bolted onto
+a body; it enters the recipe.
+
+### Complexity counts kinds, not length
+
+The frontier's new axis (agreed 2026-08-03): **repetition is cheap,
+vocabulary and regionalisation are expensive.** Serial homology means each
+extra identical segment adds almost no information, so segments carry a
+repetition discount, stretches carry more, and distinct appendage kinds carry
+most. A hundred-segment worm is long; a short creature expressing five kinds
+across five stretches is intricate. Tested: an insect out-scores both a
+longer centipede and a much longer snake.
+
+### Not yet wired
+
+- `World` still grows organisms without recipes; worldgen must seed lineages.
+- Incorporation does not call `acquire` yet, so nothing learns words in play.
+- The complexity frontier still reads living part count rather than
+  `Lineage::complexity`.
+- `Appendage::role` maps to the parts graph but no growth path consumes it.

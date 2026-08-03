@@ -41,6 +41,7 @@
 //! ```
 
 pub mod anatomy;
+pub mod axis;
 pub mod body;
 pub mod growth;
 pub mod history;
@@ -59,6 +60,7 @@ pub mod chronicle;
 pub mod epoch;
 pub mod wire;
 
+pub use axis::{Appendage, Lineage as AxialPlan, Soma, Tagma, Unspeakable};
 pub use body::{
     Aabb, AttachError, Attachment, BodyDocument, Origin, Part, PartId, Provenance, SpeciesId,
     VolumeRef, Yaw,
