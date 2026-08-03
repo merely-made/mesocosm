@@ -363,13 +363,21 @@ become a shared component (a biosphere lens) if Paredros pulls.
   the same chains are the retreat, and sprite stacking stays evaluated for
   the two pulled-back vessels.
 
-### Open questions for Mark
+### Rulings (Mark, 2026-08-03)
 
-1. **The look is a soul decision**: low-res integer-scaled retro (Comanche
-   grain, kin to isometry's GBA doctrine) versus smooth SDF clay. The
-   probes can render both, but the palette and resolution choice shapes
-   everything downstream.
-2. Whether the unified shader excites or worries: it concentrates the
-   presentation in one WGSL file, which is small but specialist.
-3. How large critters should read on screen at first person, which gates
-   how much anatomy detail the body form must carry.
+1. **The soul question is a styling matter.** The march yields colour,
+   depth, and normals; a parametric **grade** stage (internal resolution,
+   palette LUT, dither matrix, lighting ramp, fog curve) turns every look
+   into a small data block worldgen can emit the way it emits a heightmap.
+   Retro and clay are two grade blocks, and everything between them is a
+   space. Mark leans retro; the probe renders both.
+2. **Lineage grades: yes.** Successful lineages may shift their territory's
+   grade, so a region can be felt on entering. Same derived-not-stored rule
+   as every look: computed from world state, never in the snapshot.
+3. **HUD inside or above the grade is a setting**, because it touches
+   accessibility. Not a design fork; both stay cheap.
+4. The layering is **march (geometry) → field fx (world-driven, the same
+   ScalarField that feeds physics, so fx cannot lie) → grade (the soul)**.
+5. Probes proceed, with the dither-in-motion check flagged (Obra Dinn's
+   lesson: ordered dither shimmers under camera motion; judge the retro
+   grade while flying, not from stills).
