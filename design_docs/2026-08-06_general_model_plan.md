@@ -286,6 +286,52 @@ It needs **criteria**, which is Sanderson's Second Law made mechanical:
 
 This is `ProcessDef` and phenotype work, not new machinery.
 
+### 6.2 The skeleton: identity, facts, derivation, projection (2026-08-07)
+
+The entity-model question ("classic ECS, or something else?") resolves
+into four layers the stack has been converging on separately. The prompt
+that named it was [PolyCSS](https://github.com/LayoutitStudio/polycss), a
+CSS 3D engine rendering VOX/glTF meshes as real DOM elements, one per
+polygon, each individually addressable and styled by rules. Its world-lane
+technique does not transfer (per-polygon DOM at simulation scale is
+cardinality death, and the tracer lane already exists). Its *architecture*
+names our middle layer.
+
+| Layer | What it is | Already standing |
+| --- | --- | --- |
+| **Identity** | Stable ids | `OrganismId`, `PartId`, `PlaceId`; chartulary Container platform-side |
+| **Facts** | Facets as plain serialized state: mass, traits, currencies. Ordered, hashed, replayable | the core |
+| **Derivation** | A small, strictly ordered, inspectable rule cascade computing everything downstream | grade blocks; E0 allometry; §6 rules; V2's dependency digests as the invalidation |
+| **Projection** | Per-vessel lenses reading computed values, every emitted element carrying source identity | genet-probe doctrine; `BodyLensProjection` sidecars |
+
+The correspondence that makes "derivation" a *styling* layer, closing a
+ruling made earlier ("the soul question is a styling matter"):
+
+- signatures and similarity are **selectors over trait vectors**;
+- world-default, then kingdom, then species, then individual override is
+  **the cascade**;
+- allometric rates, derived feeding modes, and fantastical properties are
+  **computed values**;
+- the grade is literally the stylesheet's visual half.
+
+Prior art the stack already owns: **livery**, whose enumerable
+TOML-property-database discipline is the tamed version of this. The
+binding constraint comes from §1.2 and from CSS's own failure mode
+(specificity wars): the cascade stays small, strictly ordered, and
+attributable. "Why is this critter fast" must answer with a rule chain.
+
+Not chosen: archetypal ECS. At thousands of near-tier individuals with
+cohorts above (E3), determinism and snapshot-hashing are worth more than
+iteration throughput, and facts-as-facets is what the replay contract
+already is.
+
+Two adjacencies recorded while here: for **Isometry**, PolyCSS is
+near-literal prior art (Foundry-class scenes as identity-bearing DOM
+elements styled by rules, with a VOX import path rhyming with the bake
+pipeline). And the **sprite-stacking deferral has expired**: it was
+parked pending a pulled-back camera, which Mesocosm now has (place-graph
+plan §0.4); PolyCSS is structurally sprite stacking in the DOM.
+
 ---
 
 ## 7. Composition grammar (proposed)
@@ -447,6 +493,10 @@ with.**
 - **2026-08-06:** the wing already carries hooks for all three classical
   derivation rules: trait vectors for similarity, morphology for
   signatures, and `Provenance` edges for contagion (§6).
+- **2026-08-07:** the entity skeleton is four layers, not an ECS:
+  identity, facts, derivation-as-cascade, projection-with-identity
+  (§6.2). PolyCSS supplied the naming prompt; livery supplies the tamed
+  prior art; sprite stacking's pulled-back-camera deferral has expired.
 
 ### Verification debts
 
@@ -473,3 +523,5 @@ in §6-§9 is built on the details:
   verification debts recorded. Research sweep covered ~20 games, the
   design-theory literature, and historical schemas; the Ultima Online
   postmortem supplied the binding caution.
+- **2026-08-07:** §6.2 added: the four-layer skeleton and the
+  styling-as-derivation correspondence, from the PolyCSS reading session.
