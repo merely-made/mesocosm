@@ -292,6 +292,32 @@ standing rule: after two real consumers, never declared in advance.
 
 ## Findings
 
+- 2026-08-07, **three directions adopted from the bonsai reading**
+  (landscape §8.3 carries the donor row and the unverified-claim caveat):
+  1. **The relief lab.** Worldgen tuning becomes an instrument: live seed
+     and parameter twiddling over `grown` + `Ground`, re-rendered through
+     the tracer per keystroke. Bonsai buys its "voxel shadertoy" loop by
+     moving generation to the GPU; we get the same loop keeping authority
+     on the CPU, because authoritative gen is deliberately coarse (65²
+     relief, ~400 bricks, milliseconds). G0's distinctness receipts
+     become feelable, not just assertable. Instrument for G0/G2, not a
+     gate.
+  2. **The presentation-amplification tier.** The terrain twin of the
+     ambience tier, same constitutional line: GPU-side micro-detail
+     (micro-relief within faces, scatter, texture variation) derived
+     from authoritative bricks, **never entering the replay hash**,
+     enhanced capability profile only. The grade already amplifies
+     colour; this extends the same contract to apparent geometry.
+     Bonsai's "second-stage decoration reading terrain derivatives" is
+     the worked example.
+  3. **Sim/render LOD unification.** Far places collapse to coarse
+     representation (hulls or brick-map mips) under the *same* boundary
+     concept that demotes simulation to cohorts: one `TierLine`-shaped
+     line serving both, so cohort demotion and visual demotion are the
+     same event over the place graph. Direction for G2+, paired with the
+     general model plan's E3.
+
+
 - 2026-08-06, **renderling wgpu-29 port receipt** (fork at
   `Code/crates/renderling` + `Code/crates/crabslab`): the 26→29 bump is
   mechanical. ~277 initial errors were mostly a two-wgpu split (craballoc
@@ -390,3 +416,6 @@ standing rule: after two real consumers, never declared in advance.
   Remaining for G2 proper: port into the lens's retained pattern
   (`MapRevision`-style uploads), grade/souls pass, SDF body compositing,
   netrender frame entry, browser receipt.
+- 2026-08-07: bonsai reading adopted as three directions (relief lab,
+  presentation-amplification tier, sim/render LOD unification); donor row
+  and caveat in landscape §8.3.
