@@ -154,6 +154,12 @@ impl World {
         self.places.at(self.position()?)
     }
 
+    /// The current far-tier population projection. Cohorts conserve their
+    /// member count and scalar matter; near bodies are intentionally absent.
+    pub fn far_cohorts(&self) -> Vec<crate::cohort::Cohort> {
+        crate::cohort::from_organisms(&self.organisms, &self.places)
+    }
+
     /// Everywhere each lineage has been.
     pub fn ranges(&self) -> &BTreeMap<SpeciesId, BTreeSet<PlaceId>> {
         &self.ranges

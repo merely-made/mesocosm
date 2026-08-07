@@ -9,6 +9,8 @@
 //! concern from running a world, and it is the one place where every seeded
 //! decision about an enclosure is made in a fixed order.
 
+use std::collections::BTreeMap;
+
 use crate::body::SpeciesId;
 use crate::development::{DevelopmentError, PartPalette};
 use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
@@ -56,6 +58,7 @@ impl World {
         // placeholder organisms here would preserve the split authority this
         // migration is removing.
         let mut founders = Vec::with_capacity(organism_count as usize + 1);
+        let mut species_roles = BTreeMap::from([(SpeciesId(1), Kingdom::Consumer)]);
         founders.push(Founder {
             id: OrganismId(0),
             species: SpeciesId(1),
@@ -77,13 +80,15 @@ impl World {
             let z = rng.range_i32(-ENCLOSURE, ENCLOSURE);
             let mass = 100 + rng.below(400);
             let species = SpeciesId(2 + (rng.below(3) as u32));
-            // A mix that can actually sustain itself: mostly producers,
-            // because a world without income runs down.
-            let kingdom = match rng.below(6) {
+            // A species has one inherited silhouette. Keep the original
+            // seeded role draw for the first founder, then inherit that role
+            // for later founders of the same species.
+            let sampled_kingdom = match rng.below(6) {
                 0 => Kingdom::Consumer,
                 1 => Kingdom::Decomposer,
                 _ => Kingdom::Producer,
             };
+            let kingdom = *species_roles.entry(species).or_insert(sampled_kingdom);
             // Staggered ages, so the enclosure is mid-life rather than all
             // hatching on the same tick.
             let age = rng.below(200) as u32;
@@ -131,6 +136,7 @@ impl World {
             let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ u64::from(founder.species.0));
             let limbed = founder.kingdom != Kingdom::Producer;
             lineages.set_recipe(founder.species, crate::axis::seed(&mut stream, limbed));
+            lineages.set_symmetry(founder.species, founder.kingdom.symmetry());
         }
 
         // A founder's selected mass is a lower bound. Genesis has no parent
@@ -143,7 +149,7 @@ impl World {
             let lineage = lineages
                 .get(founder.species)
                 .expect("every founder registered a lineage");
-            let body = match lineage.realize(
+            let mut body = match lineage.realize(
                 founder.development_seed,
                 founder.mass_mg,
                 development_palette,
@@ -157,13 +163,15 @@ impl World {
                 Err(error) => return Err(error),
             };
             let mass_mg = body.total_mass_mg();
+            body.plan.symmetry = founder.kingdom.symmetry();
             organisms.push(Organism {
                 id: founder.id,
                 species: founder.species,
-                kingdom: founder.kingdom,
                 body,
                 development_seed: founder.development_seed,
+                life_history_mass_mg: mass_mg,
                 position: founder.position,
+                tier: crate::places::Tier::Near,
                 energy_mg: mass_mg,
                 stage: founder.stage,
                 age: founder.age,

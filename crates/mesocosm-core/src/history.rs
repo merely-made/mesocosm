@@ -48,6 +48,16 @@ use serde::{Deserialize, Serialize};
 use crate::body::{PartId, SpeciesId};
 use crate::organism::OrganismId;
 
+/// Why a feeding event happened. Keeping this on the event makes predation
+/// and scavenging distinguishable without reconstructing world state from
+/// later deaths.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MealKind {
+    Grazing,
+    Predation,
+    Scavenging,
+}
+
 /// Something that happened to somebody.
 ///
 /// Small on purpose. Each variant names the organisms it touches, because that
@@ -60,7 +70,9 @@ pub enum Event {
     Matured { organism: OrganismId },
     /// A creature took substance from another. The join that makes this a
     /// graph rather than a set of chains.
-    Fed { eater: OrganismId, from: OrganismId, mass_mg: u64 },
+    Fed { eater: OrganismId, from: OrganismId, mass_mg: u64, kind: MealKind },
+    /// A creature changed position under its own drive.
+    Moved { organism: OrganismId, from: [i32; 3], to: [i32; 3] },
     /// A creature took a meal and kept it as body.
     Grew { organism: OrganismId, part: PartId },
     /// A creature took a meal and spent it.
@@ -97,6 +109,7 @@ impl Event {
             | Event::Grew { organism, .. }
             | Event::Burned { organism, .. }
             | Event::Severed { organism, .. }
+            | Event::Moved { organism, .. }
             | Event::Died { organism, .. }
             | Event::Returned { organism }
             | Event::Inhabited { organism } => vec![organism],
@@ -263,7 +276,7 @@ mod tests {
         let b_born = history.record(Event::Born { organism: B, species: SPECIES, parent: None });
         assert!(history.concurrent(a_born, b_born));
 
-        let meal = history.record(Event::Fed { eater: A, from: B, mass_mg: 40 });
+        let meal = history.record(Event::Fed { eater: A, from: B, mass_mg: 40, kind: MealKind::Predation });
 
         assert_eq!(history.antecedents(meal), vec![a_born, b_born], "both lines are cited");
         assert_eq!(history.consequences(a_born), vec![meal]);
@@ -289,7 +302,7 @@ mod tests {
         let mut history = History::new();
         history.record(Event::Born { organism: A, species: SPECIES, parent: None });
         let b_born = history.record(Event::Born { organism: B, species: SPECIES, parent: None });
-        let meal = history.record(Event::Fed { eater: A, from: B, mass_mg: 40 });
+        let meal = history.record(Event::Fed { eater: A, from: B, mass_mg: 40, kind: MealKind::Predation });
         let grew = history.record(Event::Grew { organism: A, part: PartId(1) });
 
         assert_eq!(
@@ -313,7 +326,7 @@ mod tests {
     fn a_history_round_trips() {
         let mut history = History::new();
         history.record(Event::Born { organism: A, species: SPECIES, parent: None });
-        history.record(Event::Fed { eater: A, from: B, mass_mg: 5 });
+        history.record(Event::Fed { eater: A, from: B, mass_mg: 5, kind: MealKind::Predation });
 
         let bytes = crate::snapshot::encode(&history).unwrap();
         assert_eq!(crate::snapshot::decode::<History>(&bytes).unwrap(), history);
@@ -327,7 +340,7 @@ mod tests {
         let all = [
             Event::Born { organism: A, species: SPECIES, parent: Some(B) },
             Event::Matured { organism: A },
-            Event::Fed { eater: A, from: B, mass_mg: 1 },
+            Event::Fed { eater: A, from: B, mass_mg: 1, kind: MealKind::Predation },
             Event::Grew { organism: A, part: PartId(0) },
             Event::Burned { organism: A, energy_mg: 1 },
             Event::Severed { organism: A, part: PartId(0) },

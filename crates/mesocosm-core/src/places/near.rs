@@ -17,6 +17,8 @@
 //! statistical ecology, and the line between them moves with hysteresis
 //! so a critter pacing the border does not flicker between minds.
 
+use serde::{Deserialize, Serialize};
+
 use super::Places;
 use super::bricks::Ground;
 
@@ -97,8 +99,9 @@ fn settle(ground: &Ground, at: [i32; 3]) -> [i32; 3] {
 }
 
 /// Which mind runs an agent: embodied, or the statistical ecology.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Tier {
+    #[default]
     Near,
     Far,
 }
@@ -116,7 +119,10 @@ impl Default for TierLine {
     fn default() -> Self {
         Self {
             promote_hops: 1,
-            demote_hops: 3,
+            // The standard enclosure is a 3x3 graph with diameter two. A
+            // threshold of three would make the far tier unreachable in the
+            // shipped world, so the outer ring is the demotion boundary.
+            demote_hops: 2,
         }
     }
 }

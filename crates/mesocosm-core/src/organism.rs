@@ -19,11 +19,14 @@
 use serde::{Deserialize, Serialize};
 
 use crate::body::BodyDocument;
+use crate::places::Tier;
+use crate::plan::Symmetry;
+use crate::process::{FeedingMode, Process};
 
 pub mod ecology;
 
 pub use ecology::step;
-use ecology::{GESTATION, OFFSPRING_COST, STARVATION_MG, UPKEEP_MG, UPKEEP_SHARE};
+use ecology::{OFFSPRING_COST, STARVATION_MG};
 
 use crate::body::{SpeciesId, VolumeRef};
 
@@ -32,7 +35,7 @@ pub struct OrganismId(pub u32);
 
 /// Trophic role. Not a character class: these are the three ways of making a
 /// living, and a lineage may combine them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Kingdom {
     /// Fixes energy from the world itself. The base of every chain.
     Producer,
@@ -40,6 +43,26 @@ pub enum Kingdom {
     Consumer,
     /// Lives on the dead, returning locked matter to circulation.
     Decomposer,
+}
+
+impl Kingdom {
+    /// The anatomical signature that makes the role a reading rather than a
+    /// second ecology field.
+    pub fn symmetry(self) -> Symmetry {
+        match self {
+            Self::Producer => Symmetry::Radial,
+            Self::Consumer => Symmetry::Bilateral,
+            Self::Decomposer => Symmetry::None,
+        }
+    }
+
+    pub fn from_symmetry(symmetry: Symmetry) -> Self {
+        match symmetry {
+            Symmetry::Radial => Self::Producer,
+            Symmetry::Bilateral => Self::Consumer,
+            Symmetry::None => Self::Decomposer,
+        }
+    }
 }
 
 /// What an organism advertises about itself.
@@ -80,7 +103,6 @@ pub struct Organism {
     /// Which lineage this belongs to. Incorporation carries it forward, so a
     /// part you take always knows whose it was.
     pub species: SpeciesId,
-    pub kingdom: Kingdom,
     /// This organism's anatomy.
     ///
     /// **Every organism has one**, played or not. Before P1 only the critter
@@ -100,7 +122,20 @@ pub struct Organism {
     /// the same body, while descendants derive distinct seeds from it.
     #[serde(default)]
     pub development_seed: u64,
+    /// Mass at the life-history transition that founded this individual.
+    ///
+    /// Rates are allometric, but maturity and senescence must not move away
+    /// from an organism as it grows. This is the individual's life-history
+    /// reference mass, not a second live biomass account.
+    #[serde(default)]
+    pub life_history_mass_mg: u64,
     pub position: [i32; 3],
+    /// Which simulation tier currently owns this body's next decision.
+    ///
+    /// It is state, not a cache: hysteresis means the same position can have
+    /// different ownership depending on where the organism came from.
+    #[serde(default)]
+    pub tier: Tier,
     /// What this organism can spend: its **budget**.
     ///
     /// Distinct from what it weighs, which is its body's business. Before P1
@@ -142,13 +177,16 @@ impl Organism {
         mass_mg: u64,
     ) -> Self {
         let development_seed = u64::from(id.0) << 32 | u64::from(species.0);
+        let mut body = BodyDocument::new(species, volume, mass_mg, half_extent);
+        body.plan.symmetry = kingdom.symmetry();
         Self {
             id,
             species,
-            kingdom,
-            body: BodyDocument::new(species, volume, mass_mg, half_extent),
+            body,
             development_seed,
+            life_history_mass_mg: mass_mg,
             position,
+            tier: Tier::Near,
             energy_mg: mass_mg,
             stage: Stage::Juvenile,
             age: 0,
@@ -187,6 +225,43 @@ impl Organism {
     /// single cell cost.
     pub fn biomass_mg(&self) -> u64 {
         self.body.total_mass_mg()
+    }
+
+    pub(crate) fn life_history_mass_mg(&self) -> u64 {
+        if self.life_history_mass_mg == 0 {
+            self.biomass_mg()
+        } else {
+            self.life_history_mass_mg
+        }
+    }
+
+    /// Trophic role read from the body's symmetry, not retained as a genesis
+    /// decree. A reshaped body therefore changes the role the ecology sees.
+    pub fn kingdom(&self) -> Kingdom {
+        Kingdom::from_symmetry(self.body.plan.symmetry)
+    }
+
+    /// The living-feeding mode is a second reading over the role and the
+    /// actual processes expressed by the body. A contractile part turns a
+    /// consumer into a predator; a bare consumer remains a grazer.
+    pub fn feeding_mode(&self) -> FeedingMode {
+        match self.kingdom() {
+            Kingdom::Producer => FeedingMode::Producer,
+            Kingdom::Decomposer => FeedingMode::Scavenger,
+            Kingdom::Consumer if self.body.performs(Process::Contract) => FeedingMode::Predator,
+            Kingdom::Consumer => FeedingMode::Grazer,
+        }
+    }
+
+    /// A compact locomotion reading used by the drive selector. It is based
+    /// on the same contractile geometry that makes a body a predator.
+    pub fn locomotion(&self) -> u32 {
+        self.body
+            .living()
+            .filter(|part| self.body.processes(part.id).contains(&Process::Contract))
+            .map(|part| part.half_extent.iter().map(|v| v.unsigned_abs()).max().unwrap_or(0))
+            .sum::<u32>()
+            .max(1)
     }
 
     /// Adds substance, to the root part.
@@ -239,7 +314,7 @@ impl Organism {
     /// a body could grow without limit for free. Growing is now a standing
     /// cost, which is what gives *burn or grow* a downside to weigh.
     pub fn upkeep_mg(&self) -> u64 {
-        UPKEEP_MG + self.biomass_mg() / UPKEEP_SHARE
+        ecology::upkeep_for_mass(self.biomass_mg())
     }
 
     /// Pays one tick of upkeep: from the budget first, then from the body.
@@ -260,7 +335,7 @@ impl Organism {
 
     /// Whether this organism is pretending to be something it is not.
     pub fn is_mimic(&self) -> bool {
-        self.guise != self.kingdom || self.signals_falsely()
+        self.guise != self.kingdom() || self.signals_falsely()
     }
 
     /// Whether its advertisement is a lie, in either direction.
@@ -278,13 +353,13 @@ impl Organism {
     /// for a while and the lie shows. Unfair is fine here; unknowable is not,
     /// so every mimic leaves something a second encounter can find.
     pub fn betrays_itself(&self) -> bool {
-        self.guise == Kingdom::Producer && self.kingdom != Kingdom::Producer
+        self.guise == Kingdom::Producer && self.kingdom() != Kingdom::Producer
     }
 
     /// Whether this organism is ready to produce an offspring.
     pub fn can_reproduce(&self) -> bool {
         self.stage == Stage::Mature
-            && self.since_offspring >= GESTATION
+            && self.since_offspring >= ecology::gestation_for_mass(self.life_history_mass_mg())
             && self.biomass_mg() > STARVATION_MG * OFFSPRING_COST
     }
 }
@@ -297,4 +372,10 @@ pub struct Tally {
     pub born: u32,
     pub died: u32,
     pub returned: u32,
+    pub moved: u32,
+    pub far_cohorts: u32,
+    pub far_members: u32,
+    pub far_biomass_mg: u64,
+    pub promoted: u32,
+    pub demoted: u32,
 }

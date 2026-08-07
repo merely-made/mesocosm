@@ -23,30 +23,32 @@ fn set_energy(world: &mut World, energy_mg: u64) {
     world.organisms.iter_mut().find(|o| o.id == id).unwrap().energy_mg = energy_mg;
 }
 
-/// A world with something in reach, and the id of what to eat.
+/// A world with something in reach, and the id of what to eat. The meal tests
+/// exercise the two metabolize receipts, so the fixture places a live target
+/// directly in reach instead of spending hundreds of ecology ticks chasing a
+/// moving organism.
 fn fed() -> (World, mesocosm_core::OrganismId) {
     let mut world = World::new(4_242, 24);
-
-    // Walk to the nearest organism so the meal is legal.
-    for _ in 0..400 {
-        let Some((prey, at)) = world
-            .organisms
-            .iter()
-            .filter(|o| o.biomass_mg() > 0 && Some(o.id) != world.controlled_id())
-            .map(|o| (o.id, o.position))
-            .min_by_key(|(_, at): &(_, [i32; 3])| {
-                (0..3).map(|a| (at[a] - world.position().unwrap()[a]).abs()).max().unwrap_or(0)
-            })
-        else {
-            break;
-        };
-        let step = [0, 1, 2].map(|a| (at[a] - world.position().unwrap()[a]).signum());
-        if step == [0, 0, 0] {
-            return (world, prey);
-        }
-        world.apply(Intent::Move { delta: step });
-    }
-    panic!("nothing came within reach");
+    let here = world.position().unwrap();
+    let prey = world
+        .organisms
+        .iter()
+        .filter(|o| o.biomass_mg() > 0 && Some(o.id) != world.controlled_id())
+        .min_by_key(|o| {
+            (0..3)
+                .map(|a| (o.position[a] - here[a]).abs())
+                .max()
+                .unwrap_or(0)
+        })
+        .map(|o| o.id)
+        .expect("the fixture scatters organisms");
+    world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == prey)
+        .expect("the selected organism remains in the roster")
+        .position = here;
+    (world, prey)
 }
 
 #[test]

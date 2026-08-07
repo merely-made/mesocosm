@@ -1,5 +1,6 @@
 use super::*;
 use crate::body::{SpeciesId, VolumeRef};
+use crate::history::{Event, MealKind};
 use crate::organism::Signal;
 
 fn organism(kingdom: Kingdom, mass: u64) -> Organism {
@@ -70,6 +71,204 @@ fn registry(organisms: &[Organism]) -> Lineages {
 }
 
 #[test]
+fn allometric_rates_cross_three_orders_without_flat_steps() {
+    let masses = [100, 1_000, 10_000];
+    let upkeep: Vec<_> = masses.iter().map(|mass| upkeep_for_mass(*mass)).collect();
+    let feeding: Vec<_> = masses.iter().map(|mass| feeding_rate_for_mass(*mass)).collect();
+    let maturity: Vec<_> = masses.iter().map(|mass| maturity_for_mass(*mass)).collect();
+
+    assert!(upkeep[0] < upkeep[1] && upkeep[1] < upkeep[2]);
+    assert!(feeding[0] < feeding[1] && feeding[1] < feeding[2]);
+    assert!(maturity[0] < maturity[1] && maturity[1] < maturity[2]);
+    assert!(upkeep[2] < upkeep[0] * 80, "upkeep became linear: {upkeep:?}");
+}
+
+#[test]
+fn trophic_role_is_read_from_body_symmetry() {
+    let producer = organism(Kingdom::Producer, 100);
+    let consumer = organism(Kingdom::Consumer, 100);
+    let decomposer = organism(Kingdom::Decomposer, 100);
+    assert_eq!(producer.kingdom(), Kingdom::Producer);
+    assert_eq!(consumer.kingdom(), Kingdom::Consumer);
+    assert_eq!(decomposer.kingdom(), Kingdom::Decomposer);
+}
+
+#[test]
+fn a_contractile_consumer_can_take_live_consumer_prey() {
+    let predator = Organism::founding(
+        OrganismId(0),
+        SpeciesId(2),
+        Kingdom::Consumer,
+        VolumeRef::from_tag(16),
+        [3, 1, 1],
+        [0, 0, 0],
+        300,
+    );
+    let prey = Organism::founding(
+        OrganismId(1),
+        SpeciesId(3),
+        Kingdom::Consumer,
+        VolumeRef::from_tag(17),
+        [1, 1, 1],
+        [2, 0, 0],
+        300,
+    );
+    assert_eq!(predator.feeding_mode(), FeedingMode::Predator);
+    assert_eq!(prey.kingdom(), Kingdom::Consumer);
+    let mut world = vec![predator.clone(), prey];
+    let mut events = Vec::new();
+    let mut rng = Rng::from_seed(4);
+    let mut next = 2;
+    let lines = registry(&world);
+    step(&mut world, &mut next, &mut rng, &mut events, &lines, PartPalette::primitive());
+
+    assert!(events.iter().any(|event| matches!(
+        event,
+        Event::Fed { eater, from, kind: MealKind::Predation, .. }
+            if *eater == predator.id && *from == OrganismId(1)
+    )));
+}
+
+#[test]
+fn an_exhausted_body_disperses_through_the_place_graph() {
+    let mut place_rng = Rng::from_seed(99);
+    let places = Places::scatter(&mut place_rng, 3, 16);
+    let mut world = vec![organism(Kingdom::Consumer, 300)];
+    world[0].energy_mg = 0;
+    let before = world[0].position;
+    let mut events = Vec::new();
+    let mut rng = Rng::from_seed(7);
+    let mut next = 10;
+    let lines = registry(&world);
+    let tally = step_with_places(
+        &mut world,
+        &mut next,
+        &mut rng,
+        &mut events,
+        &lines,
+        PartPalette::primitive(),
+        &places,
+        Some([0, 0, 0]),
+    );
+
+    assert_ne!(world[0].position, before, "hunger must leave an exhausted place");
+    assert_eq!(tally.moved, 1);
+    assert!(events.iter().any(|event| matches!(event, Event::Moved { organism, .. } if *organism == OrganismId(0))));
+}
+
+#[test]
+fn drive_selection_makes_fast_and_slow_bodies_different() {
+    let mut place_rng = Rng::from_seed(121);
+    let places = Places::scatter(&mut place_rng, 3, 32);
+    let prey = Organism::founding(
+        OrganismId(9),
+        SpeciesId(3),
+        Kingdom::Producer,
+        VolumeRef::from_tag(18),
+        [1, 1, 1],
+        [25, 0, 0],
+        300,
+    );
+    let fast = Organism::founding(
+        OrganismId(0),
+        SpeciesId(2),
+        Kingdom::Consumer,
+        VolumeRef::from_tag(19),
+        [8, 1, 1],
+        [0, 0, 0],
+        300,
+    );
+    let slow = Organism::founding(
+        OrganismId(0),
+        SpeciesId(2),
+        Kingdom::Consumer,
+        VolumeRef::from_tag(20),
+        [1, 1, 1],
+        [0, 0, 0],
+        300,
+    );
+    let mut fast_world = vec![fast, prey.clone()];
+    let mut slow_world = vec![slow, prey];
+    let mut fast_events = Vec::new();
+    let mut slow_events = Vec::new();
+    let mut fast_rng = Rng::from_seed(3);
+    let mut slow_rng = Rng::from_seed(3);
+    let mut fast_next = 20;
+    let mut slow_next = 20;
+    let fast_lines = registry(&fast_world);
+    let slow_lines = registry(&slow_world);
+    step_with_places(
+        &mut fast_world,
+        &mut fast_next,
+        &mut fast_rng,
+        &mut fast_events,
+        &fast_lines,
+        PartPalette::primitive(),
+        &places,
+        Some([0, 0, 0]),
+    );
+    step_with_places(
+        &mut slow_world,
+        &mut slow_next,
+        &mut slow_rng,
+        &mut slow_events,
+        &slow_lines,
+        PartPalette::primitive(),
+        &places,
+        Some([0, 0, 0]),
+    );
+
+    assert!(fast_world[0].position[0] > slow_world[0].position[0]);
+    assert!(fast_events.iter().any(|event| matches!(event, Event::Moved { .. })));
+    assert!(slow_events.iter().any(|event| matches!(event, Event::Moved { .. })));
+}
+
+#[test]
+fn far_bodies_form_conserved_cohorts_and_promote_at_the_focus() {
+    let mut place_rng = Rng::from_seed(55);
+    let places = Places::scatter(&mut place_rng, 3, 32);
+    let mut far_a = organism(Kingdom::Producer, 300);
+    let mut far_b = organism(Kingdom::Producer, 300);
+    far_a.id = OrganismId(1);
+    far_b.id = OrganismId(2);
+    far_a.position = [24, 0, 24];
+    far_b.position = [24, 0, 24];
+    far_a.tier = Tier::Far;
+    far_b.tier = Tier::Far;
+    let mut world = vec![far_a, far_b];
+    let mut events = Vec::new();
+    let mut rng = Rng::from_seed(8);
+    let mut next = 10;
+    let lines = registry(&world);
+    let tally = step_with_places(
+        &mut world,
+        &mut next,
+        &mut rng,
+        &mut events,
+        &lines,
+        PartPalette::primitive(),
+        &places,
+        Some([0, 0, 0]),
+    );
+    assert_eq!(tally.far_cohorts, 1);
+    assert_eq!(tally.far_members, 2);
+    assert_eq!(tally.far_biomass_mg, 600);
+
+    world[0].position = [0, 0, 0];
+    let tally = step_with_places(
+        &mut world,
+        &mut next,
+        &mut rng,
+        &mut events,
+        &lines,
+        PartPalette::primitive(),
+        &places,
+        Some([0, 0, 0]),
+    );
+    assert_eq!(tally.promoted, 1);
+}
+
+#[test]
 fn a_producer_grows_while_left_alone() {
     let mut world = vec![organism(Kingdom::Producer, 100)];
     run(&mut world, 50);
@@ -120,7 +319,7 @@ fn a_reserve_buys_time_and_then_the_body_pays() {
 #[test]
 fn organisms_mature_then_reproduce() {
     let mut world = vec![organism(Kingdom::Producer, 400)];
-    let tally = run(&mut world, GESTATION + 10);
+    let tally = run(&mut world, gestation_for_mass(400) + 10);
     assert_eq!(tally.matured, 1, "only the parent has come of age yet");
     assert!(tally.born >= 1, "a mature producer should have offspring");
     assert!(world.len() > 1);
@@ -129,23 +328,25 @@ fn organisms_mature_then_reproduce() {
 #[test]
 fn an_offspring_costs_its_parent_mass() {
     let mut world = vec![organism(Kingdom::Producer, 400)];
-    run(&mut world, GESTATION + 10);
+    let ticks = gestation_for_mass(400) + 10;
+    run(&mut world, ticks);
 
     let child = world.iter().find(|o| o.id.0 >= 100).expect("an offspring");
     assert!(child.biomass_mg() > 0, "an offspring starts with real mass");
     assert_eq!(child.stage, Stage::Juvenile, "and starts young");
     assert_eq!(child.species, world[0].species, "lineage carries forward");
-    assert!(
-        world[0].biomass_mg() < 400 + FIXES_MG * (GESTATION as u64 + 10),
-        "the parent is lighter than an un-bred one would be"
-    );
+    let mut unbred = vec![organism(Kingdom::Producer, 400)];
+    unbred[0].since_offspring = 0;
+    unbred[0].life_history_mass_mg = 10_000;
+    run(&mut unbred, ticks);
+    assert!(world[0].biomass_mg() < unbred[0].biomass_mg(), "the parent paid for birth");
 }
 
 #[test]
 fn an_underprovisioned_body_waits_without_spending_or_drawing() {
     let mut parent = organism(Kingdom::Consumer, 200);
     parent.stage = Stage::Mature;
-    parent.since_offspring = GESTATION;
+    parent.since_offspring = gestation_for_mass(parent.biomass_mg());
     parent.energy_mg = 1_000;
     let mut world = vec![parent];
     let mut lineages = Lineages::new();
@@ -409,7 +610,7 @@ fn a_lie_is_heritable() {
         venom_mg: 0,
         ..organism(Kingdom::Producer, 400)
     }];
-    run(&mut world, GESTATION + 10);
+    run(&mut world, gestation_for_mass(400) + 10);
     let child = world.iter().find(|o| o.id.0 >= 100).expect("an offspring");
     assert_eq!(child.signal, Signal::Warning);
     assert_eq!(child.venom_mg, 0);

@@ -219,14 +219,13 @@ landscape §8.8); a browser receipt lands through the same composition seam
 and recording discipline V1 proved; 1080p fps is recorded on the 4060 and
 on GL, and the number is reported whatever it is.
 
-### G3. The near tier — **core LANDED 2026-08-06; world wiring pending**
+### G3. The near tier — **core LANDED 2026-08-06; drive/tier wiring LANDED 2026-08-07**
 
 Landed additively as `places/near.rs` (kinematic `step` with slide, climb,
 gravity settle, and doorway drops; `spot` sight; `Tier`/`TierLine` with
-promote/demote hysteresis over hops) and `places/hunt.rs` (the `Hunter`:
-Search/Stalk/Memory mind, deterministic wander from its own stream,
-heading extrapolation when sight breaks, memory decaying into a local
-prowl). **The chase receipt passes on the real seed-4242 ground**: a
+promote/demote hysteresis over hops). The former `places/hunt.rs` probe
+supplied the historical chase receipt, which passes on the real seed-4242
+ground: a
 half-speed hunter acquires its quarry, loses it behind a hill, projects
 along its heading, is forced off a cliff edge, re-acquires at a bored
 den's mouth, and follows it inside, with per-tick continuity asserted
@@ -237,9 +236,10 @@ line does not flap crossing the band, and a far hunter wakes on
 promotion. Two movement laws were earned by failure, both the same
 lesson: **preferences order, they never refuse** — climb-when-descending
 and the cliff-edge comfort drop each deadlocked an agent until the
-preference became an ordering with a forced fallback. Pending for G3
-complete: wiring hunters into the world's organisms and the far tier's
-receipts (dirty files; rides the adoption swap).
+preference became an ordering with a forced fallback. The Hunter wiring was
+deliberately not adopted. E0-E4 now wires the tier line, far-tier receipts,
+and anatomy-driven drives into the world's organisms; the old chase receipt
+remains probe evidence rather than an authoritative FSM.
 
 **Superseded in destination, 2026-08-06.** The `Hunter` FSM is **a probe,
 not the design**. Search/Stalk/Memory is authored behaviour with a tuned

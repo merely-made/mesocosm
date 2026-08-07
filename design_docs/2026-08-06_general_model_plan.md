@@ -9,6 +9,13 @@ owns world substrate, and the
 [mesocosm founding plan](2026-07-30_mesocosm_founding_plan.md), which owns
 the epoch loop.
 
+**Implementation status, 2026-08-07.** The E0-E4 implementation slice is
+landed and workspace-green. E0 allometry, E1 anatomy-derived feeding and
+predation, E2 graph dispersal, and E4 drive selection are live. E3 has a
+reversible far-tier cohort projection plus conservation and promotion
+receipts; the authoritative individual-to-cohort storage replacement and
+the order-of-magnitude capacity benchmark remain open.
+
 **Wing-level notice.** §5-§9 describe machinery all three vessels would
 share (Mesocosm discovers, Paredros embodies, Isometry exploits). Per
 `CLAUDE.md`, wing material lives once. Siblings cite this file; they do
@@ -25,19 +32,30 @@ its conditions so that behaviour just emerges?** The second was whether
 the Madingley model, and a fantastical counterpart to it, are the right
 lodestars.
 
-They join at a single observation. Madingley's spine is *conserved biomass
-flowing between pools via processes, at rates set by traits*. Strip the
-word "biomass" and what remains is a **currency**, a set of **processes**
-that move it, and **derivation rules** from traits to rates. A fantastical
-layer is not a second engine bolted alongside that one. It is the same
-machinery with different currencies, different flow constraints, and
-different derivation rules. Which means the honest structure is one model
-with settings, and the ecology is its first configuration.
+They join at a single observation. Madingley's spine is *biomass flowing
+between pools via processes, at rates set by traits*. Strip the word
+"biomass" and what remains is a **causal grammar**: sources,
+transformations, storage, channels, sinks, signals, constraints. Bodies,
+ecologies, and fantastical systems can all speak it.
 
-That structure is also the answer to configurability (Mark, 2026-08-06:
-the fantastical layer should be "potentially more than that and also
-configurable"). A world's metaphysics is not a content pack. It is a point
-in the model's own parameter space.
+**Corrected 2026-08-07 (review).** The first draft concluded "one model
+with settings, and the ecology is its first configuration." That
+generalized past the wing's own authority rules: the
+[phenotype plan](2026-07-31_phenotype_plan.md) forbids sharing an
+evaluator before two sovereign rule systems have independently proven the
+same mechanism, and the founding record rules that what vessels share is
+world identity and compatible facts, never one live world model. The
+correct claim is:
+
+> **One causal grammar, separately proven rule systems, and extraction
+> after repetition.**
+
+Mesocosm implements its ecology concretely first. One fantastical
+mechanic later proves whether a bounded primitive genuinely repeats;
+only then is anything extracted. Configurability survives intact (a
+world's metaphysics is which carriers and rules it instantiates), but as
+a family of sovereign configurations over a shared grammar, not settings
+on one engine.
 
 ---
 
@@ -116,12 +134,17 @@ state stays legible and attributable even if its dynamics are cut.
   and biomass is conserved across the merge.
 - **Autotrophs are stocks, not cohorts.** Deliberately: "individual" is
   ill-defined for a plant, and marine turnover outruns the timestep.
-- **Six processes per timestep, randomised order**: metabolism, feeding,
-  growth, reproduction, mortality (predation, starvation, background,
-  senescence), dispersal (diffusion, starvation-driven, currents).
-- **Categorical traits are minimal** (feeding mode; endo/ectotherm).
-  **Continuous traits, chiefly body mass, drive every rate**, through
-  allometric power laws, across 10 mg to 150,000 kg.
+- **Six heterotroph processes per timestep, plus primary production**:
+  metabolism, feeding, growth, reproduction, mortality (predation,
+  starvation, background, senescence), dispersal (diffusion,
+  starvation-driven, currents). **The order in which cohorts act is
+  randomised each timestep** (verified against the paper 2026-08-07; an
+  earlier draft mis-stated this as process-order randomisation).
+- **Categorical traits select qualitative mechanisms** (feeding mode;
+  endo/ectotherm); **continuous traits, chiefly body mass, modulate
+  rates** alongside environment and functional group, through allometric
+  relations, across **10 ug to 150,000 kg** (fourteen orders of
+  magnitude; an earlier draft wrote 10 mg).
 - **The payoff**: biomass pyramids, trophic structure along productivity
   gradients, latitudinal carnivore ratios, body-mass/density relations,
   all **emergent and unfitted**, from individual-level processes alone.
@@ -133,7 +156,7 @@ behaviour emerge."
 
 ## 3. Where Mesocosm already stands
 
-Checked against `organism/ecology.rs`, 2026-08-06.
+Checked against the live core and workspace seams, 2026-08-07.
 
 | Madingley process | Mesocosm |
 | --- | --- |
@@ -144,24 +167,26 @@ Checked against `organism/ecology.rs`, 2026-08-06.
 | Growth | Present. `gain_mass`, juvenile stage. |
 | Reproduction | Present. Gestation, offspring costs a share of parent mass. |
 | Mortality | Present. Starvation, senescence, predation-as-carrion. |
-| **Predation** | **Absent.** `Kingdom::Consumer` eats only `Kingdom::Producer`. Nothing eats a consumer. |
-| **Dispersal** | **Absent.** Birth scatter only; nothing moves. |
+| **Predation** | Present. Feeding mode is read from body symmetry and contractile anatomy; live prey records `MealKind::Predation`. |
+| **Dispersal** | Present in the scheduled slice. Near bodies move by integer steps; far bodies move through the place graph or diffuse when exhausted. |
 
 Mesocosm additionally has something Madingley does not: **`Signal`**, an
 advertised claim that can be false. Choosing a meal is already a judgment
 rather than a lookup.
 
-So the ecological work is **two missing processes and one changed
-principle**, not a rewrite.
+At founding, the ecological work was **two missing processes and one changed
+principle**, not a rewrite. The scheduled slice now supplies those process
+seams; the remaining work is receipt depth, especially population-scale far
+state.
 
 ### 3.1 The changed principle
 
 Madingley's real lesson is not the process list. It is *categorical
-minimal, continuous drives rates*. Mesocosm currently inverts this:
-`Kingdom` is assigned at genesis and does the work, while rates are flat
-constants (`MATURITY: 90`, `LIFESPAN: 600`, `GESTATION: 120`,
-`GRAZES_MG: 4`, `DECAYS_MG: 3`, `FIXES_MG: 3`). A shrew and an elephant
-mature on the same schedule.
+minimal, continuous drives rates*. The scheduled slice now expresses
+maturity, lifespan, gestation, income, feeding, decay, upkeep, and dispersal
+through integer mass-derived functions. `Kingdom` remains a compatibility
+reading, but is derived from the body's symmetry; feeding mode also reads
+contractile anatomy.
 
 ### 3.2 The concrete bug
 
@@ -175,31 +200,51 @@ worth fixing on its own merits, independently of everything else here.
 
 Point the existing pieces at each other and roles stop being categories:
 
-- **Feeding mode derives from anatomy.** The axial generator already
-  produces mouths, reach, plates, speed. A body that can take living prey
-  *is* a predator; nobody assigns a carnivore tag. `Kingdom` shrinks from
-  a decree to a derived reading.
+- **Feeding is a satisfied process, not an anatomy reading.** The first
+  draft said "a body that can take living prey *is* a predator," which
+  regressed behind the ProcessDef ruling that capability is read from
+  **allocation, anatomy, channels, cost, and environment**. A mouth-shaped
+  part establishes nothing by itself: it may lack contraction, digestion,
+  control, throughput, or a suitable medium, and two identical plates may
+  express armour and light capture. The correct sentence: **ecology
+  queries satisfied feeding processes; trophic role is a derived summary
+  of realized activity.** The landed E1 derives from anatomy as an
+  interim; the PD1b-backed form is the standing target. `Kingdom`'s own
+  doc says a lineage may combine roles while each organism stores one
+  variant; producer, consumer, and decomposer want to become
+  independently realizable strategies, with `Signal` remaining the
+  advertised claim.
 - **Life history derives from mass.** Maturity, lifespan, gestation,
   dispersal range, feeding rate as power laws. Large becomes slow,
   long-lived, wide-ranging, hungry but efficient, with nothing authored.
 - **The `Hunter` dissolves.** Pursuit is what a fast, large-mouthed,
-  starving thing does about a reachable meal. See §10.
+  starving thing does about a reachable meal. The authored `places::Hunter`
+  path is retired; only the old epoch pressure fixture still uses "hunter"
+  as a test label.
 
 ### 3.4 Cohorts are the far tier's natural unit
 
 The place-graph plan's two-tier simulation wants exactly Madingley's
-representation: individuals near the played body, **cohorts** at graph
-distance, with trait-space merging as demotion and splitting as promotion.
-`TierLine` already has the shape; the cohort gives the far side the right
-state.
+representation: individuals near the focus, **cohorts** at graph distance,
+with trait-space merging as demotion and splitting as promotion. The current
+slice forms deterministic far-tier cohorts and conserves count, biomass,
+energy, and age sums; the individual roster still remains authoritative until
+the capacity experiment admits replacing it.
 
 ---
 
-## 4. Currencies as a design space
+## 4. State, as a design questionnaire
 
-The generalisation that makes both halves one model.
+**Reframed 2026-08-07 (review).** The first draft called these axes a
+currency type and biomass "conserved." Both were wrong: Mesocosm's
+simulated biomass is **sourced** (production) and **sunk** (upkeep,
+return); a deeper matter model could conserve constituents across
+reservoirs, but the stock as simulated does not. And one "currency" type
+covering stocks, fields, curses, beliefs, and temperature would be a
+universal property bag wearing a nicer name.
 
-A currency is a point in roughly eight dimensions:
+The eight axes survive as what they actually are: **a questionnaire every
+proposed piece of world state must answer.**
 
 | Axis | Values |
 | --- | --- |
@@ -223,15 +268,31 @@ Worked points:
   observable, flows by proximity.
 
 **Not every combination is coherent**, which is DF's spheres lesson
-applied here: the generator needs an **exclusion relation** over axis
-combinations, the same way a deity may not hold precluded spheres. Without
-it, sampling produces incoherent worlds rather than varied ones.
+applied here: any generator over this space needs an **exclusion
+relation**, the same way a deity may not hold precluded spheres.
 
-**Configuration is therefore literal.** A world's metaphysics is the set
-of currencies it carries and their axis values. That is a settings
-surface, in the standing spirit of configurability over opinionated
-defaults, and it is trackable as a design space rather than a content
-list.
+### 4.1 Typed state carriers (2026-08-07)
+
+Answers to the questionnaire sort into a small set of carrier types, and
+they stay typed rather than unifying:
+
+| Carrier | What it is | Worked example |
+| --- | --- | --- |
+| **quantity** | conserved or sourced stock on an entity | biomass, energy |
+| **field** | place-indexed intensity | ambient power, temperature |
+| **condition** | attached state with triggers and duration | a curse, a disease |
+| **relation mark** | state on a provenance, descent, contact, or trust edge | contagion, a debt |
+| **claim** | observer-relative information that may be false | belief, `Signal` |
+
+An effect application may target any carrier, but **effects propose typed
+state changes**; they do not write into a universal currency.
+
+**Observability is a relation, not an axis.** A carrier may hold an
+*emission profile* (a field that glows, venom that smells, `Signal`'s
+advertised claim); whether anyone observes it depends on the observer's
+senses, instruments, position, and history. The eighth axis of the
+questionnaire asks about emission; observation lives in the epistemic
+loop (S8).
 
 ---
 
@@ -246,10 +307,12 @@ special case.
 
 The rule this implies, and it is the don't-duplicate ruling again:
 
-> **Do not build a magic-effect type.** Build one effect-application type
-> with typed channels, and let disease, venom, weather, blessing, and
-> curse all emit it. Effects write into **currencies**, so a world with
-> more currencies than biomass gets a richer effect space for free.
+> **Do not build a magic-effect type.** Build one effect-application
+> envelope with typed channels, and let disease, venom, weather,
+> blessing, and curse all emit it. **Effects propose typed state
+> changes** against the S4.1 carriers; a world with more carriers than
+> biomass gets a richer effect space for free, without a universal
+> property bag.
 
 ---
 
@@ -286,33 +349,42 @@ It needs **criteria**, which is Sanderson's Second Law made mechanical:
 
 This is `ProcessDef` and phenotype work, not new machinery.
 
-### 6.2 The skeleton: identity, facts, derivation, projection (2026-08-07)
+### 6.2 The skeleton: identity, facts, derivation, transition, projection (2026-08-07; revised in review)
 
-The entity-model question ("classic ECS, or something else?") resolves
-into four layers the stack has been converging on separately. The prompt
-that named it was [PolyCSS](https://github.com/LayoutitStudio/polycss), a
-CSS 3D engine rendering VOX/glTF meshes as real DOM elements, one per
-polygon, each individually addressable and styled by rules. Its world-lane
-technique does not transfer (per-polygon DOM at simulation scale is
-cardinality death, and the tracer lane already exists). Its *architecture*
-names our middle layer.
+The entity-model question resolves into **five** layers. The prompt that
+named the derivation layer was
+[PolyCSS](https://github.com/LayoutitStudio/polycss), a CSS 3D engine
+rendering VOX/glTF meshes as real DOM elements, each individually
+addressable and styled by rules. Its world-lane technique does not
+transfer (per-polygon DOM at simulation scale is cardinality death). Its
+architecture names one layer; the review caught that four layers describe
+a *read pipeline*, while a simulation additionally needs **transition**,
+which the wing already owns and the first draft failed to list.
 
 | Layer | What it is | Already standing |
 | --- | --- | --- |
 | **Identity** | Stable ids | `OrganismId`, `PartId`, `PlaceId`; chartulary Container platform-side |
-| **Facts** | Facets as plain serialized state: mass, traits, currencies. Ordered, hashed, replayable | the core |
-| **Derivation** | A small, strictly ordered, inspectable rule cascade computing everything downstream | grade blocks; E0 allometry; §6 rules; V2's dependency digests as the invalidation |
+| **Facts** | Facets as plain serialized state: mass, traits, carriers. Ordered, hashed, replayable | the core |
+| **Derivation** | Rules computing rates, conditions, and affordances from facts | grade blocks; E0 allometry; §6 rules; V2's dependency digests as the invalidation |
+| **Transition** | Intent and process resolution: time, choices, conflicts, costs, refusal, causal records. Events yield new facts | `Intent`/`Outcome`, `act.rs`, the ecology step, `History`, replay hashes |
 | **Projection** | Per-vessel lenses reading computed values, every emitted element carrying source identity | genet-probe doctrine; `BodyLensProjection` sidecars |
+
+PolyCSS needs no transition layer because CSS describes presentation.
+Mesocosm does; it is where the game lives.
 
 The correspondence that makes "derivation" a *styling* layer, closing a
 ruling made earlier ("the soul question is a styling matter"):
 
 - signatures and similarity are **selectors over trait vectors**;
-- world-default, then kingdom, then species, then individual override is
-  **the cascade**;
+- the cascade's inputs, corrected 2026-08-07 (kingdom was circular once
+  kingdom became derived): **world law, environment, developmental
+  program, phenotype allocation and anatomy, current condition**;
 - allometric rates, derived feeding modes, and fantastical properties are
   **computed values**;
-- the grade is literally the stylesheet's visual half.
+- the grade is literally the stylesheet's visual half;
+- and each derived property **declares its combinator**: replace, add,
+  multiply, clamp, require, or prohibit. A universal winning-declaration
+  rule is too weak for biological flow.
 
 Prior art the stack already owns: **livery**, whose enumerable
 TOML-property-database discipline is the tamed version of this. The
@@ -320,17 +392,21 @@ binding constraint comes from §1.2 and from CSS's own failure mode
 (specificity wars): the cascade stays small, strictly ordered, and
 attributable. "Why is this critter fast" must answer with a rule chain.
 
-Not chosen: archetypal ECS. At thousands of near-tier individuals with
-cohorts above (E3), determinism and snapshot-hashing are worth more than
-iteration throughput, and facts-as-facets is what the replay contract
-already is.
+On ECS, reworded after review (the first draft made a category mistake
+by opposing them): **ECS is a storage and iteration technique; this
+skeleton is a semantic model. ECS is not the domain ontology, and storage
+may become data-oriented without changing authority.** Nothing here rules
+a data-oriented layout in or out.
 
 Two adjacencies recorded while here: for **Isometry**, PolyCSS is
 near-literal prior art (Foundry-class scenes as identity-bearing DOM
 elements styled by rules, with a VOX import path rhyming with the bake
 pipeline). And the **sprite-stacking deferral has expired**: it was
 parked pending a pulled-back camera, which Mesocosm now has (place-graph
-plan §0.4); PolyCSS is structurally sprite stacking in the DOM.
+plan §0.4). *Correction 2026-08-07: an earlier line called PolyCSS
+"structurally sprite stacking"; it is not. PolyCSS meshes VOX into
+visible polygon faces placed as DOM leaves; sprite stacking layers
+parallel image slices. The reopening stands on the camera ruling alone.*
 
 ---
 
@@ -364,6 +440,29 @@ appearances than items, so elimination stays imperfect. Morrowind's
 alchemy hides most ingredient effects and combines by intersection.
 Ultima Ratio Regum makes religious identity *inferable from observable
 behaviour* rather than readable from a panel.
+
+A hidden effect vector is not yet discovery (review, 2026-08-07). The
+loop that makes it one:
+
+```text
+world truth
+  -> exposure or signal (the carrier's emission profile)
+  -> observation (observer's senses, instruments, position)
+  -> remembered claim or hypothesis
+  -> experiment or consequential choice
+  -> confirmation, revision, or deception
+```
+
+`Signal` is the landed seed: advertised appearance already disagrees with
+actual venom or trophic behaviour, so the claim/truth split exists. F3
+builds the rest of the loop on that split.
+
+**Open question the plan must eventually answer: who owns a discovery?**
+The current animula, the biological lineage, the world record, shared
+players, or a combination. Without a locus, every world's generated laws
+are rediscovered from nothing each run and no culture of knowledge
+accumulates. `tulpa` (the retold subset) is the wing's existing vocabulary
+for exactly this kind of memory.
 
 This distributes across the wing without any vessel converting anything:
 **Mesocosm discovers, Paredros embodies** (transformations, pacts, curses
@@ -403,7 +502,7 @@ The asymmetry is what makes a small rule set multiply rather than square.
 
 ### Ecological, scheduled
 
-**E0. Allometry, and the size ceiling.** Replace flat rate constants with
+**E0. Allometry, and the size ceiling.** `[implemented 2026-08-07]` Replace flat rate constants with
 mass-derived rates; fix linear upkeep to a ^0.75-shaped law in integer
 arithmetic.
 **Done when:** a world sustains bodies across at least three orders of
@@ -411,7 +510,7 @@ magnitude of mass; maturity, lifespan, gestation, and feeding rate all
 vary with mass; existing ecology receipts are re-greened rather than
 deleted; no rate constant remains that should have been a function of mass.
 
-**E1. Predation, and feeding mode from anatomy.** Consumers may take
+**E1. Predation, and feeding mode from anatomy.** `[implemented 2026-08-07]` Consumers may take
 living consumers. `Kingdom` becomes a derived reading of anatomy rather
 than a genesis assignment.
 **Done when:** a lineage whose bodies acquire the relevant parts begins
@@ -419,19 +518,23 @@ taking live prey with nothing in the code naming it a predator; trophic
 levels are countable in a run; and the reckoning can distinguish predation
 from scavenging (it already can, by event order).
 
-**E2. Dispersal.** Movement as a far-tier process: diffusion, plus
+**E2. Dispersal.** `[implemented 2026-08-07, epoch receipt open]` Movement as a far-tier process: diffusion, plus
 starvation-driven migration.
 **Done when:** populations track productivity across the place graph over
 an epoch, and a locally exhausted place is left rather than starved in.
 
-**E3. Cohorts.** Far-tier state becomes cohorts with trait-space merging;
+**E3. Cohorts.** `[conservation slice implemented 2026-08-07, capacity gate open]` Far-tier state becomes cohorts with trait-space merging;
 near tier stays individual. Promotion and demotion are cohort split and
 merge.
 **Done when:** biomass is conserved across every merge and split; far-tier
 outcomes stay within existing receipts; and the population the far tier
 can carry rises by an order of magnitude.
 
-**E4. Drives replace the `Hunter`.** Behaviour selection scores reachable
+Current receipt: deterministic cohort formation, exact scalar split/merge
+conservation, and promotion/demotion counts. Persistent far-tier storage and
+the 10x capacity measurement are not yet claimed.
+
+**E4. Drives replace the `Hunter`.** `[implemented 2026-08-07]` Behaviour selection scores reachable
 affordances against need and body. The FSM demotes to a probe (see
 place-graph plan G3) and leaves the tree.
 **Done when:** the chase receipt still passes with no type named `Hunter`
@@ -439,29 +542,72 @@ in the path; a slow armoured starving body does something *different* from
 a fast large-mouthed one under identical conditions; and a predator that
 picks badly starves.
 
+### Follow-up receipts per gate (review, 2026-08-07)
+
+Accepted from review after the E-gates landed; these deepen the
+done-conditions rather than reopen the gates:
+
+- **E0**: allometry becomes a configurable *baseline* modified by active
+  tissue/process allocation, metabolic mode, and environment; and every
+  derived rate must produce a **derivation trace** on demand, not only
+  the right number.
+- **E1**: the PD1b-backed form (satisfied feeding processes; trophic
+  labels as projections of realized activity) replaces the interim
+  anatomy reading; `Kingdom` decomposes into independently realizable
+  strategies.
+- **E2**: matter, population, and causal movement are **recorded across
+  place boundaries**, so migration is attributable, not just simulated.
+- **E3**: cohorts inherit the phenotype plan's contract, not Madingley's
+  identity-free one: lineage and count; mass and energy; developmental
+  distribution; causal seed; **exact refusal to aggregate named, played,
+  injured, or chronicled subjects**; deterministic materialization
+  without rerolling. Before claiming scale: define **sufficient
+  statistics per process** (age structure, reproductive reserves,
+  process-expression distribution, lineage contribution, carriers,
+  seeds), then a **paired near/far equivalence scenario**. Biomass
+  conservation alone is not the receipt.
+- **E4**: the done-condition strengthens from "nothing named `Hunter`"
+  to **"the same decision machinery produces hunting, migration,
+  avoidance, grazing, and rest from different bodies and needs."**
+
 ### Fantastical, proposed only
 
 **Not scheduled. No adoption decision. Listed so the shape can be argued
 with.**
 
-- **F0. Currency registry.** Currencies as first-class configuration with
-  the §4 axes, an exclusion relation, and biomass expressed as one point
-  in it rather than a special case.
-- **F1. One effect application type.** §5, with existing metabolic and
-  mortality terms as its first targets.
+Reordered 2026-08-07 (review): **the proof precedes the abstraction.**
+The first draft's F0 was a registry, which is declaring the portable
+profile in advance; the sequence now follows the evaluator rule.
+
+- **F0. One fantastical vertical slice.** One unusual carrier state, one
+  cost, one application route, one discoverable consequence, implemented
+  concretely inside Mesocosm's own rules. No registry, no shared type.
+- **F1. Effect envelope, extracted.** Only if the F0 slice and an
+  ecological effect (venom is the standing candidate) genuinely repeat
+  the same application shape does the §5 envelope get extracted.
 - **F2. Derivation.** §6: signatures, similarity, contagion, over existing
   trait vectors and provenance edges. Kleptoplasty criteria.
-- **F3. Discovery.** §8, cheapest version first.
+- **F3. Discovery.** §8's epistemic loop on `Signal`'s claim/truth split,
+  cheapest version first, with the ownership locus decided.
 - **F4. Fields.** §9, per place, integer.
 - **F5. Grammar.** §7, only after F0-F2 exist to generate Forms *from*.
+  The fixed Technique axis is a **world profile, not engine law**; and a
+  closed-form cost function prices effects but cannot establish balance
+  without scenario sampling.
+- **Registry, if ever**: follows the second working state family, never
+  precedes it.
 
 ---
 
 ## 11. Stop rules
 
-- **No second engine.** The fantastical layer is currencies, effects, and
+- **No second engine.** The fantastical layer is carriers, effects, and
   derivation rules over the existing machinery. If it grows its own
   simulation loop, it has become the thing the anti-Spore law forbids.
+- **No shared evaluator before two sovereign proofs** (phenotype plan's
+  rule, which the first draft violated in spirit). Common grammar,
+  sovereign rule systems, extraction after repetition. A registry never
+  precedes the second working state family.
 - **State legible, dynamics throttleable** (§1.2). Every layer must leave
   inspectable, attributable state behind if its dynamics get cut.
 - **No name coined without a naming round.** §1's empty slot is a finding,
@@ -497,6 +643,22 @@ with.**
   identity, facts, derivation-as-cascade, projection-with-identity
   (§6.2). PolyCSS supplied the naming prompt; livery supplies the tamed
   prior art; sprite stacking's pulled-back-camera deferral has expired.
+- **2026-08-07, review pass (accepted nearly whole):** the plan's two
+  load-bearing corrections are (1) "one model with settings" replaced by
+  **one causal grammar, sovereign evaluators, extraction after
+  repetition** (§0), and (2) the skeleton gaining its **transition**
+  layer (§6.2), without which it described a simulator schema and not a
+  game. Also accepted: typed state carriers over a currency type (§4.1),
+  effects *propose* typed changes (§5), feeding as satisfied processes
+  with trophic role as a summary of realized activity (§3.3), cascade
+  inputs de-circularized with declared combinators (§6.2), the cohort
+  lineage contract and sufficient statistics (gates), the epistemic loop
+  and the discovery-ownership question (§8), and per-gate follow-up
+  receipts. Verified against the paper: Madingley spans **10 µg**, and
+  randomizes **cohort order**, both corrected. One nuance retained
+  rather than conceded: carriers keep an *emission profile*;
+  observability is the relation between that profile and an observer,
+  which is `Signal`'s existing split.
 
 ### Verification debts
 
@@ -525,3 +687,13 @@ in §6-§9 is built on the details:
   postmortem supplied the binding caution.
 - **2026-08-07:** §6.2 added: the four-layer skeleton and the
   styling-as-derivation correspondence, from the PolyCSS reading session.
+- **2026-08-07:** E0-E4 implementation slice landed. Integer allometry,
+  body-derived feeding and predation, graph dispersal, far-tier cohort
+  conservation, and anatomy-driven drives are covered by core receipts;
+  `places::Hunter` was retired. The full offline workspace test suite is
+  green. E3's authoritative far-tier storage and 10x capacity gate remain
+  open by design.
+- **2026-08-07:** review pass folded in: grammar-not-model, transition
+  layer, typed carriers, satisfied-process feeding, cohort contract,
+  epistemic loop, F-gates reordered proof-first, two Madingley facts
+  re-verified at the source.

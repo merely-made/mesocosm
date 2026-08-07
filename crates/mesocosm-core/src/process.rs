@@ -72,6 +72,17 @@ pub enum Capability {
     Reach,
 }
 
+/// What a living body does with available matter. This is derived from the
+/// body's trophic signature and expressed processes, so the ecology does not
+/// need a parallel predator flag.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum FeedingMode {
+    Producer,
+    Grazer,
+    Predator,
+    Scavenger,
+}
+
 /// Why a body cannot do something.
 ///
 /// Carried into rejections so a receipt says *which embodied requirement

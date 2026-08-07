@@ -15,55 +15,116 @@
 
 use std::collections::BTreeMap;
 
+use crate::cohort;
 use crate::development::PartPalette;
 use crate::rng::Rng;
+use crate::places::{Places, Tier, TierLine};
+use crate::process::FeedingMode;
 use crate::species::Lineages;
 
 use crate::history::Event;
 
 use super::{Kingdom, Organism, OrganismId, Stage, Tally};
 
-/// Ticks of growth before an organism can reproduce.
-pub(crate) const MATURITY: u32 = 90;
-/// Ticks of life before an organism dies of age.
-pub(crate) const LIFESPAN: u32 = 600;
-/// Ticks between one offspring and the next.
-pub(crate) const GESTATION: u32 = 120;
-/// Milligrams a producer fixes per tick in open ground.
-const FIXES_MG: u64 = 3;
-/// Milligrams of upkeep every living thing owes before its size is counted.
-///
-/// The floor. What a body actually pays is this plus a share of what it
-/// weighs, so being large is a standing cost rather than a free upgrade.
-///
-/// Everything pays rent. Without this a producer's income is free and the
-/// population grows without bound, which is what the first run of this did:
-/// 75 organisms became 1530 in 600 ticks. Biomass share is meaningless when
-/// everyone's share grows.
-pub(crate) const UPKEEP_MG: u64 = 1;
-/// Milligrams of body a creature can carry per extra milligram of upkeep.
-///
-/// Tuned so a starting critter pays a few milligrams a tick and a
-/// well-fed one pays enough to notice. This is the number that decides
-/// whether growing is worth it.
-pub(crate) const UPKEEP_SHARE: u64 = 250;
+/// Reference body mass for the allometric rates below.
+const REFERENCE_MASS_MG: u64 = 100;
+/// The integer fourth root of the reference mass, used to normalize quarter
+/// power life-history rates.
+const REFERENCE_MASS_QRT: u64 = 3;
+/// Reference rates at 100 mg. These are model parameters, not organism facts.
+const MATURITY_BASE: u32 = 90;
+const LIFESPAN_BASE: u32 = 600;
+const GESTATION_BASE: u32 = 120;
+const FIXES_BASE_MG: u64 = 3;
+const GRAZES_BASE_MG: u64 = 4;
+const DECAYS_BASE_MG: u64 = 3;
+/// The basal cost of being alive.
+const UPKEEP_BASE_MG: u64 = 1;
+/// The allometric share of the body's mass paid as upkeep.
+const UPKEEP_SCALE: u64 = 31;
 /// Edge of a crowding cell, in voxel units.
 const CROWD_CELL: i32 = 8;
 /// Neighbours a cell supports before its occupants start shading each other
 /// out. Beyond this a producer's income falls away and self-thinning begins.
 const CROWD_COMFORT: u32 = 4;
-/// Milligrams a decomposer draws from nearby carrion per tick.
-const DECAYS_MG: u64 = 3;
 /// How far a decomposer reaches for the dead, in voxel units.
 const DECOMPOSE_RANGE: i32 = 6;
-/// Milligrams a consumer takes from living prey per tick.
-const GRAZES_MG: u64 = 4;
 /// How far a consumer reaches for a meal, in voxel units.
 const GRAZE_RANGE: i32 = 5;
 /// Fraction of a parent's mass an offspring costs, as a divisor.
 pub(crate) const OFFSPRING_COST: u64 = 4;
 /// Mass below which an organism cannot sustain itself.
 pub(crate) const STARVATION_MG: u64 = 20;
+
+/// Integer approximation of `mass^0.75`. It is monotonic, deterministic, and
+/// uses no floating point in the authority boundary.
+pub(crate) fn three_quarter_power(mass_mg: u64) -> u64 {
+    let mass = mass_mg.max(1) as u128;
+    integer_sqrt(mass * integer_sqrt(mass)) as u64
+}
+
+/// Integer approximation of `mass^0.25` for life-history tempo.
+pub(crate) fn quarter_power(mass_mg: u64) -> u64 {
+    integer_sqrt(integer_sqrt(mass_mg.max(1) as u128)) as u64
+}
+
+fn integer_sqrt(value: u128) -> u128 {
+    let mut low = 0u128;
+    let mut high = value.saturating_add(1);
+    while high - low > 1 {
+        let middle = low + (high - low) / 2;
+        if middle <= value / middle.max(1) {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    low
+}
+
+fn quarter_rate(base: u32, mass_mg: u64) -> u32 {
+    let q = quarter_power(mass_mg).max(1);
+    (u64::from(base) * q / REFERENCE_MASS_QRT).max(1) as u32
+}
+
+fn allometric_rate(base: u64, mass_mg: u64) -> u64 {
+    let reference = three_quarter_power(REFERENCE_MASS_MG).max(1);
+    (base * three_quarter_power(mass_mg) / reference).max(1)
+}
+
+pub(crate) fn maturity_for_mass(mass_mg: u64) -> u32 {
+    quarter_rate(MATURITY_BASE, mass_mg)
+}
+
+pub(crate) fn lifespan_for_mass(mass_mg: u64) -> u32 {
+    quarter_rate(LIFESPAN_BASE, mass_mg)
+}
+
+pub(crate) fn gestation_for_mass(mass_mg: u64) -> u32 {
+    quarter_rate(GESTATION_BASE, mass_mg)
+}
+
+pub(crate) fn producer_income_for_mass(mass_mg: u64) -> u64 {
+    allometric_rate(FIXES_BASE_MG, mass_mg)
+}
+
+pub(crate) fn feeding_rate_for_mass(mass_mg: u64) -> u64 {
+    allometric_rate(GRAZES_BASE_MG, mass_mg)
+}
+
+pub(crate) fn decay_rate_for_mass(mass_mg: u64) -> u64 {
+    allometric_rate(DECAYS_BASE_MG, mass_mg)
+}
+
+pub(crate) fn upkeep_for_mass(mass_mg: u64) -> u64 {
+    UPKEEP_BASE_MG + three_quarter_power(mass_mg) / UPKEEP_SCALE
+}
+
+/// One graph step's dispersal budget. Contractile geometry gives larger bodies
+/// more options, while hunger makes leaving an exhausted place worthwhile.
+pub(crate) fn dispersal_for(organism: &Organism) -> u32 {
+    (organism.locomotion() / 4).max(1) + u32::from(organism.energy_mg == 0)
+}
 
 /// Which crowding cell a position falls in.
 fn cell_of(position: [i32; 3]) -> (i32, i32) {
@@ -91,7 +152,70 @@ pub fn step(
     lineages: &Lineages,
     palette: PartPalette,
 ) -> Tally {
+    step_inner(organisms, next_id, rng, events, lineages, palette, None, None)
+}
+
+/// Advances the enclosure with place-graph ownership enabled. The plain
+/// [`step`] entry point remains useful for isolated ecology fixtures; worlds
+/// use this path so dispersal and tier hysteresis are part of replayed state.
+pub fn step_with_places(
+    organisms: &mut Vec<Organism>,
+    next_id: &mut u32,
+    rng: &mut Rng,
+    events: &mut Vec<Event>,
+    lineages: &Lineages,
+    palette: PartPalette,
+    places: &Places,
+    focus: Option<[i32; 3]>,
+) -> Tally {
+    step_inner(
+        organisms,
+        next_id,
+        rng,
+        events,
+        lineages,
+        palette,
+        Some(places),
+        focus,
+    )
+}
+
+fn step_inner(
+    organisms: &mut Vec<Organism>,
+    next_id: &mut u32,
+    rng: &mut Rng,
+    events: &mut Vec<Event>,
+    lineages: &Lineages,
+    palette: PartPalette,
+    places: Option<&Places>,
+    focus: Option<[i32; 3]>,
+) -> Tally {
     let mut tally = Tally::default();
+
+    // Tier ownership is hysteretic state. Forming the far summary here makes
+    // cohort conservation part of the tick's receipt rather than an
+    // unaccounted host cache.
+    if let (Some(places), Some(focus)) = (places, focus) {
+        for organism in organisms.iter_mut().filter(|o| o.is_alive()) {
+            let previous = organism.tier;
+            organism.tier = TierLine::default().tick(
+                places,
+                previous,
+                organism.position,
+                focus,
+            );
+            match (previous, organism.tier) {
+                (Tier::Far, Tier::Near) => tally.promoted += 1,
+                (Tier::Near, Tier::Far) => tally.demoted += 1,
+                _ => {}
+            }
+        }
+        let far = cohort::from_organisms(organisms, places);
+        let (members, biomass, _) = cohort::conserved_totals(&far);
+        tally.far_cohorts = far.len() as u32;
+        tally.far_members = members as u32;
+        tally.far_biomass_mg = biomass;
+    }
 
     // Crowding, counted once per tick on a coarse grid. A BTreeMap keeps
     // iteration ordered, and bucketing keeps this O(n) rather than O(n^2),
@@ -110,19 +234,19 @@ pub fn step(
         .map(|(index, o)| (o.position, index))
         .collect();
 
-    // Living producers, read before anything changes, so grazers all see the
-    // same pasture within a tick rather than racing each other.
-    let grazeable: Vec<([i32; 3], usize)> = organisms
+    // Living bodies, read before anything changes, so feeding decisions all
+    // see the same enclosure within a tick rather than racing each other.
+    let living: Vec<(OrganismId, [i32; 3], usize, Kingdom, u64, super::Signal)> = organisms
         .iter()
         .enumerate()
-        .filter(|(_, o)| o.is_alive() && o.kingdom == Kingdom::Producer)
-        .map(|(index, o)| (o.position, index))
+        .filter(|(_, o)| o.is_alive())
+        .map(|(index, o)| (o.id, o.position, index, o.kingdom(), o.biomass_mg(), o.signal))
         .collect();
 
     let mut drained: Vec<(usize, u64)> = Vec::new();
     // Feeding is recorded by index and resolved to ids after the pass, because
     // the borrow that reads the pasture cannot also name the eaten.
-    let mut fed: Vec<(OrganismId, usize, u64)> = Vec::new();
+    let mut fed: Vec<(OrganismId, usize, u64, crate::history::MealKind)> = Vec::new();
     let mut newborns: Vec<Organism> = Vec::new();
 
     for organism in organisms.iter_mut() {
@@ -135,50 +259,61 @@ pub fn step(
                 // a creature with nothing left to spend eats itself.
                 organism.pay_upkeep();
 
-                match organism.kingdom {
+                match organism.feeding_mode() {
                     // Producers make biomass from the world, but they shade
                     // each other out. Income falls with crowding, so a stand
                     // thins itself instead of growing without bound.
-                    Kingdom::Producer => {
+                    FeedingMode::Producer => {
                         let crowd = density
                             .get(&cell_of(organism.position))
                             .copied()
                             .unwrap_or(1);
-                        let share =
-                            FIXES_MG.saturating_mul(CROWD_COMFORT as u64) / crowd.max(1) as u64;
+                        let share = producer_income_for_mass(organism.biomass_mg())
+                            .saturating_mul(CROWD_COMFORT as u64)
+                            / crowd.max(1) as u64;
                         // Floored at rent. A shaded-out producer stagnates
                         // rather than starving, because otherwise an entire
                         // stand of identical plants crosses the starvation
                         // line on the same tick and the patch goes extinct
                         // instead of thinning.
-                        let share = share.clamp(UPKEEP_MG, FIXES_MG);
+                        let share = share.clamp(UPKEEP_BASE_MG, producer_income_for_mass(organism.biomass_mg()));
                         organism.gain_mass(share);
                     }
-                    // Consumers eat. Without this they were guaranteed to
-                    // starve, so every world converged to producers only and
-                    // the trophic cycle had a missing rung.
-                    Kingdom::Consumer => {
-                        if let Some((_, prey)) = grazeable.iter().copied().find(|(at, _)| {
-                            (0..3).all(|a| (at[a] - organism.position[a]).abs() <= GRAZE_RANGE)
-                        }) {
-                            organism.gain_mass(GRAZES_MG);
-                            drained.push((prey, GRAZES_MG));
-                            fed.push((organism.id, prey, GRAZES_MG));
+                    FeedingMode::Grazer | FeedingMode::Predator => {
+                        if let Some(prey) = choose_living_target(organism, &living) {
+                            let amount = feeding_rate_for_mass(organism.biomass_mg());
+                            let kind = if organism.feeding_mode() == FeedingMode::Predator {
+                                crate::history::MealKind::Predation
+                            } else {
+                                crate::history::MealKind::Grazing
+                            };
+                            organism.gain_mass(amount);
+                            drained.push((prey, amount));
+                            fed.push((organism.id, prey, amount, kind));
                         }
                     }
                     // Decomposers only earn where something has died.
-                    Kingdom::Decomposer => {
+                    FeedingMode::Scavenger => {
                         if let Some((_, source)) = carrion.iter().copied().find(|(at, _)| {
                             (0..3).all(|a| (at[a] - organism.position[a]).abs() <= DECOMPOSE_RANGE)
                         }) {
-                            organism.gain_mass(DECAYS_MG);
-                            drained.push((source, DECAYS_MG));
-                            fed.push((organism.id, source, DECAYS_MG));
+                            let amount = decay_rate_for_mass(organism.biomass_mg());
+                            organism.gain_mass(amount);
+                            drained.push((source, amount));
+                            fed.push((organism.id, source, amount, crate::history::MealKind::Scavenging));
                         }
                     }
                 }
 
-                if organism.stage == Stage::Juvenile && organism.age >= MATURITY {
+                if let Some(places) = places {
+                    if disperse(organism, places, focus, rng, &living, &carrion, events) {
+                        tally.moved += 1;
+                    }
+                }
+
+                if organism.stage == Stage::Juvenile
+                    && organism.age >= maturity_for_mass(organism.life_history_mass_mg())
+                {
                     organism.stage = Stage::Mature;
                     events.push(Event::Matured {
                         organism: organism.id,
@@ -189,7 +324,7 @@ pub fn step(
                 organism.since_offspring = organism.since_offspring.saturating_add(1);
 
                 let starved = organism.biomass_mg() <= STARVATION_MG;
-                let aged = organism.age >= LIFESPAN;
+                let aged = organism.age >= lifespan_for_mass(organism.life_history_mass_mg());
                 if starved || aged {
                     organism.stage = Stage::Carrion;
                     events.push(Event::Died {
@@ -220,12 +355,13 @@ pub fn step(
 
     // What was fed on pays for it. Grazed prey can be killed outright, which
     // is how a consumer turns a producer into carrion for a decomposer.
-    for (eater, index, mass_mg) in fed {
+    for (eater, index, mass_mg, kind) in fed {
         if let Some(from) = organisms.get(index).map(|o| o.id) {
             events.push(Event::Fed {
                 eater,
                 from,
                 mass_mg,
+                kind,
             });
         }
     }
@@ -270,6 +406,8 @@ pub fn step(
         let Ok(body) = lineage.realize(development_seed, cost, palette) else {
             continue;
         };
+        let mut body = body;
+        body.plan.symmetry = parent.body.plan.symmetry;
         // Wide enough to leave a crowded cell. Dispersal is how a stand
         // escapes its own shade, so a short throw would trap every offspring
         // in the same competition its parent is already losing.
@@ -277,18 +415,19 @@ pub fn step(
         let child = Organism {
             id: child_id,
             species: parent.species,
-            kingdom: parent.kingdom,
             // A child starts small but structurally filial: the lineage recipe
             // grew this body under the current world's palette, and the whole
             // graph contains exactly what the parent paid.
             body,
             development_seed,
+            life_history_mass_mg: cost,
             energy_mg: cost,
             position: [
                 parent.position[0] + scatter[0],
                 parent.position[1],
                 parent.position[2] + scatter[2],
             ],
+            tier: parent.tier,
             stage: Stage::Juvenile,
             age: 0,
             since_offspring: 0,
@@ -316,6 +455,154 @@ pub fn step(
     organisms.extend(newborns);
     organisms.retain(|o| o.stage != Stage::Spent);
     tally
+}
+
+type LivingTarget = (OrganismId, [i32; 3], usize, Kingdom, u64, super::Signal);
+
+/// Chooses the best currently reachable living target. The drive is explicit:
+/// need, distance, body reach, and the target's advertised danger all take
+/// part in the choice. A predator may take another consumer; a grazer may not.
+fn choose_living_target(organism: &Organism, living: &[LivingTarget]) -> Option<usize> {
+    let mode = organism.feeding_mode();
+    let reach = GRAZE_RANGE + organism.body.reach();
+    living
+        .iter()
+        .filter(|(id, at, _, kingdom, _, signal)| {
+            *id != organism.id
+                && match mode {
+                    FeedingMode::Grazer => *kingdom == Kingdom::Producer,
+                    FeedingMode::Predator => true,
+                    _ => false,
+                }
+                && chebyshev(organism.position, *at) <= reach
+                // A warning is information, not an invulnerability flag. It
+                // only breaks ties against an equally good plain target.
+                && (*signal == super::Signal::Plain || mode == FeedingMode::Grazer)
+        })
+        .min_by_key(|(_, at, _, _, mass, signal)| {
+            let distance = chebyshev(organism.position, *at) as u64;
+            let danger = u64::from(*signal == super::Signal::Warning) * 4;
+            (distance.saturating_mul(16) + danger).saturating_sub((*mass).min(256) / 64)
+        })
+        .map(|(_, _, index, _, _, _)| *index)
+}
+
+fn chebyshev(from: [i32; 3], to: [i32; 3]) -> i32 {
+    (0..3)
+        .map(|axis| (from[axis] - to[axis]).abs())
+        .max()
+        .unwrap_or(0)
+}
+
+fn preferred_target(
+    organism: &Organism,
+    living: &[LivingTarget],
+    carrion: &[([i32; 3], usize)],
+) -> Option<[i32; 3]> {
+    match organism.feeding_mode() {
+        FeedingMode::Grazer | FeedingMode::Predator => living
+            .iter()
+            .filter(|(id, _, _, kingdom, _, _)| {
+                *id != organism.id
+                    && (organism.feeding_mode() == FeedingMode::Predator
+                        || *kingdom == Kingdom::Producer)
+            })
+            .min_by_key(|(_, at, _, _, mass, _)| {
+                (chebyshev(organism.position, *at), std::cmp::Reverse(*mass))
+            })
+            .map(|(_, at, _, _, _, _)| *at),
+        FeedingMode::Scavenger => carrion
+            .iter()
+            .min_by_key(|(at, _)| chebyshev(organism.position, *at))
+            .map(|(at, _)| *at),
+        FeedingMode::Producer => None,
+    }
+}
+
+/// Moves an organism toward the affordance it currently needs. Near bodies
+/// move by one legal integer step; far bodies move through one place-graph
+/// edge. An exhausted body diffuses to a neighbouring place when it has no
+/// target, which is the minimal starvation-driven dispersal law.
+fn disperse(
+    organism: &mut Organism,
+    places: &Places,
+    _focus: Option<[i32; 3]>,
+    rng: &mut Rng,
+    living: &[LivingTarget],
+    carrion: &[([i32; 3], usize)],
+    events: &mut Vec<Event>,
+) -> bool {
+    let target = preferred_target(organism, living, carrion);
+    let old = organism.position;
+    let next = if let Some(target) = target {
+        if organism.tier == Tier::Far {
+            graph_step(places, organism.position, target)
+        } else {
+            let mut at = organism.position;
+            for _ in 0..dispersal_for(organism) {
+                at = integer_step(at, target);
+                if chebyshev(at, target) <= organism.body.reach() + GRAZE_RANGE {
+                    break;
+                }
+            }
+            at
+        }
+    } else if organism.energy_mg == 0 {
+        diffuse(places, organism.position, rng)
+    } else {
+        organism.position
+    };
+
+    if next != old {
+        let distance = chebyshev(old, next) as u64;
+        organism.spend_mass(distance.max(1));
+        organism.position = next;
+        events.push(Event::Moved { organism: organism.id, from: old, to: next });
+        true
+    } else {
+        false
+    }
+}
+
+fn integer_step(from: [i32; 3], to: [i32; 3]) -> [i32; 3] {
+    [
+        from[0] + (to[0] - from[0]).signum(),
+        from[1] + (to[1] - from[1]).signum(),
+        from[2] + (to[2] - from[2]).signum(),
+    ]
+}
+
+fn graph_step(places: &Places, position: [i32; 3], target: [i32; 3]) -> [i32; 3] {
+    let Some(current) = places.at(position) else {
+        return integer_step(position, target);
+    };
+    let Some(goal) = places.at(target) else {
+        return integer_step(position, target);
+    };
+    let Some(next) = places
+        .neighbours(current)
+        .iter()
+        .filter_map(|id| places.get(*id))
+        .min_by_key(|place| places.hops(place.id, goal).unwrap_or(u32::MAX))
+    else {
+        return integer_step(position, target);
+    };
+    [next.centre[0], position[1], next.centre[1]]
+}
+
+fn diffuse(places: &Places, position: [i32; 3], rng: &mut Rng) -> [i32; 3] {
+    let Some(current) = places.at(position) else {
+        return position;
+    };
+    let neighbours = places.neighbours(current);
+    if neighbours.is_empty() {
+        return position;
+    }
+    let id = neighbours[rng.below(neighbours.len() as u64) as usize];
+    let Some(place) = places.get(id) else {
+        return position;
+    };
+    [place.centre[0], position[1], place.centre[1]]
 }
 
 const FILIAL_SALT: u64 = 0x4649_4C49_414C_0001;

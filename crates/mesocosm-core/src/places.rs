@@ -50,13 +50,11 @@
 
 mod bricks;
 mod grown;
-mod hunt;
 mod near;
 mod relief;
 
 pub use bricks::{AIR, BRICK, Brick, Ground, ROCK, SOIL, SURFACE_BAND};
 pub use grown::{Grown, Nest};
-pub use hunt::{Hunter, Mind, PATIENCE, SIGHT};
 pub use near::{Tier, TierLine, WALKER_HEIGHT, spot, step};
 pub use relief::Relief;
 

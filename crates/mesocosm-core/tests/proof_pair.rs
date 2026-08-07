@@ -37,7 +37,8 @@ fn regrow(chronicle: &Chronicle) -> BodyDocument {
         .expect("the local recipe regrows")
 }
 
-/// A critter somebody played: driven through the world until it has eaten.
+/// A critter somebody played: it takes an explicit meal through the world
+/// intent path, rather than carrying a procedural origin marker.
 ///
 /// Deliberately not hand-built. A hand-built body would prove that two structs
 /// with the same fields compare equal, which is not the claim; the claim is
@@ -45,25 +46,23 @@ fn regrow(chronicle: &Chronicle) -> BodyDocument {
 /// did not.
 fn played() -> Chronicle {
     let mut world = World::new(4_242, 24);
-
-    // Hunt: pick the nearest organism, walk at it, eat it when it is in reach.
-    // Incorporate rather than Metabolize, so the body plan decides placement --
+    let prey = nearest(&world).expect("the fixture scatters organisms");
+    let here = world.position().unwrap();
+    world
+        .organisms
+        .iter_mut()
+        .find(|organism| organism.id == prey.0)
+        .expect("the selected organism remains in the roster")
+        .position = here;
+    // Incorporate rather than Metabolize, so the body plan decides placement,
     // which is the whole point of automatic symmetric growth being the default
     // and explicit placement being the editor path.
-    for _ in 0..400 {
-        let Some(prey) = nearest(&world) else { break };
-
-        if let Some(step) = toward(world.position().unwrap(), prey.1) {
-            world.apply(Intent::Move { delta: step });
-        } else {
-            world.apply(Intent::Metabolize {
-                organism: prey.0,
-                route: Route::Incorporate {
-                    placement: Placement::Planned,
-                },
-            });
-        }
-    }
+    world.apply(Intent::Metabolize {
+        organism: prey.0,
+        route: Route::Incorporate {
+            placement: Placement::Planned,
+        },
+    });
 
     assert!(
         world.body().unwrap().len() > 1,
@@ -85,17 +84,6 @@ fn nearest(world: &World) -> Option<(mesocosm_core::OrganismId, [i32; 3])> {
                 .max()
                 .unwrap_or(0)
         })
-}
-
-/// One step toward a target, or `None` when it is already close enough that
-/// the world would let us eat it.
-fn toward(from: [i32; 3], to: [i32; 3]) -> Option<[i32; 3]> {
-    let delta = [0, 1, 2].map(|axis| (to[axis] - from[axis]).signum());
-    if delta == [0, 0, 0] {
-        None
-    } else {
-        Some(delta)
-    }
 }
 
 /// A critter nobody played.

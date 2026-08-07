@@ -19,16 +19,20 @@ use mesocosm_core::{
     Intent, OrganismId, Outcome, Placement, Rejection, Route, World, restore, snapshot, state_hash,
 };
 
-/// The nearest organism that is not the player.
+/// The nearest organism that is not the player and that the frontier lets
+/// the player inhabit. Eligibility binds control now (`World::eligibility`),
+/// so a fixture that grabbed the nearest body regardless was reaching above
+/// the frontier.
 fn prey(world: &World) -> OrganismId {
     let here = world.position().expect("somebody is embodied");
     world
         .organisms
         .iter()
         .filter(|o| Some(o.id) != world.controlled_id() && o.is_alive())
+        .filter(|o| world.eligibility(o.id).is_ok())
         .map(|o| (o.id, o.position))
         .min_by_key(|(_, at)| (0..3).map(|a| (at[a] - here[a]).abs()).max().unwrap_or(0))
-        .expect("the fixture scatters organisms")
+        .expect("the fixture scatters eligible organisms")
         .0
 }
 
@@ -189,25 +193,58 @@ fn serialization_does_not_distinguish_the_played_critter() {
 }
 
 #[test]
-fn the_ecology_treats_the_played_critter_like_everything_else() {
-    // Nothing exempts the player. If it did, that exemption would be a rule
-    // branching on who is playing, which is the marker Law C forbids.
-    let mut played = World::new(77, 24);
-    let mut unplayed = played.clone();
-    let other = prey(&unplayed);
-
-    unplayed.apply(Intent::TakeControl { organism: other });
-    played.apply(Intent::Idle);
-
-    for _ in 0..40 {
-        played.apply(Intent::Idle);
-        unplayed.apply(Intent::Idle);
+fn the_ecology_reads_a_recorded_focus_and_never_the_controller() {
+    // This test's earlier phrasing ("forty ticks ran identically regardless
+    // of who was inhabited") predates tiers. Focus-tiered dispersal makes
+    // the world legitimately follow the played body's *position*. The law
+    // survives in its real form: that position is recorded state (control
+    // moves only through intents), so replay owns every divergence, the
+    // controller's *identity* never enters a rule, and tier membership is
+    // per-organism recorded state that a snapshot preserves.
+    let mut world = World::new(77, 24);
+    for _ in 0..30 {
+        world.apply(Intent::Idle);
     }
 
+    // Tier membership must be explained by hops from the recorded focus,
+    // never by who the controller is. The hysteresis band (1..3 hops) may
+    // hold either tier; outside it the tier is forced.
+    use mesocosm_core::places::{Tier, TierLine};
+    let focus = world.position().expect("embodied");
+    let focus_place = world.places().at(focus).expect("focus is somewhere");
+    let line = TierLine::default();
+    for organism in world.organisms.iter().filter(|o| o.is_alive()) {
+        let place = world.places().at(organism.position).expect("somewhere");
+        let hops = world.places().hops(place, focus_place).expect("connected");
+        match organism.tier {
+            Tier::Near => assert!(
+                hops < line.demote_hops,
+                "{:?} is Near at {hops} hops",
+                organism.id
+            ),
+            Tier::Far => assert!(
+                hops > line.promote_hops,
+                "{:?} is Far at {hops} hops",
+                organism.id
+            ),
+        }
+    }
+    // And demotion is reachable in this very graph: a corner-to-corner
+    // journey exceeds the band, so distance alone sends an agent Far.
+    let far_pos = [16, 0, 16];
+    let near_pos = [-16, 0, -16];
     assert_eq!(
-        played.organisms, unplayed.organisms,
-        "forty ticks of ecology ran identically regardless of who was inhabited"
+        line.tick(world.places(), Tier::Near, far_pos, near_pos),
+        Tier::Far,
+        "the enclosure is wide enough to leave the neighbourhood"
     );
+
+    let resumed = restore(&snapshot(&world).unwrap()).unwrap();
+    assert_eq!(
+        world.organisms, resumed.organisms,
+        "tier membership is recorded state, not a per-run view"
+    );
+    assert_eq!(state_hash(&world), state_hash(&resumed));
 }
 
 #[test]

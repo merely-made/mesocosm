@@ -44,6 +44,7 @@ use serde::{Deserialize, Serialize};
 use crate::axis::Soma;
 use crate::body::{BodyDocument, SpeciesId};
 use crate::development::{DevelopmentError, PartPalette, develop_body};
+use crate::plan::Symmetry;
 
 /// One lineage.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,6 +57,10 @@ pub struct Species {
     /// inherits its parent's recipe and diverges from there.
     #[serde(default = "crate::axis::Recipe::default_founding")]
     pub recipe: crate::axis::Recipe,
+    /// The lineage's inherited trophic silhouette. It is part of the
+    /// developer's declared input, so previews and births agree.
+    #[serde(default)]
+    pub symmetry: Symmetry,
     /// What it is called, if anyone named it.
     ///
     /// `None` for the lineages a world begins with: they were there before
@@ -85,7 +90,9 @@ impl Species {
         palette: PartPalette,
     ) -> Result<BodyDocument, DevelopmentError> {
         let soma = Soma::develop(&self.recipe, seed);
-        develop_body(self.id, &self.recipe, &soma, mass_mg, palette)
+        let mut body = develop_body(self.id, &self.recipe, &soma, mass_mg, palette)?;
+        body.plan.symmetry = self.symmetry;
+        Ok(body)
     }
 }
 
@@ -108,10 +115,11 @@ impl Lineages {
     /// Registers a lineage that was there from the beginning.
     pub fn found(&mut self, id: SpeciesId) -> &Species {
         self.next = self.next.max(id.0 + 1);
-        self.species.entry(id).or_insert(Species {
-            id,
-            recipe: crate::axis::Recipe::default_founding(),
-            name: None,
+            self.species.entry(id).or_insert(Species {
+                id,
+                recipe: crate::axis::Recipe::default_founding(),
+                symmetry: Symmetry::default(),
+                name: None,
             parent: None,
             founded: 0,
         })
@@ -130,11 +138,13 @@ impl Lineages {
         // A fork inherits its parent's body recipe, vocabulary included: a
         // founder does not forget what its line had learned to grow.
         let recipe = self.species[&parent].recipe.clone();
+        let symmetry = self.species[&parent].symmetry;
         self.species.insert(
             id,
             Species {
                 id,
                 recipe,
+                symmetry,
                 name: Some(name),
                 parent: Some(parent),
                 founded: at,
@@ -155,6 +165,12 @@ impl Lineages {
     pub fn set_recipe(&mut self, id: SpeciesId, recipe: crate::axis::Recipe) {
         if let Some(species) = self.species.get_mut(&id) {
             species.recipe = recipe;
+        }
+    }
+
+    pub fn set_symmetry(&mut self, id: SpeciesId, symmetry: Symmetry) {
+        if let Some(species) = self.species.get_mut(&id) {
+            species.symmetry = symmetry;
         }
     }
 

@@ -83,10 +83,11 @@ pub fn readings(world: &World, history: &History) -> Vec<Reading> {
             Event::Died { organism, .. } => {
                 dead.insert(organism);
             }
-            Event::Fed { eater, from, mass_mg } => {
+            Event::Fed { eater, from, mass_mg, kind } => {
                 // Taken from something still alive. Eating carrion is how a
                 // decomposer lives and is not the same feat.
-                if !dead.contains(&from)
+                if kind == crate::history::MealKind::Predation
+                    && !dead.contains(&from)
                     && let Some(species) = lineage_of.get(&eater)
                 {
                     *predation.entry(*species).or_default() += mass_mg as i64;

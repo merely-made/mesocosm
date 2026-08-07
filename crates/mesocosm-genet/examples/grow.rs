@@ -114,7 +114,7 @@ fn main() {
         .count();
     let producers = world
         .living()
-        .filter(|o| o.kingdom == mesocosm_core::Kingdom::Producer)
+        .filter(|o| o.kingdom() == mesocosm_core::Kingdom::Producer)
         .count();
     println!(
         "enclosure: {alive} alive ({producers} producers), {carrion} carrion,          {} total ever minted",

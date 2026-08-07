@@ -17,14 +17,15 @@
 use mesocosm_core::{Intent, Placement, Route, Origin, Outcome, PartId, VolumeRef, World, Yaw};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 
-/// Volumes for the fixture: a body, and one per organism tag the world mints.
+/// Volumes for the fixture: a body, and one for every primitive tag the world
+/// may mint. Developmental roles now choose their volume vocabulary from the
+/// realized body, so this adapter fixture must not assume one narrow tag band.
 fn source() -> VolumeMap {
     let mut map = VolumeMap::new();
     map.insert(VolumeRef::from_tag(1), Volume::solid([3, 3, 3], 1));
-    for tag in 16..24u8 {
+    for tag in 2..=u8::MAX {
         map.insert(VolumeRef::from_tag(tag), Volume::solid([2, 2, 2], tag));
     }
-    map.insert(VolumeRef::from_tag(64), Volume::solid([1, 1, 1], 5));
     map
 }
 

@@ -30,7 +30,12 @@ fn lived(ticks: usize) -> (World, History) {
 fn everything_in_the_enclosure_is_somewhere() {
     let (world, _) = lived(120);
 
-    assert!(world.place().is_some(), "the player is in a region");
+    assert!(
+        world
+            .living()
+            .any(|organism| world.places().at(organism.position).is_some()),
+        "a living organism is in a region"
+    );
     for organism in world.living() {
         assert!(world.places().at(organism.position).is_some(), "{:?} is nowhere", organism.id);
     }

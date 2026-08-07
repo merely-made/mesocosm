@@ -345,13 +345,16 @@ impl World {
         // The enclosure lives whether or not the player acted. This is what
         // separates an ecology from a field of pickups: things grow, breed,
         // starve, and rot on their own schedule.
-        self.last_tally = crate::organism::step(
+        let focus = self.position();
+        self.last_tally = crate::organism::ecology::step_with_places(
             &mut self.organisms,
             &mut self.next_organism,
             &mut self.rng,
             &mut self.pending,
             &self.lineages,
             self.development_palette,
+            &self.places,
+            focus,
         );
 
         // What you reach, you keep. The frontier rises with the body you are

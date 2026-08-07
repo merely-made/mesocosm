@@ -43,6 +43,7 @@
 pub mod anatomy;
 pub mod axis;
 pub mod body;
+pub mod cohort;
 pub mod development;
 pub mod growth;
 pub mod history;
@@ -66,17 +67,18 @@ pub use body::{
     Aabb, AttachError, Attachment, BodyDocument, Origin, Part, PartId, Provenance, SpeciesId,
     VolumeRef, Yaw,
 };
+pub use cohort::{Cohort, CohortKey, CohortMember};
 pub use chronicle::{Chronicle, Consequence, Deed, PartOrigin, generate};
 pub use development::{
     DevelopmentError, PartPalette, PartTemplate, develop_body, minimum_body_mass_mg,
 };
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use growth::{Growth, resolve};
-pub use history::{Event, History};
+pub use history::{Event, History, MealKind};
 pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};
 pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
-pub use process::{BULK_REACH, Capability, Process, Unmet};
+pub use process::{BULK_REACH, Capability, FeedingMode, Process, Unmet};
 pub use record::{Feat, Mark, Scale, WorldRecord};
 pub use rng::Rng;
 pub use score::{Reading, readings};
