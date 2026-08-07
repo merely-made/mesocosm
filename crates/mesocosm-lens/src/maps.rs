@@ -15,7 +15,7 @@
 use mesocosm_core::{Places, Rng};
 
 /// One biome, derived from a place.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Biome {
     pub base: [f32; 3],
     /// Terrain amplitude, 0..1 of the height range.
@@ -25,6 +25,7 @@ pub struct Biome {
 }
 
 /// The two images the march eats, plus the palette the grade may use.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BiomeMaps {
     pub side: u32,
     /// R8 heights, one byte per texel.
@@ -157,7 +158,12 @@ pub fn synthesize(seed: u64, side: u32) -> BiomeMaps {
     palette.push([0.35, 0.45, 0.62]); // sky high
     palette.push([0.88, 0.86, 0.80]); // ridge wash
 
-    BiomeMaps { side, height, color, palette }
+    BiomeMaps {
+        side,
+        height,
+        color,
+        palette,
+    }
 }
 
 #[cfg(test)]
@@ -201,7 +207,10 @@ mod tests {
                 }
             }
         }
-        assert!(same * 10 > total * 9, "{same}/{total} neighbour pairs shared a biome");
+        assert!(
+            same * 10 > total * 9,
+            "{same}/{total} neighbour pairs shared a biome"
+        );
     }
 
     #[test]

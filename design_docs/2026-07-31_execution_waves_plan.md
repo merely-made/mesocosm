@@ -106,8 +106,8 @@ second consumer justifies lifting it.
 
 ### 1.3 ~~The Bevy host~~ — **DROPPED 2026-07-31**
 
-The engine lane is cancelled. Mesocosm renders through a small custom wgpu
-body renderer with netrender owning the device and compositing.
+The **host-engine comparison** is cancelled. Mesocosm renders through a small
+custom wgpu body renderer with netrender owning the device and compositing.
 
 **The reason is stronger than preference, and worth keeping so the decision is
 defensible later.** Weighing the field established that **our rendering need is
@@ -126,6 +126,19 @@ debugging, become absolute observations rather than comparisons. They are still
 worth recording, and if the custom lane turns out to fight us, the engine
 question can be reopened with real evidence from having built the thing once.
 
+**Clarified 2026-08-04:** dropping the Bevy comparison did not cancel
+productionizing the renderer or extracting a reusable voxel presentation
+boundary after a second consumer. The landed `mesocosm-lens` also changed the
+immediate renderer from a transient mesh scene to a heightfield/SDF march. Its
+retained-resource V0 gate and same-device native/browser V1 gate are now
+complete. V2 projection plurality is also complete: one real played body
+revision now crosses Lens, mesh, and Isometry bake with matching part identity
+and narrow graft invalidation receipts. Mesocosm renderer extraction stops
+there. Paredros, not Mesocosm, is the consumer allowed to pull chunk streaming
+and persistent mesh residency. The optional `vello_hybrid` headed-WebGL gate
+belongs to netrender and does not block game work. See the engine landscape
+§8.
+
 **The confound rule retires with the comparison, but its insight does not.**
 "Do not change two variables at once" still applies to any later A/B, and most
 immediately to a 2.5D-versus-3D presentation choice, which must not be decided
@@ -133,15 +146,14 @@ inside some other change.
 
 **Rejected with reasons, for the record:**
 
-- **Renderling.** Alpha, self-described work in progress, and its shaders need
-  a *specific nightly* through rust-gpu. `cargo-gpu` isolates that toolchain so
-  the rest of the project stays stable, which is a real mitigation, but it is
-  still a pinned nightly tracking behind latest, paid for glTF, IBL, PBR,
-  shadows and bloom that this game will not use. Its registry staleness is not
-  the problem; the toolchain is. **Two ideas are worth stealing without the
-  dependency**: headless rendering with image-diff tests (see below), and
-  shaders in Rust so quad and material types are defined once instead of
-  drifting between Rust and WGSL.
+- **Renderling.** Alpha and self-described work in progress. The original
+  reason here was too categorical: current `main`, rechecked 2026-08-04, has
+  no repository `rust-toolchain` pin. It does retain rust-gpu/cargo-gpu shader
+  machinery at a git revision and currently uses wgpu 26 while this wing uses
+  wgpu 29. More importantly, its glTF, IBL, PBR, shadows, bloom, and GPU scene
+  model solve a different workload. **Ideas worth taking without the whole
+  dependency** are caller-owned device construction, `crabslab`/`craballoc`
+  resource lifetime, headless image-diff tests, and shared CPU/GPU types.
 - **Vello, for now.** If Mesocosm settles into a genuinely 2.5D stylised look,
   vello becomes very attractive, and it is already owned. It is not the probe
   target because **vello has no depth buffer**: a 2.5D vello lane would depth
@@ -292,6 +304,16 @@ It stays deferred behind playfeel rather than behind the host, because a
 storage model chosen before there is a game to store is chosen against
 guesses.
 
+**Rechecked 2026-08-04:** Bones remains renderer-neutral at the `bones_lib`
+layer and keeps the useful combination of deterministic sessions,
+snapshot/restore, reflected schemas, content-addressed assets, and Piccolo.
+Its official renderer is still Bevy 0.11 and 2D-focused. Since
+`mesocosm-core` now owns exact simulation, replay, snapshots, provenance, and
+epochs, adopting Bones would currently replace authority rather than fill a
+gap. It remains a focused missing-middle donor; reopen it only when two games
+need one renderer-independent service that has no current owner. The voxel
+engine research does not reopen an ECS migration.
+
 ---
 
 ## Wave 2 — Playfeel and proof
@@ -323,10 +345,14 @@ one embodied consequence. P2's deferred biomass and upkeep account landed in
 3. **P2, one embodied consequence, landed 2026-08-01:** gameplay reach is
    derived from anatomy, and severing the contributing process path removes it.
    Its biomass and upkeep reconciliation is also landed.
-4. **Play before authoring infrastructure:** execute PD1's allocation design
-   and migration, then play one native process at PD2. P3 branch transfer
-   follows stable process identity and allocation. Static packs and Piccolo
-   then replace the native authoring path before phenotype-based adaptation.
+4. **Play before authoring infrastructure:** PD1a's allocation design is
+   complete. The recipe-to-`BodyDocument` authority proof and live constructor
+   join are also landed: founders, offspring, local chronicle regrowth, and the
+   founder-preview seam share `Species::realize`. Next migrate native process
+   identity and allocation in PD1b and play one native process at PD2. P3 branch
+   transfer follows stable process identity and allocation. Static packs and
+   Piccolo then replace the native authoring path before phenotype-based
+   adaptation.
 
 Branch transfer may begin after stable process identity. Phenotype-based
 adaptation consumes the validated expression path. Contested resource flow
@@ -736,3 +762,10 @@ round-trip:
   native process before pack and Lua infrastructure, schedules P3 branch
   transfer after stable process identity, and keeps bounded Piccolo authoring
   before P4 adaptation.
+- **2026-08-05:** PD1a is complete and the first recipe-to-anatomy authority
+  proof landed. `Recipe + Soma` now develops an authoritative `BodyDocument`
+  which V2 Lens projects.
+- **2026-08-05:** the live founding and filial constructor join landed before
+  PD1b. Founders and offspring realize recipes under the world's snapshotted
+  palette, returned chronicles regrow through the same developer, and
+  incorporation remains somatic growth during an epoch.

@@ -1214,10 +1214,14 @@ resolution began, so an act always precedes what it caused.
 
 ### Still open
 
-- `Appendage::role` maps to the parts graph, but no growth path consumes it:
-  bodies are still grown by incorporation rather than developed from the
-  recipe. That is the next join, and it is where `Soma` stops being renderer
-  input and becomes the organism's actual anatomy.
+- **The live authority join landed 2026-08-05.**
+  `mesocosm-core::development` consumes `Appendage::role` and develops
+  `Recipe + Soma` into a mass-conserving `BodyDocument`. `World::new`, ecology
+  offspring, `Chronicle::found`, and the founder-preview seam now use that same
+  developer. The world snapshots its local `PartPalette`; each organism stores
+  its realization seed. Under-provisioned births wait rather than dropping
+  anatomy or manufacturing mass. ProcessDef allocation is now the next body
+  migration.
 - NPC lineages never mutate their recipes; only the player's acquires.
 
 ### Design ruling after the generator
@@ -1227,3 +1231,11 @@ resolution began, so an act always precedes what it caused.
   and later developmental instructions as one heritable program. This confirms
   the generator's recipe boundary rather than turning its first rendered body
   into a lineage template.
+- **2026-08-05:** `Recipe + Soma` now has one core path to authoritative
+  anatomy, and the V2 menagerie consumes it. This closes the parallel renderer
+  body without pretending the world lifecycle migration is already done.
+- **2026-08-05:** the world lifecycle now consumes that path too. Founders and
+  offspring realize their lineage recipe under the world's snapshotted
+  palette, returned chronicles regrow local topology through it, and founder
+  previews call the same `Species::realize` function. The migration also made
+  multi-part mass spending real by folding costs across every living part.

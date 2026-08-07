@@ -29,13 +29,11 @@ fn write_png(path: &std::path::Path, width: u32, height: u32, pixels: &[u8]) {
 }
 
 fn main() {
-    let out = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "captures".into());
+    let out = std::env::args().nth(1).unwrap_or_else(|| "captures".into());
     let out = std::path::Path::new(&out);
 
     let (width, height) = (1280, 720);
-    let Some(lens) = Lens::headless(width, height) else {
+    let Some(mut lens) = Lens::headless(width, height) else {
         eprintln!("no adapter; the probe needs a GPU");
         std::process::exit(1);
     };

@@ -40,7 +40,9 @@ impl World {
 
     pub(super) fn controlled_mut(&mut self) -> Option<&mut Organism> {
         let id = self.controlled?;
-        self.organisms.iter_mut().find(|o| o.id == id && o.is_alive())
+        self.organisms
+            .iter_mut()
+            .find(|o| o.id == id && o.is_alive())
     }
 
     /// Whether a given organism could be played.
@@ -93,7 +95,10 @@ impl World {
         if reach < frontier {
             Ok(())
         } else {
-            Err(Ineligible::AboveTheFrontier { frontier, target: reach })
+            Err(Ineligible::AboveTheFrontier {
+                frontier,
+                target: reach,
+            })
         }
     }
 
@@ -115,12 +120,22 @@ impl World {
         &mut self.lineages
     }
 
+    /// Part vocabulary this world uses when a lineage realizes a body.
+    pub fn development_palette(&self) -> crate::development::PartPalette {
+        self.development_palette
+    }
+
     /// How far apart two creatures' ancestries are, in forks.
     ///
     /// One of the axes graft compatibility was ruled to scale with. It was
     /// uncomputable until lineages could split: every pair was identical.
     pub fn kinship(&self, a: OrganismId, b: OrganismId) -> Option<u32> {
-        let species = |id: OrganismId| self.organisms.iter().find(|o| o.id == id).map(|o| o.species);
+        let species = |id: OrganismId| {
+            self.organisms
+                .iter()
+                .find(|o| o.id == id)
+                .map(|o| o.species)
+        };
         self.lineages.distance(species(a)?, species(b)?)
     }
 
@@ -189,7 +204,10 @@ impl World {
     /// reached exactly as far.
     pub(super) fn reach_to(&self, target: [i32; 3]) -> Result<(), Unmet> {
         let Some(me) = self.controlled() else {
-            return Err(Unmet::TooFar { reach: 0, distance: i32::MAX });
+            return Err(Unmet::TooFar {
+                reach: 0,
+                distance: i32::MAX,
+            });
         };
         let distance = (0..3)
             .map(|axis| (target[axis] - me.position[axis]).abs())

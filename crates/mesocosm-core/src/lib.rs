@@ -43,6 +43,7 @@
 pub mod anatomy;
 pub mod axis;
 pub mod body;
+pub mod development;
 pub mod growth;
 pub mod history;
 pub mod organism;
@@ -66,17 +67,20 @@ pub use body::{
     VolumeRef, Yaw,
 };
 pub use chronicle::{Chronicle, Consequence, Deed, PartOrigin, generate};
+pub use development::{
+    DevelopmentError, PartPalette, PartTemplate, develop_body, minimum_body_mass_mg,
+};
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use growth::{Growth, resolve};
 pub use history::{Event, History};
-pub use wire::{WireError, frame, unframe};
+pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};
+pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use process::{BULK_REACH, Capability, Process, Unmet};
-pub use places::{Place, PlaceId, Places};
 pub use record::{Feat, Mark, Scale, WorldRecord};
-pub use score::{Reading, readings};
 pub use rng::Rng;
+pub use score::{Reading, readings};
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use species::{Lineages, Species};
-pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};
+pub use wire::{WireError, frame, unframe};
 pub use world::{Ineligible, Intent, Outcome, Placement, Rejection, Route, World};

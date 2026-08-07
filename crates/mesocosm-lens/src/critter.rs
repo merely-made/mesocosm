@@ -158,10 +158,8 @@ impl Chain {
     }
 }
 
-use mesocosm_core::axis::{Appendage, Recipe, Soma};
-
 /// One capsule of a rendered body: two endpoints with radii.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Capsule {
     pub a: [f32; 3],
     pub ra: f32,
@@ -191,40 +189,6 @@ impl Body {
             .filter(|(spine, _)| *spine + 1 < length)
             .collect();
         Self { chain: Chain::tapered(length, scale), legs }
-    }
-
-    /// Builds a body from an axial recipe and one individual's development.
-    ///
-    /// **This is where the sculpt dies.** The spine is one chain segment per
-    /// body segment, and appendages appear where the recipe puts them: a
-    /// centipede grows legs the whole way down, an insect only on its thorax,
-    /// a snake nowhere. Nothing here decides morphology; it reads it.
-    pub fn from_plan(plan: &Recipe, soma: &Soma, scale: f32) -> Self {
-        let total: usize = soma.segments.iter().map(|s| *s as usize).sum();
-        let chain = Chain::tapered(total.clamp(2, 22), scale);
-
-        // Walk the axis, placing appendage pairs where their stretch says.
-        let mut legs = Vec::new();
-        let mut spine = 0usize;
-        for (index, tagma) in plan.tagmata.iter().enumerate() {
-            let realised = soma.segments.get(index).copied().unwrap_or(tagma.segments) as usize;
-            for within in 0..realised {
-                let bears = tagma.per_segment > 0
-                    && matches!(tagma.appendage, Appendage::Limb | Appendage::Vane)
-                    && !soma.absent.contains(&(index as u8, within as u8));
-                if bears && spine + 1 < chain.segments.len() {
-                    for _ in 0..tagma.per_segment.min(2) {
-                        legs.push((spine, -1.0));
-                        legs.push((spine, 1.0));
-                    }
-                }
-                spine += 1;
-                if spine + 1 >= chain.segments.len() {
-                    break;
-                }
-            }
-        }
-        Self { chain, legs }
     }
 
     pub fn step(&mut self, target: [f32; 3], ground: impl Fn(f32, f32) -> f32) {

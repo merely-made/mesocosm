@@ -14,7 +14,9 @@ Legacy's generational loop pointed at an ecosystem rather than a castle.
 
 Vessel 1 of a three-game wing — Mesocosm (first person), Paredros (second
 person), Isometry (third person) — that shares a world substrate, a lineage
-model, and a trust plane, but no engine, genre, or schedule.
+model, and a trust plane. Sharing engine organs is encouraged where the
+organ stays verb-neutral (ruled 2026-08-05); the vessels still do not share
+a genre, a schedule, or their verbs.
 
 **Early implementation.** The repo has a deterministic simulation core, body
 pipeline, renderer, windowed host, epoch lab, and a proven Isometry projection.
@@ -125,5 +127,7 @@ Do not copy it into Paredros or Isometry.
   care for a **species**. Person may shift — the adaptation phase is
   deliberately third person — provided first person stays home, the shift is
   bounded and diegetic, and each layer could be removed with the game still
-  standing. Refuse any shift that needs a second simulation or a second
-  renderer: that is the multiplier that actually hollowed Spore.
+  standing. Refuse any shift that needs a second simulation **authority**, or
+  that duplicates functionality the stack already owns (narrowed 2026-08-05):
+  parallel authorities are the multiplier that actually hollowed Spore.
+  Projections stay plural and cheap; see the place-graph engine plan §0.

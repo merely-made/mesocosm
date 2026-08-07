@@ -22,8 +22,20 @@
 //! rests on: **additive facts, opaque preservation, deferred interpretation**.
 
 use mesocosm_core::{
-    Chronicle, Consequence, Deed, Intent, Placement, Route, VolumeRef, World, chronicle::LOST_PART, generate,
+    BodyDocument, Chronicle, Consequence, Deed, Intent, PartPalette, Placement, Route, World,
+    axis::catalogue, chronicle::LOST_PART, generate,
 };
+
+fn regrow(chronicle: &Chronicle) -> BodyDocument {
+    chronicle
+        .found(
+            &catalogue::centipede(2),
+            17,
+            1_000,
+            PartPalette::primitive(),
+        )
+        .expect("the local recipe regrows")
+}
 
 /// A critter somebody played: driven through the world until it has eaten.
 ///
@@ -44,11 +56,19 @@ fn played() -> Chronicle {
         if let Some(step) = toward(world.position().unwrap(), prey.1) {
             world.apply(Intent::Move { delta: step });
         } else {
-            world.apply(Intent::Metabolize { organism: prey.0, route: Route::Incorporate { placement: Placement::Planned } });
+            world.apply(Intent::Metabolize {
+                organism: prey.0,
+                route: Route::Incorporate {
+                    placement: Placement::Planned,
+                },
+            });
         }
     }
 
-    assert!(world.body().unwrap().len() > 1, "the played critter actually grew");
+    assert!(
+        world.body().unwrap().len() > 1,
+        "the played critter actually grew"
+    );
     Chronicle::of(world.body().unwrap())
 }
 
@@ -60,7 +80,10 @@ fn nearest(world: &World) -> Option<(mesocosm_core::OrganismId, [i32; 3])> {
         .filter(|organism| organism.biomass_mg() > 0 && Some(organism.id) != world.controlled_id())
         .map(|organism| (organism.id, organism.position))
         .min_by_key(|(_, at)| {
-            (0..3).map(|axis| (at[axis] - world.position().unwrap()[axis]).abs()).max().unwrap_or(0)
+            (0..3)
+                .map(|axis| (at[axis] - world.position().unwrap()[axis]).abs())
+                .max()
+                .unwrap_or(0)
         })
 }
 
@@ -68,7 +91,11 @@ fn nearest(world: &World) -> Option<(mesocosm_core::OrganismId, [i32; 3])> {
 /// the world would let us eat it.
 fn toward(from: [i32; 3], to: [i32; 3]) -> Option<[i32; 3]> {
     let delta = [0, 1, 2].map(|axis| (to[axis] - from[axis]).signum());
-    if delta == [0, 0, 0] { None } else { Some(delta) }
+    if delta == [0, 0, 0] {
+        None
+    } else {
+        Some(delta)
+    }
 }
 
 /// A critter nobody played.
@@ -113,12 +140,18 @@ fn the_consuming_game_cannot_tell_them_apart_from_the_bytes() {
         assert!(chronicle.species < u32::MAX);
         assert!(!chronicle.parts.is_empty());
         assert!(chronicle.deeds.is_empty(), "neither has been anywhere yet");
-        assert!(chronicle.parts[0].from_species.is_none(), "both start founded");
+        assert!(
+            chronicle.parts[0].from_species.is_none(),
+            "both start founded"
+        );
     }
 
     // And the only thing that separates them is the content of the record,
     // which is exactly what "the player can tell, by pointing" means.
-    assert_ne!(a, b, "they are different creatures, not indistinguishable data");
+    assert_ne!(
+        a, b,
+        "they are different creatures, not indistinguishable data"
+    );
 }
 
 #[test]
@@ -133,7 +166,11 @@ fn history_attaches_to_both_the_same_way() {
 
         let read = Chronicle::from_bytes(&chronicle.to_bytes().unwrap()).unwrap();
         assert_eq!(read.deeds.len(), 2);
-        assert_eq!(read.parts.len(), before, "appending history changed no anatomy");
+        assert_eq!(
+            read.parts.len(),
+            before,
+            "appending history changed no anatomy"
+        );
     }
 }
 
@@ -146,7 +183,12 @@ fn deeds_this_game_cannot_read_survive_it_untouched() {
     let mut chronicle = played();
     let foreign = Deed::detailed("isometry", "swore-an-oath", 31, vec![9, 8, 7, 6, 5]);
     chronicle.append(foreign.clone());
-    chronicle.append(Deed::detailed("paredros", "was-vouched-for", 44, vec![1, 2]));
+    chronicle.append(Deed::detailed(
+        "paredros",
+        "was-vouched-for",
+        44,
+        vec![1, 2],
+    ));
 
     let read = Chronicle::from_bytes(&chronicle.to_bytes().unwrap()).unwrap();
 
@@ -159,7 +201,10 @@ fn deeds_this_game_cannot_read_survive_it_untouched() {
     // And a second crossing does not erode it. This is the property that
     // matters over a lineage's life, not over one hop.
     let again = Chronicle::from_bytes(&read.to_bytes().unwrap()).unwrap();
-    assert_eq!(again, read, "an uninterpretable record is stable across crossings");
+    assert_eq!(
+        again, read,
+        "an uninterpretable record is stable across crossings"
+    );
 }
 
 #[test]
@@ -169,20 +214,28 @@ fn this_game_derives_its_own_consequence_from_a_foreign_fact() {
     // it decides that here rather than being told.
     let mut chronicle = played();
     let before = chronicle.parts.len();
+    let uninjured = regrow(&chronicle).living().count();
     assert!(before >= 2, "there is a part to lose");
 
-    chronicle.append(Deed::detailed("isometry", LOST_PART, 50, 1u32.to_le_bytes().to_vec()));
+    chronicle.append(Deed::detailed(
+        "isometry",
+        LOST_PART,
+        50,
+        1u32.to_le_bytes().to_vec(),
+    ));
 
     let consequences: Vec<_> = chronicle.read().map(|(_, c)| c).collect();
     assert!(consequences.contains(&Consequence::LostPart { part: 1 }));
 
-    let descendant = chronicle.found(VolumeRef::from_tag(1), 1_000, [1, 1, 1]);
-    assert_eq!(
-        descendant.len(),
-        before - 1,
-        "the descendant is founded without the lost part"
+    let descendant = regrow(&chronicle);
+    assert!(
+        descendant.living().count() < uninjured,
+        "the locally regrown descendant expresses the inherited loss"
     );
-    assert_eq!(descendant.species.0, chronicle.species, "the lineage continues");
+    assert_eq!(
+        descendant.species.0, chronicle.species,
+        "the lineage continues"
+    );
 }
 
 #[test]
@@ -191,13 +244,12 @@ fn a_foreign_verb_we_half_recognise_is_not_guessed_at() {
     // malformed detail must not become a plausible part index, because a
     // wrong-but-plausible interpretation is worse than none.
     let mut chronicle = played();
-    let before = chronicle.parts.len();
     chronicle.append(Deed::detailed("isometry", LOST_PART, 50, vec![1, 2]));
 
     assert_eq!(chronicle.unread().count(), 1, "kept, uninterpreted");
     assert_eq!(
-        chronicle.found(VolumeRef::from_tag(1), 1_000, [1, 1, 1]).len(),
-        before,
+        regrow(&chronicle).living().count(),
+        regrow(&played()).living().count(),
         "nothing was lost on a payload we could not read"
     );
 }
@@ -208,26 +260,44 @@ fn interpreting_a_record_does_not_consume_it() {
     // the deed is still there for the next game, which may make something else
     // of it entirely.
     let mut chronicle = played();
-    chronicle.append(Deed::detailed("isometry", LOST_PART, 50, 1u32.to_le_bytes().to_vec()));
+    chronicle.append(Deed::detailed(
+        "isometry",
+        LOST_PART,
+        50,
+        1u32.to_le_bytes().to_vec(),
+    ));
     let before = chronicle.clone();
 
-    let _ = chronicle.found(VolumeRef::from_tag(1), 1_000, [1, 1, 1]);
+    let _ = regrow(&chronicle);
 
-    assert_eq!(chronicle, before, "founding a descendant read the record without editing it");
+    assert_eq!(
+        chronicle, before,
+        "founding a descendant read the record without editing it"
+    );
 }
 
 #[test]
 fn a_generated_critter_founds_a_lineage_exactly_like_a_played_one() {
     // The end of the arrow: no-homework means a player who has never touched
     // Mesocosm gets the same machinery.
-    for chronicle in [played(), rng()] {
-        let descendant = chronicle.found(VolumeRef::from_tag(1), 1_000, [1, 1, 1]);
+    let chronicles = [played(), rng()];
+    let descendants: Vec<_> = chronicles.iter().map(regrow).collect();
+    assert_eq!(
+        descendants[0].len(),
+        descendants[1].len(),
+        "the local program, not origin, decides structural size"
+    );
+
+    for (chronicle, descendant) in chronicles.iter().zip(descendants) {
         assert_eq!(descendant.species.0, chronicle.species);
-        assert_eq!(descendant.len(), chronicle.parts.len());
-        assert_eq!(
-            Chronicle::of(&descendant).incorporated_parts(),
-            chronicle.incorporated_parts(),
-            "the descendant carries its ancestor's history forward"
+        let expressed = Chronicle::of(&descendant);
+        assert!(
+            expressed
+                .parts
+                .iter()
+                .filter(|origin| origin.is_incorporated())
+                .all(|origin| chronicle.parts.contains(origin)),
+            "regrowth may leave origins dormant but never invents one"
         );
     }
 }
@@ -247,13 +317,24 @@ fn size_is_not_an_origin_tell() {
         "some generated creature is at least as elaborate as a played one          (played {played_parts}, generated max {:?})",
         generated.iter().max()
     );
-    assert!(generated.iter().any(|parts| *parts < 5), "and some are small");
+    assert!(
+        generated.iter().any(|parts| *parts < 5),
+        "and some are small"
+    );
 }
 
 #[test]
 fn generation_is_deterministic_and_seeds_differ() {
-    assert_eq!(generate(99, 7), generate(99, 7), "a seed names one creature");
-    assert_ne!(generate(99, 7), generate(100, 7), "different seeds, different creatures");
+    assert_eq!(
+        generate(99, 7),
+        generate(99, 7),
+        "a seed names one creature"
+    );
+    assert_ne!(
+        generate(99, 7),
+        generate(100, 7),
+        "different seeds, different creatures"
+    );
 }
 
 #[test]

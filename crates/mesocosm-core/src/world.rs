@@ -44,6 +44,12 @@ pub const PLACE_SALT: u64 = 0x504C_4143_4553_0001;
 /// Body recipes draw from their own stream too, per lineage.
 pub const RECIPE_SALT: u64 = 0x5245_4349_5045_0001;
 
+/// Individual developmental variation has its own worldgen stream.
+///
+/// It must not consume the ecology stream: adding a body detail must not move
+/// every organism or change the timing of every later birth.
+pub const DEVELOPMENT_SALT: u64 = 0x4445_5645_4C4F_5001;
+
 /// How an incorporated part finds its site.
 ///
 /// A **policy**, not a destination. Placing a part explicitly is a different
@@ -56,7 +62,11 @@ pub enum Placement {
     Planned,
     /// An explicit site. The editor path: total control is possible, but it is
     /// never the resting state.
-    Explicit { parent: PartId, offset: [i32; 3], yaw: Yaw },
+    Explicit {
+        parent: PartId,
+        offset: [i32; 3],
+        yaw: Yaw,
+    },
 }
 
 /// Where a meal goes.
@@ -148,22 +158,41 @@ pub enum Ineligible {
     ///
     /// Stepping *down* into a newly viable niche is the point of switching;
     /// stepping across into an unearned peer is what this refuses.
-    AboveTheFrontier { frontier: i32, target: i32 },
+    AboveTheFrontier {
+        frontier: i32,
+        target: i32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Outcome {
     Moved,
     /// A meal became energy and nothing else.
-    Burned { organism: OrganismId, energy_mg: u64 },
-    Incorporated { part: PartId },
+    Burned {
+        organism: OrganismId,
+        energy_mg: u64,
+    },
+    Incorporated {
+        part: PartId,
+    },
     /// A bilateral plan grew a mirrored pair from one meal, splitting its mass.
-    IncorporatedPair { part: PartId, mirror: PartId },
-    Deposited { organism: OrganismId },
+    IncorporatedPair {
+        part: PartId,
+        mirror: PartId,
+    },
+    Deposited {
+        organism: OrganismId,
+    },
     /// Control moved to another critter.
-    Inhabited { organism: OrganismId },
+    Inhabited {
+        organism: OrganismId,
+    },
     /// A line split, and was named.
-    Speciated { species: SpeciesId, from: SpeciesId, founder: OrganismId },
+    Speciated {
+        species: SpeciesId,
+        from: SpeciesId,
+        founder: OrganismId,
+    },
     Idled,
     Rejected(Rejection),
 }
@@ -206,6 +235,10 @@ pub struct World {
     /// Which lineages exist, what they are called, and what they came from.
     #[serde(default)]
     lineages: crate::species::Lineages,
+    /// Part vocabulary admitted by this world for developmental realization.
+    /// Recipes travel; this palette is the local interpretation they grow in.
+    #[serde(default)]
+    development_palette: crate::development::PartPalette,
     /// The enclosure, divided. Derived from the seed and fixed for a world's
     /// life: regions do not move, or nothing could be said to have happened in
     /// one.
@@ -251,16 +284,26 @@ fn event_for(outcome: &Outcome, actor: Option<OrganismId>) -> Option<crate::hist
         // Burning names the meal, growing names the grower. Both need the
         // actor, because a history is keyed by who a thing happened to and an
         // event citing nobody would fork that creature's line.
-        Outcome::Burned { energy_mg, .. } => {
-            Some(Event::Burned { organism: actor?, energy_mg })
-        }
+        Outcome::Burned { energy_mg, .. } => Some(Event::Burned {
+            organism: actor?,
+            energy_mg,
+        }),
         Outcome::Incorporated { part } | Outcome::IncorporatedPair { part, .. } => {
-            Some(Event::Grew { organism: actor?, part })
+            Some(Event::Grew {
+                organism: actor?,
+                part,
+            })
         }
         Outcome::Inhabited { organism } => Some(Event::Inhabited { organism }),
-        Outcome::Speciated { species, from, founder } => {
-            Some(Event::Speciated { species, from, founder })
-        }
+        Outcome::Speciated {
+            species,
+            from,
+            founder,
+        } => Some(Event::Speciated {
+            species,
+            from,
+            founder,
+        }),
         Outcome::Moved | Outcome::Deposited { .. } | Outcome::Idled | Outcome::Rejected(_) => None,
     }
 }
@@ -307,6 +350,8 @@ impl World {
             &mut self.next_organism,
             &mut self.rng,
             &mut self.pending,
+            &self.lineages,
+            self.development_palette,
         );
 
         // What you reach, you keep. The frontier rises with the body you are
@@ -332,7 +377,10 @@ impl World {
         // positions against this tick's roster.
         for organism in self.organisms.iter().filter(|o| o.is_alive()) {
             if let Some(place) = self.places.at(organism.position) {
-                self.ranges.entry(organism.species).or_default().insert(place);
+                self.ranges
+                    .entry(organism.species)
+                    .or_default()
+                    .insert(place);
             }
         }
 
@@ -379,7 +427,8 @@ impl World {
         let mut readings = crate::score::readings(self, history);
         for reading in &mut readings {
             reading.took =
-                self.record.note(reading.feat, reading.scale, reading.value, reading.species);
+                self.record
+                    .note(reading.feat, reading.scale, reading.value, reading.species);
         }
         self.epoch += 1;
         readings
@@ -387,164 +436,4 @@ impl World {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::body::{Origin, VolumeRef};
-    use crate::organism::{Kingdom, Stage};
-
-    /// Walks the critter to its nearest neighbour and returns it.
-    ///
-    /// Since reach became anatomy rather than a constant, a starting critter
-    /// touches about three voxels, so a fixture has to travel like a player
-    /// does instead of assuming a meal is adjacent.
-    fn near_organism(world: &mut World) -> OrganismId {
-        for _ in 0..400 {
-            let here = world.position().expect("embodied");
-            let Some((id, at)) = world
-                .organisms
-                .iter()
-                .filter(|m| Some(m.id) != world.controlled_id() && m.is_alive())
-                .map(|m| (m.id, m.position))
-                .min_by_key(|(_, at): &(_, [i32; 3])| {
-                    (0..3).map(|a| (at[a] - here[a]).abs()).max().unwrap_or(0)
-                })
-            else {
-                break;
-            };
-            if world.in_reach(at) {
-                return id;
-            }
-            let step = [0, 1, 2].map(|a| (at[a] - here[a]).signum());
-            world.apply(Intent::Move { delta: step });
-        }
-        panic!("nothing came within reach")
-    }
-
-    #[test]
-    fn same_seed_builds_the_same_world() {
-        let a = World::new(1234, 12);
-        let b = World::new(1234, 12);
-        assert_eq!(a, b);
-    }
-
-    #[test]
-    fn different_seeds_build_different_worlds() {
-        let a = World::new(1, 12);
-        let b = World::new(2, 12);
-        assert_ne!(a.organisms, b.organisms);
-    }
-
-    #[test]
-    fn metabolize_grows_mass_and_collision() {
-        let mut world = World::new(99, 24);
-        let target = near_organism(&mut world);
-        let mass_before = world.total_mass_mg();
-        let box_before = world.collision().unwrap();
-
-        let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().unwrap().root, offset: [5, 0, 0], yaw: Yaw::Zero } } });
-
-        assert!(matches!(outcome, Outcome::Incorporated { .. }));
-        assert!(world.total_mass_mg() > mass_before);
-        assert!(world.collision().unwrap().extent()[0] > box_before.extent()[0]);
-    }
-
-    #[test]
-    fn metabolize_records_where_the_part_came_from() {
-        let mut world = World::new(7, 24);
-        let target = near_organism(&mut world);
-        let eaten_species = world
-            .organisms
-            .iter()
-            .find(|m| m.id == target)
-            .map(|m| m.species)
-            .unwrap();
-
-        let Outcome::Incorporated { part } = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().unwrap().root, offset: [4, 0, 0], yaw: Yaw::Zero } } }) else {
-            panic!("expected incorporation");
-        };
-
-        let provenance = &world.body().unwrap().part(part).unwrap().provenance;
-        assert_eq!(
-            provenance.origin,
-            Origin::Incorporated { from_species: eaten_species, from_part: PartId(0) }
-        );
-    }
-
-    #[test]
-    fn out_of_reach_organisms_are_refused() {
-        let mut world = World::new(5, 4);
-        world.organisms.push(Organism {
-            stage: Stage::Mature,
-            ..Organism::founding(
-                OrganismId(900),
-                SpeciesId(3),
-                Kingdom::Producer,
-                VolumeRef::from_tag(2),
-                [1, 1, 1],
-                [500, 0, 0],
-                100,
-            )
-        });
-        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(900), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().unwrap().root, offset: [1, 0, 0], yaw: Yaw::Zero } } });
-        // Five hundred voxels away, and the body says why rather than only
-        // that it failed.
-        assert!(matches!(
-            outcome,
-            Outcome::Rejected(Rejection::OutOfReach(crate::process::Unmet::NoProcess { .. }))
-        ), "got {outcome:?}");
-    }
-
-    #[test]
-    fn rejected_intents_still_advance_the_tick() {
-        let mut world = World::new(11, 2);
-        let before = world.tick;
-        let outcome = world.apply(Intent::Metabolize { organism: OrganismId(4242), route: Route::Incorporate { placement: Placement::Explicit { parent: world.body().unwrap().root, offset: [0, 0, 0], yaw: Yaw::Zero } } });
-        assert_eq!(outcome, Outcome::Rejected(Rejection::NoSuchOrganism(OrganismId(4242))));
-        assert_eq!(world.tick, before + 1);
-    }
-
-    #[test]
-    fn movement_spends_the_budget() {
-        // Movement is five, and upkeep takes its share of the same budget in
-        // the same tick. Before the ledgers were reconciled, upkeep came out
-        // of a scalar the player's budget could not see.
-        let mut world = World::new(3, 2);
-        let before = world.energy_mg().unwrap();
-        let upkeep = world.controlled().unwrap().upkeep_mg();
-
-        world.apply(Intent::Move { delta: [3, 0, -2] });
-
-        assert_eq!(world.energy_mg().unwrap(), before - 5 - upkeep);
-    }
-
-    #[test]
-    fn a_bigger_body_costs_more_to_carry() {
-        // The reconciliation, in one assertion: upkeep is a function of what
-        // a critter is made of. Flat upkeep is why growing used to be free.
-        let world = World::new(3, 2);
-        let small = world.controlled().unwrap().upkeep_mg();
-
-        let mut grown = world.clone();
-        let me = grown.controlled_id().unwrap();
-        {
-            let organism = grown.organisms.iter_mut().find(|o| o.id == me).unwrap();
-            organism.gain_mass(5_000);
-        }
-
-        assert!(
-            grown.controlled().unwrap().upkeep_mg() > small,
-            "a heavier body pays more rent: {} vs {}",
-            grown.controlled().unwrap().upkeep_mg(),
-            small
-        );
-    }
-
-    #[test]
-    fn deposit_returns_matter_to_the_enclosure() {
-        let mut world = World::new(3, 2);
-        let count = world.organisms.len();
-        let outcome = world.apply(Intent::Deposit { mass_mg: 200 });
-        assert!(matches!(outcome, Outcome::Deposited { .. }));
-        assert_eq!(world.organisms.len(), count + 1);
-    }
-}
+mod tests;

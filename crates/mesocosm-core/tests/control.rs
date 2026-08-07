@@ -16,8 +16,7 @@
 //! the difference, and that the pointer moves only through a recorded intent.
 
 use mesocosm_core::{
-    Intent, Outcome, OrganismId, Placement, Rejection, Route, World, restore, snapshot,
-    state_hash,
+    Intent, OrganismId, Outcome, Placement, Rejection, Route, World, restore, snapshot, state_hash,
 };
 
 /// The nearest organism that is not the player.
@@ -38,7 +37,10 @@ fn the_player_is_an_ordinary_organism() {
     let world = World::new(4_242, 24);
     let me = world.controlled().expect("somebody is being played");
 
-    assert!(world.organisms.iter().any(|o| o.id == me.id), "in the roster like anything else");
+    assert!(
+        world.organisms.iter().any(|o| o.id == me.id),
+        "in the roster like anything else"
+    );
     assert!(!me.body.is_empty(), "with a body");
     assert!(me.energy_mg > 0, "and a budget");
 }
@@ -50,6 +52,20 @@ fn every_organism_has_a_body_now() {
     let world = World::new(11, 24);
     for organism in &world.organisms {
         assert!(!organism.body.is_empty(), "{:?} has anatomy", organism.id);
+        let preview = world
+            .lineages()
+            .get(organism.species)
+            .unwrap()
+            .realize(
+                organism.development_seed,
+                organism.biomass_mg(),
+                world.development_palette(),
+            )
+            .unwrap();
+        assert_eq!(
+            organism.body, preview,
+            "founding and preview share one developer"
+        );
         assert_eq!(
             organism.half_extent(),
             organism.body.part(organism.body.root).unwrap().half_extent,
@@ -73,7 +89,11 @@ fn control_moves_only_through_a_recorded_intent() {
 
     assert_eq!(outcome, Outcome::Inhabited { organism: other });
     assert_eq!(world.controlled_id(), Some(other));
-    assert_ne!(world.body().unwrap(), &mine, "the played body is somebody else's now");
+    assert_ne!(
+        world.body().unwrap(),
+        &mine,
+        "the played body is somebody else's now"
+    );
     // The ecology ran a tick, so the roster is not frozen; what matters is
     // that nothing was rebuilt or copied for the sake of control.
     assert!(roster_before.len().abs_diff(world.organisms.len()) < 5);
@@ -101,7 +121,11 @@ fn a_control_change_replays() {
     resumed.apply_all(&trace[1..]);
 
     assert_eq!(state_hash(&straight), state_hash(&resumed));
-    assert_eq!(resumed.controlled_id(), Some(other), "and control survived the snapshot");
+    assert_eq!(
+        resumed.controlled_id(),
+        Some(other),
+        "and control survived the snapshot"
+    );
 }
 
 #[test]
@@ -112,7 +136,9 @@ fn control_refuses_an_organism_that_cannot_be_played() {
     let absent = OrganismId(9_999);
     assert_eq!(
         world.apply(Intent::TakeControl { organism: absent }),
-        Outcome::Rejected(Rejection::Ineligible(mesocosm_core::Ineligible::NoSuchOrganism))
+        Outcome::Rejected(Rejection::Ineligible(
+            mesocosm_core::Ineligible::NoSuchOrganism
+        ))
     );
     assert_eq!(world.controlled_id(), before, "control did not move");
 }
@@ -194,13 +220,18 @@ fn a_critter_cannot_eat_itself() {
     let me = world.controlled_id().unwrap();
 
     assert_eq!(
-        world.apply(Intent::Metabolize { organism: me, route: Route::Burn }),
+        world.apply(Intent::Metabolize {
+            organism: me,
+            route: Route::Burn
+        }),
         Outcome::Rejected(Rejection::Itself)
     );
     assert_eq!(
         world.apply(Intent::Metabolize {
             organism: me,
-            route: Route::Incorporate { placement: Placement::Planned },
+            route: Route::Incorporate {
+                placement: Placement::Planned
+            },
         }),
         Outcome::Rejected(Rejection::Itself)
     );
@@ -229,9 +260,20 @@ fn dying_ends_control_rather_than_the_world() {
         ticks += 1;
     }
 
-    assert!(!world.is_embodied(), "the played critter died like anything else");
-    assert_eq!(world.control_lost(), Some(me), "and the world says whose body was lost");
-    assert_eq!(world.controlled_id(), None, "the pointer was released, not left stale");
+    assert!(
+        !world.is_embodied(),
+        "the played critter died like anything else"
+    );
+    assert_eq!(
+        world.control_lost(),
+        Some(me),
+        "and the world says whose body was lost"
+    );
+    assert_eq!(
+        world.controlled_id(),
+        None,
+        "the pointer was released, not left stale"
+    );
 }
 
 #[test]
@@ -240,10 +282,17 @@ fn a_carcass_cannot_be_played() {
     // alone reports it as embodied.
     let mut world = World::new(21, 16);
     let me = world.controlled_id().unwrap();
-    world.organisms.iter_mut().find(|o| o.id == me).unwrap().stage =
-        mesocosm_core::Stage::Carrion;
+    world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == me)
+        .unwrap()
+        .stage = mesocosm_core::Stage::Carrion;
 
-    assert!(world.organisms.iter().any(|o| o.id == me), "the row is still there");
+    assert!(
+        world.organisms.iter().any(|o| o.id == me),
+        "the row is still there"
+    );
     assert!(!world.is_embodied(), "and it is not somebody you can be");
     assert_eq!(
         world.apply(Intent::Move { delta: [1, 0, 0] }),
@@ -272,7 +321,11 @@ fn a_world_can_outlive_whoever_was_in_it() {
         Outcome::Rejected(Rejection::Disembodied),
         "acting refuses rather than panicking"
     );
-    assert_eq!(world.apply(Intent::Idle), Outcome::Idled, "and time still passes");
+    assert_eq!(
+        world.apply(Intent::Idle),
+        Outcome::Idled,
+        "and time still passes"
+    );
 }
 
 #[test]
@@ -336,13 +389,9 @@ fn replay_holds_within_the_new_schema() {
 fn reproduction_does_not_manufacture_body_mass() {
     // A parent used to pay a quarter of its scalar mass while its offspring
     // received a clone of its whole anatomy, so a forty-part parent produced a
-    // forty-part child out of nothing. An offspring now starts at exactly what
-    // was paid for.
-    //
-    // Scoped to newborns on purpose. The ecology moves `mass_mg` by grazing
-    // and upkeep without touching anatomy, so the two ledgers diverge with
-    // age; reconciling them is P2's work and this test must not pretend it is
-    // already done.
+    // forty-part child out of nothing. A newborn now realizes its lineage's
+    // recipe with exactly what the parent paid; if that cannot keep every part
+    // positive-mass, the birth waits.
     let mut world = World::new(4_242, 40);
 
     let mut checked = 0;
@@ -355,7 +404,18 @@ fn reproduction_does_not_manufacture_body_mass() {
                 "{:?} was born with anatomy it did not pay for",
                 newborn.id
             );
-            assert_eq!(newborn.body.len(), 1, "an offspring starts as one part");
+            let expected = world
+                .lineages()
+                .get(newborn.species)
+                .unwrap()
+                .realize(
+                    newborn.development_seed,
+                    newborn.biomass_mg(),
+                    world.development_palette(),
+                )
+                .unwrap();
+            assert_eq!(newborn.body, expected, "birth and founder preview agree");
+            assert!(newborn.body.len() > 1, "the recipe reached live offspring");
             checked += 1;
         }
         if checked > 3 {
@@ -378,11 +438,16 @@ fn you_may_step_down_but_not_across() {
     let simpler = world
         .organisms
         .iter()
-        .find(|o| o.is_alive() && o.complexity() < frontier && Some(o.id) != world.controlled_id())
+        .find(|o| {
+            o.is_alive() && world.intricacy(o) < frontier && Some(o.id) != world.controlled_id()
+        })
         .map(|o| o.id)
         .expect("something in the world is simpler than the player");
 
-    assert!(world.is_eligible(simpler), "stepping down into a simpler niche is the point");
+    assert!(
+        world.is_eligible(simpler),
+        "stepping down into a simpler niche is the point"
+    );
 
     // Something more elaborate than anything earned is refused, and says why.
     let mut world = World::new(4_242, 40);
@@ -400,13 +465,18 @@ fn you_may_step_down_but_not_across() {
         )
     });
 
-    assert!(matches!(
-        world.eligibility(grand),
-        Err(mesocosm_core::Ineligible::AboveTheFrontier { .. })
-    ), "an unearned peer is refused");
+    assert!(
+        matches!(
+            world.eligibility(grand),
+            Err(mesocosm_core::Ineligible::AboveTheFrontier { .. })
+        ),
+        "an unearned peer is refused"
+    );
     assert!(matches!(
         world.apply(Intent::TakeControl { organism: grand }),
-        Outcome::Rejected(Rejection::Ineligible(mesocosm_core::Ineligible::AboveTheFrontier { .. }))
+        Outcome::Rejected(Rejection::Ineligible(
+            mesocosm_core::Ineligible::AboveTheFrontier { .. }
+        ))
     ));
     let _ = simpler;
 }
@@ -429,7 +499,10 @@ fn a_line_you_have_lived_is_always_yours_to_return_to() {
         .map(|o| o.id);
 
     if let Some(kin) = kin {
-        assert!(world.is_eligible(kin), "your own kind is never above your frontier");
+        assert!(
+            world.is_eligible(kin),
+            "your own kind is never above your frontier"
+        );
     }
     assert!(world.unlocked().any(|s| s == mine));
 }
@@ -452,7 +525,11 @@ fn the_frontier_only_goes_up() {
     }
 
     assert!(!world.is_embodied(), "the body is gone");
-    assert_eq!(world.frontier(), earned, "and the standing it earned is not");
+    assert_eq!(
+        world.frontier(),
+        earned,
+        "and the standing it earned is not"
+    );
 }
 
 #[test]
@@ -485,9 +562,16 @@ fn speciation_is_an_act_and_the_name_is_the_doing() {
     let me = world.controlled_id().unwrap();
     let before = world.controlled().unwrap().species;
 
-    let outcome = world.apply(Intent::Speciate { name: "the pale kind".into() });
+    let outcome = world.apply(Intent::Speciate {
+        name: "the pale kind".into(),
+    });
 
-    let Outcome::Speciated { species, from, founder } = outcome else {
+    let Outcome::Speciated {
+        species,
+        from,
+        founder,
+    } = outcome
+    else {
         panic!("expected a split, got {outcome:?}")
     };
     assert_eq!((from, founder), (before, me));
@@ -495,7 +579,11 @@ fn speciation_is_an_act_and_the_name_is_the_doing() {
 
     let forked = world.lineages().get(species).unwrap();
     assert_eq!(forked.name.as_deref(), Some("the pale kind"));
-    assert_eq!(forked.parent, Some(before), "and it remembers what it came from");
+    assert_eq!(
+        forked.parent,
+        Some(before),
+        "and it remembers what it came from"
+    );
 }
 
 #[test]
@@ -513,13 +601,17 @@ fn a_founder_crosses_alone() {
         .map(|o| o.id)
         .collect();
 
-    let Outcome::Speciated { species, .. } =
-        world.apply(Intent::Speciate { name: "alone".into() })
-    else {
+    let Outcome::Speciated { species, .. } = world.apply(Intent::Speciate {
+        name: "alone".into(),
+    }) else {
         panic!("expected a split")
     };
 
-    assert_eq!(world.controlled().unwrap().species, species, "the founder crossed");
+    assert_eq!(
+        world.controlled().unwrap().species,
+        species,
+        "the founder crossed"
+    );
     for other in kin {
         let still = world.organisms.iter().find(|o| o.id == other);
         if let Some(still) = still {
@@ -533,10 +625,16 @@ fn a_world_begins_with_unnamed_lineages_and_gains_named_ones() {
     // Naming promotes a line out of being a variation, which is the same rule
     // that promotes a critter out of being a statistic.
     let mut world = World::new(4_242, 40);
-    assert_eq!(world.lineages().named().count(), 0, "nobody was there to name them");
+    assert_eq!(
+        world.lineages().named().count(),
+        0,
+        "nobody was there to name them"
+    );
     assert!(world.lineages().len() > 1, "but the world has lineages");
 
-    world.apply(Intent::Speciate { name: "named".into() });
+    world.apply(Intent::Speciate {
+        name: "named".into(),
+    });
     assert_eq!(world.lineages().named().count(), 1);
 }
 
@@ -548,7 +646,9 @@ fn kinship_becomes_computable() {
     let mut world = World::new(4_242, 40);
     let me = world.controlled_id().unwrap();
 
-    world.apply(Intent::Speciate { name: "first".into() });
+    world.apply(Intent::Speciate {
+        name: "first".into(),
+    });
     let stranger = world
         .organisms
         .iter()
@@ -556,7 +656,11 @@ fn kinship_becomes_computable() {
         .map(|o| o.id)
         .expect("the world is populated");
 
-    assert_eq!(world.kinship(me, me), Some(0), "a creature is no distance from itself");
+    assert_eq!(
+        world.kinship(me, me),
+        Some(0),
+        "a creature is no distance from itself"
+    );
     // A founding lineage and a line forked off a different founder share no
     // ancestor, which is a real answer rather than a large number.
     let apart = world.kinship(me, stranger);
@@ -571,7 +675,9 @@ fn speciating_needs_a_body() {
     world.apply(Intent::Idle);
 
     assert_eq!(
-        world.apply(Intent::Speciate { name: "nobody".into() }),
+        world.apply(Intent::Speciate {
+            name: "nobody".into()
+        }),
         Outcome::Rejected(Rejection::Disembodied),
         "a line with nobody in it cannot be split"
     );
@@ -586,7 +692,9 @@ fn a_split_is_recorded_in_the_founders_own_history() {
     history.record_all(world.drain_events());
 
     let me = world.controlled_id().unwrap();
-    world.apply(Intent::Speciate { name: "recorded".into() });
+    world.apply(Intent::Speciate {
+        name: "recorded".into(),
+    });
     history.record_all(world.drain_events());
 
     let split = history
@@ -609,19 +717,40 @@ fn eating_teaches_the_line_a_word() {
     let unknown: Vec<_> = world
         .lineages()
         .all()
-        .flat_map(|s| s.recipe.tagmata.iter().map(|t| t.appendage).collect::<Vec<_>>())
+        .flat_map(|s| {
+            s.recipe
+                .tagmata
+                .iter()
+                .map(|t| t.appendage)
+                .collect::<Vec<_>>()
+        })
         .filter(|a| !a.is_innate())
         .filter(|a| !world.lineages().get(mine).unwrap().recipe.can_express(*a))
         .collect();
-    assert!(!unknown.is_empty(), "the enclosure holds words we do not have");
+    assert!(
+        !unknown.is_empty(),
+        "the enclosure holds words we do not have"
+    );
 
     // Teach it directly and confirm the rule the world enforces.
     let word = unknown[0];
     assert!(!world.lineages().get(mine).unwrap().recipe.can_express(word));
-    assert!(world.lineages_mut().get_mut(mine).unwrap().recipe.acquire(word));
+    assert!(
+        world
+            .lineages_mut()
+            .get_mut(mine)
+            .unwrap()
+            .recipe
+            .acquire(word)
+    );
     assert!(world.lineages().get(mine).unwrap().recipe.can_express(word));
     assert!(
-        !world.lineages_mut().get_mut(mine).unwrap().recipe.acquire(word),
+        !world
+            .lineages_mut()
+            .get_mut(mine)
+            .unwrap()
+            .recipe
+            .acquire(word),
         "the second one is just a meal"
     );
 }
@@ -655,12 +784,18 @@ fn a_fork_inherits_what_its_parent_learned() {
         .recipe
         .acquire(mesocosm_core::Appendage::Vane);
 
-    let Outcome::Speciated { species, .. } = world.apply(Intent::Speciate { name: "heir".into() })
-    else {
+    let Outcome::Speciated { species, .. } = world.apply(Intent::Speciate {
+        name: "heir".into(),
+    }) else {
         panic!("the fork happened");
     };
     assert!(
-        world.lineages().get(species).unwrap().recipe.can_express(mesocosm_core::Appendage::Vane),
+        world
+            .lineages()
+            .get(species)
+            .unwrap()
+            .recipe
+            .can_express(mesocosm_core::Appendage::Vane),
         "a founder does not forget what its line had learned"
     );
 }

@@ -12,12 +12,12 @@
 //! These are also the receipts the host probe (wave 1.3) compares against:
 //! both hosts run this fixture and must agree on the final state hash.
 
-use mesocosm_core::{
-    BodyDocument, Intent, Placement, Route, Origin, Outcome, PartId, Provenance, SpeciesId, VolumeRef,
-    World, Yaw, snapshot, state_hash,
-};
 use mesocosm_core::body::Attachment;
 use mesocosm_core::snapshot::{decode, encode, restore};
+use mesocosm_core::{
+    BodyDocument, Intent, Origin, Outcome, PartId, Placement, Provenance, Route, SpeciesId,
+    VolumeRef, World, Yaw, snapshot, state_hash,
+};
 
 const SEED: u64 = 0x5E5E_1234;
 const MORSELS: u32 = 32;
@@ -39,7 +39,9 @@ fn fixture_trace(_world: &World) -> Vec<Intent> {
         if meals >= 3 {
             break;
         }
-        let Some(here) = scratch.position() else { break };
+        let Some(here) = scratch.position() else {
+            break;
+        };
         let Some((id, at)) = scratch
             .organisms
             .iter()
@@ -56,10 +58,14 @@ fn fixture_trace(_world: &World) -> Vec<Intent> {
             meals += 1;
             Intent::Metabolize {
                 organism: id,
-                route: Route::Incorporate { placement: Placement::Planned },
+                route: Route::Incorporate {
+                    placement: Placement::Planned,
+                },
             }
         } else {
-            Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) }
+            Intent::Move {
+                delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()),
+            }
         };
         scratch.apply(intent.clone());
         trace.push(intent);
@@ -81,7 +87,11 @@ fn run_fixture() -> World {
 fn fixture_replays_identically() {
     let a = run_fixture();
     let b = run_fixture();
-    assert_eq!(state_hash(&a), state_hash(&b), "same seed and trace must agree");
+    assert_eq!(
+        state_hash(&a),
+        state_hash(&b),
+        "same seed and trace must agree"
+    );
     assert_eq!(a, b);
 }
 
@@ -118,12 +128,20 @@ fn fixture_incorporates_and_the_body_grows() {
 
     assert!(incorporated > 0, "fixture must actually eat something");
     assert!(world.total_mass_mg() > mass_before, "mass must grow");
-    assert!(world.body().unwrap().len() > parts_before, "body must gain parts");
+    assert!(
+        world.body().unwrap().len() > parts_before,
+        "body must gain parts"
+    );
 
     let after = world.collision();
     assert!(
-        after.unwrap().extent()[0] > box_before.extent()[0],
-        "collision extent must grow along the attachment axis"
+        after
+            .unwrap()
+            .extent()
+            .into_iter()
+            .zip(box_before.extent())
+            .any(|(after, before)| after > before),
+        "the incorporated part must enlarge the developed body's collision"
     );
 }
 
@@ -136,9 +154,16 @@ fn provenance_round_trips_through_the_wire() {
             VolumeRef::from_tag(5),
             750,
             [1, 2, 1],
-            Attachment { parent: body.root, offset: [3, 0, 0], yaw: Yaw::Quarter },
+            Attachment {
+                parent: body.root,
+                offset: [3, 0, 0],
+                yaw: Yaw::Quarter,
+            },
             Provenance {
-                origin: Origin::Incorporated { from_species: donor, from_part: PartId(2) },
+                origin: Origin::Incorporated {
+                    from_species: donor,
+                    from_part: PartId(2),
+                },
                 epoch: 4,
             },
         )
@@ -152,7 +177,10 @@ fn provenance_round_trips_through_the_wire() {
     assert_eq!(provenance.epoch, 4);
     assert_eq!(
         provenance.origin,
-        Origin::Incorporated { from_species: donor, from_part: PartId(2) }
+        Origin::Incorporated {
+            from_species: donor,
+            from_part: PartId(2)
+        }
     );
 }
 
@@ -182,7 +210,10 @@ fn provenance_survives_a_whole_world_snapshot() {
         })
         .collect();
 
-    assert_eq!(donors, restored_donors, "every part still knows whose it was");
+    assert_eq!(
+        donors, restored_donors,
+        "every part still knows whose it was"
+    );
 }
 
 #[test]

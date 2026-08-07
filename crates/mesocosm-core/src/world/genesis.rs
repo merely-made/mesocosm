@@ -9,30 +9,66 @@
 //! concern from running a world, and it is the one place where every seeded
 //! decision about an enclosure is made in a fixed order.
 
-use crate::body::{BodyDocument, SpeciesId, VolumeRef};
+use crate::body::SpeciesId;
+use crate::development::{DevelopmentError, PartPalette};
 use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
 use crate::rng::Rng;
+use crate::species::Lineages;
 
-use super::{ENCLOSURE, PLACE_SALT, PLACE_SIDE, RECIPE_SALT, World, organism_extent};
+use super::{DEVELOPMENT_SALT, ENCLOSURE, PLACE_SALT, PLACE_SIDE, RECIPE_SALT, World};
+
+struct Founder {
+    id: OrganismId,
+    species: SpeciesId,
+    kingdom: Kingdom,
+    mass_mg: u64,
+    position: [i32; 3],
+    stage: Stage,
+    age: u32,
+    signal: Signal,
+    venom_mg: u64,
+    guise: Kingdom,
+    development_seed: u64,
+}
 
 impl World {
     /// Builds the standard fixture: one critter and a deterministic scatter of
     /// organisms drawn from the seeded stream.
     pub fn new(seed: u64, organism_count: u32) -> Self {
+        Self::with_development_palette(seed, organism_count, PartPalette::primitive())
+            .expect("the baseline developmental palette is valid")
+    }
+
+    /// Builds a world under an explicitly admitted developmental palette.
+    ///
+    /// The palette is snapshotted with the world. A host can therefore replace
+    /// the baseline fixture references without smuggling asset choices into a
+    /// lineage recipe or making replay depend on ambient configuration.
+    pub fn with_development_palette(
+        seed: u64,
+        organism_count: u32,
+        development_palette: PartPalette,
+    ) -> Result<Self, DevelopmentError> {
         let mut rng = Rng::from_seed(seed);
 
-        // The played critter is organism zero, built by the same constructor
-        // as everything else. It is distinguished only by being pointed at.
-        let mut organisms = Vec::with_capacity(organism_count as usize + 1);
-        organisms.push(Organism::founding(
-            OrganismId(0),
-            SpeciesId(1),
-            Kingdom::Consumer,
-            VolumeRef::from_tag(1),
-            [2, 2, 2],
-            [0, 0, 0],
-            1_000,
-        ));
+        // Draft identities and ecology first. Bodies cannot be developed until
+        // every founding lineage has its recipe, and constructing root-only
+        // placeholder organisms here would preserve the split authority this
+        // migration is removing.
+        let mut founders = Vec::with_capacity(organism_count as usize + 1);
+        founders.push(Founder {
+            id: OrganismId(0),
+            species: SpeciesId(1),
+            kingdom: Kingdom::Consumer,
+            mass_mg: 1_000,
+            position: [0, 0, 0],
+            stage: Stage::Juvenile,
+            age: 0,
+            signal: Signal::Plain,
+            venom_mg: 0,
+            guise: Kingdom::Consumer,
+            development_seed: founder_seed(seed, OrganismId(0)),
+        });
 
         for index in 1..=organism_count {
             // Draws happen in a fixed order, so the scatter is reproducible.
@@ -61,27 +97,80 @@ impl World {
                 2..=3 => (Signal::Warning, 60 + rng.below(60), kingdom),
                 _ => (Signal::Plain, 0, kingdom),
             };
-            let volume = VolumeRef::from_tag(16 + (index % 8) as u8);
-            let half_extent = organism_extent(16 + (index % 8) as u8);
-            organisms.push(Organism {
-                body: BodyDocument::new(species, volume, mass, half_extent),
-                energy_mg: mass,
+            founders.push(Founder {
+                id: OrganismId(index),
+                species,
+                kingdom,
+                mass_mg: mass,
                 position: [x, y, z],
                 stage: Stage::Mature,
                 age,
-                since_offspring: 0,
                 signal,
                 venom_mg,
                 guise,
-                ..Organism::founding(
-                    OrganismId(index),
-                    species,
-                    kingdom,
-                    volume,
-                    half_extent,
-                    [x, y, z],
-                    mass,
-                )
+                development_seed: founder_seed(seed, OrganismId(index)),
+            });
+        }
+
+        // Everything the world began with is a founding lineage: no parent,
+        // no name, because nobody was there to give it one.
+        let mut lineages = Lineages::new();
+        for founder in &founders {
+            lineages.found(founder.species);
+        }
+        // Each line draws its recipe from its own stream, so body generation
+        // never advances the ecology stream. Producers stay simple; anything
+        // that moves gets stretches and limbs.
+        for founder in &founders {
+            if lineages
+                .get(founder.species)
+                .is_some_and(|species| species.recipe.appendages() > 1)
+            {
+                continue;
+            }
+            let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ u64::from(founder.species.0));
+            let limbed = founder.kingdom != Kingdom::Producer;
+            lineages.set_recipe(founder.species, crate::axis::seed(&mut stream, limbed));
+        }
+
+        // A founder's selected mass is a lower bound. Genesis has no parent
+        // ledger to debit, so when a rare recipe needs more than the draw to
+        // keep every part positive-mass, the world starts it at that exact
+        // structural floor. Births below enforce the stricter filial rule and
+        // wait for provisioning instead.
+        let mut organisms = Vec::with_capacity(founders.len());
+        for founder in founders {
+            let lineage = lineages
+                .get(founder.species)
+                .expect("every founder registered a lineage");
+            let body = match lineage.realize(
+                founder.development_seed,
+                founder.mass_mg,
+                development_palette,
+            ) {
+                Ok(body) => body,
+                Err(DevelopmentError::InsufficientMass { parts, .. }) => lineage.realize(
+                    founder.development_seed,
+                    u64::from(parts),
+                    development_palette,
+                )?,
+                Err(error) => return Err(error),
+            };
+            let mass_mg = body.total_mass_mg();
+            organisms.push(Organism {
+                id: founder.id,
+                species: founder.species,
+                kingdom: founder.kingdom,
+                body,
+                development_seed: founder.development_seed,
+                position: founder.position,
+                energy_mg: mass_mg,
+                stage: founder.stage,
+                age: founder.age,
+                since_offspring: 0,
+                signal: founder.signal,
+                venom_mg: founder.venom_mg,
+                guise: founder.guise,
             });
         }
 
@@ -108,26 +197,8 @@ impl World {
             // the frontier begins where they begin rather than at nothing.
             // Filled after the registry exists, since intricacy reads it.
             frontier: 0,
-            lineages: {
-                // Everything the world began with is a founding lineage: no
-                // parent, no name, because nobody was there to give it one.
-                let mut lineages = crate::species::Lineages::new();
-                for organism in &organisms {
-                    lineages.found(organism.species);
-                }
-                // Each founding line draws its own body recipe, from its own
-                // stream so the ecology's sequence is untouched. Producers
-                // stay simple; anything that moves gets stretches and limbs.
-                for organism in &organisms {
-                    if lineages.get(organism.species).is_some_and(|s| s.recipe.appendages() > 1) {
-                        continue;
-                    }
-                    let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ organism.species.0 as u64);
-                    let limbed = organism.kingdom != Kingdom::Producer;
-                    lineages.set_recipe(organism.species, crate::axis::seed(&mut stream, limbed));
-                }
-                lineages
-            },
+            lineages,
+            development_palette,
             // Places take their own stream, so dividing an enclosure does not
             // rearrange the creatures scattered across it.
             places: crate::places::Places::scatter(
@@ -151,6 +222,11 @@ impl World {
             .first()
             .map(|o| world.intricacy(o))
             .unwrap_or(0);
-        world
+        Ok(world)
     }
+}
+
+fn founder_seed(world_seed: u64, organism: OrganismId) -> u64 {
+    let mut stream = Rng::from_seed(world_seed ^ DEVELOPMENT_SALT ^ u64::from(organism.0));
+    stream.next_u64()
 }

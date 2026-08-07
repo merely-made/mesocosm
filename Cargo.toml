@@ -73,6 +73,7 @@ wgpu = { version = "29", default-features = false, features = [
     "vulkan",
     "metal",
     "gles",
+    "webgpu",
 ] }
 
 [dependencies]

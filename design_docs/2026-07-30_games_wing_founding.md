@@ -14,8 +14,18 @@ dates; each is marked where it matters.
 ## 1. What this is
 
 Three games that are one wing. They share a world substrate, a lineage
-model, and a trust plane; they do not share an engine, a genre, or a
-schedule.
+model, and a trust plane; they do not share a genre, a schedule, or their
+verbs.
+
+**The engine clause, narrowed 2026-08-05.** As founded this read "they do
+not share an engine". The clause was guarding against coupling-as-obligation
+and genre convergence, and that guard stands as written above. Sharing
+engine *organs* is now encouraged where the organ stays verb-neutral:
+vessels share nouns (space, bodies, fields, time, provenance); each owns
+its verb and person. When a shared component starts encoding what you do,
+it has crossed into a game and belongs there. Law A is unaffected: it
+governs content inheritance across games, not code or format sharing. See
+`2026-08-05_place_graph_engine_plan.md` §0 for the full ruling set.
 
 | Game | Person | Relationship | Design consequence |
 | ---- | ------ | ------------ | ------------------ |

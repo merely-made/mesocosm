@@ -16,7 +16,6 @@
 //! one is a decision with a cost and a moment, because the thing in front of
 //! you is going somewhere on its own.
 
-
 use serde::{Deserialize, Serialize};
 
 use crate::body::BodyDocument;
@@ -94,6 +93,13 @@ pub struct Organism {
     /// Most organisms carry a single root part. That is a body, not a special
     /// case, and it grows by the same rules as any other.
     pub body: BodyDocument,
+    /// Entropy that realized this individual from its lineage recipe.
+    ///
+    /// Stored because the body is causal state, not a renderer accident. A
+    /// founder preview using this seed and the same declared inputs must grow
+    /// the same body, while descendants derive distinct seeds from it.
+    #[serde(default)]
+    pub development_seed: u64,
     pub position: [i32; 3],
     /// What this organism can spend: its **budget**.
     ///
@@ -135,11 +141,13 @@ impl Organism {
         position: [i32; 3],
         mass_mg: u64,
     ) -> Self {
+        let development_seed = u64::from(id.0) << 32 | u64::from(species.0);
         Self {
             id,
             species,
             kingdom,
             body: BodyDocument::new(species, volume, mass_mg, half_extent),
+            development_seed,
             position,
             energy_mg: mass_mg,
             stage: Stage::Juvenile,
@@ -153,7 +161,10 @@ impl Organism {
 
     /// The volume a projection should draw for this organism: its root part's.
     pub fn volume(&self) -> VolumeRef {
-        self.body.part(self.body.root).map(|p| p.volume).unwrap_or(VolumeRef([0; 32]))
+        self.body
+            .part(self.body.root)
+            .map(|p| p.volume)
+            .unwrap_or(VolumeRef([0; 32]))
     }
 
     /// This organism's overall half-extent, read off its root part.
@@ -161,7 +172,10 @@ impl Organism {
     /// A reading rather than a field, so a body and the shape the world sees
     /// cannot disagree.
     pub fn half_extent(&self) -> [i32; 3] {
-        self.body.part(self.body.root).map(|p| p.half_extent).unwrap_or([1, 1, 1])
+        self.body
+            .part(self.body.root)
+            .map(|p| p.half_extent)
+            .unwrap_or([1, 1, 1])
     }
 
     /// What this organism weighs: the sum of its surviving parts.
@@ -186,18 +200,21 @@ impl Organism {
         }
     }
 
-    /// Removes substance, taking it from the root part.
+    /// Removes substance across the living body in stable part order.
     ///
     /// Returns what could not be paid. A body that cannot cover a cost is
     /// starving, and the caller decides what that means.
     pub fn spend_mass(&mut self, mg: u64) -> u64 {
-        let root = self.body.root;
-        let Some(part) = self.body.parts.get_mut(root.0 as usize) else {
-            return mg;
-        };
-        let paid = part.mass_mg.min(mg);
-        part.mass_mg -= paid;
-        mg - paid
+        let mut unpaid = mg;
+        for part in self.body.parts.iter_mut().filter(|part| !part.severed) {
+            let paid = part.mass_mg.min(unpaid);
+            part.mass_mg -= paid;
+            unpaid -= paid;
+            if unpaid == 0 {
+                break;
+            }
+        }
+        unpaid
     }
 
     /// How elaborate this organism is.

@@ -41,7 +41,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use crate::body::SpeciesId;
+use crate::axis::Soma;
+use crate::body::{BodyDocument, SpeciesId};
+use crate::development::{DevelopmentError, PartPalette, develop_body};
 
 /// One lineage.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +72,21 @@ impl Species {
     pub fn is_named(&self) -> bool {
         self.name.is_some()
     }
+
+    /// Realizes one phenotype from this lineage's developmental program.
+    ///
+    /// Founders, offspring, regrowth, and adaptation previews all call this
+    /// same function. A preview is therefore an ordinary unpublished body,
+    /// not a renderer approximation that can disagree with birth.
+    pub fn realize(
+        &self,
+        seed: u64,
+        mass_mg: u64,
+        palette: PartPalette,
+    ) -> Result<BodyDocument, DevelopmentError> {
+        let soma = Soma::develop(&self.recipe, seed);
+        develop_body(self.id, &self.recipe, &soma, mass_mg, palette)
+    }
 }
 
 /// Every lineage a world has had, including extinct ones.
@@ -91,15 +108,13 @@ impl Lineages {
     /// Registers a lineage that was there from the beginning.
     pub fn found(&mut self, id: SpeciesId) -> &Species {
         self.next = self.next.max(id.0 + 1);
-        self.species
-            .entry(id)
-            .or_insert(Species {
-                id,
-                recipe: crate::axis::Recipe::default_founding(),
-                name: None,
-                parent: None,
-                founded: 0,
-            })
+        self.species.entry(id).or_insert(Species {
+            id,
+            recipe: crate::axis::Recipe::default_founding(),
+            name: None,
+            parent: None,
+            founded: 0,
+        })
     }
 
     /// Splits a new lineage off an existing one.
@@ -117,7 +132,13 @@ impl Lineages {
         let recipe = self.species[&parent].recipe.clone();
         self.species.insert(
             id,
-            Species { id, recipe, name: Some(name), parent: Some(parent), founded: at },
+            Species {
+                id,
+                recipe,
+                name: Some(name),
+                parent: Some(parent),
+                founded: at,
+            },
         );
         Some(id)
     }
@@ -193,7 +214,10 @@ impl Lineages {
         }
         let shared = self.common_ancestor(a, b)?;
         let legs = |from: SpeciesId| {
-            self.ancestry(from).iter().position(|id| *id == shared).map(|steps| steps as u32)
+            self.ancestry(from)
+                .iter()
+                .position(|id| *id == shared)
+                .map(|steps| steps as u32)
         };
         Some(legs(a)?.max(legs(b)?))
     }
@@ -242,7 +266,11 @@ mod tests {
         assert_eq!(forked.name.as_deref(), Some("a"));
         assert_eq!(forked.parent, Some(root));
         assert_eq!(forked.founded, 10);
-        assert_eq!(lineages.named().count(), 3, "the founding line stays unnamed");
+        assert_eq!(
+            lineages.named().count(),
+            3,
+            "the founding line stays unnamed"
+        );
     }
 
     #[test]
@@ -273,10 +301,22 @@ mod tests {
         // lineages never split and every pair was identical.
         let (lineages, [root, a, a2, b]) = tree();
 
-        assert_eq!(lineages.distance(a, a), Some(0), "a line is no distance from itself");
+        assert_eq!(
+            lineages.distance(a, a),
+            Some(0),
+            "a line is no distance from itself"
+        );
         assert_eq!(lineages.distance(root, a), Some(1), "parent and child");
-        assert_eq!(lineages.distance(a, b), Some(1), "siblings diverged one fork ago");
-        assert_eq!(lineages.distance(a2, b), Some(2), "a cousin is further than a sibling");
+        assert_eq!(
+            lineages.distance(a, b),
+            Some(1),
+            "siblings diverged one fork ago"
+        );
+        assert_eq!(
+            lineages.distance(a2, b),
+            Some(2),
+            "a cousin is further than a sibling"
+        );
         assert_eq!(lineages.distance(a2, root), Some(2));
     }
 
@@ -298,8 +338,14 @@ mod tests {
         let (lineages, [root, a, a2, b]) = tree();
         assert!(lineages.descends_from(a2, root));
         assert!(lineages.descends_from(a2, a));
-        assert!(!lineages.descends_from(root, a2), "an ancestor does not descend from its heir");
-        assert!(!lineages.descends_from(a, b), "siblings do not descend from each other");
+        assert!(
+            !lineages.descends_from(root, a2),
+            "an ancestor does not descend from its heir"
+        );
+        assert!(
+            !lineages.descends_from(a, b),
+            "siblings do not descend from each other"
+        );
         assert!(!lineages.descends_from(a, a), "nor from themselves");
     }
 
@@ -312,7 +358,10 @@ mod tests {
         let second = lineages.fork(SpeciesId(7), "two".into(), 2).unwrap();
 
         assert_ne!(first, second);
-        assert!(first.0 > 7 && second.0 > first.0, "and they never collide with a founder");
+        assert!(
+            first.0 > 7 && second.0 > first.0,
+            "and they never collide with a founder"
+        );
     }
 
     #[test]
@@ -321,13 +370,19 @@ mod tests {
         // of everything descended from it.
         let (lineages, [root, a, a2, _]) = tree();
         assert_eq!(lineages.distance(a2, root), Some(2));
-        assert!(lineages.get(a).is_some(), "the middle of a line is not prunable");
+        assert!(
+            lineages.get(a).is_some(),
+            "the middle of a line is not prunable"
+        );
     }
 
     #[test]
     fn a_registry_round_trips() {
         let (lineages, _) = tree();
         let bytes = crate::snapshot::encode(&lineages).unwrap();
-        assert_eq!(crate::snapshot::decode::<Lineages>(&bytes).unwrap(), lineages);
+        assert_eq!(
+            crate::snapshot::decode::<Lineages>(&bytes).unwrap(),
+            lineages
+        );
     }
 }

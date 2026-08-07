@@ -44,7 +44,7 @@ pub mod volume;
 
 use std::collections::BTreeMap;
 
-use mesocosm_core::{BodyDocument, PartId, VolumeRef, Yaw};
+use mesocosm_core::{BodyDocument, PartId, Provenance, VolumeRef, Yaw};
 
 pub use flatten::{Flattened, flatten, flatten_attributed};
 pub use greedy::{PartMesh, Quad, mesh_volume, mesh_volume_naive};
@@ -62,6 +62,8 @@ pub struct Placement {
     pub pivot: [i32; 3],
     /// Orientation in body space, from [`BodyDocument::world_yaw`].
     pub yaw: Yaw,
+    /// Present for body placements; loose world matter has no body history.
+    pub provenance: Option<Provenance>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,6 +102,7 @@ impl BodyMesh {
                 pivot_at: [0, 0, 0],
                 pivot: [0, 0, 0],
                 yaw: Yaw::Zero,
+                provenance: None,
             }],
         }
     }
@@ -142,12 +145,8 @@ impl BodyMesh {
             };
             for quad in &mesh.quads {
                 for corner in quad.corners() {
-                    let placed = place_point(
-                        corner,
-                        placement.yaw,
-                        placement.pivot,
-                        placement.pivot_at,
-                    );
+                    let placed =
+                        place_point(corner, placement.yaw, placement.pivot, placement.pivot_at);
                     for axis in 0..3 {
                         min[axis] = min[axis].min(placed[axis]);
                         max[axis] = max[axis].max(placed[axis]);
@@ -196,7 +195,7 @@ fn rotate(v: [i32; 3], yaw: Yaw) -> [i32; 3] {
 pub fn mesh_body(body: &BodyDocument, source: &impl VolumeSource) -> Result<BodyMesh, MeshError> {
     let mut result = BodyMesh::default();
 
-    for part in &body.parts {
+    for part in body.living() {
         let Some(pivot_at) = body.world_pivot(part.id) else {
             return Err(MeshError::Unplaceable { part: part.id });
         };
@@ -204,7 +203,10 @@ pub fn mesh_body(body: &BodyDocument, source: &impl VolumeSource) -> Result<Body
             return Err(MeshError::Unplaceable { part: part.id });
         };
         let Some(volume) = source.volume(part.volume) else {
-            return Err(MeshError::MissingVolume { part: part.id, volume: part.volume });
+            return Err(MeshError::MissingVolume {
+                part: part.id,
+                volume: part.volume,
+            });
         };
 
         result
@@ -218,6 +220,7 @@ pub fn mesh_body(body: &BodyDocument, source: &impl VolumeSource) -> Result<Body
             pivot_at,
             pivot: part.pivot,
             yaw,
+            provenance: Some(part.provenance.clone()),
         });
     }
 
@@ -258,7 +261,11 @@ mod tests {
             VolumeRef::from_tag(2),
             500,
             [1, 1, 1],
-            Attachment { parent: body.root, offset: [8, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: body.root,
+                offset: [8, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .unwrap();
@@ -293,7 +300,36 @@ mod tests {
         }
         let mesh = mesh_body(&body, &source()).unwrap();
         assert_eq!(mesh.placement_count(), 5);
-        assert_eq!(mesh.mesh_count(), 2, "two distinct volumes, five placements");
+        assert_eq!(
+            mesh.mesh_count(),
+            2,
+            "two distinct volumes, five placements"
+        );
+    }
+
+    #[test]
+    fn severed_parts_leave_history_but_not_geometry() {
+        let source = source();
+        let mut body = seed_body();
+        let arm = body
+            .attach(
+                VolumeRef::from_tag(2),
+                10,
+                [1, 1, 1],
+                Attachment {
+                    parent: body.root,
+                    offset: [3, 0, 0],
+                    yaw: Yaw::Zero,
+                },
+                Provenance::founding(),
+            )
+            .unwrap();
+        body.sever(arm);
+
+        let mesh = mesh_body(&body, &source).unwrap();
+        assert_eq!(mesh.placement_count(), 1);
+        assert_eq!(mesh.placements[0].part, body.root);
+        assert!(body.part(arm).is_some(), "the record retains the lost part");
     }
 
     #[test]
@@ -304,7 +340,11 @@ mod tests {
                 VolumeRef::from_tag(2),
                 100,
                 [1, 1, 1],
-                Attachment { parent: body.root, offset, yaw },
+                Attachment {
+                    parent: body.root,
+                    offset,
+                    yaw,
+                },
                 Provenance::founding(),
             )
             .unwrap();
@@ -328,7 +368,11 @@ mod tests {
             VolumeRef::from_tag(2),
             100,
             [1, 1, 1],
-            Attachment { parent: body.root, offset: [6, 0, 0], yaw: Yaw::Quarter },
+            Attachment {
+                parent: body.root,
+                offset: [6, 0, 0],
+                yaw: Yaw::Quarter,
+            },
             Provenance::founding(),
         )
         .unwrap();
@@ -357,14 +401,21 @@ mod tests {
             VolumeRef::from_tag(99),
             100,
             [1, 1, 1],
-            Attachment { parent: body.root, offset: [4, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: body.root,
+                offset: [4, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .unwrap();
         let err = mesh_body(&body, &source()).unwrap_err();
         assert_eq!(
             err,
-            MeshError::MissingVolume { part: PartId(1), volume: VolumeRef::from_tag(99) }
+            MeshError::MissingVolume {
+                part: PartId(1),
+                volume: VolumeRef::from_tag(99)
+            }
         );
     }
 
@@ -375,7 +426,11 @@ mod tests {
             VolumeRef::from_tag(2),
             100,
             [1, 1, 1],
-            Attachment { parent: body.root, offset: [7, 1, -2], yaw: Yaw::ThreeQuarter },
+            Attachment {
+                parent: body.root,
+                offset: [7, 1, -2],
+                yaw: Yaw::ThreeQuarter,
+            },
             Provenance::founding(),
         )
         .unwrap();

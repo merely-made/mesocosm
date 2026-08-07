@@ -1,10 +1,10 @@
 # ProcessDef: authored biology without ability flags
 
-**Status: plan, 2026-08-01. No ProcessDef schema, pack loader, or Mesocosm
-Piccolo host exists yet. P2's native `Contract`, `Intake`, `Sense`, and derived
-`Reach` are the starting proof. P2's biomass and upkeep reconciliation landed
-in `d9af641`; the next work is PD1's allocation design pass, not a registry
-refactor.**
+**Status: in progress, revised 2026-08-05. No ProcessDef schema, pack loader,
+or Mesocosm Piccolo host exists yet. P2's native `Contract`, `Intake`, `Sense`,
+and derived `Reach` are the starting proof. PD0, the PD1a allocation design
+pass, and the live developmental-constructor join are complete; the next
+implementation gate is PD1b's native ProcessDef migration.**
 
 This plan owns Mesocosm's extensible process vocabulary, developmental
 expression boundary, content-pack shape, and Piccolo proof. The
@@ -133,20 +133,31 @@ pub struct ProcessDef {
 }
 
 pub struct ExpressedProcess {
+    pub site: ProcessSiteId,
     pub process: ProcessRef,
     pub part: PartId,
-    pub capacity: u32,
+    pub cells: Vec<CapacityCellId>,
     pub cause: ExpressionCause,
     pub source: Option<Provenance>,
 }
 
+pub struct CapacityCell {
+    pub id: CapacityCellId,
+    pub neighbours: Vec<CapacityCellId>,
+}
+
 pub struct PartAllocation {
     pub part: PartId,
-    pub capacity: u32,
+    pub cells: Vec<CapacityCell>,
     pub sites: Vec<ExpressedProcess>,
-    pub topology: AllocationTopology, // ruled by PD1a
 }
 ```
+
+This sketch is illustrative rather than compile-ready. PD1a removed the two
+stored capacity scalars from the earlier sketch. Structural capacity is the
+number of living cells in the graph and a site's allocation is the cells it
+occupies. One source of truth makes conservation countable instead of asking
+two integers to agree.
 
 `QualifiedProcessId` is pack-qualified at the authoring and wire boundaries.
 `DefinitionDigest` prevents the same friendly id from silently changing its
@@ -530,7 +541,7 @@ to carry, the headed host shows budget and upkeep, and the next state migration
 has a clean landed base. P0's repeat-play judgment remains open because only a
 player can close it.
 
-### PD1a. Allocation design pass
+### PD1a. Allocation design pass: **COMPLETE 2026-08-05**
 
 Treat this as a state migration before touching the enum. Today `Process` is
 derived on every call and stored nowhere. Adding allocation creates state that
@@ -569,6 +580,187 @@ proposal shape and validator used by both direct and automatic arrangement,
 draws the boundary between a candidate phenotype and its committed
 developmental program, and leaves lineage revision and adoption to the epoch
 boundary. No state migration lands in PD1a.
+
+#### Ownership ruling: one transactional wrapper
+
+The local owner will be a private `BodyPhenotype` wrapper containing a
+`BodyDocument` and an `AllocationState`. This selects the third candidate.
+
+- Allocation fields inside `Part` are rejected. They would make the structural
+  anatomy document depend on Mesocosm process semantics and would change the
+  body-only bytes consumed by mesh, Lens, and other vessels.
+- A freely mutable `PhenotypeState` beside a freely mutable `BodyDocument` is
+  rejected. It permits exactly the split account PD0 removed: a part can be
+  attached, severed, or restored without the allocation state following it.
+- The wrapper keeps both representations independently readable while making
+  every mutation that affects both representations one operation. A caller may
+  construct and project a plain `BodyDocument`; a live `Organism` owns a
+  `BodyPhenotype` and exposes immutable `body()` and `allocations()` readings.
+
+The wrapper fields are private. World mutation does not receive `&mut
+BodyDocument` or `&mut AllocationState` separately. Body-only authoring tests
+may continue to use `BodyDocument` directly, which keeps primitive topology
+usable without loading the biology system.
+
+#### Capacity ruling: structure and current availability are different
+
+Each living part owns one stored, connected graph of capacity cells. There is
+no second `capacity` scalar: structural capacity is the count of living cells,
+and a process site's allocation is the disjoint set of cells it occupies.
+Occupied plus free cells therefore equals structural capacity by construction.
+
+PD1b seeds the graph deterministically from the part's integer geometry and
+the admitted allocation rules at a developmental event. The initial generator
+is a coarse orthogonal tissue lattice whose axes follow `half_extent`; it stores
+cell ids and adjacency, not coordinates or renderer voxels. Different UI
+layouts may draw the same graph. A later developmental program may choose a
+different admitted topology, but changing topology is itself a paid, ordered
+developmental event.
+
+Current availability is evaluated separately from structural capacity. Mass,
+condition, starvation, environment, or a missing input may make allocated
+cells dormant or ineffective without rewriting the mosaic. Ordinary grazing
+and upkeep therefore do not shuffle organs every tick. Irreversible injury,
+shrinkage, or remodeling explicitly tombstones cells and deterministically
+deactivates any site that no longer owns a valid connected subgraph. Recovery
+can reactivate an intact allocation. The hard cell ceiling is core safety
+policy; the lower active capacity and cell quantum belong to world rules and
+are configurable.
+
+#### Lifecycle and atomicity
+
+| Operation | Anatomy and allocation consequence |
+| --- | --- |
+| Construct | Build anatomy and one mosaic for every living part in temporary state, validate all invariants, then publish the wrapper. |
+| Develop from a recipe | `Recipe + Soma` first creates a real `BodyDocument`; allocation is seeded against those actual parts in the same unpublished candidate. |
+| Attach or graft | Preflight the new part, source provenance, mosaic, initial sites, and all costs. A planned mirrored pair validates together before either side commits. |
+| Sever | Compute the anatomy subtree once, then tombstone the same `PartId`s and their mosaics in one commit. Historical cells and sites remain explainable but cannot contribute. |
+| Remodel | Apply one complete validated allocation proposal to temporary state. A refusal leaves body, allocation, budget, and causal record byte-identical. |
+| Snapshot | `BodyPhenotype` derives deterministic serialization inside each `Organism`; whole-world capture needs no hand-written field list. |
+| Replay | Existing growth intents seed the same mosaics; a new developmental intent carries the complete proposal and is validated again against replayed state. |
+| Explain | A capability trace cites process definition, part, site, cells, satisfied or missing inputs, cost, and the current environmental reading. |
+
+Attach and sever on a standalone `BodyDocument` remain anatomy operations.
+They cannot create a live organism with orphaned phenotype because only the
+wrapper is accepted by `Organism` after PD1b.
+
+#### One proposal and validator
+
+Direct arrangement and auto-arrange both produce one `AllocationProposal`.
+It carries the expected digest of the current `BodyPhenotype` and the complete
+desired sites for every part it touches, rather than an order-dependent series
+of drag operations. Each proposed site names its admitted `ProcessRef`, source
+and expression cause, and a sorted set of existing cell ids.
+
+One native validator checks the expected digest, living part addresses,
+definition digests, source provenance, cell existence, disjoint occupancy,
+connected site subgraphs, site requirements, budget and graph limits. It
+either returns one `ValidatedDevelopment` with cost and explanation or one
+specific refusal. The runtime accepts the proposal, not a host-prevalidated
+result, so replay and co-op do not trust UI code. Proposal source is diagnostic
+metadata at most; it cannot alter validation.
+
+The exact mosaic is a candidate or somatic realization, not the heritable
+artifact. At an epoch boundary, adaptation may translate its accepted intent
+and lived result into a `DevelopmentalProgramDelta`: process preferences,
+target part motifs, adjacency constraints, triggers, provenance, and paid
+tradeoffs. It does not copy cell ids into the lineage. Re-realizing that program
+under identical declared inputs must reproduce the founder preview; changed
+conditions may produce another valid phenotype. Immutable lineage revision,
+co-signing, adoption, and branching remain owned by the epoch boundary.
+
+#### Carry this body and regrow here
+
+`BodyPhenotype` projects anatomy and phenotype separately. The body-v1 path
+receives primitive topology and stable addresses once W1 supplies them. The
+optional Mesocosm phenotype facet receives the allocation graph, sites,
+definition digests, condition, and provenance. Neither projection carries a
+capability verdict.
+
+- **Carry this body** sends the current anatomy revision plus the exact
+  phenotype facet. A destination either admits the definitions and preserves
+  the allocation, offers an explicit adaptation that creates a causally linked
+  revision, or refuses carry.
+- **Regrow here** sends the developmental program, acquisition provenance, and
+  the prior revision reference. The destination realizes a new body and
+  allocation under its conditions. The old mosaic is history, not a body
+  template.
+
+The local wrapper does not settle the v1 subject or revision schema and is not
+serialized wholesale as the portable body profile.
+
+#### Developmental anatomy prerequisite
+
+The allocation audit exposed an earlier join that must precede PD1b. V2 itself
+did not harden incorporation-grown bodies because Lens projects any
+`BodyDocument`. The axial menagerie did, however, still use a renderer-only
+`critter::Body::from_plan`, while `Appendage::role` reached no authoritative
+part.
+
+The first half landed 2026-08-05 in `mesocosm-core::development`:
+`Recipe + Soma + PartPalette` now produces one mass-conserving
+`BodyDocument`. Axial segments form the dependency spine, appendages attach to
+the segment that expressed them, and every supplied part template is refused
+unless its geometry classifies as the promised role. The Lens menagerie now
+uses `BodyLensProjection` over that document and the parallel recipe-specific
+renderer constructor is gone.
+
+The live join landed 2026-08-05. `Species::realize` is the one unpublished-body
+path used by world founders, offspring, and future adaptation previews. Every
+organism stores the entropy that realized it. `World` stores its admitted
+`PartPalette`, because the recipe is lineage-local while the materials and
+geometry in which it grows are world-local. Both are snapshotted.
+
+Filial provisioning is binding. A birth whose paid mass cannot keep every
+expressed part positive waits without spending mass, allocating an id, or
+advancing ecology entropy. Genesis has no parent ledger, so a rare undersized
+founder begins at the recipe's exact structural mass floor. Incorporation
+remains a somatic attach during an epoch.
+
+`Chronicle::found` now also consumes a local recipe, developmental seed, mass,
+and palette. It grows local topology, maps historical origins where sites
+exist, and tombstones locally addressed loss subtrees. Origins without a site
+remain in the chronicle rather than forcing another game's geometry into this
+one.
+
+The migration exposed one genuine multi-part ledger defect: upkeep and
+reproduction still debited only the root. `Organism::spend_mass` now folds over
+all living parts in stable order. Without that correction, non-root mass was
+unspendable and consumer-only populations could reproduce their way around
+starvation.
+
+#### Exact PD1b seams and receipts
+
+- `crates/mesocosm-core/src/phenotype.rs`: private `BodyPhenotype`, lifecycle,
+  digest, allocation readings, and explicit anatomy access;
+- `crates/mesocosm-core/src/phenotype/allocation.rs`: cell graph, sites,
+  conservation and activity;
+- `crates/mesocosm-core/src/phenotype/develop.rs`: proposal, shared validator,
+  atomic commit and explanations;
+- `crates/mesocosm-core/src/process.rs`: qualified ids, definition digests,
+  the three native definitions, registry, and explicit capability evaluation
+  over anatomy, allocation and environment;
+- `crates/mesocosm-core/src/organism.rs`: replace public `body` storage with a
+  private `BodyPhenotype`; keep body, mass and projection readings;
+- `crates/mesocosm-core/src/world/act.rs`: route incorporation and the new
+  developmental intent through wrapper transactions;
+- `crates/mesocosm-core/src/organism/ecology.rs`: retain the landed
+  recipe-developed offspring path while routing mass and condition changes
+  through the phenotype wrapper without rewriting mosaics;
+- `crates/mesocosm-core/tests/embodied.rs` plus a focused allocation test:
+  native parity, exact refusal explanations, attach/sever lifecycle, stale
+  proposal refusal, direct/automatic parity and conservation;
+- snapshot and replay fixtures: one intentional current-schema bump. No
+  compatibility shim for unreleased world bytes. Standalone `BodyDocument`
+  bytes and the V2 Lens/mesh/Isometry projection contract do not change.
+
+The implementation receipts are: every living part has exactly one mosaic;
+every living cell is occupied once or free; an invalid multi-part development
+leaves the complete wrapper and budget unchanged; severing removes the same
+subtree from capability evaluation and allocation activity; mass loss can make
+a site dormant without moving it; restoration and replay agree; the same valid
+proposal from direct and automatic arrangement produces byte-identical state;
+and a body-only projection still decodes without Mesocosm phenotype semantics.
 
 ### PD1b. Native ProcessDef migration
 
@@ -687,15 +879,18 @@ hosts are still meaningfully different. No extraction is also a valid receipt.
 This lane interleaves with the phenotype plan rather than replacing it:
 
 1. PD0 is complete;
-2. rule allocation ownership and mutation in PD1a, then migrate in PD1b;
-3. play one native process at PD2 before building authoring infrastructure;
-4. execute P3 branch transfer with stable process identity and allocation;
-5. encode the proven mechanic as a static pack at PD3;
-6. prove Piccolo authoring parity at PD4 before P4 adaptation;
-7. use PD5 as P4's filial phenotype replacement proof;
-8. add PD6 only when the played process needs a non-local path;
-9. let P5 contested flow consume the proven process and ecology vocabularies;
-10. run PD7 and the wing projection gate before PD8 extraction.
+2. PD1a is complete and the core recipe-to-body authority proof is landed;
+3. live founding, offspring, local regrowth, and the founder-preview seam now
+   consume the shared developer;
+4. migrate native process identity and allocation in PD1b;
+5. play one native process at PD2 before building authoring infrastructure;
+6. execute P3 branch transfer with stable process identity and allocation;
+7. encode the proven mechanic as a static pack at PD3;
+8. prove Piccolo authoring parity at PD4 before P4 adaptation;
+9. use PD5 as P4's filial phenotype replacement proof;
+10. add PD6 only when the played process needs a non-local path;
+11. let P5 contested flow consume the proven process and ecology vocabularies;
+12. run PD7 and the wing projection gate before PD8 extraction.
 
 P0's playfeel judgment remains a user test throughout. A technically correct
 process system does not answer whether burn or grow is worth choosing again.
@@ -736,20 +931,17 @@ These are intentionally deferred to the gate with evidence:
    venom secretion is the bounded fallback.
 2. The exact portable shape of a lowered `ProcessDef`: settle after local
    snapshot and branch-transfer proofs, before body v1.
-3. Local allocation layout: PD1a compares storage within `BodyDocument`, a
-   sibling `PhenotypeState`, and a transactional wrapper. Portable ownership is
-   already settled: allocation projects as an optional Mesocosm phenotype
-   facet, regardless of the local Rust layout.
-4. Whether a world embeds lowered rule definitions or content-addresses them
+3. Whether a world embeds lowered rule definitions or content-addresses them
    beside the snapshot: PD3 and PD7 must prove missing-pack behavior before
    choosing.
-5. Whether a second scripting backend is ever useful: no abstraction or ruling
+4. Whether a second scripting backend is ever useful: no abstraction or ruling
    until another real consumer asks.
-6. Capacity source: how living mass, geometry, growth, and damage add or remove
-   graph cells, and whether cells need surface, interior, or junction kinds.
-7. Stabilized hybrid identity: a newly admitted derived `ProcessDef` versus a
+5. Whether the first played process needs surface, interior, or junction cell
+   kinds. PD1a ruled structural graph capacity and separate current
+   availability; PD2 must supply a real consumer before cells gain kinds.
+6. Stabilized hybrid identity: a newly admitted derived `ProcessDef` versus a
    heritable compound recipe that retains its parents at evaluation time.
-8. Disfavoured graft semantics: hard refusal by default versus an adapter tax
+7. Disfavoured graft semantics: hard refusal by default versus an adapter tax
    that a learned compatibility process can reduce.
 
 ---
@@ -817,3 +1009,19 @@ These are intentionally deferred to the gate with evidence:
 - **2026-08-03:** clarified that arrangement previews a phenotype while the
   accepted, co-signed artifact is its developmental program. Changed world and
   body conditions may realize that program differently.
+- **2026-08-05:** PD1a complete. Ruled a private transactional
+  `BodyPhenotype` wrapper, one authoritative cell graph with no duplicate
+  capacity scalar, separate structural capacity and current availability, one
+  complete allocation proposal and validator for direct and automatic
+  arrangement, and distinct carry-body and regrow-here projections. Exact
+  PD1b seams and receipts recorded.
+- **2026-08-05:** the prerequisite recipe-to-anatomy authority proof landed in
+  `mesocosm-core::development`. `Recipe + Soma + PartPalette` now produces a
+  real mass-conserving `BodyDocument`, and the Lens menagerie projects that
+  document through V2 instead of constructing a renderer-only recipe body.
+- **2026-08-05:** the live constructor join landed. World founders and ecology
+  offspring call `Species::realize`; the world snapshots its palette and every
+  organism its developmental seed; under-provisioned births wait atomically;
+  `Chronicle::found` regrows through the same recipe developer; and the
+  migration corrected body-mass spending across every living part. PD1b is now
+  the next gate.

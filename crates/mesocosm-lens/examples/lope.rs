@@ -33,7 +33,7 @@ fn main() {
     let out = std::path::Path::new(&out);
 
     let (width, height) = (1280, 720);
-    let Some(lens) = Lens::headless(width, height) else {
+    let Some(mut lens) = Lens::headless(width, height) else {
         eprintln!("no adapter; the probe needs a GPU");
         std::process::exit(1);
     };
@@ -118,8 +118,7 @@ fn main() {
                 mid[2] + flank.cos() * off,
             ];
             eye[1] = eye[1].max(ground(eye[0], eye[2]) + 4.0);
-            let to_mid =
-                f32::atan2(mid[0] - eye[0], mid[2] - eye[2]);
+            let to_mid = f32::atan2(mid[0] - eye[0], mid[2] - eye[2]);
             let dist = ((mid[0] - eye[0]).powi(2) + (mid[2] - eye[2]).powi(2)).sqrt();
             let flight = Flight {
                 eye,

@@ -15,7 +15,10 @@
 //! keystone against synthetic deeds; this covers it against bytes another
 //! codebase actually produced.
 
-use mesocosm_core::{Chronicle, Consequence, VolumeRef, chronicle::LOST_PART};
+use mesocosm_core::{
+    BodyDocument, Chronicle, Consequence, Origin, PartPalette, axis::catalogue,
+    chronicle::LOST_PART,
+};
 
 /// A critter this game wrote, that Isometry has since had for a while.
 const RETURNED: &[u8] = include_bytes!("../fixtures/returned.chronicle");
@@ -23,14 +26,29 @@ const RETURNED: &[u8] = include_bytes!("../fixtures/returned.chronicle");
 /// The same critter before it left.
 const DEPARTED: &[u8] = include_bytes!("../fixtures/played.chronicle");
 
+fn regrow(chronicle: &Chronicle, palette: PartPalette) -> BodyDocument {
+    chronicle
+        .found(&catalogue::centipede(1), 17, 2_000, palette)
+        .expect("the returned lineage regrows under local rules")
+}
+
 #[test]
 fn a_creature_comes_home_still_itself() {
     let there = Chronicle::from_bytes(RETURNED).expect("Isometry wrote a chronicle we can read");
     let here = Chronicle::from_bytes(DEPARTED).unwrap();
 
-    assert_eq!(there.species, here.species, "the lineage is the same lineage");
-    assert_eq!(there.parts, here.parts, "another game did not rewrite our anatomy");
-    assert!(!there.deeds.is_empty(), "and it did not come back empty-handed");
+    assert_eq!(
+        there.species, here.species,
+        "the lineage is the same lineage"
+    );
+    assert_eq!(
+        there.parts, here.parts,
+        "another game did not rewrite our anatomy"
+    );
+    assert!(
+        !there.deeds.is_empty(),
+        "and it did not come back empty-handed"
+    );
 }
 
 #[test]
@@ -57,7 +75,10 @@ fn facts_this_game_cannot_read_are_carried_rather_than_dropped() {
     let returned = Chronicle::from_bytes(RETURNED).unwrap();
     let unread: Vec<_> = returned.unread().collect();
 
-    assert!(unread.len() >= 3, "most of what happened over there is opaque here");
+    assert!(
+        unread.len() >= 3,
+        "most of what happened over there is opaque here"
+    );
     assert!(
         unread.iter().any(|deed| deed.verb == "held-the-ford"),
         "including the one the campaign cared most about"
@@ -88,7 +109,11 @@ fn the_one_verb_we_share_is_the_one_we_act_on() {
         })
         .collect();
 
-    assert_eq!(acted.len(), 1, "exactly one fact was in a vocabulary we share");
+    assert_eq!(
+        acted.len(),
+        1,
+        "exactly one fact was in a vocabulary we share"
+    );
     assert_eq!(acted[0].0, LOST_PART);
 }
 
@@ -107,9 +132,18 @@ fn narrating_a_loss_is_not_the_same_as_claiming_one() {
         .find(|deed| deed.verb == LOST_PART)
         .expect("the shared-vocabulary deed is present");
 
-    assert_eq!(shared.detail.len(), 4, "the shared verb carries the agreed payload");
+    assert_eq!(
+        shared.detail.len(),
+        4,
+        "the shared verb carries the agreed payload"
+    );
     assert!(
-        returned.deeds.iter().filter(|deed| deed.verb == LOST_PART).count() == 1,
+        returned
+            .deeds
+            .iter()
+            .filter(|deed| deed.verb == LOST_PART)
+            .count()
+            == 1,
         "and it is the only one making that claim"
     );
 }
@@ -120,27 +154,47 @@ fn the_descendant_is_founded_under_this_games_rules() {
     // it means for a body, regrows the lineage, and carries the whole record
     // forward including the parts it could not read.
     let returned = Chronicle::from_bytes(RETURNED).unwrap();
-    let before = returned.parts.len();
+    let departed = Chronicle::from_bytes(DEPARTED).unwrap();
+    let whole = regrow(&departed, PartPalette::primitive());
+    let descendant = regrow(&returned, PartPalette::primitive());
 
-    let descendant = returned.found(VolumeRef::from_tag(1), 2_000, [1, 1, 1]);
-
-    assert_eq!(descendant.species.0, returned.species, "the lineage continues");
-    assert_eq!(descendant.len(), before - 1, "founded without the part it lost");
+    assert_eq!(
+        descendant.species.0, returned.species,
+        "the lineage continues"
+    );
+    assert!(
+        descendant.living().count() < whole.living().count(),
+        "the local descendant expresses the inherited loss"
+    );
 
     // Every surviving part keeps the history it had. The root founded the
     // lineage and the rest were eaten, so after losing one incorporated part
     // the descendant carries one fewer than it arrived with.
-    let onward = Chronicle::of(&descendant);
+    let living_incorporated = descendant
+        .living()
+        .filter(|part| matches!(part.provenance.origin, Origin::Incorporated { .. }))
+        .count();
+    let whole_incorporated = whole
+        .living()
+        .filter(|part| matches!(part.provenance.origin, Origin::Incorporated { .. }))
+        .count();
     assert_eq!(
-        onward.incorporated_parts(),
-        returned.incorporated_parts() - 1,
-        "the descendant inherits its ancestor's provenance, minus what it lost"
+        living_incorporated,
+        whole_incorporated - 1,
+        "the descendant expresses one fewer historical origin after the loss"
     );
-    assert_eq!(onward.parts.len(), onward.incorporated_parts() + 1, "one founding root");
+    assert!(
+        returned.incorporated_parts() > living_incorporated,
+        "origins without a local site remain in the chronicle rather than forcing geometry"
+    );
 
     // The record is not consumed by being acted on: the next game sees
     // everything this one saw.
-    assert_eq!(returned.unread().count(), 3, "and the foreign facts are still there");
+    assert_eq!(
+        returned.unread().count(),
+        3,
+        "and the foreign facts are still there"
+    );
 }
 
 #[test]
@@ -150,8 +204,10 @@ fn geometry_did_not_travel_and_that_is_the_law() {
     // The body is regrown here, which is what makes the round trip cheap and
     // what keeps another game from dictating this one's anatomy.
     let returned = Chronicle::from_bytes(RETURNED).unwrap();
-    let a = returned.found(VolumeRef::from_tag(1), 2_000, [1, 1, 1]);
-    let b = returned.found(VolumeRef::from_tag(1), 2_000, [3, 3, 3]);
+    let a = regrow(&returned, PartPalette::primitive());
+    let mut other_world = PartPalette::primitive();
+    other_world.mass.half_extent = [3, 3, 3];
+    let b = regrow(&returned, other_world);
 
     assert_eq!(a.len(), b.len(), "the same record founds the same lineage");
     assert_ne!(

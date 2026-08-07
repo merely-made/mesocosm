@@ -1,6 +1,6 @@
 # Engine and Render Lane: Landscape
 
-**Status: research, 2026-07-30. No decision.** Rewritten the same day after a
+**Status: research, updated 2026-08-04. No engine adoption decision.** Rewritten the same day after a
 review found two systematic faults in the first draft: it counted an
 ingredient shelf as a nearly finished engine, and it let "engine" mean two
 different things in one document. Both are fixed below. The decision itself
@@ -8,7 +8,8 @@ and its probe live in
 [the body pipeline and host probe plan](2026-07-30_body_pipeline_and_host_probe_plan.md).
 
 External facts were re-verified on 2026-07-30 against crates.io and GitHub.
-Version numbers move; recheck before committing.
+Bones, Renderling, wgpu, and the voxel-engine field were refreshed on
+2026-08-04. Version numbers move; recheck before committing.
 
 ---
 
@@ -17,13 +18,20 @@ Version numbers move; recheck before committing.
 Three vessels with three different presentation needs. They do not have to
 share a renderer — see §5 for what they *must* share.
 
-Working dimensionality, proposed by Mark and **not yet ruled**:
+Working dimensionality. **The Mesocosm row was ruled 2026-08-05**: the pivot
+camera stands (worldgen x Barony, first person) and volumetric world truth
+is permitted; see the
+[place-graph engine plan](2026-08-05_place_graph_engine_plan.md) §0.
+Verticality is a *simulation affordance*: the third axis must be
+mechanically legible (wings escape, canopy holds resources, burrows hide),
+and 3D rendering is not the only projection that can make it so. The other
+two rows remain proposals:
 
 | Vessel | Proposed | Notes |
 | ------ | -------- | ----- |
-| Mesocosm | 2D or 2.5D, rapier2d | A large simplification, and it rides rendering the stack already has. |
-| Paredros | 3D, close camera | The heaviest renderer requirement in the wing. |
-| Isometry | 3D, distant camera | **Conflicts with a standing ruling.** See below. |
+| Mesocosm | Pulled-back embodied camera over volumetric truth (**amended 2026-08-06**) | Rain World-style; supersedes the 08-05 Barony-march camera while keeping volumetric truth. First person survives in agency. References: Rain World, Voxatron, Caves of Qud. |
+| Paredros | First-person/close camera, 3D-lite (**references ruled 2026-08-06**) | Barony, Delver, Gotcha Force, RimWorld. Delver-class ceiling: many simple animated bodies, not fidelity. Primary consumer of the brick tracer. |
+| Isometry | 3D, distant camera | **Conflicts with a standing ruling.** See below. References: Foundry, Larian/Owlcat, Wildermyth. |
 
 **Camera is not person.** The first draft wrote "Paredros: 3D, first person",
 which collides two vocabularies. The wing's person grammar describes *agency*
@@ -59,7 +67,10 @@ Verified 2026-07-30.
 | **Fyrox** | **1.0.1** (2026-03-28) | 2D/3D engine, **the only Rust engine shipping a real scene editor** | MIT | Forkable in principle. But its current renderer is `fyrox-graphics-gl`, which makes shared-device composition with genet a poor fit. Treat as a possible **Paredros** engine, not a reusable stack organ. |
 | **ggez** | **0.10.0** (2026-06-03) | 2D framework, LÖVE-shaped; now explicitly wgpu-based with event, timing, resource, and audio defaults | MIT | An alternative *host*, not a missing component. |
 | **Bones** | `bones_framework` 0.4.0 on crates.io (2024-09-12) — **but git-active, pushed 2026-04-24**, 305 stars, not archived | **Renderer-neutral game logic**: deterministic ECS, snapshots, asset server, schema reflection, Piccolo (Lua) integration. Bevy renderer optional | MIT/Apache | **The most interesting row.** Addresses the missing middle (§2) rather than the renderer. Piccolo is already Isometry's scripting engine, which is an uncanny adjacency. |
-| **Renderling** | 0.4.9 on crates.io (2024-09-20) — **git-active, pushed 2026-07-19**, 238 stars | GPU-driven wgpu + rust-gpu renderer: PBR, glTF scene machinery, headless image tests | MIT/Apache | Young, but a far better custom-3D probe target than a bare `rend3` reference. |
+| **Renderling** | 0.4.9 on crates.io (2024-09-20) — **git-active, pushed 2026-07-19**, 238 stars | GPU-driven wgpu + rust-gpu renderer: PBR, glTF scene machinery, headless image tests | MIT/Apache | **Promoted 2026-08-06: lead mesh-tenant candidate**, pending its fork probe. Caller-owned `Context::new(adapter, device, queue, target)` is the only candidate satisfying device unity unmodified. Fork = wgpu/naga 26→29 only; SPIR-V ships precompiled, spirv-std pin stays. rust-gpu welcomed by ruling. WebGPU-enhanced profile only (storage-buffer slabs). |
+| **kiss3d** | 0.45.1 (Dimforge revival 2026-01) | wgpu 29, glam (left nalgebra 0.39; parry removed 0.41), glTF/skinning/animation, PBR, headless OffscreenSurface, 2D suite, AOV outputs incl. per-object segmentation | Apache-2.0 | **Donor, ruled 2026-08-06.** Verified: no external-device path (all seven constructors internal-only; `CanvasSetup` = vsync + AA), so device unity requires surgery renderling doesn't need, and its scene scope duplicates renderling's. Harvest: AOV segmentation ids as an Isometry sprite-bake harness; 2D GI ideas. |
+| **Avian** | 0.7 (avian2d/avian3d, targets Bevy 0.19) | ECS physics, parry collision underneath | MIT/Apache | **Rejected 2026-08-06.** "Made with Bevy, for Bevy" is structural; adopting it without Bevy drags a runtime for a math-seam cosmetic; no determinism story. |
+| **Nexus** | git, heavy development | GPU rigid-body compute via rust-gpu/cargo-gpu, WebGPU | Apache-2.0 | **Ambience tier only, ruled 2026-08-06** (place-graph plan §0.10): GPU float ordering varies by hardware, so it is constitutionally barred from outcome-bearing facts. Browser support ragged (Safari unsupported). Enters only after the renderling seam proves out and its own external-device audit passes. |
 | **Macroquad** | — | Minimal 2D | MIT/Apache | **Ruled out.** [RUSTSEC-2025-0035](https://rustsec.org/advisories/RUSTSEC-2025-0035.html): multiple soundness issues, unprincipled mutable statics enabling use-after-free from safe code, **all versions affected, no patched release**, and the advisory notes fixing them is not treated as a priority. |
 | Ambient | — | Rust/WASM multiplayer engine | — | **Paused indefinitely.** An architectural *donor* to read, not a candidate to adopt. |
 | Amethyst, Piston | — | Legacy | — | Dead. Amethyst's ECS lineage fed Bevy. |
@@ -407,3 +418,490 @@ become a shared component (a biosphere lens) if Paredros pulls.
 5. Probes proceed, with the dither-in-motion check flagged (Obra Dinn's
    lesson: ordered dither shimmers under camera motion; judge the retro
    grade while flying, not from stills).
+
+---
+
+## 8. From proofs to a netrender-quality voxel presentation family (research round 2026-08-04)
+
+**Status 2026-08-04: V0, V1, and V2 landed.** `mesocosm-lens` now has one
+retained encode path for live presentation and capture; that path has entered
+a same-device `netrender` frame on native and headed Browser WebGPU; and one
+played `BodyDocument` revision now projects through Lens, the headless mesh,
+and Isometry's independent reader and sprite baker. V3 remains a Paredros
+pull, not the next Mesocosm renderer task. The independent downlevel rasterizer
+gate in §8.8 is the only open host-capability proof from this research round.
+
+The question for this round was not "which voxel engine should Mesocosm use?"
+It was what the landed proofs would have to become before they deserve the
+same confidence as `netrender`: reusable ownership boundaries, retained GPU
+resources, native and browser hosts, capability fallbacks, diagnostics,
+capture/replay receipts, and clean licensing.
+
+The first answer needs correcting before any architecture is drawn. There is
+not one live voxel renderer hiding in the wing. There are three projections
+of shared body and world authority:
+
+| Consumer | Projection it has or needs | Pressure it applies |
+| --- | --- | --- |
+| **Mesocosm** | Heightfield march plus SDF/capsule bodies, then field effects and grade | Frequently changing camera and pose over comparatively stable world maps; native and browser presentation |
+| **Paredros** | Close-camera 3D bodies and eventually editable settlement/world geometry | Persistent geometry, chunks, collision, streaming, navigation, destruction, and many independently moving bodies |
+| **Isometry** | Deterministic voxel-to-sprite bake | Portable, cacheable, pixel-authoritative interchange rather than a live 3D scene |
+
+One authoritative body may feed all three. Making all three consume one mesh,
+one storage layout, or one renderer would move presentation into the substrate
+and violate the boundary this document already established. The reusable
+thing is therefore a **voxel presentation family**: common snapshot identity,
+revision discipline, materials, queries, GPU ownership conventions, and
+receipts, with more than one projection strategy.
+
+Vello's place is equally specific. The heightfield/SDF pass is direct wgpu.
+Vello paints maps, effects, HUD, and chrome where useful. `netrender` owns or
+adopts the device and composes the passes. Voxel geometry does not render
+"through Vello"; the voxel and Vello passes are siblings on one device and in
+one frame graph.
+
+### 8.1 What the live proofs actually establish
+
+`mesocosm-mesh` is deterministic and headless. A part mesh depends only on its
+content-addressed `VolumeRef`, and rigid parts remain separately projectable.
+That is already the right authority boundary for a mesh projection.
+
+`mesocosm-render` proves caller-owned wgpu composition, but its live draw path
+still flattens every scene into a fresh vertex vector, creates a depth texture,
+and creates and uploads a vertex buffer on every call. `mesocosm-genet` calls
+`mesh_body` while projecting a scene. The path is a visibility proof, not a
+retained renderer.
+
+`mesocosm-lens` proves the newer presentation direction more directly:
+
+- `Lens::with_device` accepts the host's device and queue;
+- the march and grade are ordinary render pipelines using sampled textures,
+  uniform buffers, and direct draws, with no compute or storage-buffer
+  requirement in the baseline;
+- seeded map synthesis and capsule posing are deterministic;
+- the native test suite passes, the crate compiles for
+  `wasm32-unknown-unknown`, and V1 runs headed through Browser WebGPU.
+
+Before V0, its capture-first `render_with` uploaded the complete height,
+colour, and palette textures every call; recreated intermediate targets,
+uniform buffers, and bind groups; created its own encoder; submitted it; and
+blocked on a staging-buffer readback. V0 split **encoding** from **capture**.
+One retained lens now records into the caller's encoder and target through
+`Lens::encode`; the pixel-returning path is a receipt adapter over that same
+entry point.
+
+The earlier Wasm compile was portability evidence only. V1 added the browser
+canvas host and a headed Browser WebGPU receipt. That headed run caught one
+real target defect that compile-only evidence missed: `std::time::Instant`
+panicked in Wasm. The renderer now uses `web_time::Instant` on that target.
+The raster baseline therefore has native and browser runtime evidence; a
+WebGL2 fallback remains only a possible future profile.
+
+`netrender` supplies the quality comparison, not another voxel algorithm. Its
+relevant properties are externally supplied `WgpuHandles`, retained caches,
+render-graph callbacks, external-texture composition, scene capture/replay,
+GPU readback and image oracles, and `Renderer::last_frame_timings()`. A voxel
+lane reaches netrender quality when it carries comparable ownership,
+observability, and receipts, even though its rendering algorithms differ.
+
+One phrase from the first research summary also needs tightening. A raymarched
+frame is never literally free; it still shades the screen. The correct
+invariant is:
+
+> **Unchanged projection inputs cause no remesh, resource creation, full-map
+> upload, or readback. Only the render passes remain.**
+
+Camera, grade, or pose changes should write their small buffers. A changed map
+region should upload that region. Resize should recreate size-dependent
+targets. Everything else is resource churn and should be visible in metrics.
+
+### 8.2 Bones, restored to the comparison
+
+Bones was considered beside Renderling in the first landscape and should not
+have disappeared from the voxel round. It answers a different question.
+
+Current `main`, checked 2026-08-04, still makes the distinction clearly:
+
+- `bones_lib` has no renderer or math types. It supplies game/session
+  organization over Bones ECS and assets.
+- Bones ECS is designed for deterministic iteration, snapshot/restore, and
+  schema-reflected access from systems outside Rust.
+- `bones_framework` adds 2D-oriented render vocabulary, audio, localization,
+  UI, networking, and optional Piccolo scripting.
+- the official renderer remains a Bevy 0.11 integration with WebGL2 enabled by
+  default. Bones' own documentation says 3D requires a custom integration.
+- the repository is MIT OR Apache-2.0, targets stable Rust, and checks native
+  and `wasm32-unknown-unknown` in CI. Its published crates remain at 0.4.0 and
+  much of the dependency set is from the Bevy 0.11 generation.
+
+The useful correspondence is real: renderer-neutral sessions, snapshots,
+reflected schemas, content-addressed asset loading, hot reload, and Piccolo
+scripts are all problems this wing cares about. A Bones `Session` even has an
+interesting family resemblance to one live game instance.
+
+Adopting Bones now would nevertheless replace working authority rather than
+fill a hole. `mesocosm-core` already owns exact integer simulation, snapshots,
+ordered intents, rejections, replay hashes, body provenance, epochs, and
+cross-game records. The stack also has its own pack/engram direction and its
+own bounded Piccolo `ProcessDef` lane. Moving those into a second ECS, asset
+server, and scripting host would duplicate semantics before it removed code.
+
+The posture is therefore:
+
+> **Bones is the missing-middle donor and a possible focused probe, not a
+> voxel renderer and not a pending Mesocosm migration.**
+
+Reopen a Bones dependency only when two real games need the same missing
+renderer-independent service and the existing stack has no owner. A valid
+probe must preserve the same simulation receipt and state hash, measure the
+adapter and duplicated ownership, compile on native and Wasm, and remove the
+losing path. Architectural resemblance alone is not a trigger.
+
+### 8.3 Donor ledger
+
+| Donor | Transferable value | Posture |
+| --- | --- | --- |
+| [`block-mesh`](https://github.com/bonsairobo/block-mesh-rs) | Small generic mesher boundary, padded neighborhoods, material-aware merge classes | Direct dependency or benchmark candidate; keep the current deterministic mesher as the oracle until traces justify replacement |
+| [`fast-surface-nets`](https://docs.rs/fast-surface-nets/latest/fast_surface_nets/) and [Transvoxel](https://transvoxel.org/) | Smooth SDF surfaces and crack-free smooth-terrain LOD | Alternate projections only after a real smooth body or biome requires them |
+| [`bevy_voxel_world`](https://github.com/splashdust/bevy_voxel_world) | Procedural base plus sparse edits, remesh events, custom mesh delegates, data resolution separate from mesh resolution | Architecture donor; Bevy ownership prevents direct adoption here |
+| [Godot Voxel Tools](https://github.com/Zylann/godot_voxel) | Prioritized task pools, streaming and save lifecycles, collider cost, memory pools, and queue diagnostics | Strongest full reusable-engine reference |
+| [Renderling](https://github.com/schell/renderling) | Caller-owned wgpu context, refcounted GPU slabs through `crabslab`/`craballoc`, headless image tests, GPU-first residency | Focused donor. Current `main` is wgpu 26 and still carries rust-gpu/cargo-gpu machinery; Mesocosm is wgpu 29 and does not need its PBR/glTF scene model |
+| [Veloren](https://gitlab.com/veloren/veloren) and [Luanti](https://docs.luanti.org/for-engine-devs/basic-data-structures/) | Shipped chunk scheduling, client/server authority, request throttling, unload policy, background mesh work | Study patterns. Their reciprocal licenses also argue against casual code transfer into a permissive core |
+| [Sector's Edge](https://github.com/Vercidium/voxel-mesh-generation) and [`stb_voxel_render.h`](https://github.com/nothings/stb/blob/master/stb_voxel_render.h) | Hot remesh latency, reused scratch storage, packed quads, palette/material/AO representation | Algorithm and format donors; benchmark against the real mutation workload |
+| [Voxelis](https://github.com/WildPixelGames/voxelis) and [Woxel](https://github.com/NemoInfo/woxel) | SVO-DAG and VDB/HDDA alternatives | Research and benchmark specimens. Highly varied evolving bodies may erase their compression wins |
+| [Mosaic](https://github.com/sevenevesai/mosaic) | Revisioned asynchronous jobs, boundary invalidation, latency classes, persistent residency, derived light volumes | Study only. No repository license was found, and its fixed GPU pool can silently refuse work |
+| [Bones](https://github.com/fishfolk/bones) | Deterministic sessions, snapshots, schema reflection, assets, Piccolo, networking | Missing-middle donor, orthogonal to rendering |
+
+The data-structure conclusion is deliberately plural. Dense padded arrays are
+excellent meshing snapshots. Bitplanes are excellent derived occupancy and
+query indexes. SVOs, DAGs, and VDBs win when repetition and sparsity match
+their costs. The presentation family must accept more than one provider and
+benchmark actual body mutations and Paredros edits. It must not turn any one
+acceleration structure into world truth.
+
+### 8.4 Ownership model
+
+Working labels below name responsibilities, not approved crate names:
+
+```text
+MPL game authority
+    body topology, world state, provenance, intents, revisions
+                    |
+        immutable projection snapshot
+        content keys + revision + dirty regions
+                    |
+       +------------+-------------+
+       |                          |
+  lens projection            mesh projection
+  height/SDF/grade           greedy/surface/other
+       |                          |
+       +------------+-------------+
+                    |
+        caller-owned wgpu device and frame
+        retained resources + explicit admission
+                    |
+       +------------+-------------+
+       |                          |
+  netrender/Vello chrome       capture/readback
+```
+
+The common core may eventually own read-only volume access, channels,
+materials, content keys, revisions, dirty regions, query indexes, and
+projection receipts. Rendering strategies own their caches. Collision
+derives from the same immutable snapshot rather than treating the display
+mesh as authority — per the 2026-08-06 three-tier ruling (place-graph plan
+§0.10) that means **parry queries plus owned kinematics** at the advisor
+tier, with rapier-the-dynamics-engine in reserve for a proven
+constraint-dynamics need. Game adapters remain MPL-2.0.
+
+Do not mint permissively licensed engine crates merely because this diagram is
+clean. Per the repository license boundary, a library becomes MIT OR
+Apache-2.0 only after its reusable boundary is real and a second consumer
+proves it. Original game assets remain CC BY-SA 4.0.
+
+### 8.5 Capability profiles
+
+Capability detection chooses an execution path, never a game rule.
+
+| Profile | Required shape | Intended targets |
+| --- | --- | --- |
+| **Raster baseline** | Sampled 2D textures, uniforms, ordinary render passes and direct draws; CPU scheduling and culling | Native and browser WebGPU with standard Vello; the Lens half is also proven under WebGL2-class limits |
+| **Downlevel raster** | The raster baseline plus a vector backend needing no storage buffers or compute | Native GL is probed with `vello_hybrid`; headed Wasm WebGL remains the admission gate |
+| **WebGPU enhanced** | Storage buffers, compute work, indirect draws, optional timestamp queries and optional worker-backed CPU jobs | Browsers and native adapters that report the features |
+| **Native enhanced** | Real multi-draw-indirect-count, larger resident arenas, Rayon jobs, timestamp instrumentation | Native adapters only |
+
+The baseline must not require Wasm threads. Shared-memory worker builds need
+cross-origin isolation and remain an optional second artifact. Browser support
+is admitted by a headed browser run, not by `cargo check`.
+
+### 8.6 Gates
+
+#### V0. Retain the landed lens — **LANDED 2026-08-04**
+
+Replace the capture-shaped production API with a render-task boundary that
+records march and grade into a caller encoder and target. Retain map textures,
+palette, uniform buffers, bind groups, and size-dependent targets. Upload only
+changed map regions; camera, pose, and grade changes write only their small
+buffers. Keep capture as a readback adapter over the same task.
+
+**Done when:** an unchanged world and grade create no GPU resources and upload
+no map bytes across frames; a camera or pose change updates only the relevant
+buffer; resize recreates only size-dependent targets; native capture still
+matches the existing receipts; and diagnostics report CPU preparation,
+uploads, allocations, march, grade, and readback separately.
+
+**Met.** The retained `Lens` owns map and palette textures, uniform buffers,
+bind groups, its marched intermediate, and reusable capture resources.
+Callers own the command encoder, output target, and submission. Explicit
+`MapRevision` plus `MapChange::Region` drives full or rectangular uploads.
+The native GPU tests prove:
+
+- a second unchanged frame creates zero resources and uploads zero bytes;
+- camera and pose changes each upload only their corresponding uniform;
+- a 2 by 2 height-and-colour edit uploads exactly 20 bytes;
+- resize recreates size-dependent targets while leaving map uploads at zero;
+- march, grade, readback, preparation, upload, and resource counts are
+  reported separately.
+
+The compatibility receipt was checked against a clean detached build of the
+pre-V0 `HEAD`: all six lope frames are pixel-identical. The older files under
+`testing/mesocosm/17_critter_*.png` do not match that clean pre-V0 build, so
+they are historical visual references rather than a current regression
+oracle. Native tests, examples, strict clippy, and
+`wasm32-unknown-unknown` compilation pass.
+
+V0 deliberately did not replace the live Genet scene. Genet projected the
+real `BodyDocument` through `mesocosm-render`, while the early Lens receipts
+used synthesized heightfields and a sculpted `CritterPose`. V2 has since bound
+the real played body through `BodyLensProjection`. Its terrain remains a
+synthesized presentation map; deriving that map from the simulated ecology is
+a separate world-projection problem and is not smuggled into the body proof.
+
+#### V1. Enter netrender's frame and prove the browser — **LANDED 2026-08-04**
+
+Run the retained lens on netrender's `WgpuHandles` and compose its external
+texture into netrender's master at an explicit scene boundary. Add
+target-specific browser wgpu setup and a canvas host without creating a
+second device. Netrender currently retains submission ownership around its
+external-texture seam, so V1 proves one device and one composed frame rather
+than claiming one command encoder.
+
+**Done when:** the same serialized world, camera, body pose, and grade render
+headed on native and in a browser; both produce screenshot and JSON receipts
+kept as generated proof artifacts; the receipt records adapter, backend,
+limits, and selected profile; and frame timings are visible beside
+netrender's spans.
+
+**Met.** `LensScene` serializes the maps, flight, grade, and pose with
+`postcard`. Both hosts decoded the same 329,261-byte scene with digest
+`fnv1a64:9d34d7f2688bcf73`, then passed the same wgpu device and queue to the
+lens and netrender. The lens rendered to an RGBA external texture; netrender
+inserted it at scene boundary zero, redrew Vello chrome over it, and exposed
+the composed master for presentation.
+
+The native receipt records Vulkan on an NVIDIA GeForce RTX 4060 Laptop GPU;
+the headed browser receipt records `BrowserWebGpu`. Both select the
+`raster-baseline` profile and include limits, formats, lens diagnostics,
+netrender's timing spans, and dirty-tile counts. On the second frame both
+reported zero map bytes, uniform bytes, resource creations, bind-group
+rebuilds, readback bytes, and dirty tiles while still running one march and
+one grade pass. Native and browser screenshots plus JSON receipts were
+captured under the local proof directory. Strict native and Wasm clippy and
+the full `mesocosm-lens` target suite pass.
+
+V1 still uses a deterministic host scene. It does not replace Genet's live
+`BodyDocument` projection; that remains the V2 boundary.
+
+#### V2. Prove projection plurality — **LANDED 2026-08-04**
+
+Bind the real parts graph into the SDF/capsule lens while preserving the
+existing per-part mesh and Isometry flatten/bake projections. Each may simplify
+appearance differently, but each points back to the same part addresses and
+provenance.
+
+**Done when:** one played body revision can be marched live, meshed headlessly,
+and baked for Isometry; changing one part invalidates only the products that
+depend on that part or region; and none of the three projection outputs is
+needed to decode the body document.
+
+**Met.** `BodyLensProjection` reads the authoritative `BodyDocument` and
+simplifies each living voxel part to one capsule. Every capsule retains a
+sidecar record of its `PartId`, `VolumeRef`, provenance, and exact dependency
+digest. Resolved parent placement participates in that digest, so moving a
+parent invalidates its descendants; mass does not, because the Lens does not
+read mass. Bodies above the baseline's 96-capsule uniform capacity now return
+an explicit admission error rather than being silently truncated.
+
+The native V2 receipt played the real world from three parts through one more
+incorporation. The body plan produced a mirrored pair, parts 3 and 4, yielding
+a five-part body revision `fnv1a64:1e04e4325650d6c7`. Only parts 3 and 4 changed
+in the Lens dependency map and mesh placements. The attributed flattened
+profile changed 48 cells, all owned by those same two part addresses. Every
+Lens capsule, mesh placement, and profile attribution agreed on part identity
+and provenance. The 260-byte `BodyDocument` round-tripped without reading any
+projection output.
+
+Isometry then read the emitted 877-byte `mesocosm.body/v0` profile through its
+own mirror type and baked a 398 by 164 four-facing sprite strip with 34,372
+opaque pixels. Writer and reader receipts agree on profile digest
+`fnv1a64:6656da7e804ca21d`. `critter_sprite` now accepts an arbitrary `--body`
+input so this crossing is executable rather than tied to the committed
+fixture.
+
+The migration surfaced one adjacent defect: `mesh_body` iterated the complete
+historical part vector and therefore still drew severed parts. It now consumes
+`BodyDocument::living`, while the body record continues to retain the loss.
+The focused Mesocosm and Isometry suites cover the corrected boundary.
+
+**Follow-through 2026-08-05:** the axial catalogue had still bypassed this
+boundary through a renderer-only `critter::Body::from_plan`. That parallel body
+constructor is gone. `mesocosm-core::development` now turns `Recipe + Soma`
+into an authoritative `BodyDocument`, and the Lens menagerie projects it
+through `BodyLensProjection`. V2 therefore binds a body source, not one growth
+method: somatic incorporation and filial development meet at the same parts
+graph. The phenotype lifecycle adopted that source on 2026-08-05: world
+founders, offspring, returned-chronicle regrowth, and founder previews now use
+the same developer. This remains a rendering boundary rather than a renderer
+owning biology.
+
+#### V3. Let Paredros pull world services
+
+Only the second live 3D consumer justifies chunk requests, border
+invalidation, priority classes, async mesh jobs, persistent geometry arenas,
+eviction, collider and navigation derivation, and network edit payloads.
+
+**Done when:** a Paredros settlement edit produces one revisioned snapshot,
+updates only affected render, collision, query, and navigation products,
+rejects stale jobs, never transmits a GPU mesh as authority, and reports its
+resident and queued work. That proof is the extraction trigger for a
+permissive shared library.
+
+#### V4. Admit advanced renderers by trace
+
+Compute culling, indirect submission, binary greedy meshing, smooth terrain
+LOD, SVO/VDB raymarching, and richer lighting remain optional strategies.
+
+**Done when:** a captured native or browser workload identifies the current
+bottleneck, one candidate improves that trace without changing simulation or
+interchange semantics, and the baseline remains available on weaker adapters.
+
+### 8.7 Stop rules
+
+- Do not turn Mesocosm into a chunk-meshing engine because most voxel prior art
+  was built for Minecraft-shaped worlds. (Narrowed 2026-08-05: volumetric world
+  truth is now permitted and planned; the guard that stands is admission by
+  trace, never by prior-art availability. See the
+  [place-graph engine plan](2026-08-05_place_graph_engine_plan.md).)
+- Do not make Paredros inherit the lens if close-camera editing and destruction
+  prove that meshes serve it better.
+- Do not migrate `mesocosm-core` into Bones because the concepts resemble one
+  another. Require a missing service, a second consumer, and a removal proof.
+- Do not adopt all of Renderling to obtain its allocator or image tests. Probe
+  the focused donor crate or pattern against wgpu 29 first.
+- Do not call compile-only Wasm evidence browser support.
+- Do not allow caches, meshes, colliders, heightmaps, SDFs, or DAGs to become
+  authoritative body or world formats.
+- Do not let asynchronous work commit without matching its content key and
+  revision.
+- Do not silently drop oversized GPU admissions. Return an explicit failure,
+  evict deliberately, and expose both in diagnostics.
+- Do not copy from Mosaic while its license remains absent.
+
+### 8.8 WebGL2-class downlevel probe receipt (2026-08-04)
+
+Question: does the wing's render stack fit WebGL2-class constraints, and
+could `vello_hybrid` (0.1.0, published 2026-07-29, `wgpu ^29.0.3`, matching
+the workspace pin) serve as a downlevel 2D rasterizer behind netrender's
+seam? Probe ran scratchpad-side; nothing landed in the tree.
+
+Context that makes the seam narrow: netrender hands vello only nine
+`SceneOp` variants, lowered through four vello calls (`fill`, `stroke`,
+`draw_glyphs`, `push_layer`/`pop_layer`). Masks, blurs, backdrop filters,
+and color matrices are netrender's own fragment-shader wgpu passes and
+never reach the rasterizer. `vello_hybrid`'s shader set is sampled
+textures plus one uniform block; no storage buffers, no compute.
+
+Ran on RTX 4060 under `Limits::downlevel_webgl2_defaults()` (storage
+buffers and compute zeroed, max texture 2048), twice: Vulkan, then wgpu's
+real GL backend, which exercises naga's WGSL-to-GLSL emission for every
+shader involved. Identical results on both:
+
+- **mesocosm-lens march + grade + capsule critter: passes.** Retro and
+  clay grades both render correctly restricted. The world pass is
+  WebGL2-class as landed.
+- **vello_hybrid: passes everything netrender would send it.** Fills,
+  strokes, linear gradient, clip layer, all six `SceneBlendMode` mixes
+  under SrcOver, opacity layer, blur filter layer, glyphs (Arial via
+  glifo, atlas path, caching off). Zero validation errors.
+- **Mask layers panic** (`unimplemented!`, scene.rs:734), as documented.
+  Irrelevant to the seam: netrender never sends vello a mask.
+
+Still ungated: a headed browser run (ANGLE validation, wasm async init,
+no blocking readback). Per §8.5, browser support is admitted by that run
+only. The probe retires the *capability* risk, not the browser receipt.
+
+Consequence: an anyrender-style pluggable rasterizer behind the nine-op
+seam is viable, and hybrid's known panic surface does not intersect
+netrender's usage. Glyph atlas caching is experimental upstream; the
+probe rendered with it off.
+
+That is algorithmic viability, not a claim that netrender is backend-neutral
+today. Its retained surface state still stores `vello::Scene` and its timing
+and error vocabulary still name Vello. A real integration belongs in
+netrender: keep `netrender::Scene`, invalidation, filters, external textures,
+and presentation common; move lowered tile scenes into backend-owned state;
+report the selected rasterizer in receipts; and rename the raster timing span
+at that boundary. Mesocosm should only select the resulting capability
+profile.
+
+#### D0. Prove the downlevel host
+
+Build netrender with `vello_hybrid`, compile the existing V1 serialized scene
+for wgpu's Wasm WebGL backend, and run it headed without blocking readback.
+Exercise glyphs, clips, gradients, every supported blend, filters, and the
+external Lens texture. Masks remain outside the admitted scene vocabulary.
+
+**Done when:** the browser receipt reports the WebGL backend and hybrid
+rasterizer, matches the V1 scene digest, renders visible Lens and chrome
+coverage, exposes backend-neutral timing spans, and reports no validation
+errors or silent operation drops. This is a netrender gate and does not block
+Mesocosm feature work.
+
+### 8.9 Tenancy: the cohesion contract (2026-08-06)
+
+Holistic cohesiveness is the non-negotiable (Mark, 2026-08-06). Composing
+the stack from parts and forks is encouraged; every renderer or compute
+tenant signs this contract:
+
+1. **One instance, adapter, device, queue per process.** netrender's
+   `WgpuHandles` is the authority. No tenant creates a device, ever.
+2. **One frame.** Tenants record into a caller encoder or produce external
+   textures composed at explicit scene boundaries (the V1 seam, receipt-
+   proven). Tenants never present; the host owns the surface.
+3. **Declared capability profile** (§8.5). Storage-buffer/compute tenants
+   (renderling, nexus) are WebGPU-enhanced only; the raster baseline
+   (march/tracer, vello_hybrid lane) must keep working without them. The
+   frame degrades by dropping tenants, never by forking architectures.
+4. **One presentation math**: glam at every tenant boundary; the nalgebra
+   adapter lives only at the parry/rapier seam.
+5. **One receipts culture**: headless goldens, timing spans beside
+   netrender's, adapter/backend/profile recorded in every receipt.
+6. **One authority contract underneath**: integer facts, replay hashes,
+   three-tier physics (place-graph plan §0.10). No tenant's state is ever
+   world truth.
+7. **Shared typed layouts**: GPU struct layouts derive from Rust types
+   (crabslab in the rust-gpu family; encase-style derivation in WGSL
+   lanes). The `CritterParams` vec4-packing scar is the argument.
+
+rust-gpu is welcome (ruled 2026-08-06), carried by the fork family
+(renderling now, nexus later if admitted), pins reconciled by us; the
+wing's own WGSL lanes stay WGSL.
+
+### Recommendation
+
+Stop Mesocosm renderer extraction here. Keep the deterministic per-part mesher
+as the mesh oracle and return to game pressure. Run **D0** in netrender when a
+downlevel browser target is wanted; it is independent of body projection.
+Let Paredros pull V3 streaming and residency when it exists as the second live
+consumer. Bones stays visible in the record as the strongest missing-middle
+donor, but it does not sit between voxel data and the GPU.

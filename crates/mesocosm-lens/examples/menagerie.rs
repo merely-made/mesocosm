@@ -5,16 +5,40 @@
 
 //! The generator's receipt: one method, several animals.
 //!
-//! Renders catalogue plans through the same lens with nothing per-creature in
-//! the renderer. If a centipede, an insect, and a snake come out visibly
-//! different, the axial recipe is doing the work rather than a sculpt.
+//! Develops catalogue plans into authoritative part graphs, then renders those
+//! graphs through the same V2 projection. If a centipede, an insect, and a
+//! snake come out visibly different, the axial recipe is doing the work rather
+//! than a renderer sculpt.
 //!
 //! ```text
 //! cargo run -p mesocosm-lens --example menagerie -- <out_dir>
 //! ```
 
-use mesocosm_core::axis::{Soma, catalogue};
-use mesocosm_lens::{CritterPose, Flight, Grade, Lens, critter, maps};
+use mesocosm_core::{
+    PartPalette, PartTemplate, Soma, SpeciesId, VolumeRef, axis::catalogue, develop_body,
+};
+use mesocosm_lens::{BodyLensProjection, BodyPlacement, Flight, Grade, Lens, maps};
+
+fn palette() -> PartPalette {
+    PartPalette {
+        mass: PartTemplate {
+            volume: VolumeRef::from_tag(1),
+            half_extent: [2, 2, 2],
+        },
+        limb: PartTemplate {
+            volume: VolumeRef::from_tag(2),
+            half_extent: [4, 1, 1],
+        },
+        plate: PartTemplate {
+            volume: VolumeRef::from_tag(3),
+            half_extent: [4, 4, 1],
+        },
+        sensor: PartTemplate {
+            volume: VolumeRef::from_tag(4),
+            half_extent: [1, 1, 1],
+        },
+    }
+}
 
 fn write_png(path: &std::path::Path, width: u32, height: u32, pixels: &[u8]) {
     if let Some(parent) = path.parent() {
@@ -36,19 +60,15 @@ fn main() {
     let out = std::path::Path::new(&out);
 
     let (width, height) = (1280, 720);
-    let Some(lens) = Lens::headless(width, height) else {
+    let Some(mut lens) = Lens::headless(width, height) else {
         eprintln!("no adapter; the probe needs a GPU");
         std::process::exit(1);
     };
     let world = maps::synthesize(4_242, 1024);
-    let ground = |x: f32, z: f32| -> f32 {
-        let side = world.side;
-        let i = (z.max(0.0) as u32 % side) * side + (x.max(0.0) as u32 % side);
-        world.height[i as usize] as f32
-    };
 
-    // The flattest patch, so silhouettes read against ground rather than
-    // against a cliff.
+    // A stable interior anchor over the flattest patch. Presentation lifts it
+    // vertically below, but the horizontal frame remains useful when comparing
+    // captures across terrain implementations.
     let mut origin = [430.0, 350.0];
     let mut best = f32::MAX;
     for row in (64..(world.side - 112)).step_by(32) {
@@ -79,33 +99,44 @@ fn main() {
         ("snake", catalogue::snake(16), 1.2),
     ];
     let look = Grade::clay();
+    // This receipt compares anatomy, not terrain placement. Lift the subjects
+    // above the synthesized world's highest ridge so no camera ray can hide a
+    // long body behind an unrelated mountain.
+    let presentation_floor = world
+        .height
+        .iter()
+        .copied()
+        .max()
+        .map_or(16.0, |height| f32::from(height) + 16.0);
 
-    for (name, plan, scale) in subjects {
+    for (species, (name, plan, scale)) in subjects.into_iter().enumerate() {
         let soma = Soma::develop(&plan, 9);
-        let mut body = critter::Body::from_plan(&plan, &soma, scale);
-        for step in 0..14 {
-            let [x, z] = critter::wander(4_242, origin, step);
-            body.step([x, ground(x, z) + 2.2, z], ground);
-        }
-        let pose = CritterPose::from_body(&body, ground, [0.36, 0.62, 0.42]);
+        let body = develop_body(
+            SpeciesId(species as u32 + 1),
+            &plan,
+            &soma,
+            10_000,
+            palette(),
+        )
+        .expect("catalogue plan develops into a body graph");
+        let placed = BodyPlacement {
+            ground: [origin[0], presentation_floor, origin[1]],
+            scale,
+            tint: [0.36, 0.62, 0.42],
+        };
+        let projected = BodyLensProjection::project(&body, placed)
+            .expect("developed body fits the Lens admission limit");
+        let pose = projected.pose;
 
-        // Framed to the body's own size, side-on, so plans compare fairly.
-        let head = body.chain.segments[0].at;
-        let tail = body.chain.segments.last().unwrap().at;
-        let mid = [
-            (head[0] + tail[0]) * 0.5,
-            (head[1] + tail[1]) * 0.5,
-            (head[2] + tail[2]) * 0.5,
-        ];
-        let heading = f32::atan2(head[0] - tail[0], head[2] - tail[2]);
-        let flank = heading + std::f32::consts::FRAC_PI_2;
+        // Framed to the body's own size at a shallow three-quarter angle so
+        // bilateral appendages do not collapse into one silhouette.
+        let mid = pose.bounds_centre;
         let off = pose.bounds_radius * 2.6 + 8.0;
-        let mut eye = [
-            mid[0] + flank.sin() * off,
+        let eye = [
+            mid[0] + off * 0.92,
             mid[1] + off * 0.28,
-            mid[2] + flank.cos() * off,
+            mid[2] + off * 0.38,
         ];
-        eye[1] = eye[1].max(ground(eye[0], eye[2]) + 4.0);
         let dist = ((mid[0] - eye[0]).powi(2) + (mid[2] - eye[2]).powi(2)).sqrt();
         let flight = Flight {
             eye,
@@ -119,8 +150,9 @@ fn main() {
         let path = out.join(format!("18_plan_{name}.png"));
         write_png(&path, width, height, &pixels);
         println!(
-            "captured {} ({} segments, {} appendages, complexity {})",
+            "captured {} ({} parts, {} segments, {} appendages, complexity {})",
             path.display(),
+            body.living().count(),
             plan.segments(),
             plan.appendages(),
             plan.complexity()

@@ -48,6 +48,18 @@
 //! continuous space. Two consumers of a shape is the bar for extracting it, and
 //! these are not yet the same shape.
 
+mod bricks;
+mod grown;
+mod hunt;
+mod near;
+mod relief;
+
+pub use bricks::{AIR, BRICK, Brick, Ground, ROCK, SOIL, SURFACE_BAND};
+pub use grown::{Grown, Nest};
+pub use hunt::{Hunter, Mind, PATIENCE, SIGHT};
+pub use near::{Tier, TierLine, WALKER_HEIGHT, spot, step};
+pub use relief::Relief;
+
 use std::collections::{BTreeSet, VecDeque};
 
 use serde::{Deserialize, Serialize};

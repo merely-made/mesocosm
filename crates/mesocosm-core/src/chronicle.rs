@@ -45,8 +45,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::body::{BodyDocument, Origin, PartId, Provenance, SpeciesId, VolumeRef};
-use crate::plan::BodyPlan;
+use crate::axis::{Recipe, Soma};
+use crate::body::{BodyDocument, Origin, PartId, Provenance, SpeciesId};
+use crate::development::{DevelopmentError, PartPalette, develop_body};
 use crate::rng::Rng;
 use crate::wire::{WireError, frame, unframe};
 
@@ -84,10 +85,15 @@ impl PartOrigin {
 impl From<&Provenance> for PartOrigin {
     fn from(provenance: &Provenance) -> Self {
         match provenance.origin {
-            Origin::Founding => {
-                Self { from_species: None, from_part: None, epoch: provenance.epoch }
-            }
-            Origin::Incorporated { from_species, from_part } => Self {
+            Origin::Founding => Self {
+                from_species: None,
+                from_part: None,
+                epoch: provenance.epoch,
+            },
+            Origin::Incorporated {
+                from_species,
+                from_part,
+            } => Self {
                 from_species: Some(from_species.0),
                 from_part: Some(from_part.0),
                 epoch: provenance.epoch,
@@ -106,7 +112,10 @@ impl From<&PartOrigin> for Provenance {
                 },
                 epoch: origin.epoch,
             },
-            _ => Provenance { origin: Origin::Founding, epoch: origin.epoch },
+            _ => Provenance {
+                origin: Origin::Founding,
+                epoch: origin.epoch,
+            },
         }
     }
 }
@@ -133,7 +142,12 @@ pub struct Deed {
 impl Deed {
     /// A deed with no payload.
     pub fn new(vessel: impl Into<String>, verb: impl Into<String>, at: u64) -> Self {
-        Self { vessel: vessel.into(), verb: verb.into(), at, detail: Vec::new() }
+        Self {
+            vessel: vessel.into(),
+            verb: verb.into(),
+            at,
+            detail: Vec::new(),
+        }
     }
 
     /// A deed carrying a payload only its author understands.
@@ -143,7 +157,12 @@ impl Deed {
         at: u64,
         detail: Vec<u8>,
     ) -> Self {
-        Self { vessel: vessel.into(), verb: verb.into(), at, detail }
+        Self {
+            vessel: vessel.into(),
+            verb: verb.into(),
+            at,
+            detail,
+        }
     }
 }
 
@@ -176,7 +195,11 @@ impl Chronicle {
     pub fn of(body: &BodyDocument) -> Self {
         Self {
             species: body.species.0,
-            parts: body.parts.iter().map(|part| PartOrigin::from(&part.provenance)).collect(),
+            parts: body
+                .parts
+                .iter()
+                .map(|part| PartOrigin::from(&part.provenance))
+                .collect(),
             deeds: Vec::new(),
         }
     }
@@ -188,7 +211,10 @@ impl Chronicle {
 
     /// How many parts were taken off other organisms.
     pub fn incorporated_parts(&self) -> usize {
-        self.parts.iter().filter(|part| part.is_incorporated()).count()
+        self.parts
+            .iter()
+            .filter(|part| part.is_incorporated())
+            .count()
     }
 
     /// Deeds this game has a rule for, paired with what it makes of them.
@@ -202,7 +228,9 @@ impl Chronicle {
 
     /// Deeds this game cannot interpret and is carrying for somebody else.
     pub fn unread(&self) -> impl Iterator<Item = &Deed> {
-        self.deeds.iter().filter(|deed| interpret(deed) == Consequence::Unread)
+        self.deeds
+            .iter()
+            .filter(|deed| interpret(deed) == Consequence::Unread)
     }
 
     /// Founds the next body in this lineage, applying what this game can read.
@@ -212,7 +240,13 @@ impl Chronicle {
     /// losing it means to a body. The chronicle is not consumed — the
     /// descendant carries the whole record forward, including the deeds this
     /// game could not read.
-    pub fn found(&self, volume: VolumeRef, mass_mg: u64, half_extent: [i32; 3]) -> BodyDocument {
+    pub fn found(
+        &self,
+        recipe: &Recipe,
+        development_seed: u64,
+        mass_mg: u64,
+        palette: PartPalette,
+    ) -> Result<BodyDocument, DevelopmentError> {
         let lost: Vec<u32> = self
             .read()
             .filter_map(|(_, consequence)| match consequence {
@@ -221,36 +255,21 @@ impl Chronicle {
             })
             .collect();
 
-        let mut body = BodyDocument::new(SpeciesId(self.species), volume, mass_mg, half_extent);
-        // The root is the founding part and is not re-derived; a lineage that
-        // lost its root did not survive to be chronicled.
-        body.parts[0].provenance = self
-            .parts
-            .first()
-            .map(Provenance::from)
-            .unwrap_or_else(Provenance::founding);
-        body.plan = BodyPlan::default();
+        let soma = Soma::develop(recipe, development_seed);
+        let mut body = develop_body(SpeciesId(self.species), recipe, &soma, mass_mg, palette)?;
 
-        // Surviving parts keep their provenance. Geometry is not restored --
-        // that is the law, not an omission -- so the descendant regrows under
-        // this game's rules with its history intact.
-        for (index, origin) in self.parts.iter().enumerate().skip(1) {
-            if lost.contains(&(index as u32)) {
-                continue;
-            }
-            let _ = body.attach(
-                volume,
-                mass_mg / 4,
-                [1, 1, 1],
-                crate::body::Attachment {
-                    parent: body.root,
-                    offset: [(index as i32) * 2, 0, 0],
-                    yaw: crate::body::Yaw::Zero,
-                },
-                Provenance::from(origin),
-            );
+        // Geometry and topology come from the local developmental program.
+        // Historical origins map by stable ordinal where the new body has a
+        // site; origins without one remain in the chronicle, while additional
+        // sites are founding tissue. Interpreted losses then tombstone the
+        // locally grown subtree at that address. No foreign geometry travels.
+        for (part, origin) in body.parts.iter_mut().zip(&self.parts) {
+            part.provenance = Provenance::from(origin);
         }
-        body
+        for part in lost {
+            body.sever(PartId(part));
+        }
+        Ok(body)
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>, WireError> {
@@ -272,7 +291,9 @@ fn interpret(deed: &Deed) -> Consequence {
         return Consequence::Unread;
     }
     match <[u8; 4]>::try_from(deed.detail.as_slice()) {
-        Ok(bytes) => Consequence::LostPart { part: u32::from_le_bytes(bytes) },
+        Ok(bytes) => Consequence::LostPart {
+            part: u32::from_le_bytes(bytes),
+        },
         // The verb is ours and the payload is not what we expect. Refusing to
         // guess is the point: a malformed detail is retained uninterpreted
         // rather than turned into a plausible part index.
@@ -298,19 +319,27 @@ fn interpret(deed: &Deed) -> Consequence {
 /// **This ceiling is coupled to the world's economics and must be kept in step
 /// with them.** Upkeep scales with body mass, so there is a size past which a
 /// creature cannot pay its own rent, and a generated creature larger than play
-/// can sustain is not one the world could have produced. When upkeep was flat,
-/// play reached dozens of parts and this was forty-eight; once growing started
-/// costing, play settled around a dozen and forty-eight became a tell in the
-/// other direction. Isometry's `size_does_not_give_the_played_one_away` is the
-/// tripwire, and it has now caught this twice.
+/// can sustain is not one the world could have produced. Recipe-developed
+/// founders restored structural bodies in the low dozens before incorporation,
+/// so the generator spans two through thirty-nine parts. Isometry's
+/// `size_does_not_give_the_played_one_away` is the tripwire; when live anatomy
+/// moves, this range must be measured again rather than treated as lore.
 ///
 /// Deterministic from `seed`, so a generated lineage is reproducible.
 pub fn generate(seed: u64, species: u32) -> Chronicle {
     let mut rng = Rng::from_seed(seed);
-    let parts = 2 + rng.below(18) as usize;
+    let parts = 2 + rng.below(38) as usize;
 
-    let mut chronicle = Chronicle { species, parts: Vec::with_capacity(parts), deeds: Vec::new() };
-    chronicle.parts.push(PartOrigin { from_species: None, from_part: None, epoch: 0 });
+    let mut chronicle = Chronicle {
+        species,
+        parts: Vec::with_capacity(parts),
+        deeds: Vec::new(),
+    };
+    chronicle.parts.push(PartOrigin {
+        from_species: None,
+        from_part: None,
+        epoch: 0,
+    });
 
     let mut epoch = 0;
     for _ in 1..parts {
