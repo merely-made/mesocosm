@@ -9,12 +9,28 @@
 //! because it is presentation-adjacent scaffolding, not world truth: the core
 //! carries content addresses and knows nothing about what a volume looks like.
 
-use mesocosm_core::{Intent, OrganismId, Route, VolumeRef, World, world::organism_extent};
+use mesocosm_core::{
+    Intent, OrganismId, PartPalette, Role, Route, VolumeRef, World, world::organism_extent,
+};
 use mesocosm_mesh::{Volume, VolumeMap};
 
 pub fn volumes() -> VolumeMap {
     let mut map = VolumeMap::new();
-    map.insert(VolumeRef::from_tag(1), Volume::solid([4, 4, 4], 1));
+
+    // Every template the world can develop a part from, sized from the
+    // palette itself. Enumerating roles rather than hardcoding tags is what
+    // keeps this table from silently falling behind the core: when the
+    // palette grew a sensor, a literal list quietly stopped resolving and
+    // `mesh_body` failed with `MissingVolume`.
+    let palette = PartPalette::primitive();
+    for role in [Role::Mass, Role::Limb, Role::Plate, Role::Sensor] {
+        let template = palette.template(role);
+        let size = template.half_extent.map(|half| (half * 2).max(1) as u32);
+        // `from_tag` puts the tag in byte zero; the material is only a
+        // palette index for the placeholder look.
+        map.insert(template.volume, Volume::solid(size, template.volume.0[0]));
+    }
+
     for tag in 16..24u8 {
         // A volume is exactly the extent the core placed with, or the picture
         // and the physics would disagree about the same part.

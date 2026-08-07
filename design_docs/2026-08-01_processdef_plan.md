@@ -1025,3 +1025,12 @@ These are intentionally deferred to the gate with evidence:
   `Chronicle::found` regrows through the same recipe developer; and the
   migration corrected body-mass spending across every living part. PD1b is now
   the next gate.
+- **2026-08-06:** host/palette drift caught and closed. `PartPalette::primitive`
+  grew a `sensor` template (tag 4) that `mesocosm-genet`'s fixture volume table
+  did not carry, so `mesh_body` failed with `MissingVolume { part: PartId(3) }`
+  as soon as a developed body used one. The fixture now **enumerates
+  `Role`** and sizes each volume from `palette.template(role).half_extent`
+  rather than listing tags literally, so a palette that grows a template can no
+  longer silently outrun the host that draws it. Standing note for PD1b and the
+  pack loader: any admitted-vocabulary change must be reachable by enumeration
+  from the palette, never by a hand-maintained mirror on the presentation side.
