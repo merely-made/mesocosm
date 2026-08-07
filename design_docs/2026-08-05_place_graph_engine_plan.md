@@ -241,6 +241,17 @@ preference became an ordering with a forced fallback. Pending for G3
 complete: wiring hunters into the world's organisms and the far tier's
 receipts (dirty files; rides the adoption swap).
 
+**Superseded in destination, 2026-08-06.** The `Hunter` FSM is **a probe,
+not the design**. Search/Stalk/Memory is authored behaviour with a tuned
+patience constant, and it duplicates a feeding model the ecology already
+owns. Its lasting contribution is proving the *queries* work: sight
+through terrain, pursuit across a burrow threshold, one-voxel continuity,
+and the movement law that preferences order rather than refuse. The
+[general model plan](2026-08-06_general_model_plan.md) gate **E4**
+replaces it with drive-and-affordance selection, where pursuit is what a
+fast, large-mouthed, starving body does about a reachable meal. Do not
+build further behaviour on the FSM.
+
 Perception as sight-lines (brick DDA or parry raycast), advisor-tier
 locomotion per ruling 10 (parry queries + owned move-and-slide + verlet
 chain gait, quantized into integer outcomes, no persisted handles), hunt
