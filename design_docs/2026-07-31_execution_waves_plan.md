@@ -1,5 +1,17 @@
 # Execution Waves
 
+**Demoted to Wave 1/2 history, 2026-08-07 (audit).** This plan predates
+the place-graph and general-model plans and no longer orders Mesocosm;
+its "next" pointers (PD1b/PD2) were bypassed by independently landed
+E-slices and G-probes. Until a successor dependency ledger exists, the
+current chains are:
+
+- `PD1b -> PD2 -> P3 -> PD3/PD4 -> P4` (processdef/phenotype lane), and
+- `G0/G1 world adoption -> G2 integration -> G3 world wiring -> G4`
+  (place-graph lane), with F0-F5 exploratory.
+
+Wave 1/2 content below is preserved as history.
+
 **Status: in progress, 2026-08-01.** **Wave 1 is complete**: core, runtime,
 mesher, renderer, a windowed host, and the Isometry projection, with every
 done-condition met and tested. **Wave 1.3 dropped**: the render lane is decided (custom wgpu body

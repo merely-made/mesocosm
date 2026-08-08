@@ -9,8 +9,9 @@ owns world substrate, and the
 [mesocosm founding plan](2026-07-30_mesocosm_founding_plan.md), which owns
 the epoch loop.
 
-**Implementation status, 2026-08-07.** The E0-E4 implementation slice is
-landed and workspace-green. E0 allometry, E1 anatomy-derived feeding and
+**Implementation status, 2026-08-07 (audit-corrected wording): E0-E4
+implementation slices landed and workspace-green; acceptance gates
+open.** E0 allometry, E1 anatomy-derived feeding and
 predation, E2 graph dispersal, and E4 drive selection are live. E3 has a
 reversible far-tier cohort projection plus conservation and promotion
 receipts; the authoritative individual-to-cohort storage replacement and
@@ -542,10 +543,16 @@ in the path; a slow armoured starving body does something *different* from
 a fast large-mouthed one under identical conditions; and a predator that
 picks badly starves.
 
-### Follow-up receipts per gate (review, 2026-08-07)
+### Acceptance gates, open (review, 2026-08-07; renamed by audit the same day)
 
-Accepted from review after the E-gates landed; these deepen the
-done-conditions rather than reopen the gates:
+**The accurate status is: implementation slices landed; acceptance
+gates open.** The first version of this section called these "follow-up
+receipts," which the audit correctly flagged as hiding open gates. E1
+still uses interim anatomy categories pending PD1b; E2 lacks its epoch
+receipt; E3 retains the individual roster as authority and lacks the
+capacity proof; E4 selects feeding targets, not yet hunt, migrate,
+avoid, graze, and rest through one selector. Each gate below is OPEN
+until its condition holds:
 
 - **E0**: allometry becomes a configurable *baseline* modified by active
   tissue/process allocation, metabolic mode, and environment; and every

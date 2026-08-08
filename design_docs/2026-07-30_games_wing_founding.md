@@ -39,6 +39,44 @@ address rather than units you command; it says nothing about where the camera
 sits, and Paredros may well use a close camera. When discussing renderers, say
 **camera distance**; reserve *person* for agency.
 
+### The wing's question is continuity under transformation
+
+**Ruled 2026-08-07 (Mark).** The stronger wing identity than "three games
+sharing an engine":
+
+- **Mesocosm** asks whether a creature remains itself as its body and
+  capacities change.
+- **Paredros** asks whether a community remains itself as control, bodies,
+  and generations change.
+- **Isometry** asks whether a campaign remains itself across adjudication,
+  authors, imports, and revisions.
+
+This names what the wing's vocabulary was already circling: *animula* is a
+soul continuous across bodies; *fili* is lineage continuous across worlds;
+*tulpa* is what memory keeps of the dead; *borg* is identity acquired by
+naming; the phenotype contract's same-individual-versus-descendant and
+carry-body-versus-regrow distinctions are this question as a technical
+contract; and the frontier's "a line you have already lived is always yours
+to return to" is it as a game rule. Care granularity says **whom** each
+vessel cares for; continuity under transformation says **what question is
+asked about them**.
+
+Four facts stay separate across the wing so the question stays askable:
+**subject, body, role, lineage.** The phenotype contract already separates
+subject, body revision, and biological line; **role** (office, standing in
+a community) joins them as the fourth, first needed by Paredros
+succession. A subject can inhabit a revised body, hold or lose a role,
+descend from a lineage, or surrender player control without becoming a
+different person, which is what unlocks succession, development, imports,
+reincorporation, prosthesis, shapeshifting, inheritance, and historical
+characters without one universal character schema.
+
+A consequence recorded the same day: the fantastical layer's natural
+subject matter is this same question. Curses on lineages, edible names,
+metabolized memories, and places that grow organs are all perturbations of
+continuity, which is why "impossible ecology" rather than spellcasting is
+the fantastical direction (general model plan, F-gates).
+
 ### The invariant is care granularity, not person purity
 
 **Relaxed 2026-07-30, at Mark's prompting, and this correction matters.** The

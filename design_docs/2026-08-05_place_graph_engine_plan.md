@@ -219,7 +219,7 @@ landscape §8.8); a browser receipt lands through the same composition seam
 and recording discipline V1 proved; 1080p fps is recorded on the 4060 and
 on GL, and the number is reported whatever it is.
 
-### G3. The near tier — **core LANDED 2026-08-06; drive/tier wiring LANDED 2026-08-07**
+### G3. The near tier — **core LANDED 2026-08-06; ecology drive/tier slice LANDED 2026-08-07; world adoption OPEN** (audit 2026-08-07: genesis still installs `scatter`, `World` owns no `Ground`, and near-tier ecology does not yet use the occupancy/sight/carve path)
 
 Landed additively as `places/near.rs` (kinematic `step` with slide, climb,
 gravity settle, and doorway drops; `spot` sight; `Tier`/`TierLine` with
@@ -310,12 +310,16 @@ standing rule: after two real consumers, never declared in advance.
      colour; this extends the same contract to apparent geometry.
      Bonsai's "second-stage decoration reading terrain derivatives" is
      the worked example.
-  3. **Sim/render LOD unification.** Far places collapse to coarse
-     representation (hulls or brick-map mips) under the *same* boundary
-     concept that demotes simulation to cohorts: one `TierLine`-shaped
-     line serving both, so cohort demotion and visual demotion are the
-     same event over the place graph. Direction for G2+, paired with the
-     general model plan's E3.
+  3. **Sim/render LOD: shared facts, separate events.** *Corrected by
+     audit, 2026-08-07: the first form of this direction ("one line
+     serving both, demotion as the same event") was wrong.* Simulation
+     tier depends on the authoritative recorded focus and its
+     transitions; render LOD may depend on a local camera, and under
+     one-state-N-windows there are many cameras and one authority. The
+     two consumers share distance and region *facts* (hops, place
+     membership) and nothing else. Far places may still collapse to
+     hulls or mips for rendering, per viewer, without touching tier
+     state.
 
 
 - 2026-08-06, **renderling wgpu-29 port receipt** (fork at

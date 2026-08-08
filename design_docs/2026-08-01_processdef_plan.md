@@ -1034,3 +1034,11 @@ These are intentionally deferred to the gate with evidence:
   longer silently outrun the host that draws it. Standing note for PD1b and the
   pack loader: any admitted-vocabulary change must be reachable by enumeration
   from the palette, never by a hand-maintained mirror on the presentation side.
+- **2026-08-07 (audit):** two contract corrections. **Replay direction:**
+  the live runtime is right and parts of this plan's persistence prose were
+  wrong; replay is seed plus ordered intents with history *derived*, never
+  history as replay input. Preserve that direction everywhere. **Provenance
+  is three separable kinds:** acquired developmental vocabulary, somatic
+  graft provenance, and filial material/lineage provenance. The founding
+  slogan "every part used to be somebody" conflicts with `Origin::Founding`
+  and recipe regrowth unless these are kept distinct.
