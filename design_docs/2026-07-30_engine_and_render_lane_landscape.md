@@ -11,6 +11,29 @@ External facts were re-verified on 2026-07-30 against crates.io and GitHub.
 Bones, Renderling, wgpu, and the voxel-engine field were refreshed on
 2026-08-04. Version numbers move; recheck before committing.
 
+## Decision index (2026-08-07, per audit: decisions split from research)
+
+The live decisions, so nobody re-reads nine hundred lines of history to
+find them. Everything not listed here is research record.
+
+- **Vello 0.9 is the sole shipping rasterizer**; `vello_hybrid` is a
+  credible future second backend, not a migration
+  (netrender-notes/2026-08-04_rasterizer_backend_seam.md).
+- **Tenancy follows the §8.9 cohesion contract**: one device, one frame,
+  declared capability profiles, glam boundary, receipts, typed layouts.
+- **Renderling is the lead mesh-tenant candidate** on receipts (§1 table:
+  wgpu-29 fork green 95/95, device unity proven, wing-shaped scene
+  rendered); kiss3d is a donor; Avian rejected; nexus ambience-only.
+- **V0, V1, V2 are landed with receipts** (§8.6); D0 (headed WebGL) is
+  the open render gate; V3/V4 wait on their consumers.
+- **Capability profiles** (§8.5): raster baseline must run downlevel;
+  storage/compute tenants are WebGPU-enhanced only.
+- **Presentation-amplification tier** and the **relief lab** are adopted
+  directions (place-graph plan Findings, 2026-08-07); sim-tier/render-LOD
+  share facts, never events (audit correction).
+- **Camera rulings live in the place-graph plan §0**, not here.
+- Stop rules §8.7 and the donor ledger §8.3 remain binding.
+
 ---
 
 ## 0. What is actually being chosen

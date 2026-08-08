@@ -589,6 +589,13 @@ profile in advance; the sequence now follows the evaluator rule.
 - **F0. One fantastical vertical slice.** One unusual carrier state, one
   cost, one application route, one discoverable consequence, implemented
   concretely inside Mesocosm's own rules. No registry, no shared type.
+  **Direction ruled 2026-08-07 (Mark): impossible ecology, not
+  spellcasting.** Candidates in the founding record's wording: an
+  organism that metabolizes remembered events; migration following
+  kinship rather than distance; a predator that consumes names or
+  affinities; a body incorporating architectural material; a place that
+  develops organs. Each is a perturbation of continuity, which is the
+  wing's question wearing the fantastical layer.
 - **F1. Effect envelope, extracted.** Only if the F0 slice and an
   ecological effect (venom is the standing candidate) genuinely repeat
   the same application shape does the §5 envelope get extracted.

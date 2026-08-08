@@ -1,6 +1,9 @@
 # Body Pipeline and Host Probe
 
-**Status: partially implemented, updated 2026-07-31.** The canonical body,
+**Status: mixed history and residue (audit 2026-08-07): R0/R1/R3
+complete, R2 superseded, R4 open.** Extract R4 into a live plan or close
+it before archiving; nothing else here is load-bearing.** Original
+status, 2026-07-31:** The canonical body,
 runtime attachment, live renderer, and Isometry v0 appearance projection are
 proven. The second-host probe was dropped; storage extraction and the v1 body
 identity contract remain open. Answers the question "can we plan a render lane

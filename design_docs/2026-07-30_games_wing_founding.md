@@ -656,6 +656,26 @@ overstated it, and the correction matters.
   directly, with seiche's reconcile-a-physics-world-to-a-host-graph pattern
   as the template).
 
+**Reconciled 2026-08-07 (audit).** This annex was checked 2026-07-29/30
+and the week moved under it:
+
+- "Voxels as live attachable bodies and possibly playable volume" is no
+  longer a missing organ: volumetric world truth landed additively
+  (place-graph plan G0/G1: grown graphs, brick `Ground`, roofed burrows,
+  carve lifecycle), world adoption pending; and bodies develop from
+  recipes into voxel parts (`development.rs`, PD1a).
+- "Mesocosm takes its chosen Rapier2D or Rapier3D dependency directly" is
+  **superseded** by the three-tier physics ruling (place-graph plan
+  §0.10): integer authority, parry-plus-owned-kinematics advisor, GPU
+  ambience, rapier in reserve.
+- Renderer posture is now governed by the landscape's §8.9 cohesion
+  contract, with renderling the lead mesh-tenant candidate on receipts
+  (device unity proven, wgpu-29 fork green 95/95).
+- The ecology gained E0-E4 implementation slices (general model plan;
+  acceptance gates open).
+- Still genuinely missing, unchanged: real-time netcode and
+  settlement/production simulation (now Paredros S5's charge).
+
 **Discipline:** the platform is extracted from shipped games, never built
 platform-first. Mesocosm is a *candidate* for that proof, not yet a real
 second consumer.

@@ -1,6 +1,15 @@
 # Mesocosm: Founding Plan
 
-**Status: active founding plan, updated 2026-07-31.** The deterministic core,
+**Status: active founding plan, updated 2026-07-31; audit notes 2026-08-07.**
+Two audit corrections bind readers of this document: (1) its M0/runtime
+descriptions are **historical** where they conflict with the landed
+`mesocosm-runtime` (fixed-step driver, traces, replay, receipts) and the
+E0-E4 slices; the general model and place-graph plans carry current state.
+(2) The slogan that a part has "provenance, because it used to be
+somebody" is poetry, not contract: `Origin::Founding` parts and recipe
+regrowth never were anybody. Provenance is **three separable kinds** —
+acquired developmental vocabulary, somatic graft provenance, and filial
+material/lineage provenance — and claims must name which kind they mean. The deterministic core,
 body pipeline, host, epoch lab, and first Isometry projection are implemented;
 the repeated phenotype loop and later M-phases remain open. Vessel 1 of the
 games wing. Shared architecture, the three pipeline laws, and the wing vocabulary
