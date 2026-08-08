@@ -25,11 +25,10 @@ satisfied processes; trophic role as a summary of realized activity).
 **Place-graph chain:**
 
 ```text
-G0/G1 world adoption (scatter -> grown; Ground into World; carve as
-intent; occupancy/sight into the near tier)
+G0/G1 world adoption  [LANDED 2026-08-08]
   -> G2 integration (tracer into the lens's retained pattern; grade;
      bodies; netrender frame; browser receipt per D0 discipline)
-  -> G3 world wiring receipts
+  -> G3 world wiring (Move and the near tier onto occupancy/sight)
   -> G4 the burrow run (the composed slice)
 ```
 

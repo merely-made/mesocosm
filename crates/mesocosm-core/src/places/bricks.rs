@@ -63,7 +63,7 @@ impl Brick {
 
 /// The ground: every solid voxel the world owns, plus the lifecycle facts
 /// a projection needs (revision, dirty bricks).
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ground {
     extent: i32,
     /// World y of the water line, derived from the relief's sea.

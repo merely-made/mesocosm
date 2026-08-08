@@ -87,6 +87,10 @@ pub enum Event {
     Inhabited { organism: OrganismId },
     /// A line split off another, and was named.
     Speciated { species: SpeciesId, from: SpeciesId, founder: OrganismId },
+    /// A creature removed ground: a burrow, a bore, a den. World-shaping
+    /// enters the same history as eating, because a carved refuge is as
+    /// biographical as a meal.
+    Carved { organism: OrganismId, at: [i32; 3], removed: u32 },
     /// A line learned to grow something, by eating something that had it.
     ///
     /// The discovery half of kleptoplasty: a meal that teaches is a different
@@ -112,7 +116,8 @@ impl Event {
             | Event::Moved { organism, .. }
             | Event::Died { organism, .. }
             | Event::Returned { organism }
-            | Event::Inhabited { organism } => vec![organism],
+            | Event::Inhabited { organism }
+            | Event::Carved { organism, .. } => vec![organism],
             // The founder's line continues through the split, which is what
             // makes a speciation visible in its own history rather than only
             // in the world's.

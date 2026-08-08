@@ -158,6 +158,7 @@ pub fn step(
 /// Advances the enclosure with place-graph ownership enabled. The plain
 /// [`step`] entry point remains useful for isolated ecology fixtures; worlds
 /// use this path so dispersal and tier hysteresis are part of replayed state.
+#[allow(clippy::too_many_arguments)]
 pub fn step_with_places(
     organisms: &mut Vec<Organism>,
     next_id: &mut u32,
@@ -180,6 +181,7 @@ pub fn step_with_places(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn step_inner(
     organisms: &mut Vec<Organism>,
     next_id: &mut u32,
@@ -305,10 +307,10 @@ fn step_inner(
                     }
                 }
 
-                if let Some(places) = places {
-                    if disperse(organism, places, focus, rng, &living, &carrion, events) {
-                        tally.moved += 1;
-                    }
+                if let Some(places) = places
+                    && disperse(organism, places, focus, rng, &living, &carrion, events)
+                {
+                    tally.moved += 1;
                 }
 
                 if organism.stage == Stage::Juvenile

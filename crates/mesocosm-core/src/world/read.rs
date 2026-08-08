@@ -145,6 +145,11 @@ impl World {
     }
 
     /// The enclosure, divided into regions.
+    /// The ground: brick truth for occupancy, sight, and carving.
+    pub fn ground(&self) -> &crate::places::Ground {
+        &self.ground
+    }
+
     pub fn places(&self) -> &Places {
         &self.places
     }

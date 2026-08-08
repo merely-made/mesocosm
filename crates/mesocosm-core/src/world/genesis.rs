@@ -194,6 +194,8 @@ impl World {
             })
             .collect();
 
+        let grown = crate::places::Places::grown(seed ^ PLACE_SALT, PLACE_SIDE, ENCLOSURE);
+
         let mut world = Self {
             tick: 0,
             epoch: 0,
@@ -207,13 +209,13 @@ impl World {
             frontier: 0,
             lineages,
             development_palette,
-            // Places take their own stream, so dividing an enclosure does not
-            // rearrange the creatures scattered across it.
-            places: crate::places::Places::scatter(
-                &mut Rng::from_seed(seed ^ PLACE_SALT),
-                PLACE_SIDE,
-                ENCLOSURE,
-            ),
+            // Places take their own stream, so dividing an enclosure does
+            // not rearrange the creatures scattered across it. Grown, not
+            // scattered (G1 adoption 2026-08-08): same site draws as the old
+            // lattice, so the partition is bit-identical, but links derive
+            // from the landscape and the ground below is real.
+            places: grown.places.clone(),
+            ground: crate::places::Ground::grow(&grown, ENCLOSURE),
             ranges: std::collections::BTreeMap::new(),
             record: crate::record::WorldRecord::new(),
             organisms,

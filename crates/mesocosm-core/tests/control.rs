@@ -231,12 +231,34 @@ fn the_ecology_reads_a_recorded_focus_and_never_the_controller() {
     }
     // And demotion is reachable in this very graph: a corner-to-corner
     // journey exceeds the band, so distance alone sends an agent Far.
-    let far_pos = [16, 0, 16];
-    let near_pos = [-16, 0, -16];
+    // And demotion is reachable in this very graph. Grown links are
+    // better-connected than the old lattice (corners may join directly),
+    // so the receipt finds a maximally distant pair rather than assuming
+    // which corners are far apart.
+    let (mut widest, mut pair) = (0, None);
+    for a in world.places().all() {
+        for b in world.places().all() {
+            let hops = world.places().hops(a.id, b.id).unwrap();
+            if hops > widest {
+                widest = hops;
+                pair = Some((a.centre, b.centre));
+            }
+        }
+    }
+    assert!(
+        widest >= line.demote_hops,
+        "the grown enclosure's diameter ({widest}) cannot reach the far tier"
+    );
+    let (near_c, far_c) = pair.unwrap();
     assert_eq!(
-        line.tick(world.places(), Tier::Near, far_pos, near_pos),
+        line.tick(
+            world.places(),
+            Tier::Near,
+            [far_c[0], 0, far_c[1]],
+            [near_c[0], 0, near_c[1]],
+        ),
         Tier::Far,
-        "the enclosure is wide enough to leave the neighbourhood"
+        "distance alone sends an agent Far"
     );
 
     let resumed = restore(&snapshot(&world).unwrap()).unwrap();

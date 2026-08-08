@@ -133,7 +133,7 @@ written after this run exists, from its numbers, not before.
 
 ## 3. Gates
 
-### G0. A graph worth the name — **constructor LANDED 2026-08-06; adoption pending**
+### G0. A graph worth the name — **COMPLETE 2026-08-08** (constructor 2026-08-06; genesis adoption 2026-08-08)
 
 Landed additively as `Places::grown(seed, side, extent) -> Grown` in
 `places/relief.rs` (integer diamond-square, 65², own seed, percentile sea)
@@ -169,7 +169,7 @@ rejects uniform degree; derived links agree with the partition (no
 Voronoi-adjacent pair denied without a landscape reason); the reckoning
 consumers (`hops`, `spread`, `scale`) keep their existing receipts.
 
-### G1. Brick truth with a lifecycle — **container LANDED 2026-08-06; world wiring pending**
+### G1. Brick truth with a lifecycle — **COMPLETE 2026-08-08** (container 2026-08-06; world adoption 2026-08-08)
 
 Landed additively as `places/bricks.rs`: `Ground::grow(&Grown, extent)`
 raises dense 8³ bricks (ordered map, serde-flat) from the relief; nests
@@ -423,3 +423,19 @@ standing rule: after two real consumers, never declared in advance.
 - 2026-08-07: bonsai reading adopted as three directions (relief lab,
   presentation-amplification tier, sim/render LOD unification); donor row
   and caveat in landscape §8.3.
+- **2026-08-08: G0/G1 world adoption landed.** Genesis grows
+  (`Places::grown(seed ^ PLACE_SALT, ...)` reuses the exact site-draw
+  sequence the old scatter consumed, so the partition is bit-identical
+  and only links, relief, and ground are new); `World` owns a serialized
+  `Ground` inside the replay hash; `Intent::Carve` is an ordered intent
+  with anatomy reach legality, an `Outcome::Carved { at, removed }`, and
+  an `Event::Carved` in history (carving air is not an event). Receipts:
+  carve replays to identical hashes on a twin, survives snapshot,
+  refuses beyond reach; the full core suite is green and strict clippy
+  clean. Finding: grown links are better-connected than the lattice
+  (the shipped 3x3 enclosure's diameter is exactly 2, the demote
+  threshold), so the tier receipt now finds a maximally distant pair
+  rather than assuming corners; a larger PLACE_SIDE would widen the far
+  tier and is a world-size question, flagged, not silently retuned.
+  Remaining on the chain: G2 integration, G3 world wiring (Move/near
+  tier onto occupancy), G4.

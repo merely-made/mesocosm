@@ -120,6 +120,11 @@ pub enum Intent {
     TakeControl { organism: OrganismId },
     /// Advance one tick without acting.
     Idle,
+    /// Carve a pocket of air around a nearby point. Recorded like every
+    /// mutation, so a burrow is part of the world's replayable history.
+    /// The energetics of digging await the metabolize-earth ruling; for
+    /// now legality is embodiment plus reach.
+    Carve { at: [i32; 3], radius: i32 },
 }
 
 /// Why an intent could not be applied. Rejections are part of the recorded
@@ -167,6 +172,8 @@ pub enum Ineligible {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Outcome {
     Moved,
+    /// Ground removed around a point.
+    Carved { at: [i32; 3], removed: u32 },
     /// A meal became energy and nothing else.
     Burned {
         organism: OrganismId,
@@ -244,6 +251,10 @@ pub struct World {
     /// one.
     #[serde(default)]
     places: Places,
+    /// The ground: brick truth raised from the same seed's landscape.
+    /// Serialized whole, so carves live inside the replay hash (G1).
+    #[serde(default)]
+    ground: crate::places::Ground,
     /// Everywhere each lineage has been.
     ///
     /// **A high-water set**, for the same reason the frontier is a high-water
@@ -295,6 +306,14 @@ fn event_for(outcome: &Outcome, actor: Option<OrganismId>) -> Option<crate::hist
             })
         }
         Outcome::Inhabited { organism } => Some(Event::Inhabited { organism }),
+        // Carving air did not happen to anyone; only removed matter is
+        // biographical.
+        Outcome::Carved { at, removed } if removed > 0 => Some(Event::Carved {
+            organism: actor?,
+            at,
+            removed,
+        }),
+        Outcome::Carved { .. } => None,
         Outcome::Speciated {
             species,
             from,

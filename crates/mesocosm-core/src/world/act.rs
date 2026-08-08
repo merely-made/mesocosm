@@ -28,6 +28,36 @@ impl World {
         match intent {
             Intent::Idle => Outcome::Idled,
 
+            Intent::Carve { at, radius } => {
+                // Reach is anatomy's, same as eating: a stubby body digs at
+                // its feet, a limbed one reaches further.
+                if !self.in_reach(at) {
+                    let Some(me) = self.controlled() else {
+                        return Outcome::Rejected(Rejection::Disembodied);
+                    };
+                    let distance = (0..3)
+                        .map(|a| (at[a] - me.position[a]).abs())
+                        .max()
+                        .unwrap_or(0);
+                    return Outcome::Rejected(Rejection::OutOfReach(
+                        crate::process::Unmet::TooFar {
+                            reach: self.reach(),
+                            distance,
+                        },
+                    ));
+                }
+                if !(1..=2).contains(&radius) {
+                    return Outcome::Rejected(Rejection::OutOfReach(
+                        crate::process::Unmet::TooFar {
+                            reach: 2,
+                            distance: radius,
+                        },
+                    ));
+                }
+                let removed = self.ground.carve(at, radius);
+                Outcome::Carved { at, removed }
+            }
+
             Intent::Move { delta } => {
                 let distance = delta.iter().map(|d| d.unsigned_abs() as u64).sum::<u64>();
                 let cost = distance * MOVE_COST_MG;

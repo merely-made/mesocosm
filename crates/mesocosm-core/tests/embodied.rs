@@ -256,3 +256,62 @@ fn a_body_and_its_weight_are_one_account() {
     assert_eq!(after.biomass_mg(), before + 500);
     assert_eq!(after.biomass_mg(), after.body.total_mass_mg(), "one account, not two");
 }
+
+#[test]
+fn a_carve_is_recorded_ground_truth() {
+    // G1 complete: the ground lives inside the world, a carve is an ordered
+    // intent, and both survive snapshot and replay identically.
+    let mut world = mesocosm_core::World::new(4_242, 24);
+    let here = world.position().expect("embodied");
+
+    // A carvable voxel in reach: solid, and above the bedrock floor the
+    // ground protects (y >= 1). The scan is the receipt's honesty: the
+    // fixture takes what the world affords instead of assuming a column.
+    let reach = world.reach().max(1);
+    let mut site = None;
+    'scan: for dy in -reach..=reach {
+        for dz in -reach..=reach {
+            for dx in -reach..=reach {
+                let at = [here[0] + dx, here[1] + dy, here[2] + dz];
+                if at[1] >= 1 && world.ground().solid(at) {
+                    site = Some(at);
+                    break 'scan;
+                }
+            }
+        }
+    }
+    let under = site.expect("something solid within reach of a grounded world");
+
+    let outcome = world.apply(Intent::Carve { at: under, radius: 1 });
+    let Outcome::Carved { at, removed } = outcome else {
+        panic!("carving in reach was refused: {outcome:?}");
+    };
+    assert_eq!(at, under);
+    assert!(removed > 0, "solid ground yielded nothing");
+    assert!(!world.ground().solid(under), "the voxel is air now");
+
+    // The carve is inside the replay contract: a twin applying the same
+    // intents reaches the same bytes, ground included.
+    let mut twin = mesocosm_core::World::new(4_242, 24);
+    twin.apply(Intent::Carve { at: under, radius: 1 });
+    assert_eq!(
+        mesocosm_core::state_hash(&world),
+        mesocosm_core::state_hash(&twin)
+    );
+
+    // And it survives the snapshot.
+    let resumed =
+        mesocosm_core::restore(&mesocosm_core::snapshot(&world).unwrap()).unwrap();
+    assert_eq!(resumed.ground(), world.ground());
+}
+
+#[test]
+fn a_carve_beyond_reach_is_refused() {
+    let mut world = mesocosm_core::World::new(4_242, 24);
+    let here = world.position().expect("embodied");
+    let far = [here[0] + 50, here[1], here[2]];
+    assert!(matches!(
+        world.apply(Intent::Carve { at: far, radius: 1 }),
+        Outcome::Rejected(Rejection::OutOfReach(Unmet::TooFar { .. }))
+    ));
+}
