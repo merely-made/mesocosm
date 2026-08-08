@@ -10,7 +10,8 @@ current chains are:
 - `G0/G1 world adoption -> G2 integration -> G3 world wiring -> G4`
   (place-graph lane), with F0-F5 exploratory.
 
-Wave 1/2 content below is preserved as history.
+Wave 1/2 content below is preserved as history. The successor is the
+[dependency ledger](2026-08-07_dependency_ledger.md).
 
 **Status: in progress, 2026-08-01.** **Wave 1 is complete**: core, runtime,
 mesher, renderer, a windowed host, and the Isometry projection, with every

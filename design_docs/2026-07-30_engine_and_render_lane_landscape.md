@@ -3,9 +3,10 @@
 **Status: research, updated 2026-08-04. No engine adoption decision.** Rewritten the same day after a
 review found two systematic faults in the first draft: it counted an
 ingredient shelf as a nearly finished engine, and it let "engine" mean two
-different things in one document. Both are fixed below. The decision itself
-and its probe live in
-[the body pipeline and host probe plan](2026-07-30_body_pipeline_and_host_probe_plan.md).
+different things in one document. Both are fixed below. The body-pipeline decision
+and its probe are history: the plan was archived 2026-08-07
+(`archive_docs/2026-08-07/`), with R4 (the extraction review) transferred
+to the Paredros execution plan, firing after S3.
 
 External facts were re-verified on 2026-07-30 against crates.io and GitHub.
 Bones, Renderling, wgpu, and the voxel-engine field were refreshed on
