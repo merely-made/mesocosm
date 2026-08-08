@@ -52,6 +52,9 @@ impl Role {
     /// one senses, and a flat one does neither while still being armour. That
     /// mapping is the whole vocabulary today.
     pub fn processes(self) -> &'static [Process] {
+        // The registry is the definition of record (PD1b); this remains the
+        // fast native view of it, and the parity receipt below keeps the two
+        // from drifting.
         match self {
             Role::Limb => &[Process::Contract],
             Role::Mass => &[Process::Intake],
@@ -100,6 +103,121 @@ pub enum Unmet {
 /// A creature can always touch what is against it. This is not a floor added
 /// to make the game work, it is what having a body means.
 pub const BULK_REACH: i32 = 1;
+
+/// A namespaced process identity (PD1b slice 1).
+///
+/// The registry is keyed by these rather than by enum variants, so a pack
+/// can one day mint `("reef", "filter")` without colliding with a native.
+/// Static strs because every definition today is native; admission of owned
+/// strings arrives with packs (PD3), not before.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct ProcessId {
+    pub namespace: &'static str,
+    pub name: &'static str,
+}
+
+/// One process as a record: identity, the roles whose geometry expresses
+/// it, and a digest over its rule-bearing bytes.
+///
+/// This is the PD1b migration's first half. The enum below remains the
+/// *native binding* (fast, exhaustive matching for engine code), but the
+/// definition of record is this struct: what expresses a process is data,
+/// and changing one rule-bearing byte changes the digest.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProcessDef {
+    pub id: ProcessId,
+    pub native: Process,
+    /// The roles whose shape expresses this process. Geometry seeding:
+    /// today's whole allocation rule, carried as data.
+    pub expressed_by: &'static [Role],
+}
+
+impl ProcessDef {
+    /// Digest over the rule-bearing bytes: identity plus expression rule.
+    pub fn digest(&self) -> u64 {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(self.id.namespace.as_bytes());
+        bytes.push(0);
+        bytes.extend_from_slice(self.id.name.as_bytes());
+        bytes.push(0);
+        for role in self.expressed_by {
+            bytes.push(*role as u8);
+        }
+        crate::snapshot::hash_bytes(&bytes)
+    }
+}
+
+/// The registry: every admitted process definition, ordered.
+///
+/// Deterministic by construction (a fixed native table today; PD3 admits
+/// packs through validation, never around it). The ruleset digest is what a
+/// snapshot will cite when admission becomes dynamic.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Registry {
+    defs: &'static [ProcessDef],
+}
+
+const NATIVE_DEFS: &[ProcessDef] = &[
+    ProcessDef {
+        id: ProcessId { namespace: "mesocosm", name: "contract" },
+        native: Process::Contract,
+        expressed_by: &[Role::Limb],
+    },
+    ProcessDef {
+        id: ProcessId { namespace: "mesocosm", name: "intake" },
+        native: Process::Intake,
+        expressed_by: &[Role::Mass],
+    },
+    ProcessDef {
+        id: ProcessId { namespace: "mesocosm", name: "sense" },
+        native: Process::Sense,
+        expressed_by: &[Role::Sensor],
+    },
+];
+
+impl Registry {
+    pub fn native() -> Self {
+        Self { defs: NATIVE_DEFS }
+    }
+
+    pub fn all(&self) -> impl Iterator<Item = &ProcessDef> {
+        self.defs.iter()
+    }
+
+    pub fn get(&self, id: ProcessId) -> Option<&ProcessDef> {
+        self.defs.iter().find(|def| def.id == id)
+    }
+
+    /// The definition a native binding resolves to. Total for the natives
+    /// by construction; the bijection is receipted below.
+    pub fn of_native(&self, process: Process) -> &ProcessDef {
+        self.defs
+            .iter()
+            .find(|def| def.native == process)
+            .expect("every native process is registered")
+    }
+
+    /// The processes a role's geometry expresses, per the registry.
+    pub fn expressed_by(&self, role: Role) -> impl Iterator<Item = &ProcessDef> {
+        self.defs.iter().filter(move |def| def.expressed_by.contains(&role))
+    }
+
+    /// Digest over the whole admitted ruleset, order-sensitive.
+    pub fn digest(&self) -> u64 {
+        let mut bytes = Vec::new();
+        for def in self.defs {
+            bytes.extend_from_slice(&def.digest().to_le_bytes());
+        }
+        crate::snapshot::hash_bytes(&bytes)
+    }
+}
+
+impl Process {
+    /// This native binding's qualified identity.
+    pub fn id(self) -> ProcessId {
+        Registry::native().of_native(self).id
+    }
+}
 
 impl BodyDocument {
     /// The processes a part contributes, from its shape.
@@ -277,6 +395,46 @@ mod tests {
         let reach = limbed.reach();
         assert_eq!(limbed.can_reach(50), Err(Unmet::TooFar { reach, distance: 50 }));
         assert_eq!(limbed.can_reach(reach), Ok(()), "and what it can do, it can do");
+    }
+
+    #[test]
+    fn the_registry_and_the_native_view_agree() {
+        // PD1b slice 1's load-bearing receipt: expression is defined by
+        // registry data, and the enum fast-path may never drift from it.
+        let registry = Registry::native();
+        for role in [Role::Limb, Role::Mass, Role::Sensor, Role::Plate] {
+            let via_registry: Vec<Process> =
+                registry.expressed_by(role).map(|def| def.native).collect();
+            assert_eq!(
+                via_registry,
+                role.processes().to_vec(),
+                "{role:?} expresses differently in data and in code"
+            );
+        }
+        // The binding is a bijection: every native resolves, and ids are
+        // qualified and distinct.
+        let mut ids = std::collections::BTreeSet::new();
+        for process in [Process::Contract, Process::Intake, Process::Sense] {
+            let def = registry.of_native(process);
+            assert_eq!(def.native, process);
+            assert!(ids.insert(def.id), "duplicate id {:?}", def.id);
+            assert_eq!(def.id.namespace, "mesocosm");
+        }
+    }
+
+    #[test]
+    fn a_rule_bearing_byte_changes_the_digest() {
+        let registry = Registry::native();
+        let contract = registry.of_native(Process::Contract);
+        // Same identity, different expression rule: a different definition.
+        let tampered = ProcessDef {
+            id: contract.id,
+            native: contract.native,
+            expressed_by: &[Role::Limb, Role::Plate],
+        };
+        assert_ne!(contract.digest(), tampered.digest());
+        // And the ruleset digest is stable across constructions.
+        assert_eq!(Registry::native().digest(), Registry::native().digest());
     }
 
     #[test]

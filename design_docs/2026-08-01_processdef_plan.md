@@ -762,7 +762,7 @@ a site dormant without moving it; restoration and replay agree; the same valid
 proposal from direct and automatic arrangement produces byte-identical state;
 and a body-only projection still decodes without Mesocosm phenotype semantics.
 
-### PD1b. Native ProcessDef migration
+### PD1b. Native ProcessDef migration — **slice 1 LANDED 2026-08-08; allocation half OPEN**
 
 Execute PD1a's ruling. Replace the closed `Process` enum as identity authority
 with registry-backed `ProcessDef` records for the three existing native
@@ -1042,3 +1042,17 @@ These are intentionally deferred to the gate with evidence:
   graft provenance, and filial material/lineage provenance. The founding
   slogan "every part used to be somebody" conflicts with `Origin::Founding`
   and recipe regrowth unless these are kept distinct.
+- **2026-08-08, PD1b slice 1 landed (identity layer).** `ProcessId`
+  (namespaced, static until PD3 admits owned strings), `ProcessDef`
+  records for the three natives with per-definition digests over their
+  rule-bearing bytes, a deterministic `Registry` with a ruleset digest,
+  and `Process::id()` resolving the native binding through it. `Role`'s
+  fast path is now receipted against the registry (`the_registry_and_
+  the_native_view_agree`), so expression is defined by data and the enum
+  may not drift; `a_rule_bearing_byte_changes_the_digest` proves the PD3
+  digest property early. Reach semantics untouched, all existing
+  receipts green. **Open for PD1b complete:** the `BodyPhenotype`
+  wrapper, `phenotype/allocation.rs` and `develop.rs`, geometry-seeded
+  allocation, `organism.body` privatization, and the wrapper-routed
+  intents — the survey confirmed none of the PD1a seam files exist yet,
+  so that half is a full surgery scheduled as its own session.
