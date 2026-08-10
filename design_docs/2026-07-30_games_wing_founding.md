@@ -77,6 +77,46 @@ metabolized memories, and places that grow organs are all perturbations of
 continuity, which is why "impossible ecology" rather than spellcasting is
 the fantastical direction (general model plan, F-gates).
 
+### Each vessel is a mode of the same peopled history
+
+**Ruled 2026-08-10 (Mark),** during the R4 extraction review
+(`paredros/design_docs/2026-08-10_r4_extraction_review.md`), and recorded
+symmetrically rather than one-directionally: no vessel is the primary one.
+
+- **Isometry** is the fortress and atlas mode: care for a squad and a map,
+  prepared ahead, adjudicated in turns.
+- **Paredros** is the adventure mode: the same world's people met one at a
+  time, embodied, negotiated.
+- **Mesocosm** is the ecology beneath both: the world that produces the
+  people in the first place.
+
+The Dwarf Fortress comparison is the origin of the framing and also its
+limit. DF's modes share one save and one executable; **the wing's vessels do
+not.** They stay sovereign games — separate genres, schedules, verbs, and
+authorities — joined by a shared *history*, never by a shared running world
+instance. A vessel must never be able to require another vessel to be
+running.
+
+What the frame decides, and why it is here rather than only in the review:
+
+- **Facts of the world cross; verbs never do.** The recognizable things are
+  **people** (subjects and their deeds), **things** (relics with
+  provenance), and **places** (sites with history). They cross by the three
+  pipeline laws of §3, as choices under scarcity with pointable inheritance.
+  Kinematics, tile-and-turn adjudication, renderers, and control schemes do
+  not cross, ever. Paredros walking Mesocosm's voxels and Isometry baking
+  voxels to sprites are the same source becoming two lenses, not one lens
+  borrowed.
+- **Platform organs go up, not sideways.** Where two vessels need the same
+  runtime machinery, the seam belongs to the layer that owns it (genet,
+  netrender, mere), not to a new wing-level crate wedged between the games.
+  The R4 review's first ruling applies this to renderer tenancy.
+- **What must be recognizable gets a shared name; what must be judged does
+  not.** Identity is one vocabulary across the wing (the four facts above,
+  `paredros-identity` promoted 2026-08-10). The consequence grammar is
+  deliberately *not* shared as a library: one grammar, sovereign evaluators
+  per vessel, per the general model's evaluator rule.
+
 ### The invariant is care granularity, not person purity
 
 **Relaxed 2026-07-30, at Mark's prompting, and this correction matters.** The
