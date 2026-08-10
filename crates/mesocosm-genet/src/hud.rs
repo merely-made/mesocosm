@@ -97,7 +97,11 @@ impl Hud {
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("minimap"),
-            size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: SIDE,
+                height: SIDE,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -111,7 +115,11 @@ impl Hud {
         let view = texture.create_view(&Default::default());
         let sample_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("minimap srgb"),
-            size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: SIDE,
+                height: SIDE,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -124,7 +132,11 @@ impl Hud {
         let shot = Renderer::with_device(device.clone(), queue, SIDE, SIDE);
         let backdrop = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("minimap backdrop"),
-            size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: SIDE,
+                height: SIDE,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -162,11 +174,14 @@ impl Hud {
         }
         self.rendered_at = Some(steps);
 
-        let mut encoder = self
-            .shot
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("backdrop") });
-        self.shot.draw_scene(&mut encoder, &self.backdrop_view, items, &overhead());
+        let mut encoder =
+            self.shot
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("backdrop"),
+                });
+        self.shot
+            .draw_scene(&mut encoder, &self.backdrop_view, items, &overhead());
         self.shot.queue().submit(Some(encoder.finish()));
     }
 
@@ -181,7 +196,13 @@ impl Hud {
             return;
         }
         let mut cmds = Vec::new();
-        let mut cx = PaintCx::new(&mut cmds, Size { width: SIDE as f32, height: SIDE as f32 });
+        let mut cx = PaintCx::new(
+            &mut cmds,
+            Size {
+                width: SIDE as f32,
+                height: SIDE as f32,
+            },
+        );
         self.leaf.paint(&mut cx);
 
         let translated = paint_list_render::translate_paint_cmd_stream(
@@ -198,14 +219,20 @@ impl Hud {
 
         // Into the sRGB twin the composite samples. Byte-identical; only the
         // format tag differs, which is the entire point.
-        let mut encoder = self
-            .shot
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("srgb twin") });
+        let mut encoder =
+            self.shot
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("srgb twin"),
+                });
         encoder.copy_texture_to_texture(
             self.texture.as_image_copy(),
             self.sample_texture.as_image_copy(),
-            wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: SIDE,
+                height: SIDE,
+                depth_or_array_layers: 1,
+            },
         );
         self.shot.queue().submit(Some(encoder.finish()));
     }
@@ -225,8 +252,24 @@ impl Hud {
         let composite = Composite::new(device, format);
         let x = frame.0 as f32 - SIDE as f32 - MARGIN;
         let dest = (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32);
-        composite.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
-        composite.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
+        composite.draw(
+            device,
+            queue,
+            encoder,
+            target,
+            &self.backdrop_view,
+            dest,
+            frame,
+        );
+        composite.draw(
+            device,
+            queue,
+            encoder,
+            target,
+            &self.sample_view,
+            dest,
+            frame,
+        );
     }
 
     /// Blends the minimap into the frame's top-right corner.
@@ -242,7 +285,23 @@ impl Hud {
         let dest = (x.max(0.0), MARGIN, SIDE as f32, SIDE as f32);
         // Terrain under territory: the world's own image first, the cells
         // whose translucency exists for exactly this on top.
-        self.composite.draw(device, queue, encoder, target, &self.backdrop_view, dest, frame);
-        self.composite.draw(device, queue, encoder, target, &self.sample_view, dest, frame);
+        self.composite.draw(
+            device,
+            queue,
+            encoder,
+            target,
+            &self.backdrop_view,
+            dest,
+            frame,
+        );
+        self.composite.draw(
+            device,
+            queue,
+            encoder,
+            target,
+            &self.sample_view,
+            dest,
+            frame,
+        );
     }
 }

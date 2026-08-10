@@ -56,7 +56,6 @@ impl Default for HostConfig {
 /// critter moves across the view rather than the view rescaling around it.
 const WORLD_EXTENT: f32 = 26.0;
 
-
 /// One drawable thing in the world: its geometry, where it sits, and how
 /// brightly it reads.
 type Placed = (BodyMesh, [i32; 3], f32, bool, [f32; 3], f32);
@@ -79,7 +78,11 @@ fn look_of(organism: &Organism) -> ([f32; 3], f32) {
         // Growth you can see: a juvenile is visibly smaller than what it will
         // become, which is what makes waiting a decision.
         Stage::Juvenile => (
-            [colour[0] * 0.85 + 0.1, colour[1] * 0.85 + 0.1, colour[2] * 0.85 + 0.1],
+            [
+                colour[0] * 0.85 + 0.1,
+                colour[1] * 0.85 + 0.1,
+                colour[2] * 0.85 + 0.1,
+            ],
             0.55,
         ),
         Stage::Mature => (colour, 1.0),
@@ -97,7 +100,11 @@ struct View {
 
 impl Default for View {
     fn default() -> Self {
-        Self { yaw: std::f32::consts::FRAC_PI_4, pitch: 0.6154797, zoom: 1.0 }
+        Self {
+            yaw: std::f32::consts::FRAC_PI_4,
+            pitch: 0.6154797,
+            zoom: 1.0,
+        }
     }
 }
 
@@ -199,27 +206,38 @@ impl Host {
     /// The next meal in reach, routed. `None` when nothing is close enough.
     fn meal(&self, route: Route) -> Option<Intent> {
         let world = self.runtime.world();
-        fixture::reachable(world)
-            .map(|m| fixture::metabolize(world, m, &self.volumes, route))
+        fixture::reachable(world).map(|m| fixture::metabolize(world, m, &self.volumes, route))
     }
 
     fn intent_for(&self, key: &Key) -> Option<Intent> {
         let step = 2;
         match key {
             Key::Character(c) => match c.as_str() {
-                "w" | "W" => Some(Intent::Move { delta: [0, 0, -step] }),
-                "s" | "S" => Some(Intent::Move { delta: [0, 0, step] }),
-                "a" | "A" => Some(Intent::Move { delta: [-step, 0, 0] }),
-                "d" | "D" => Some(Intent::Move { delta: [step, 0, 0] }),
+                "w" | "W" => Some(Intent::Move {
+                    delta: [0, 0, -step],
+                }),
+                "s" | "S" => Some(Intent::Move {
+                    delta: [0, 0, step],
+                }),
+                "a" | "A" => Some(Intent::Move {
+                    delta: [-step, 0, 0],
+                }),
+                "d" | "D" => Some(Intent::Move {
+                    delta: [step, 0, 0],
+                }),
                 // The one verb, two destinations. Growing is the default
                 // because automatic symmetric growth is the resting state;
                 // burning is the deliberate one you reach for when hungry.
-                "e" | "E" => self.meal(Route::Incorporate { placement: Placement::Planned }),
+                "e" | "E" => self.meal(Route::Incorporate {
+                    placement: Placement::Planned,
+                }),
                 "f" | "F" => self.meal(Route::Burn),
                 "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
                 _ => None,
             },
-            Key::Named(NamedKey::Space) => self.meal(Route::Incorporate { placement: Placement::Planned }),
+            Key::Named(NamedKey::Space) => self.meal(Route::Incorporate {
+                placement: Placement::Planned,
+            }),
             _ => None,
         }
     }
@@ -256,7 +274,9 @@ impl Host {
                     world,
                     target,
                     &self.volumes,
-                    Route::Incorporate { placement: Placement::Planned },
+                    Route::Incorporate {
+                        placement: Placement::Planned,
+                    },
                 );
                 self.runtime.queue(intent);
             } else if let Some(step) = fixture::toward_prey(world) {
@@ -270,7 +290,9 @@ impl Host {
         self.steps += self.runtime.advance(elapsed_us);
 
         let camera = self.camera();
-        let Some((body, loose)) = self.scene() else { return };
+        let Some((body, loose)) = self.scene() else {
+            return;
+        };
         let critter_at = self.runtime.world().position().unwrap_or([0, 0, 0]);
 
         let Some(gpu) = &mut self.gpu else { return };
@@ -288,15 +310,21 @@ impl Host {
         };
 
         let view = surface_texture.texture.create_view(&Default::default());
-        let mut encoder = gpu.renderer.device().create_command_encoder(
-            &wgpu::CommandEncoderDescriptor { label: Some("frame") },
-        );
+        let mut encoder =
+            gpu.renderer
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("frame"),
+                });
         let mut items = Vec::with_capacity(loose.len() + 1);
         items.push(SceneItem::new(&body, critter_at));
         for (mesh, at, tint, warns, colour, scale) in &loose {
-            items.push(SceneItem::creature(mesh, *at, *tint, *warns, *colour, *scale));
+            items.push(SceneItem::creature(
+                mesh, *at, *tint, *warns, *colour, *scale,
+            ));
         }
-        gpu.renderer.draw_scene(&mut encoder, &view, &items, &camera);
+        gpu.renderer
+            .draw_scene(&mut encoder, &view, &items, &camera);
         if let Some(hud) = &mut gpu.hud {
             hud.render_backdrop(&items, self.steps);
             hud.refresh(self.runtime.world());
@@ -323,9 +351,13 @@ impl Host {
     /// Renders one offscreen frame and writes it, so a windowed run leaves
     /// evidence a person can look at later.
     fn capture(&self) {
-        let Some(path) = &self.config.capture else { return };
+        let Some(path) = &self.config.capture else {
+            return;
+        };
         let Some(gpu) = &self.gpu else { return };
-        let Some((body, loose)) = self.scene() else { return };
+        let Some((body, loose)) = self.scene() else {
+            return;
+        };
         let critter_at = self.runtime.world().position().unwrap_or([0, 0, 0]);
 
         // The offscreen path wants our own colour format, not the surface's.
@@ -338,7 +370,9 @@ impl Host {
         let mut items = Vec::with_capacity(loose.len() + 1);
         items.push(SceneItem::new(&body, critter_at));
         for (mesh, at, tint, warns, colour, scale) in &loose {
-            items.push(SceneItem::creature(mesh, *at, *tint, *warns, *colour, *scale));
+            items.push(SceneItem::creature(
+                mesh, *at, *tint, *warns, *colour, *scale,
+            ));
         }
         let camera = self.camera();
         let rendered = shot.render_scene_with(&items, &camera, |encoder, view| {
@@ -361,7 +395,9 @@ impl Host {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        let Ok(file) = std::fs::File::create(path) else { return };
+        let Ok(file) = std::fs::File::create(path) else {
+            return;
+        };
         let mut encoder = png::Encoder::new(file, frame.width, frame.height);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
@@ -410,17 +446,16 @@ impl ApplicationHandler for Host {
         let surface = instance
             .create_surface(window.clone())
             .expect("a surface for this window");
-        let adapter = pollster::block_on(instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
-                force_fallback_adapter: false,
-                compatible_surface: Some(&surface),
-            },
-        ))
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::default(),
+            force_fallback_adapter: false,
+            compatible_surface: Some(&surface),
+        }))
         .expect("an adapter that can present to this surface");
-        let (device, queue) = pollster::block_on(adapter.request_device(
-            &wgpu::DeviceDescriptor { label: Some("mesocosm host"), ..Default::default() },
-        ))
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            label: Some("mesocosm host"),
+            ..Default::default()
+        }))
         .expect("a device");
 
         let size = window.inner_size();
@@ -459,21 +494,26 @@ impl ApplicationHandler for Host {
         // The HUD shares the game's device rather than creating a second one,
         // which is the arrangement the workspace's wgpu pin exists for.
         let hud = crate::hud::Hud::new(
-            netrender::WgpuHandles { instance, adapter, device, queue },
+            netrender::WgpuHandles {
+                instance,
+                adapter,
+                device,
+                queue,
+            },
             format,
             self.runtime.world(),
         );
 
-        self.gpu = Some(Gpu { surface, config, renderer, hud });
+        self.gpu = Some(Gpu {
+            surface,
+            config,
+            renderer,
+            hud,
+        });
         self.window = Some(window);
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _id: WindowId,
-        event: WindowEvent,
-    ) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
 

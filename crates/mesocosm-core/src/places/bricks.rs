@@ -330,8 +330,14 @@ mod tests {
         let (_, ground) = world();
         assert!(ground.brick_count() > 0);
         let top = ground.surface(0, 0).expect("a column at the origin");
-        assert!(ground.stands([0, top + 1, 0], 2), "the surface holds you up");
-        assert!(!ground.stands([0, top - 1, 0], 2), "inside rock is not a stance");
+        assert!(
+            ground.stands([0, top + 1, 0], 2),
+            "the surface holds you up"
+        );
+        assert!(
+            !ground.stands([0, top - 1, 0], 2),
+            "inside rock is not a stance"
+        );
     }
 
     #[test]
@@ -371,7 +377,10 @@ mod tests {
         assert_eq!(ground.revision(), 1);
         let dirty = ground.drain_dirty();
         assert!(!dirty.is_empty());
-        assert!(dirty.len() <= 8, "a radius-1 carve touches at most 8 bricks");
+        assert!(
+            dirty.len() <= 8,
+            "a radius-1 carve touches at most 8 bricks"
+        );
         assert!(ground.drain_dirty().is_empty(), "drained means drained");
 
         // Carving air is not an edit.
@@ -425,7 +434,9 @@ mod tests {
         for x in from[0]..=to[0] {
             ground.carve([x, from[1], from[2]], 1);
         }
-        assert!(ground.sees(from, [to[0], from[1], from[2]]), "a tunnel is not");
+        assert!(
+            ground.sees(from, [to[0], from[1], from[2]]),
+            "a tunnel is not"
+        );
     }
-
 }

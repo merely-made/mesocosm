@@ -129,13 +129,15 @@ pub fn from_organisms(organisms: &[Organism], places: &Places) -> Vec<Cohort> {
 
 /// A compact receipt for a far-tier formation pass.
 pub fn conserved_totals(cohorts: &[Cohort]) -> (u64, u64, u64) {
-    cohorts.iter().fold((0, 0, 0), |(count, biomass, energy), cohort| {
-        (
-            count + u64::from(cohort.count),
-            biomass + cohort.biomass_mg,
-            energy + cohort.energy_mg,
-        )
-    })
+    cohorts
+        .iter()
+        .fold((0, 0, 0), |(count, biomass, energy), cohort| {
+            (
+                count + u64::from(cohort.count),
+                biomass + cohort.biomass_mg,
+                energy + cohort.energy_mg,
+            )
+        })
 }
 
 /// Stable population counts by place, useful to a host without exposing the

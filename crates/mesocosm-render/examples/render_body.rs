@@ -54,7 +54,9 @@ const CORE: i32 = 5;
 fn grow(world: &mut World, meals: usize) -> usize {
     let mut eaten = 0;
     for meal in 0..meals {
-        let Some(target) = reachable(world) else { break };
+        let Some(target) = reachable(world) else {
+            break;
+        };
 
         let size = world
             .organisms
@@ -77,7 +79,13 @@ fn grow(world: &mut World, meals: usize) -> usize {
         // its corner, so a rotated limb swings off the joint it was flush to.
         if let Outcome::Incorporated { .. } = world.apply(Intent::Metabolize {
             organism: target,
-            route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset, yaw: Yaw::Zero } },
+            route: Route::Incorporate {
+                placement: Placement::Explicit {
+                    parent: PartId(0),
+                    offset,
+                    yaw: Yaw::Zero,
+                },
+            },
         }) {
             eaten += 1;
         }
@@ -134,7 +142,10 @@ fn main() {
 
     println!("body parts:   {}", world.body().unwrap().len());
     println!("total mass:   {} mg", world.total_mass_mg());
-    println!("centre of mass: {:?}", world.body().unwrap().centre_of_mass());
+    println!(
+        "centre of mass: {:?}",
+        world.body().unwrap().centre_of_mass()
+    );
     for part in world.body().unwrap().incorporated() {
         println!(
             "  part {:?} came from {:?}",
@@ -143,13 +154,7 @@ fn main() {
     }
 }
 
-fn write_frame(
-    renderer: &Renderer,
-    world: &World,
-    volumes: &VolumeMap,
-    dir: &Path,
-    name: &str,
-) {
+fn write_frame(renderer: &Renderer, world: &World, volumes: &VolumeMap, dir: &Path, name: &str) {
     let mesh = mesh_body(world.body().unwrap(), volumes).expect("every part resolves");
     let (min, max) = mesh.bounds().expect("the body has geometry");
     let camera = Camera::framing(min, max, 1.0);

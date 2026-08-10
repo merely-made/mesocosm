@@ -74,13 +74,19 @@ fn registry(organisms: &[Organism]) -> Lineages {
 fn allometric_rates_cross_three_orders_without_flat_steps() {
     let masses = [100, 1_000, 10_000];
     let upkeep: Vec<_> = masses.iter().map(|mass| upkeep_for_mass(*mass)).collect();
-    let feeding: Vec<_> = masses.iter().map(|mass| feeding_rate_for_mass(*mass)).collect();
+    let feeding: Vec<_> = masses
+        .iter()
+        .map(|mass| feeding_rate_for_mass(*mass))
+        .collect();
     let maturity: Vec<_> = masses.iter().map(|mass| maturity_for_mass(*mass)).collect();
 
     assert!(upkeep[0] < upkeep[1] && upkeep[1] < upkeep[2]);
     assert!(feeding[0] < feeding[1] && feeding[1] < feeding[2]);
     assert!(maturity[0] < maturity[1] && maturity[1] < maturity[2]);
-    assert!(upkeep[2] < upkeep[0] * 80, "upkeep became linear: {upkeep:?}");
+    assert!(
+        upkeep[2] < upkeep[0] * 80,
+        "upkeep became linear: {upkeep:?}"
+    );
 }
 
 #[test]
@@ -120,7 +126,14 @@ fn a_contractile_consumer_can_take_live_consumer_prey() {
     let mut rng = Rng::from_seed(4);
     let mut next = 2;
     let lines = registry(&world);
-    step(&mut world, &mut next, &mut rng, &mut events, &lines, PartPalette::primitive());
+    step(
+        &mut world,
+        &mut next,
+        &mut rng,
+        &mut events,
+        &lines,
+        PartPalette::primitive(),
+    );
 
     assert!(events.iter().any(|event| matches!(
         event,
@@ -151,9 +164,16 @@ fn an_exhausted_body_disperses_through_the_place_graph() {
         Some([0, 0, 0]),
     );
 
-    assert_ne!(world[0].position, before, "hunger must leave an exhausted place");
+    assert_ne!(
+        world[0].position, before,
+        "hunger must leave an exhausted place"
+    );
     assert_eq!(tally.moved, 1);
-    assert!(events.iter().any(|event| matches!(event, Event::Moved { organism, .. } if *organism == OrganismId(0))));
+    assert!(
+        events.iter().any(
+            |event| matches!(event, Event::Moved { organism, .. } if *organism == OrganismId(0))
+        )
+    );
 }
 
 #[test]
@@ -219,8 +239,16 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
     );
 
     assert!(fast_world[0].position[0] > slow_world[0].position[0]);
-    assert!(fast_events.iter().any(|event| matches!(event, Event::Moved { .. })));
-    assert!(slow_events.iter().any(|event| matches!(event, Event::Moved { .. })));
+    assert!(
+        fast_events
+            .iter()
+            .any(|event| matches!(event, Event::Moved { .. }))
+    );
+    assert!(
+        slow_events
+            .iter()
+            .any(|event| matches!(event, Event::Moved { .. }))
+    );
 }
 
 #[test]
@@ -339,7 +367,10 @@ fn an_offspring_costs_its_parent_mass() {
     unbred[0].since_offspring = 0;
     unbred[0].life_history_mass_mg = 10_000;
     run(&mut unbred, ticks);
-    assert!(world[0].biomass_mg() < unbred[0].biomass_mg(), "the parent paid for birth");
+    assert!(
+        world[0].biomass_mg() < unbred[0].biomass_mg(),
+        "the parent paid for birth"
+    );
 }
 
 #[test]

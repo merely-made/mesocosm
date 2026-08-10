@@ -41,11 +41,7 @@ pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
     let vertical = (toward[1] - from[1]).signum();
 
     // Try the full move, then each axis alone: the slide.
-    let tries = [
-        [want[0], want[1]],
-        [want[0], 0],
-        [0, want[1]],
-    ];
+    let tries = [[want[0], want[1]], [want[0], 0], [0, want[1]]];
     let mut forced_drop = None;
     for try_move in tries {
         if try_move == [0, 0] {
@@ -55,7 +51,11 @@ pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
         // Prefer lifts that close the vertical gap, but preference is an
         // ordering, never a refusal: descending the far side of a hill
         // requires climbing the near side first.
-        let lifts = if vertical < 0 { [0, -1, CLIMB] } else { [0, CLIMB, -1] };
+        let lifts = if vertical < 0 {
+            [0, -1, CLIMB]
+        } else {
+            [0, CLIMB, -1]
+        };
         for lift in lifts {
             let at = [target[0], from[1] + lift, target[2]];
             if ground.stands(at, WALKER_HEIGHT) {
@@ -129,13 +129,7 @@ impl Default for TierLine {
 
 impl TierLine {
     /// The next tier, given where the agent and the focus are.
-    pub fn tick(
-        &self,
-        places: &Places,
-        current: Tier,
-        agent: [i32; 3],
-        focus: [i32; 3],
-    ) -> Tier {
+    pub fn tick(&self, places: &Places, current: Tier, agent: [i32; 3], focus: [i32; 3]) -> Tier {
         let (Some(a), Some(f)) = (places.at(agent), places.at(focus)) else {
             return current;
         };

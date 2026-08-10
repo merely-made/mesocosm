@@ -16,7 +16,7 @@
 //! because there is no capability number to edit.
 
 use mesocosm_core::{
-    Attachment, Capability, Intent, Outcome, OrganismId, Process, Provenance, Rejection, Route,
+    Attachment, Capability, Intent, OrganismId, Outcome, Process, Provenance, Rejection, Route,
     Unmet, VolumeRef, World, Yaw,
 };
 
@@ -32,7 +32,11 @@ fn grow_a_limb(world: &mut World) -> mesocosm_core::PartId {
             200,
             // Long in one axis only, which is what `classify` reads as a limb.
             [7, 1, 1],
-            Attachment { parent: root, offset: [9, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: root,
+                offset: [9, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .expect("attaches")
@@ -57,8 +61,15 @@ fn a_bare_critter_reaches_less_than_a_limbed_one() {
 fn reach_is_not_a_constant_any_more() {
     // The specific thing replaced. Eight was the old answer for everybody.
     let world = World::new(4_242, 24);
-    assert_ne!(world.reach(), 8, "a starting critter no longer inherits the old constant");
-    assert!(world.reach() > 0, "but it can still touch what is against it");
+    assert_ne!(
+        world.reach(),
+        8,
+        "a starting critter no longer inherits the old constant"
+    );
+    assert!(
+        world.reach() > 0,
+        "but it can still touch what is against it"
+    );
 }
 
 #[test]
@@ -93,11 +104,17 @@ fn a_limb_makes_something_edible_that_was_not() {
     assert!(limbed.in_reach(at), "and in reach once it grew an arm");
 
     assert!(matches!(
-        bare.apply(Intent::Metabolize { organism: id, route: Route::Burn }),
+        bare.apply(Intent::Metabolize {
+            organism: id,
+            route: Route::Burn
+        }),
         Outcome::Rejected(Rejection::OutOfReach(_))
     ));
     assert!(matches!(
-        limbed.apply(Intent::Metabolize { organism: id, route: Route::Burn }),
+        limbed.apply(Intent::Metabolize {
+            organism: id,
+            route: Route::Burn
+        }),
         Outcome::Burned { .. }
     ));
 }
@@ -146,7 +163,10 @@ fn a_refusal_says_which_embodied_requirement_failed() {
     });
 
     // No actuator at all: the body is a bulk root.
-    let outcome = world.apply(Intent::Metabolize { organism: id, route: Route::Burn });
+    let outcome = world.apply(Intent::Metabolize {
+        organism: id,
+        route: Route::Burn,
+    });
     assert_eq!(
         outcome,
         Outcome::Rejected(Rejection::OutOfReach(Unmet::NoProcess {
@@ -159,7 +179,10 @@ fn a_refusal_says_which_embodied_requirement_failed() {
     // With an arm, the same refusal reports a distance instead.
     grow_a_limb(&mut world);
     let reach = world.reach();
-    let outcome = world.apply(Intent::Metabolize { organism: id, route: Route::Burn });
+    let outcome = world.apply(Intent::Metabolize {
+        organism: id,
+        route: Route::Burn,
+    });
     assert!(
         matches!(outcome, Outcome::Rejected(Rejection::OutOfReach(Unmet::TooFar { reach: r, .. })) if r == reach),
         "an armed critter is told how far it can actually touch, got {outcome:?}"
@@ -173,7 +196,10 @@ fn processes_are_read_from_shape_and_not_stored() {
     let mut world = World::new(4_242, 24);
     let body = world.body().unwrap();
 
-    assert!(!body.performs(Process::Contract), "a bulk root is not an actuator");
+    assert!(
+        !body.performs(Process::Contract),
+        "a bulk root is not an actuator"
+    );
     assert!(body.performs(Process::Intake), "but it does admit material");
 
     let limb = grow_a_limb(&mut world);
@@ -188,7 +214,11 @@ fn every_organism_answers_the_same_way() {
     // critter's reach is computed by the same fold.
     let world = World::new(4_242, 24);
     for organism in &world.organisms {
-        assert!(organism.body.reach() > 0, "{:?} can touch something", organism.id);
+        assert!(
+            organism.body.reach() > 0,
+            "{:?} can touch something",
+            organism.id
+        );
         assert_eq!(
             organism.body.can_reach(organism.body.reach()),
             Ok(()),
@@ -218,7 +248,11 @@ fn growing_raises_the_rent_and_burning_does_not() {
                 VolumeRef::from_tag(9),
                 4_000,
                 [7, 1, 1],
-                Attachment { parent: root, offset: [9, 0, 0], yaw: Yaw::Zero },
+                Attachment {
+                    parent: root,
+                    offset: [9, 0, 0],
+                    yaw: Yaw::Zero,
+                },
                 Provenance::founding(),
             )
             .unwrap();
@@ -228,7 +262,12 @@ fn growing_raises_the_rent_and_burning_does_not() {
     burnt.controlled_id().unwrap();
     {
         let id = burnt.controlled_id().unwrap();
-        burnt.organisms.iter_mut().find(|o| o.id == id).unwrap().energy_mg += 4_000;
+        burnt
+            .organisms
+            .iter_mut()
+            .find(|o| o.id == id)
+            .unwrap()
+            .energy_mg += 4_000;
     }
 
     assert!(
@@ -250,11 +289,20 @@ fn a_body_and_its_weight_are_one_account() {
     let me = world.controlled_id().unwrap();
     let before = world.controlled().unwrap().biomass_mg();
 
-    world.organisms.iter_mut().find(|o| o.id == me).unwrap().gain_mass(500);
+    world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == me)
+        .unwrap()
+        .gain_mass(500);
 
     let after = world.controlled().unwrap();
     assert_eq!(after.biomass_mg(), before + 500);
-    assert_eq!(after.biomass_mg(), after.body.total_mass_mg(), "one account, not two");
+    assert_eq!(
+        after.biomass_mg(),
+        after.body.total_mass_mg(),
+        "one account, not two"
+    );
 }
 
 #[test]
@@ -282,7 +330,10 @@ fn a_carve_is_recorded_ground_truth() {
     }
     let under = site.expect("something solid within reach of a grounded world");
 
-    let outcome = world.apply(Intent::Carve { at: under, radius: 1 });
+    let outcome = world.apply(Intent::Carve {
+        at: under,
+        radius: 1,
+    });
     let Outcome::Carved { at, removed } = outcome else {
         panic!("carving in reach was refused: {outcome:?}");
     };
@@ -293,15 +344,17 @@ fn a_carve_is_recorded_ground_truth() {
     // The carve is inside the replay contract: a twin applying the same
     // intents reaches the same bytes, ground included.
     let mut twin = mesocosm_core::World::new(4_242, 24);
-    twin.apply(Intent::Carve { at: under, radius: 1 });
+    twin.apply(Intent::Carve {
+        at: under,
+        radius: 1,
+    });
     assert_eq!(
         mesocosm_core::state_hash(&world),
         mesocosm_core::state_hash(&twin)
     );
 
     // And it survives the snapshot.
-    let resumed =
-        mesocosm_core::restore(&mesocosm_core::snapshot(&world).unwrap()).unwrap();
+    let resumed = mesocosm_core::restore(&mesocosm_core::snapshot(&world).unwrap()).unwrap();
     assert_eq!(resumed.ground(), world.ground());
 }
 

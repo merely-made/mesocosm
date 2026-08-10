@@ -127,11 +127,21 @@ pub struct SceneItem<'a> {
 
 impl<'a> SceneItem<'a> {
     pub fn new(mesh: &'a BodyMesh, origin: [i32; 3]) -> Self {
-        Self { mesh, origin, tint: 1.0, warns: false, recolour: None, scale: 1.0 }
+        Self {
+            mesh,
+            origin,
+            tint: 1.0,
+            warns: false,
+            recolour: None,
+            scale: 1.0,
+        }
     }
 
     pub fn tinted(mesh: &'a BodyMesh, origin: [i32; 3], tint: f32) -> Self {
-        Self { tint, ..Self::new(mesh, origin) }
+        Self {
+            tint,
+            ..Self::new(mesh, origin)
+        }
     }
 
     /// A living thing, drawn as what it appears to be and how big it has got.
@@ -143,7 +153,14 @@ impl<'a> SceneItem<'a> {
         colour: [f32; 3],
         scale: f32,
     ) -> Self {
-        Self { mesh, origin, tint, warns, recolour: Some(colour), scale }
+        Self {
+            mesh,
+            origin,
+            tint,
+            warns,
+            recolour: Some(colour),
+            scale,
+        }
     }
 }
 
@@ -168,7 +185,14 @@ pub fn build_vertices(mesh: &BodyMesh) -> Vec<Vertex> {
 }
 
 fn append_body(out: &mut Vec<Vertex>, item: &SceneItem) {
-    let SceneItem { mesh, origin, tint, warns, recolour, scale } = *item;
+    let SceneItem {
+        mesh,
+        origin,
+        tint,
+        warns,
+        recolour,
+        scale,
+    } = *item;
     for placement in &mesh.placements {
         let Some(part_mesh) = mesh.mesh_for(placement.volume) else {
             continue;
@@ -182,12 +206,8 @@ fn append_body(out: &mut Vec<Vertex>, item: &SceneItem) {
             let colour = [colour[0] * tint, colour[1] * tint, colour[2] * tint];
 
             let corners = quad.corners().map(|corner| {
-                let placed = place_point(
-                    corner,
-                    placement.yaw,
-                    placement.pivot,
-                    placement.pivot_at,
-                );
+                let placed =
+                    place_point(corner, placement.yaw, placement.pivot, placement.pivot_at);
                 [
                     placed[0] as f32 * scale + origin[0] as f32,
                     placed[1] as f32 * scale + origin[1] as f32,
@@ -196,7 +216,10 @@ fn append_body(out: &mut Vec<Vertex>, item: &SceneItem) {
             });
 
             for index in [0usize, 1, 2, 0, 2, 3] {
-                out.push(Vertex { position: corners[index], color: colour });
+                out.push(Vertex {
+                    position: corners[index],
+                    color: colour,
+                });
             }
         }
     }
@@ -230,7 +253,10 @@ mod tests {
 
     #[test]
     fn faces_are_shaded_by_direction() {
-        assert!(face_shade(1, true) > face_shade(1, false), "top beats bottom");
+        assert!(
+            face_shade(1, true) > face_shade(1, false),
+            "top beats bottom"
+        );
         assert!(face_shade(1, true) > face_shade(0, true), "top beats sides");
     }
 

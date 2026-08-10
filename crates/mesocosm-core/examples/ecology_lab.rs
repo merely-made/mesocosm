@@ -59,7 +59,10 @@ fn run(world: &WorldProfile, rounds: u32, seed: u64) {
 
         let moved = record.changes().count();
         if moved > 0 || !record.extinctions.is_empty() {
-            println!("round {round:>2}: {moved} of {} adapted", record.decisions.len());
+            println!(
+                "round {round:>2}: {moved} of {} adapted",
+                record.decisions.len()
+            );
             for decision in record.changes() {
                 let who = roster
                     .iter()

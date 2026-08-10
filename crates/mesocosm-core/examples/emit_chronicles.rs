@@ -21,14 +21,16 @@
 
 use std::{fs, path::PathBuf};
 
-use mesocosm_core::{Chronicle, Intent, Placement, Route, OrganismId, World, generate};
+use mesocosm_core::{Chronicle, Intent, OrganismId, Placement, Route, World, generate};
 
 fn main() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures");
     fs::create_dir_all(&dir).expect("the fixture directory is writable");
 
     for (name, chronicle) in [("played", played()), ("rng", generate(99, 7))] {
-        let bytes = chronicle.to_bytes().expect("a chronicle is always encodable");
+        let bytes = chronicle
+            .to_bytes()
+            .expect("a chronicle is always encodable");
         let file = dir.join(format!("{name}.chronicle"));
         fs::write(&file, &bytes).expect("the fixture is writable");
         println!(
@@ -52,10 +54,15 @@ fn played() -> Chronicle {
         let Some((prey, at)) = world
             .organisms
             .iter()
-            .filter(|organism| organism.biomass_mg() > 0 && Some(organism.id) != world.controlled_id())
+            .filter(|organism| {
+                organism.biomass_mg() > 0 && Some(organism.id) != world.controlled_id()
+            })
             .map(|organism| (organism.id, organism.position))
             .min_by_key(|(_, at): &(OrganismId, [i32; 3])| {
-                (0..3).map(|axis| (at[axis] - world.position().unwrap()[axis]).abs()).max().unwrap_or(0)
+                (0..3)
+                    .map(|axis| (at[axis] - world.position().unwrap()[axis]).abs())
+                    .max()
+                    .unwrap_or(0)
             })
         else {
             break;
@@ -63,12 +70,20 @@ fn played() -> Chronicle {
 
         let step = [0, 1, 2].map(|axis| (at[axis] - world.position().unwrap()[axis]).signum());
         if step == [0, 0, 0] {
-            world.apply(Intent::Metabolize { organism: prey, route: Route::Incorporate { placement: Placement::Planned } });
+            world.apply(Intent::Metabolize {
+                organism: prey,
+                route: Route::Incorporate {
+                    placement: Placement::Planned,
+                },
+            });
         } else {
             world.apply(Intent::Move { delta: step });
         }
     }
 
-    assert!(world.body().unwrap().len() > 1, "the played critter actually grew");
+    assert!(
+        world.body().unwrap().len() > 1,
+        "the played critter actually grew"
+    );
     Chronicle::of(world.body().unwrap())
 }

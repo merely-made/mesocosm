@@ -93,7 +93,10 @@ pub enum FeedingMode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Unmet {
     /// No living part performs the process this capability needs.
-    NoProcess { capability: Capability, needs: Process },
+    NoProcess {
+        capability: Capability,
+        needs: Process,
+    },
     /// The body can do it, but not that far.
     TooFar { reach: i32, distance: i32 },
 }
@@ -159,17 +162,26 @@ pub struct Registry {
 
 const NATIVE_DEFS: &[ProcessDef] = &[
     ProcessDef {
-        id: ProcessId { namespace: "mesocosm", name: "contract" },
+        id: ProcessId {
+            namespace: "mesocosm",
+            name: "contract",
+        },
         native: Process::Contract,
         expressed_by: &[Role::Limb],
     },
     ProcessDef {
-        id: ProcessId { namespace: "mesocosm", name: "intake" },
+        id: ProcessId {
+            namespace: "mesocosm",
+            name: "intake",
+        },
         native: Process::Intake,
         expressed_by: &[Role::Mass],
     },
     ProcessDef {
-        id: ProcessId { namespace: "mesocosm", name: "sense" },
+        id: ProcessId {
+            namespace: "mesocosm",
+            name: "sense",
+        },
         native: Process::Sense,
         expressed_by: &[Role::Sensor],
     },
@@ -199,7 +211,9 @@ impl Registry {
 
     /// The processes a role's geometry expresses, per the registry.
     pub fn expressed_by(&self, role: Role) -> impl Iterator<Item = &ProcessDef> {
-        self.defs.iter().filter(move |def| def.expressed_by.contains(&role))
+        self.defs
+            .iter()
+            .filter(move |def| def.expressed_by.contains(&role))
     }
 
     /// Digest over the whole admitted ruleset, order-sensitive.
@@ -230,7 +244,8 @@ impl BodyDocument {
 
     /// Whether any living part performs `process`.
     pub fn performs(&self, process: Process) -> bool {
-        self.living().any(|part| classify(part.half_extent).processes().contains(&process))
+        self.living()
+            .any(|part| classify(part.half_extent).processes().contains(&process))
     }
 
     /// How far this body can touch.
@@ -249,7 +264,11 @@ impl BodyDocument {
 
         let actuated = self
             .living()
-            .filter(|part| classify(part.half_extent).processes().contains(&Process::Contract))
+            .filter(|part| {
+                classify(part.half_extent)
+                    .processes()
+                    .contains(&Process::Contract)
+            })
             .filter_map(|part| {
                 let at = self.world_pivot(part.id)?;
                 let span = (0..3)
@@ -264,9 +283,7 @@ impl BodyDocument {
         // extent of the root rather than a constant.
         let bulk = self
             .part(self.root)
-            .map(|root| {
-                BULK_REACH + root.half_extent.iter().map(|d| d.abs()).max().unwrap_or(0)
-            })
+            .map(|root| BULK_REACH + root.half_extent.iter().map(|d| d.abs()).max().unwrap_or(0))
             .unwrap_or(0);
 
         actuated.map(|span| span.max(bulk)).unwrap_or(bulk)
@@ -298,8 +315,7 @@ mod tests {
 
     /// A bulk root, with an optional long limb reaching out along +x.
     fn critter(limb: bool) -> (BodyDocument, Option<PartId>) {
-        let mut body =
-            BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
+        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
         let root = body.root;
         if !limb {
             return (body, None);
@@ -310,7 +326,11 @@ mod tests {
                 200,
                 // Long in one axis only, so `classify` reads it as a limb.
                 [6, 1, 1],
-                Attachment { parent: root, offset: [8, 0, 0], yaw: Yaw::Zero },
+                Attachment {
+                    parent: root,
+                    offset: [8, 0, 0],
+                    yaw: Yaw::Zero,
+                },
                 Provenance::founding(),
             )
             .expect("attaches");
@@ -320,15 +340,27 @@ mod tests {
     #[test]
     fn a_parts_processes_come_from_its_shape() {
         let (body, arm) = critter(true);
-        assert_eq!(body.processes(body.root), &[Process::Intake], "a bulk root admits");
-        assert_eq!(body.processes(arm.unwrap()), &[Process::Contract], "a long part acts");
+        assert_eq!(
+            body.processes(body.root),
+            &[Process::Intake],
+            "a bulk root admits"
+        );
+        assert_eq!(
+            body.processes(arm.unwrap()),
+            &[Process::Contract],
+            "a long part acts"
+        );
     }
 
     #[test]
     fn a_body_without_an_actuator_reaches_only_its_own_bulk() {
         let (body, _) = critter(false);
         assert!(!body.performs(Process::Contract));
-        assert_eq!(body.reach(), BULK_REACH + 2, "its own half-extent, and no further");
+        assert_eq!(
+            body.reach(),
+            BULK_REACH + 2,
+            "its own half-extent, and no further"
+        );
     }
 
     #[test]
@@ -338,7 +370,12 @@ mod tests {
         let (bare, _) = critter(false);
         let (limbed, _) = critter(true);
 
-        assert!(limbed.reach() > bare.reach(), "{} vs {}", limbed.reach(), bare.reach());
+        assert!(
+            limbed.reach() > bare.reach(),
+            "{} vs {}",
+            limbed.reach(),
+            bare.reach()
+        );
     }
 
     #[test]
@@ -351,7 +388,10 @@ mod tests {
 
         assert!(body.reach() < reached, "the reach went with the arm");
         assert_eq!(body.reach(), BULK_REACH + 2, "back to bulk");
-        assert!(!body.performs(Process::Contract), "and nothing acts any more");
+        assert!(
+            !body.performs(Process::Contract),
+            "and nothing acts any more"
+        );
     }
 
     #[test]
@@ -365,7 +405,11 @@ mod tests {
                 VolumeRef::from_tag(2),
                 50,
                 [3, 1, 1],
-                Attachment { parent: root, offset: [4, 0, 0], yaw: Yaw::Zero },
+                Attachment {
+                    parent: root,
+                    offset: [4, 0, 0],
+                    yaw: Yaw::Zero,
+                },
                 Provenance::founding(),
             )
             .unwrap();
@@ -373,7 +417,11 @@ mod tests {
             VolumeRef::from_tag(2),
             50,
             [9, 1, 1],
-            Attachment { parent: root, offset: [10, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: root,
+                offset: [10, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .unwrap();
@@ -388,13 +436,26 @@ mod tests {
         let (bare, _) = critter(false);
         assert_eq!(
             bare.can_reach(50),
-            Err(Unmet::NoProcess { capability: Capability::Reach, needs: Process::Contract })
+            Err(Unmet::NoProcess {
+                capability: Capability::Reach,
+                needs: Process::Contract
+            })
         );
 
         let (limbed, _) = critter(true);
         let reach = limbed.reach();
-        assert_eq!(limbed.can_reach(50), Err(Unmet::TooFar { reach, distance: 50 }));
-        assert_eq!(limbed.can_reach(reach), Ok(()), "and what it can do, it can do");
+        assert_eq!(
+            limbed.can_reach(50),
+            Err(Unmet::TooFar {
+                reach,
+                distance: 50
+            })
+        );
+        assert_eq!(
+            limbed.can_reach(reach),
+            Ok(()),
+            "and what it can do, it can do"
+        );
     }
 
     #[test]
@@ -448,7 +509,11 @@ mod tests {
             50,
             // Wide and flat: two long axes, one short.
             [4, 4, 1],
-            Attachment { parent: root, offset: [6, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: root,
+                offset: [6, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .unwrap();

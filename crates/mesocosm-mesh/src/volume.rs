@@ -34,7 +34,10 @@ impl Volume {
     pub fn new(size: [u32; 3], voxels: Vec<u8>) -> Result<Self, VolumeError> {
         let expected = size.iter().map(|d| *d as usize).product::<usize>();
         if voxels.len() != expected {
-            return Err(VolumeError::SizeMismatch { expected, got: voxels.len() });
+            return Err(VolumeError::SizeMismatch {
+                expected,
+                got: voxels.len(),
+            });
         }
         Ok(Self { size, voxels })
     }
@@ -42,7 +45,10 @@ impl Volume {
     /// A solid box of one material.
     pub fn solid(size: [u32; 3], material: u8) -> Self {
         let count = size.iter().map(|d| *d as usize).product::<usize>();
-        Self { size, voxels: vec![material; count] }
+        Self {
+            size,
+            voxels: vec![material; count],
+        }
     }
 
     pub fn empty(size: [u32; 3]) -> Self {
@@ -151,7 +157,13 @@ mod tests {
     #[test]
     fn size_and_voxels_must_agree() {
         let err = Volume::new([2, 2, 2], vec![1; 7]).unwrap_err();
-        assert_eq!(err, VolumeError::SizeMismatch { expected: 8, got: 7 });
+        assert_eq!(
+            err,
+            VolumeError::SizeMismatch {
+                expected: 8,
+                got: 7
+            }
+        );
     }
 
     #[test]

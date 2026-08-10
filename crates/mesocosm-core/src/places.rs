@@ -169,7 +169,10 @@ impl Places {
 
     /// The regions bordering this one.
     pub fn neighbours(&self, id: PlaceId) -> &[PlaceId] {
-        self.links.get(id.0 as usize).map(Vec::as_slice).unwrap_or_default()
+        self.links
+            .get(id.0 as usize)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
     }
 
     /// How many borders lie between two regions.
@@ -290,7 +293,10 @@ mod tests {
         let places = enclosure();
         for near in places.all() {
             for far in places.all() {
-                assert!(places.hops(near.id, far.id).is_some(), "{near:?} to {far:?}");
+                assert!(
+                    places.hops(near.id, far.id).is_some(),
+                    "{near:?} to {far:?}"
+                );
             }
         }
     }
@@ -301,7 +307,11 @@ mod tests {
         // The middle of a three-by-three has four; a corner has two.
         assert_eq!(places.neighbours(PlaceId(4)).len(), 4);
         assert_eq!(places.neighbours(PlaceId(0)).len(), 2);
-        assert_eq!(places.hops(PlaceId(0), PlaceId(8)), Some(4), "corner to corner");
+        assert_eq!(
+            places.hops(PlaceId(0), PlaceId(8)),
+            Some(4),
+            "corner to corner"
+        );
     }
 
     #[test]
@@ -326,7 +336,11 @@ mod tests {
         assert_eq!(of(&[]), Scale::Local, "nowhere is not worldwide");
         assert_eq!(of(&[3]), Scale::Local);
         assert_eq!(of(&[0, 1]), Scale::Regional);
-        assert_eq!(of(&[0, 1, 2, 3]), Scale::Regional, "four of nine is not most");
+        assert_eq!(
+            of(&[0, 1, 2, 3]),
+            Scale::Regional,
+            "four of nine is not most"
+        );
         assert_eq!(of(&[0, 1, 2, 3, 4]), Scale::Worldwide, "five of nine is");
     }
 

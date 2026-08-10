@@ -52,11 +52,7 @@ pub enum WireError {
 }
 
 /// Writes `value` behind a schema header.
-pub fn frame<T: Serialize>(
-    magic: [u8; 8],
-    version: u16,
-    value: &T,
-) -> Result<Vec<u8>, WireError> {
+pub fn frame<T: Serialize>(magic: [u8; 8], version: u16, value: &T) -> Result<Vec<u8>, WireError> {
     let payload = postcard::to_allocvec(value).map_err(|_| WireError::Encode)?;
     let mut bytes = Vec::with_capacity(HEADER_LEN + payload.len());
     bytes.extend_from_slice(&magic);
@@ -76,7 +72,10 @@ pub fn unframe<T: DeserializeOwned>(
 ) -> Result<T, WireError> {
     let (found, payload) = split(magic, bytes)?;
     if found != version {
-        return Err(WireError::UnknownVersion { found, expected: version });
+        return Err(WireError::UnknownVersion {
+            found,
+            expected: version,
+        });
     }
     postcard::from_bytes(payload).map_err(|_| WireError::Malformed)
 }
@@ -93,9 +92,15 @@ fn split(magic: [u8; 8], bytes: &[u8]) -> Result<(u16, &[u8]), WireError> {
     }
     let found: [u8; 8] = bytes[..8].try_into().expect("checked length");
     if found != magic {
-        return Err(WireError::WrongSchema { found, expected: magic });
+        return Err(WireError::WrongSchema {
+            found,
+            expected: magic,
+        });
     }
-    Ok((u16::from_le_bytes([bytes[8], bytes[9]]), &bytes[HEADER_LEN..]))
+    Ok((
+        u16::from_le_bytes([bytes[8], bytes[9]]),
+        &bytes[HEADER_LEN..],
+    ))
 }
 
 #[cfg(test)]
@@ -128,7 +133,10 @@ mod tests {
         let bytes = frame(OTHER, 0, &1u32).unwrap();
         assert_eq!(
             unframe::<u32>(MAGIC, 0, &bytes),
-            Err(WireError::WrongSchema { found: OTHER, expected: MAGIC })
+            Err(WireError::WrongSchema {
+                found: OTHER,
+                expected: MAGIC
+            })
         );
     }
 
@@ -143,7 +151,10 @@ mod tests {
 
         assert_eq!(
             unframe::<u32>(MAGIC, 0, &bytes),
-            Err(WireError::UnknownVersion { found: 9, expected: 0 })
+            Err(WireError::UnknownVersion {
+                found: 9,
+                expected: 0
+            })
         );
     }
 
@@ -160,6 +171,12 @@ mod tests {
     fn peeking_reads_the_version_of_a_payload_we_cannot_decode() {
         let bytes = frame(MAGIC, 3, &"anything".to_string()).unwrap();
         assert_eq!(peek(MAGIC, &bytes), Ok(3));
-        assert_eq!(peek(OTHER, &bytes), Err(WireError::WrongSchema { found: MAGIC, expected: OTHER }));
+        assert_eq!(
+            peek(OTHER, &bytes),
+            Err(WireError::WrongSchema {
+                found: MAGIC,
+                expected: OTHER
+            })
+        );
     }
 }

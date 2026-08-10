@@ -148,12 +148,27 @@ pub const TIDAL_SHELF: WorldProfile = WorldProfile {
     name: "the tidal shelf",
     question: "what lives where the light never moves?",
     parameters: &[
-        ("energy schedule", "tidally locked; no day, no year, a fixed terminator"),
+        (
+            "energy schedule",
+            "tidally locked; no day, no year, a fixed terminator",
+        ),
         ("medium", "thin air, standing meltwater along the ring"),
-        ("chemistry", "solvent liquid only within the band; ice on one side, vapour on the other"),
-        ("topology", "one continuous habitable ring, dark side and bright side both lethal"),
-        ("cycles", "none — the defining absence, so nothing is seasonal and nothing gets a reprieve"),
-        ("initial ecology", "producers anchored to the light edge, consumers working the shade"),
+        (
+            "chemistry",
+            "solvent liquid only within the band; ice on one side, vapour on the other",
+        ),
+        (
+            "topology",
+            "one continuous habitable ring, dark side and bright side both lethal",
+        ),
+        (
+            "cycles",
+            "none — the defining absence, so nothing is seasonal and nothing gets a reprieve",
+        ),
+        (
+            "initial ecology",
+            "producers anchored to the light edge, consumers working the shade",
+        ),
     ],
     forces: &[
         Force::new(Pressure::Crowding, 8),
@@ -172,12 +187,30 @@ pub const HEAVY_DEEP: WorldProfile = WorldProfile {
     name: "the heavy deep",
     question: "what shape is life when the air is heavy enough to swim in?",
     parameters: &[
-        ("energy schedule", "a dim red sun, most light scattered before it lands"),
-        ("medium", "roughly three gravities; atmosphere dense enough to be buoyant in"),
-        ("chemistry", "reducing atmosphere with acidic aerosols; abundant solvent"),
-        ("topology", "vertical stratification -- everything is a layer, and layers are the niches"),
-        ("cycles", "slow, deep convection storms that move whole layers"),
-        ("initial ecology", "floaters and anchored filterers; nothing walks far"),
+        (
+            "energy schedule",
+            "a dim red sun, most light scattered before it lands",
+        ),
+        (
+            "medium",
+            "roughly three gravities; atmosphere dense enough to be buoyant in",
+        ),
+        (
+            "chemistry",
+            "reducing atmosphere with acidic aerosols; abundant solvent",
+        ),
+        (
+            "topology",
+            "vertical stratification -- everything is a layer, and layers are the niches",
+        ),
+        (
+            "cycles",
+            "slow, deep convection storms that move whole layers",
+        ),
+        (
+            "initial ecology",
+            "floaters and anchored filterers; nothing walks far",
+        ),
     ],
     forces: &[
         Force::new(Pressure::Gravity, 9),
@@ -195,12 +228,30 @@ pub const LONG_YEAR: WorldProfile = WorldProfile {
     name: "the long year",
     question: "what survives a year that tries to kill it twice?",
     parameters: &[
-        ("energy schedule", "eccentric orbit; a short fierce summer and a long deep winter"),
-        ("medium", "thin air, thickening as volatiles boil off each summer"),
-        ("chemistry", "solvent locked as ice for most of the cycle, then abundant, then gone"),
-        ("topology", "basins that hold meltwater and highlands that never thaw"),
-        ("cycles", "the defining feature -- freeze, flood, bloom, desiccation, freeze"),
-        ("initial ecology", "everything reproduces explosively in the bloom and waits out the rest"),
+        (
+            "energy schedule",
+            "eccentric orbit; a short fierce summer and a long deep winter",
+        ),
+        (
+            "medium",
+            "thin air, thickening as volatiles boil off each summer",
+        ),
+        (
+            "chemistry",
+            "solvent locked as ice for most of the cycle, then abundant, then gone",
+        ),
+        (
+            "topology",
+            "basins that hold meltwater and highlands that never thaw",
+        ),
+        (
+            "cycles",
+            "the defining feature -- freeze, flood, bloom, desiccation, freeze",
+        ),
+        (
+            "initial ecology",
+            "everything reproduces explosively in the bloom and waits out the rest",
+        ),
     ],
     forces: &[
         Force::new(Pressure::Cold, 8),
@@ -220,7 +271,11 @@ mod tests {
     #[test]
     fn every_authored_world_answers_a_question() {
         for world in AUTHORED {
-            assert!(world.question.ends_with('?'), "{} states a question", world.name);
+            assert!(
+                world.question.ends_with('?'),
+                "{} states a question",
+                world.name
+            );
             assert!(
                 world.parameters.len() >= 5,
                 "{} answers it across the grammar's families",
@@ -236,7 +291,11 @@ mod tests {
         // the same axis, the lab would test one world at three volumes and the
         // adaptation phase would look more general than it is.
         let defining: BTreeSet<_> = AUTHORED.iter().filter_map(|w| w.defining()).collect();
-        assert_eq!(defining.len(), 3, "each world is about a different pressure");
+        assert_eq!(
+            defining.len(),
+            3,
+            "each world is about a different pressure"
+        );
     }
 
     #[test]
@@ -263,7 +322,10 @@ mod tests {
         // They should be hard, and not equally hard -- a lab where every world
         // scores the same total is measuring nothing.
         let severities: Vec<i32> = AUTHORED.iter().map(|w| w.severity()).collect();
-        assert!(severities.iter().all(|s| *s > 10), "all three are demanding");
+        assert!(
+            severities.iter().all(|s| *s > 10),
+            "all three are demanding"
+        );
         assert!(
             severities.iter().collect::<BTreeSet<_>>().len() > 1,
             "and not all demanding to the same degree"

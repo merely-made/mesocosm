@@ -17,9 +17,9 @@ use std::collections::BTreeMap;
 
 use crate::cohort;
 use crate::development::PartPalette;
-use crate::rng::Rng;
 use crate::places::{Places, Tier, TierLine};
 use crate::process::FeedingMode;
+use crate::rng::Rng;
 use crate::species::Lineages;
 
 use crate::history::Event;
@@ -152,7 +152,9 @@ pub fn step(
     lineages: &Lineages,
     palette: PartPalette,
 ) -> Tally {
-    step_inner(organisms, next_id, rng, events, lineages, palette, None, None)
+    step_inner(
+        organisms, next_id, rng, events, lineages, palette, None, None,
+    )
 }
 
 /// Advances the enclosure with place-graph ownership enabled. The plain
@@ -200,12 +202,7 @@ fn step_inner(
     if let (Some(places), Some(focus)) = (places, focus) {
         for organism in organisms.iter_mut().filter(|o| o.is_alive()) {
             let previous = organism.tier;
-            organism.tier = TierLine::default().tick(
-                places,
-                previous,
-                organism.position,
-                focus,
-            );
+            organism.tier = TierLine::default().tick(places, previous, organism.position, focus);
             match (previous, organism.tier) {
                 (Tier::Far, Tier::Near) => tally.promoted += 1,
                 (Tier::Near, Tier::Far) => tally.demoted += 1,
@@ -242,7 +239,16 @@ fn step_inner(
         .iter()
         .enumerate()
         .filter(|(_, o)| o.is_alive())
-        .map(|(index, o)| (o.id, o.position, index, o.kingdom(), o.biomass_mg(), o.signal))
+        .map(|(index, o)| {
+            (
+                o.id,
+                o.position,
+                index,
+                o.kingdom(),
+                o.biomass_mg(),
+                o.signal,
+            )
+        })
         .collect();
 
     let mut drained: Vec<(usize, u64)> = Vec::new();
@@ -278,7 +284,10 @@ fn step_inner(
                         // stand of identical plants crosses the starvation
                         // line on the same tick and the patch goes extinct
                         // instead of thinning.
-                        let share = share.clamp(UPKEEP_BASE_MG, producer_income_for_mass(organism.biomass_mg()));
+                        let share = share.clamp(
+                            UPKEEP_BASE_MG,
+                            producer_income_for_mass(organism.biomass_mg()),
+                        );
                         organism.gain_mass(share);
                     }
                     FeedingMode::Grazer | FeedingMode::Predator => {
@@ -302,7 +311,12 @@ fn step_inner(
                             let amount = decay_rate_for_mass(organism.biomass_mg());
                             organism.gain_mass(amount);
                             drained.push((source, amount));
-                            fed.push((organism.id, source, amount, crate::history::MealKind::Scavenging));
+                            fed.push((
+                                organism.id,
+                                source,
+                                amount,
+                                crate::history::MealKind::Scavenging,
+                            ));
                         }
                     }
                 }
@@ -559,7 +573,11 @@ fn disperse(
         let distance = chebyshev(old, next) as u64;
         organism.spend_mass(distance.max(1));
         organism.position = next;
-        events.push(Event::Moved { organism: organism.id, from: old, to: next });
+        events.push(Event::Moved {
+            organism: organism.id,
+            from: old,
+            to: next,
+        });
         true
     } else {
         false

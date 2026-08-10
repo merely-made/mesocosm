@@ -53,13 +53,16 @@ impl Relief {
                         + heights[at(row + half, col - half)]
                         + heights[at(row + half, col + half)])
                         / 4;
-                    heights[at(row, col)] =
-                        (mean + rng.range_i32(-swing, swing)).clamp(0, CEILING);
+                    heights[at(row, col)] = (mean + rng.range_i32(-swing, swing)).clamp(0, CEILING);
                 }
             }
             // Square: edge midpoints from their present neighbours.
             for row in (0..SIDE).step_by(half) {
-                let offset = if (row / half).is_multiple_of(2) { half } else { 0 };
+                let offset = if (row / half).is_multiple_of(2) {
+                    half
+                } else {
+                    0
+                };
                 for col in (offset..SIDE).step_by(step) {
                     let mut sum = 0i32;
                     let mut count = 0i32;

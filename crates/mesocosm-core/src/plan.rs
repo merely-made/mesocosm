@@ -247,7 +247,10 @@ mod tests {
 
     #[test]
     fn other_symmetries_do_not_mirror() {
-        let plan = BodyPlan { symmetry: Symmetry::None, ..Default::default() };
+        let plan = BodyPlan {
+            symmetry: Symmetry::None,
+            ..Default::default()
+        };
         assert!(!plan.mirrors(Facing::Right));
     }
 
@@ -261,9 +264,15 @@ mod tests {
 
     #[test]
     fn tolerance_bounds_how_far_growth_wanders() {
-        let strict = BodyPlan { tolerance: 0, ..Default::default() };
+        let strict = BodyPlan {
+            tolerance: 0,
+            ..Default::default()
+        };
         assert_eq!(strict.candidates(Role::Mass).len(), 1);
-        let loose = BodyPlan { tolerance: 5, ..Default::default() };
+        let loose = BodyPlan {
+            tolerance: 5,
+            ..Default::default()
+        };
         assert!(loose.candidates(Role::Mass).len() > 1);
     }
 

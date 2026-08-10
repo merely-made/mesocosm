@@ -23,8 +23,8 @@ use std::collections::BTreeMap;
 
 use mesocosm_core::{PlaceId, SpeciesId, World};
 use sceno::{
-    Arrangement, Footprint, Hulls, Placement, Rect, Representation, Scene, Score, ScoreItem,
-    Size2, SourceRef, Vec2,
+    Arrangement, Footprint, Hulls, Placement, Rect, Representation, Scene, Score, ScoreItem, Size2,
+    SourceRef, Vec2,
 };
 use sprigging::ColorF;
 
@@ -142,7 +142,11 @@ pub fn minimap_leaf(world: &World) -> crate::leaf::MinimapLeaf {
                 .trim_start_matches("place:")
                 .parse()
                 .expect("minimap sources are places");
-            holders.get(&PlaceId(id)).copied().flatten().map(lineage_tint)
+            holders
+                .get(&PlaceId(id))
+                .copied()
+                .flatten()
+                .map(lineage_tint)
         })
         .collect();
     let player = world.position().map(|p| (p[0] as f32, p[2] as f32));
@@ -180,7 +184,10 @@ mod tests {
         assert_eq!(scene.regions.len(), world.places().len());
 
         for (x, z) in [(-14, -9), (0, 0), (11, 3), (15, -15), (-2, 13)] {
-            let simulated = world.places().at([x, 0, z]).expect("everywhere is somewhere");
+            let simulated = world
+                .places()
+                .at([x, 0, z])
+                .expect("everywhere is somewhere");
             let drawn = scene
                 .regions
                 .iter()

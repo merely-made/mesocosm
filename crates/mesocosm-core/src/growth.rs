@@ -115,14 +115,20 @@ fn free(body: &BodyDocument, at: [i32; 3], half: [i32; 3]) -> bool {
 
 /// Builds the attachment a [`Growth`] describes.
 pub fn attachment(growth: &Growth) -> Attachment {
-    Attachment { parent: growth.parent, offset: growth.offset, yaw: growth.yaw }
+    Attachment {
+        parent: growth.parent,
+        offset: growth.offset,
+        yaw: growth.yaw,
+    }
 }
 
 /// Builds the mirrored attachment, when there is one.
 pub fn mirror_attachment(growth: &Growth) -> Option<Attachment> {
-    growth
-        .mirror
-        .map(|(parent, offset)| Attachment { parent, offset, yaw: growth.yaw })
+    growth.mirror.map(|(parent, offset)| Attachment {
+        parent,
+        offset,
+        yaw: growth.yaw,
+    })
 }
 
 #[cfg(test)]
@@ -167,7 +173,10 @@ mod tests {
 
         assert_eq!(growth.role, Role::Limb);
         assert!(growth.facing.is_lateral(), "limbs go out to the sides");
-        assert!(growth.mirror.is_some(), "bilateral plans pair lateral growth");
+        assert!(
+            growth.mirror.is_some(),
+            "bilateral plans pair lateral growth"
+        );
         assert_eq!(body.len(), 3, "one meal, two limbs, plus the core");
     }
 
@@ -245,8 +254,7 @@ mod tests {
                 // Centre-to-centre: two boxes overlap when the gap on every
                 // axis is smaller than the sum of their half-extents.
                 let overlaps = (0..3).all(|ax| {
-                    (pa[ax] - pb[ax]).abs()
-                        < a.half_extent[ax].abs() + b.half_extent[ax].abs()
+                    (pa[ax] - pb[ax]).abs() < a.half_extent[ax].abs() + b.half_extent[ax].abs()
                 });
                 assert!(!overlaps, "{:?} overlaps {:?}", a.id, b.id);
             }

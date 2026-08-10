@@ -104,7 +104,10 @@ pub struct Provenance {
 
 impl Provenance {
     pub fn founding() -> Self {
-        Self { origin: Origin::Founding, epoch: 0 }
+        Self {
+            origin: Origin::Founding,
+            epoch: 0,
+        }
     }
 }
 
@@ -159,8 +162,16 @@ pub struct Aabb {
 impl Aabb {
     fn around(centre: [i32; 3], half: [i32; 3]) -> Self {
         Self {
-            min: [centre[0] - half[0], centre[1] - half[1], centre[2] - half[2]],
-            max: [centre[0] + half[0], centre[1] + half[1], centre[2] + half[2]],
+            min: [
+                centre[0] - half[0],
+                centre[1] - half[1],
+                centre[2] - half[2],
+            ],
+            max: [
+                centre[0] + half[0],
+                centre[1] + half[1],
+                centre[2] + half[2],
+            ],
         }
     }
 
@@ -410,7 +421,10 @@ impl BodyDocument {
                 Some(acc) => acc.union(box_),
             });
         }
-        result.unwrap_or(Aabb { min: [0; 3], max: [0; 3] })
+        result.unwrap_or(Aabb {
+            min: [0; 3],
+            max: [0; 3],
+        })
     }
 
     /// Every part that was taken from another organism, in id order.
@@ -447,8 +461,18 @@ mod tests {
             VolumeRef::from_tag(2),
             500,
             [1, 1, 1],
-            Attachment { parent: body.root, offset: [6, 0, 0], yaw: Yaw::Zero },
-            Provenance { origin: Origin::Incorporated { from_species: SpeciesId(9), from_part: PartId(0) }, epoch: 1 },
+            Attachment {
+                parent: body.root,
+                offset: [6, 0, 0],
+                yaw: Yaw::Zero,
+            },
+            Provenance {
+                origin: Origin::Incorporated {
+                    from_species: SpeciesId(9),
+                    from_part: PartId(0),
+                },
+                epoch: 1,
+            },
         )
         .expect("root exists");
         let after = body.aabb();
@@ -466,7 +490,11 @@ mod tests {
             VolumeRef::from_tag(2),
             1_000,
             [1, 1, 1],
-            Attachment { parent: body.root, offset: [10, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: body.root,
+                offset: [10, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .unwrap();
@@ -483,7 +511,11 @@ mod tests {
                 VolumeRef::from_tag(2),
                 100,
                 [1, 1, 1],
-                Attachment { parent: body.root, offset: [4, 0, 0], yaw: Yaw::Quarter },
+                Attachment {
+                    parent: body.root,
+                    offset: [4, 0, 0],
+                    yaw: Yaw::Quarter,
+                },
                 Provenance::founding(),
             )
             .unwrap();
@@ -492,7 +524,11 @@ mod tests {
                 VolumeRef::from_tag(3),
                 100,
                 [1, 1, 1],
-                Attachment { parent: arm, offset: [4, 0, 0], yaw: Yaw::Zero },
+                Attachment {
+                    parent: arm,
+                    offset: [4, 0, 0],
+                    yaw: Yaw::Zero,
+                },
                 Provenance::founding(),
             )
             .unwrap();
@@ -510,7 +546,11 @@ mod tests {
                 VolumeRef::from_tag(2),
                 100,
                 [1, 1, 1],
-                Attachment { parent: body.root, offset: [4, 0, 0], yaw: Yaw::Quarter },
+                Attachment {
+                    parent: body.root,
+                    offset: [4, 0, 0],
+                    yaw: Yaw::Quarter,
+                },
                 Provenance::founding(),
             )
             .unwrap();
@@ -519,7 +559,11 @@ mod tests {
                 VolumeRef::from_tag(3),
                 100,
                 [1, 1, 1],
-                Attachment { parent: arm, offset: [2, 0, 0], yaw: Yaw::Half },
+                Attachment {
+                    parent: arm,
+                    offset: [2, 0, 0],
+                    yaw: Yaw::Half,
+                },
                 Provenance::founding(),
             )
             .unwrap();
@@ -538,7 +582,11 @@ mod tests {
                 VolumeRef::from_tag(2),
                 1,
                 [1, 1, 1],
-                Attachment { parent: PartId(99), offset: [0, 0, 0], yaw: Yaw::Zero },
+                Attachment {
+                    parent: PartId(99),
+                    offset: [0, 0, 0],
+                    yaw: Yaw::Zero,
+                },
                 Provenance::founding(),
             )
             .unwrap_err();
@@ -553,7 +601,11 @@ mod tests {
                 VolumeRef::from_tag(tag),
                 10,
                 [1, 1, 1],
-                Attachment { parent: body.root, offset: [tag as i32, 0, 0], yaw: Yaw::Zero },
+                Attachment {
+                    parent: body.root,
+                    offset: [tag as i32, 0, 0],
+                    yaw: Yaw::Zero,
+                },
                 Provenance {
                     origin: Origin::Incorporated {
                         from_species: SpeciesId(tag as u32),

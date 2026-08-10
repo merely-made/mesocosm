@@ -152,10 +152,20 @@ pub fn take_turn(lineage: &Lineage, standing: &Standing, rng: &mut Rng) -> Decis
         .copied();
 
     match best {
-        Some((mutation, after)) => {
-            Decision { lineage: lineage.id, chosen: Some(mutation), before, after, considered }
-        }
-        None => Decision { lineage: lineage.id, chosen: None, before, after: before, considered },
+        Some((mutation, after)) => Decision {
+            lineage: lineage.id,
+            chosen: Some(mutation),
+            before,
+            after,
+            considered,
+        },
+        None => Decision {
+            lineage: lineage.id,
+            chosen: None,
+            before,
+            after: before,
+            considered,
+        },
     }
 }
 
@@ -194,30 +204,68 @@ mod tests {
     #[test]
     fn gaining_costs_more_the_more_you_have() {
         let mut it = lineage(100);
-        assert_eq!(Mutation::Gain { trait_: Trait::Shell }.cost(&it), 2);
+        assert_eq!(
+            Mutation::Gain {
+                trait_: Trait::Shell
+            }
+            .cost(&it),
+            2
+        );
         it.set_level(Trait::Shell, 9);
-        assert_eq!(Mutation::Gain { trait_: Trait::Shell }.cost(&it), 10);
+        assert_eq!(
+            Mutation::Gain {
+                trait_: Trait::Shell
+            }
+            .cost(&it),
+            10
+        );
     }
 
     #[test]
     fn swapping_is_cheap_so_a_wrong_guess_is_survivable() {
         let mut it = lineage(100);
         it.set_level(Trait::Jaws, 8);
-        let swap = Mutation::Swap { from: Trait::Jaws, to: Trait::Shell };
-        assert!(swap.cost(&it) < Mutation::Gain { trait_: Trait::Shell }.cost(&it) + 8);
+        let swap = Mutation::Swap {
+            from: Trait::Jaws,
+            to: Trait::Shell,
+        };
+        assert!(
+            swap.cost(&it)
+                < Mutation::Gain {
+                    trait_: Trait::Shell
+                }
+                .cost(&it)
+                    + 8
+        );
 
         let after = swap.applied(&it);
         assert_eq!(after.level(Trait::Jaws), 7);
         assert_eq!(after.level(Trait::Shell), 2);
-        assert_eq!(after.complexity(), it.complexity(), "a swap moves, it does not add");
+        assert_eq!(
+            after.complexity(),
+            it.complexity(),
+            "a swap moves, it does not add"
+        );
     }
 
     #[test]
     fn you_cannot_swap_out_of_nothing() {
         let mut it = lineage(100);
         it.set_level(Trait::Jaws, 0);
-        assert!(!Mutation::Swap { from: Trait::Jaws, to: Trait::Shell }.possible(&it));
-        assert!(!Mutation::Swap { from: Trait::Shell, to: Trait::Shell }.possible(&it));
+        assert!(
+            !Mutation::Swap {
+                from: Trait::Jaws,
+                to: Trait::Shell
+            }
+            .possible(&it)
+        );
+        assert!(
+            !Mutation::Swap {
+                from: Trait::Shell,
+                to: Trait::Shell
+            }
+            .possible(&it)
+        );
     }
 
     #[test]
@@ -232,7 +280,11 @@ mod tests {
         let mut lopsided = Lineage::new(1, "lopsided", Role::Consumer, [0; 7]);
         lopsided.set_level(Trait::Frame, 18);
 
-        assert_eq!(even.complexity(), lopsided.complexity(), "same budget spent");
+        assert_eq!(
+            even.complexity(),
+            lopsided.complexity(),
+            "same budget spent"
+        );
         assert!(
             fitness(&even, &standing) > fitness(&lopsided, &standing),
             "spreading beats specialising when the world pushes on several axes"
@@ -247,7 +299,10 @@ mod tests {
 
         assert!(!decision.changed(), "nothing is affordable");
         assert_eq!(decision.gain(), 0);
-        assert!(decision.considered.is_empty(), "and nothing was even weighable");
+        assert!(
+            decision.considered.is_empty(),
+            "and nothing was even weighable"
+        );
     }
 
     #[test]
@@ -269,7 +324,10 @@ mod tests {
                 stood_pat += 1;
             }
         }
-        assert!(stood_pat > 0, "a well-adapted lineage sometimes declines to spend");
+        assert!(
+            stood_pat > 0,
+            "a well-adapted lineage sometimes declines to spend"
+        );
     }
 
     #[test]

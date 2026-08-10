@@ -115,11 +115,11 @@ impl Lineages {
     /// Registers a lineage that was there from the beginning.
     pub fn found(&mut self, id: SpeciesId) -> &Species {
         self.next = self.next.max(id.0 + 1);
-            self.species.entry(id).or_insert(Species {
-                id,
-                recipe: crate::axis::Recipe::default_founding(),
-                symmetry: Symmetry::default(),
-                name: None,
+        self.species.entry(id).or_insert(Species {
+            id,
+            recipe: crate::axis::Recipe::default_founding(),
+            symmetry: Symmetry::default(),
+            name: None,
             parent: None,
             founded: 0,
         })

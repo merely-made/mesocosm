@@ -67,8 +67,8 @@ pub use body::{
     Aabb, AttachError, Attachment, BodyDocument, Origin, Part, PartId, Provenance, SpeciesId,
     VolumeRef, Yaw,
 };
-pub use cohort::{Cohort, CohortKey, CohortMember};
 pub use chronicle::{Chronicle, Consequence, Deed, PartOrigin, generate};
+pub use cohort::{Cohort, CohortKey, CohortMember};
 pub use development::{
     DevelopmentError, PartPalette, PartTemplate, develop_body, minimum_body_mass_mg,
 };

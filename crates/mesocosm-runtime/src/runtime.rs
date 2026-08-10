@@ -187,7 +187,16 @@ mod tests {
             Intent::Idle,
             Intent::Move { delta: [0, 0, 2] },
             Intent::Deposit { mass_mg: 25 },
-            Intent::Metabolize { organism: mesocosm_core::OrganismId(0), route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [4, 0, 0], yaw: Yaw::Zero } } },
+            Intent::Metabolize {
+                organism: mesocosm_core::OrganismId(0),
+                route: Route::Incorporate {
+                    placement: Placement::Explicit {
+                        parent: PartId(0),
+                        offset: [4, 0, 0],
+                        yaw: Yaw::Zero,
+                    },
+                },
+            },
             Intent::Move { delta: [-1, 0, -1] },
         ]
     }
@@ -217,7 +226,11 @@ mod tests {
             rt
         };
 
-        assert_eq!(steady.trace(), ragged.trace(), "same intents in the same order");
+        assert_eq!(
+            steady.trace(),
+            ragged.trace(),
+            "same intents in the same order"
+        );
         assert_eq!(steady.state_hash(), ragged.state_hash());
     }
 

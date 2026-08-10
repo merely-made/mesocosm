@@ -25,10 +25,7 @@ const SIZE: u32 = 640;
 fn main() {
     let mut args = std::env::args().skip(1);
     let dir: std::path::PathBuf = args.next().unwrap_or_else(|| ".".into()).into();
-    let meals: usize = args
-        .next()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(18);
+    let meals: usize = args.next().and_then(|v| v.parse().ok()).unwrap_or(18);
     std::fs::create_dir_all(&dir).expect("output directory");
 
     let volumes = fixture::volumes();
@@ -41,7 +38,14 @@ fn main() {
         let Some(target) = fixture::reachable(&world) else {
             break;
         };
-        let intent = fixture::metabolize(&world, target, &volumes, Route::Incorporate { placement: Placement::Planned });
+        let intent = fixture::metabolize(
+            &world,
+            target,
+            &volumes,
+            Route::Incorporate {
+                placement: Placement::Planned,
+            },
+        );
         if matches!(
             world.apply(intent),
             mesocosm_core::Outcome::Incorporated { .. }
@@ -123,7 +127,10 @@ fn main() {
 
     // Who is telling the truth. The player never sees this list; it exists to
     // prove the world contains liars in both directions.
-    let warning = world.living().filter(|o| o.signal == mesocosm_core::Signal::Warning).count();
+    let warning = world
+        .living()
+        .filter(|o| o.signal == mesocosm_core::Signal::Warning)
+        .count();
     let armed = world.living().filter(|o| o.venom_mg > 0).count();
     let bluffers = world
         .living()
@@ -133,16 +140,21 @@ fn main() {
         .living()
         .filter(|o| o.signal == mesocosm_core::Signal::Plain && o.venom_mg > 0)
         .count();
-    println!(
-        "signals: {warning} warn, {armed} armed -> {bluffers} bluffing, {traps} trapping"
-    );
+    println!("signals: {warning} warn, {armed} armed -> {bluffers} bluffing, {traps} trapping");
 
-    println!("ate {eaten}, body has {} parts", world.body().unwrap().len());
+    println!(
+        "ate {eaten}, body has {} parts",
+        world.body().unwrap().len()
+    );
     // With pivots the root is centred on the origin, so the midline is zero.
     let midline = 0;
     println!(
         "centre of mass {centre:?}; midline x={midline} -> {}",
-        if centre[0] == midline { "balanced" } else { "DRIFTING" }
+        if centre[0] == midline {
+            "balanced"
+        } else {
+            "DRIFTING"
+        }
     );
     println!("{pairs} parts sit off the midline");
     println!("mass {} mg", world.total_mass_mg());

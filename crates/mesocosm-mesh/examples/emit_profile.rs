@@ -62,9 +62,16 @@ fn grown() -> (BodyDocument, VolumeMap) {
         VolumeRef::from_tag(2),
         900,
         [1, 1, 3],
-        Attachment { parent: body.root, offset: [3, 0, 0], yaw: Yaw::Zero },
+        Attachment {
+            parent: body.root,
+            offset: [3, 0, 0],
+            yaw: Yaw::Zero,
+        },
         Provenance {
-            origin: Origin::Incorporated { from_species: SpeciesId(42), from_part: PartId(1) },
+            origin: Origin::Incorporated {
+                from_species: SpeciesId(42),
+                from_part: PartId(1),
+            },
             epoch: 3,
         },
     )
@@ -74,9 +81,16 @@ fn grown() -> (BodyDocument, VolumeMap) {
         VolumeRef::from_tag(3),
         1_400,
         [2, 1, 1],
-        Attachment { parent: body.root, offset: [0, 4, 0], yaw: Yaw::Quarter },
+        Attachment {
+            parent: body.root,
+            offset: [0, 4, 0],
+            yaw: Yaw::Quarter,
+        },
         Provenance {
-            origin: Origin::Incorporated { from_species: SpeciesId(11), from_part: PartId(0) },
+            origin: Origin::Incorporated {
+                from_species: SpeciesId(11),
+                from_part: PartId(0),
+            },
             epoch: 7,
         },
     )

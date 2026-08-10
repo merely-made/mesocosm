@@ -91,14 +91,23 @@ impl World {
                     organism.body.species = species;
                 }
                 self.unlocked.insert(species);
-                Outcome::Speciated { species, from, founder: id }
+                Outcome::Speciated {
+                    species,
+                    from,
+                    founder: id,
+                }
             }
 
             Intent::TakeControl { organism } => {
                 if let Err(why) = self.eligibility(organism) {
                     return Outcome::Rejected(Rejection::Ineligible(why));
                 }
-                if let Some(species) = self.organisms.iter().find(|o| o.id == organism).map(|o| o.species) {
+                if let Some(species) = self
+                    .organisms
+                    .iter()
+                    .find(|o| o.id == organism)
+                    .map(|o| o.species)
+                {
                     self.unlocked.insert(species);
                 }
                 if let Some(taken) = self.organisms.iter().find(|o| o.id == organism) {
@@ -162,7 +171,9 @@ impl World {
         let Some(index) = self.organisms.iter().position(|m| m.id == organism) else {
             return Outcome::Rejected(Rejection::NoSuchOrganism(organism));
         };
-        if let Route::Incorporate { placement: Placement::Explicit { parent, .. } } = route
+        if let Route::Incorporate {
+            placement: Placement::Explicit { parent, .. },
+        } = route
             && self.body().is_some_and(|b| b.part(parent).is_none())
         {
             return Outcome::Rejected(Rejection::NoSuchParent(parent));
@@ -174,7 +185,9 @@ impl World {
         // Resolve planned placement before the meal is consumed, so a body
         // with nowhere to put a part refuses without eating anything.
         let growth = match route {
-            Route::Incorporate { placement: Placement::Planned } => {
+            Route::Incorporate {
+                placement: Placement::Planned,
+            } => {
                 let extent = self.organisms[index].half_extent();
                 let Some(body) = self.body() else {
                     return Outcome::Rejected(Rejection::Disembodied);
@@ -259,16 +272,30 @@ impl World {
     ) -> (Outcome, u64) {
         match route {
             Route::Burn => (
-                Outcome::Burned { organism: eaten.id, energy_mg: eaten.biomass_mg() },
+                Outcome::Burned {
+                    organism: eaten.id,
+                    energy_mg: eaten.biomass_mg(),
+                },
                 eaten.biomass_mg(),
             ),
-            Route::Incorporate { placement: Placement::Explicit { parent, offset, yaw } } => {
+            Route::Incorporate {
+                placement:
+                    Placement::Explicit {
+                        parent,
+                        offset,
+                        yaw,
+                    },
+            } => {
                 let provenance = self.taken_from(eaten);
                 let attached = self.controlled_body_mut().attach(
                     eaten.volume(),
                     eaten.biomass_mg(),
                     eaten.half_extent(),
-                    Attachment { parent, offset, yaw },
+                    Attachment {
+                        parent,
+                        offset,
+                        yaw,
+                    },
                     provenance,
                 );
                 match attached {
@@ -276,7 +303,9 @@ impl World {
                     Err(_) => (Outcome::Rejected(Rejection::NoSuchParent(parent)), 0),
                 }
             }
-            Route::Incorporate { placement: Placement::Planned } => {
+            Route::Incorporate {
+                placement: Placement::Planned,
+            } => {
                 let growth = growth.expect("resolved above for this route");
                 let provenance = self.taken_from(eaten);
 
@@ -330,7 +359,10 @@ impl World {
     /// Provenance for a part taken off `eaten`.
     fn taken_from(&self, eaten: &Organism) -> Provenance {
         Provenance {
-            origin: Origin::Incorporated { from_species: eaten.species, from_part: PartId(0) },
+            origin: Origin::Incorporated {
+                from_species: eaten.species,
+                from_part: PartId(0),
+            },
             epoch: self.epoch,
         }
     }

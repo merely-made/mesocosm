@@ -124,7 +124,10 @@ impl Places {
         }
         for (index, set) in links.iter().enumerate() {
             for other in set {
-                let (a, b) = (root(&mut component, index), root(&mut component, other.0 as usize));
+                let (a, b) = (
+                    root(&mut component, index),
+                    root(&mut component, other.0 as usize),
+                );
                 component[a.max(b)] = a.min(b);
             }
         }
@@ -306,7 +309,11 @@ mod tests {
             let grown = Places::grown(seed, SIDE, EXTENT);
             let degrees = interior_degrees(&grown);
             let uniform = degrees.iter().all(|d| *d == degrees[0]);
-            assert!(!uniform, "seed {seed}: interior degree uniform at {}", degrees[0]);
+            assert!(
+                !uniform,
+                "seed {seed}: interior degree uniform at {}",
+                degrees[0]
+            );
         }
     }
 
@@ -329,10 +336,22 @@ mod tests {
             any_bridges |= bridge_count > 0;
             bridge_counts.insert(bridge_count);
         }
-        assert!(edge_counts.len() > 1, "every world had {edge_counts:?} edges");
-        assert!(diameters.len() > 1, "every world had diameter {diameters:?}");
-        assert!(nest_counts.len() > 1, "every world had {nest_counts:?} nests");
-        assert!(bridge_counts.len() > 1, "every world had {bridge_counts:?} bridges");
+        assert!(
+            edge_counts.len() > 1,
+            "every world had {edge_counts:?} edges"
+        );
+        assert!(
+            diameters.len() > 1,
+            "every world had diameter {diameters:?}"
+        );
+        assert!(
+            nest_counts.len() > 1,
+            "every world had {nest_counts:?} nests"
+        );
+        assert!(
+            bridge_counts.len() > 1,
+            "every world had {bridge_counts:?} bridges"
+        );
         assert!(any_bridges, "no world grew a single chokepoint");
     }
 
@@ -362,12 +381,9 @@ mod tests {
             let grown = Places::grown(seed, SIDE, EXTENT);
             for index in 0..n * n {
                 let (row, col) = (index / n, index % n);
-                for other in [
-                    (row > 0).then(|| index - n),
-                    (col > 0).then(|| index - 1),
-                ]
-                .into_iter()
-                .flatten()
+                for other in [(row > 0).then(|| index - n), (col > 0).then(|| index - 1)]
+                    .into_iter()
+                    .flatten()
                 {
                     let linked = grown
                         .places
@@ -420,8 +436,10 @@ mod calibrate {
                 .map(|p| grown.relief.ruggedness(512, p.centre[0], p.centre[1]))
                 .collect();
             folds.sort_unstable();
-            println!("seed {seed}: min {} q1 {} med {} q3 {} max {}",
-                folds[0], folds[16], folds[32], folds[48], folds[63]);
+            println!(
+                "seed {seed}: min {} q1 {} med {} q3 {} max {}",
+                folds[0], folds[16], folds[32], folds[48], folds[63]
+            );
         }
     }
 }

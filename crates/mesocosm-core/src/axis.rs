@@ -120,11 +120,19 @@ pub struct Tagma {
 
 impl Tagma {
     pub fn new(segments: u8, appendage: Appendage) -> Self {
-        Self { segments, appendage, per_segment: 1 }
+        Self {
+            segments,
+            appendage,
+            per_segment: 1,
+        }
     }
 
     pub fn bare(segments: u8) -> Self {
-        Self { segments, appendage: Appendage::None, per_segment: 0 }
+        Self {
+            segments,
+            appendage: Appendage::None,
+            per_segment: 0,
+        }
     }
 
     pub fn with_per_segment(mut self, per_segment: u8) -> Self {
@@ -182,7 +190,11 @@ impl Recipe {
                 lexicon.insert(appendage);
             }
         }
-        Self { tagmata: vec![Tagma::bare(segments.max(1))], variance: 1, lexicon }
+        Self {
+            tagmata: vec![Tagma::bare(segments.max(1))],
+            variance: 1,
+            lexicon,
+        }
     }
 
     /// The recipe a lineage has before worldgen gives it one.
@@ -193,12 +205,18 @@ impl Recipe {
     /// Builds a recipe directly. Used by the catalogue and by tests; a played
     /// lineage reaches these shapes by acquisition and mutation.
     pub fn of(tagmata: Vec<Tagma>) -> Self {
-        let mut lexicon: BTreeSet<Appendage> =
-            Appendage::ALL.into_iter().filter(|a| a.is_innate()).collect();
+        let mut lexicon: BTreeSet<Appendage> = Appendage::ALL
+            .into_iter()
+            .filter(|a| a.is_innate())
+            .collect();
         for tagma in &tagmata {
             lexicon.insert(tagma.appendage);
         }
-        Self { tagmata, variance: 1, lexicon }
+        Self {
+            tagmata,
+            variance: 1,
+            lexicon,
+        }
     }
 
     pub fn lexicon(&self) -> impl Iterator<Item = Appendage> + '_ {
@@ -245,7 +263,10 @@ impl Recipe {
         };
         let front = at.clamp(1, target.segments.saturating_sub(1).max(1));
         let back = target.segments.saturating_sub(front).max(1);
-        let tail = Tagma { segments: back, ..*target };
+        let tail = Tagma {
+            segments: back,
+            ..*target
+        };
         target.segments = front;
         self.tagmata.insert(tagma + 1, tail);
         Ok(tagma + 1)
@@ -401,10 +422,22 @@ mod tests {
         // The claim under test: real body plans are parameter sets, not
         // special cases. Each of these is the same four rules.
         // Totals include the head's feelers, so the trunk is checked directly.
-        assert_eq!(centipede(40).tagmata[1].appendage_count(), 40, "a limb per segment");
-        assert_eq!(millipede(40).tagmata[1].appendage_count(), 80, "two per fused segment");
+        assert_eq!(
+            centipede(40).tagmata[1].appendage_count(),
+            40,
+            "a limb per segment"
+        );
+        assert_eq!(
+            millipede(40).tagmata[1].appendage_count(),
+            80,
+            "two per fused segment"
+        );
         assert_eq!(centipede(40).appendages(), 41, "plus the head");
-        assert_eq!(insect().appendages(), 3 + 2 + 1 + 1, "legs, wings, feelers, mouth");
+        assert_eq!(
+            insect().appendages(),
+            3 + 2 + 1 + 1,
+            "legs, wings, feelers, mouth"
+        );
         assert_eq!(spider().appendages(), 4 + 1);
         assert_eq!(tetrapod(20).appendages(), 2 + 1, "two girdles and a head");
         assert_eq!(snake(120).appendages(), 1, "the head keeps its feelers");
@@ -455,8 +488,14 @@ mod tests {
         );
 
         let before = worm.complexity();
-        assert!(worm.acquire(Appendage::Limb), "the first one is a discovery");
-        assert!(worm.complexity() > before, "learning a word is coming further");
+        assert!(
+            worm.acquire(Appendage::Limb),
+            "the first one is a discovery"
+        );
+        assert!(
+            worm.complexity() > before,
+            "learning a word is coming further"
+        );
         assert!(!worm.acquire(Appendage::Limb), "the second is a meal");
         assert!(worm.assign(0, Appendage::Limb).is_ok());
         assert_eq!(worm.appendages(), 8);
@@ -470,7 +509,11 @@ mod tests {
         assert_eq!(fly.tagmata[0].appendage, Appendage::Feeler);
         fly.assign(0, Appendage::Limb).unwrap();
         assert_eq!(fly.tagmata[0].appendage, Appendage::Limb);
-        assert_eq!(fly.appendages(), insect().appendages(), "the count is unchanged");
+        assert_eq!(
+            fly.appendages(),
+            insect().appendages(),
+            "the count is unchanged"
+        );
     }
 
     #[test]
@@ -479,13 +522,22 @@ mod tests {
         // creature with several appendage kinds is.
         let worm = centipede(60);
         let bug = insect();
-        assert!(worm.segments() > bug.segments(), "the worm is three times longer");
-        assert!(bug.complexity() > worm.complexity(), "the insect is more elaborate");
+        assert!(
+            worm.segments() > bug.segments(),
+            "the worm is three times longer"
+        );
+        assert!(
+            bug.complexity() > worm.complexity(),
+            "the insect is more elaborate"
+        );
 
         // And a legless snake, longer still, stays simpler than both.
         let crawler = snake(120);
         assert!(crawler.segments() > worm.segments());
-        assert!(crawler.complexity() < bug.complexity(), "length is not intricacy");
+        assert!(
+            crawler.complexity() < bug.complexity(),
+            "length is not intricacy"
+        );
     }
 
     #[test]
@@ -516,12 +568,16 @@ mod tests {
     #[test]
     fn seeded_recipes_vary_and_stay_buildable() {
         // Worldgen draws creatures, not catalogue entries.
-        let recipes: Vec<Recipe> =
-            (0..40).map(|s| seed(&mut Rng::from_seed(s), true)).collect();
+        let recipes: Vec<Recipe> = (0..40)
+            .map(|s| seed(&mut Rng::from_seed(s), true))
+            .collect();
 
-        let shapes: BTreeSet<String> =
-            recipes.iter().map(|r| format!("{:?}", r.tagmata)).collect();
-        assert!(shapes.len() > 20, "forty draws gave {} shapes", shapes.len());
+        let shapes: BTreeSet<String> = recipes.iter().map(|r| format!("{:?}", r.tagmata)).collect();
+        assert!(
+            shapes.len() > 20,
+            "forty draws gave {} shapes",
+            shapes.len()
+        );
 
         for recipe in &recipes {
             assert!(recipe.segments() > 0);

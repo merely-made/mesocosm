@@ -50,10 +50,7 @@ impl Flattened {
 /// Parts are written in document order, so a later part overwrites an earlier
 /// one where they overlap. That is the right behaviour for a sprite: the grid
 /// records what is solid, and the baker decides what is visible.
-pub fn flatten(
-    body: &BodyDocument,
-    source: &impl VolumeSource,
-) -> Result<Flattened, MeshError> {
+pub fn flatten(body: &BodyDocument, source: &impl VolumeSource) -> Result<Flattened, MeshError> {
     flatten_attributed(body, source).map(|(flattened, _)| flattened)
 }
 
@@ -92,7 +89,10 @@ pub fn flatten_attributed(
 
     if !seen {
         return Ok((
-            Flattened { volume: Volume::empty([1, 1, 1]), origin: [0, 0, 0] },
+            Flattened {
+                volume: Volume::empty([1, 1, 1]),
+                origin: [0, 0, 0],
+            },
             vec![0; 1],
         ));
     }
@@ -113,7 +113,9 @@ pub fn flatten_attributed(
         // can name is far outside anything growth produces, but the artifact
         // this feeds is portable, so the ceiling is checked rather than
         // assumed.
-        let tag = u16::try_from(slot + 1).map_err(|_| MeshError::TooManyParts { parts: body.parts.len() })?;
+        let tag = u16::try_from(slot + 1).map_err(|_| MeshError::TooManyParts {
+            parts: body.parts.len(),
+        })?;
 
         for z in 0..volume.size[2] {
             for y in 0..volume.size[1] {
@@ -122,8 +124,7 @@ pub fn flatten_attributed(
                     if material == 0 {
                         continue;
                     }
-                    let placed =
-                        place_point([x as i32, y as i32, z as i32], yaw, pivot, pivot_at);
+                    let placed = place_point([x as i32, y as i32, z as i32], yaw, pivot, pivot_at);
                     let cell = [
                         (placed[0] - min[0]) as u32,
                         (placed[1] - min[1]) as u32,
@@ -138,7 +139,13 @@ pub fn flatten_attributed(
         }
     }
 
-    Ok((Flattened { volume: grid, origin: min }, attribution))
+    Ok((
+        Flattened {
+            volume: grid,
+            origin: min,
+        },
+        attribution,
+    ))
 }
 
 /// A part resolved for flattening: where its pivot sits, the pivot itself,
@@ -153,11 +160,16 @@ fn resolve<'a>(
     let pivot_at = body
         .world_pivot(part)
         .ok_or(MeshError::Unplaceable { part })?;
-    let yaw = body.world_yaw(part).ok_or(MeshError::Unplaceable { part })?;
+    let yaw = body
+        .world_yaw(part)
+        .ok_or(MeshError::Unplaceable { part })?;
     let entry = body.part(part).ok_or(MeshError::Unplaceable { part })?;
     let volume = source
         .volume(entry.volume)
-        .ok_or(MeshError::MissingVolume { part, volume: entry.volume })?;
+        .ok_or(MeshError::MissingVolume {
+            part,
+            volume: entry.volume,
+        })?;
     Ok((pivot_at, entry.pivot, yaw, volume))
 }
 
@@ -208,7 +220,11 @@ mod tests {
             VolumeRef::from_tag(2),
             10,
             ARM_HALF,
-            Attachment { parent: PartId(0), offset, yaw },
+            Attachment {
+                parent: PartId(0),
+                offset,
+                yaw,
+            },
             Provenance::founding(),
         )
         .unwrap();
@@ -238,7 +254,11 @@ mod tests {
     fn negative_placements_shift_the_origin_rather_than_clipping() {
         let flat = flatten(&with_arm([-3, 0, 0], Yaw::Zero), &source()).unwrap();
         assert_eq!(flat.origin[0], -4);
-        assert_eq!(flat.at([-4, 0, 0]), 7, "nothing was clipped off the low side");
+        assert_eq!(
+            flat.at([-4, 0, 0]),
+            7,
+            "nothing was clipped off the low side"
+        );
         assert_eq!(flat.at([0, 0, 0]), 1);
     }
 
@@ -274,7 +294,11 @@ mod tests {
             VolumeRef::from_tag(99),
             10,
             ARM_HALF,
-            Attachment { parent: PartId(0), offset: [3, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: PartId(0),
+                offset: [3, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .unwrap();

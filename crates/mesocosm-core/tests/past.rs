@@ -32,7 +32,11 @@ fn an_enclosure_left_alone_still_has_a_past() {
 
     assert!(!history.is_empty(), "something happened");
     assert!(
-        history.log().entries().iter().any(|e| matches!(e, Event::Fed { .. })),
+        history
+            .log()
+            .entries()
+            .iter()
+            .any(|e| matches!(e, Event::Fed { .. })),
         "including creatures eating each other"
     );
 }
@@ -77,7 +81,10 @@ fn feeding_joins_lines_that_were_independent() {
         unreachable!("filtered to a meal")
     };
     assert_ne!(eater, from, "nothing eats itself");
-    assert!(!history.antecedents(meal).is_empty(), "it followed from something");
+    assert!(
+        !history.antecedents(meal).is_empty(),
+        "it followed from something"
+    );
 }
 
 #[test]
@@ -157,11 +164,16 @@ fn the_player_act_is_recorded_before_the_tick_it_happened_in() {
             break;
         };
         if world.in_reach(at) {
-            world.apply(Intent::Metabolize { organism: prey, route: Route::Burn });
+            world.apply(Intent::Metabolize {
+                organism: prey,
+                route: Route::Burn,
+            });
             burned = Some(world.drain_events());
             break;
         }
-        world.apply(Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) });
+        world.apply(Intent::Move {
+            delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()),
+        });
         world.drain_events();
     }
 
@@ -223,7 +235,10 @@ fn a_snapshot_does_not_carry_the_past() {
     short.drain_events();
     long.drain_events();
 
-    assert!(long_history.len() > 20, "the long run really did accumulate a past");
+    assert!(
+        long_history.len() > 20,
+        "the long run really did accumulate a past"
+    );
     let brief = snapshot(&short).unwrap().len();
     let lengthy = snapshot(&long).unwrap().len();
 

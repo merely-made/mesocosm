@@ -173,7 +173,10 @@ pub enum Ineligible {
 pub enum Outcome {
     Moved,
     /// Ground removed around a point.
-    Carved { at: [i32; 3], removed: u32 },
+    Carved {
+        at: [i32; 3],
+        removed: u32,
+    },
     /// A meal became energy and nothing else.
     Burned {
         organism: OrganismId,

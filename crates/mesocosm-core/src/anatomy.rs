@@ -48,9 +48,10 @@ impl BodyDocument {
 
     /// The parts attached directly to `id`.
     pub fn children(&self, id: PartId) -> impl Iterator<Item = PartId> + '_ {
-        self.parts.iter().filter(move |part| {
-            !part.severed && part.attachment.is_some_and(|at| at.parent == id)
-        }).map(|part| part.id)
+        self.parts
+            .iter()
+            .filter(move |part| !part.severed && part.attachment.is_some_and(|at| at.parent == id))
+            .map(|part| part.id)
     }
 
     /// `id` and everything hanging off it, parents before children.
@@ -111,7 +112,6 @@ impl BodyDocument {
         }
         lost
     }
-
 }
 
 #[cfg(test)]
@@ -121,8 +121,7 @@ mod tests {
 
     /// root -> arm -> hand -> finger, plus a plate on the root.
     fn limbed() -> (BodyDocument, [PartId; 4]) {
-        let mut body =
-            BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
+        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
         // Long in one axis, so `classify` reads these as limbs and they carry
         // a Contract process. A cube would be a sensor and buy no reach.
         let link = |body: &mut BodyDocument, parent: PartId, offset: [i32; 3]| {
@@ -130,7 +129,11 @@ mod tests {
                 VolumeRef::from_tag(2),
                 100,
                 [3, 1, 1],
-                Attachment { parent, offset, yaw: Yaw::Zero },
+                Attachment {
+                    parent,
+                    offset,
+                    yaw: Yaw::Zero,
+                },
                 Provenance::founding(),
             )
             .expect("attaches")
@@ -155,7 +158,11 @@ mod tests {
     fn a_subtree_is_the_part_and_everything_under_it() {
         let (body, [arm, hand, finger, _]) = limbed();
         assert_eq!(body.descendants(arm), vec![arm, hand, finger]);
-        assert_eq!(body.descendants(finger), vec![finger], "a leaf is its own subtree");
+        assert_eq!(
+            body.descendants(finger),
+            vec![finger],
+            "a leaf is its own subtree"
+        );
     }
 
     #[test]
@@ -188,8 +195,14 @@ mod tests {
     fn severing_is_idempotent_and_the_root_is_safe() {
         let (mut body, [arm, _, _, _]) = limbed();
         assert_eq!(body.sever(arm).len(), 3);
-        assert!(body.sever(arm).is_empty(), "severing twice loses nothing more");
-        assert!(body.sever(body.root).is_empty(), "a body without a root is not a body");
+        assert!(
+            body.sever(arm).is_empty(),
+            "severing twice loses nothing more"
+        );
+        assert!(
+            body.sever(body.root).is_empty(),
+            "a body without a root is not a body"
+        );
         assert!(body.is_living(body.root));
     }
 
@@ -228,4 +241,3 @@ mod tests {
         assert!(body.is_living(arm) && body.is_living(hand));
     }
 }
-

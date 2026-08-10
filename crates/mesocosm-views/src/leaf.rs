@@ -41,19 +41,17 @@ impl MinimapLeaf {
             scene,
             tints,
             player,
-            size: Size { width: 160.0, height: 160.0 },
+            size: Size {
+                width: 160.0,
+                height: 160.0,
+            },
             dirty: true,
         }
     }
 
     /// Replaces the projection wholesale. The next paint repaints everything;
     /// diffing a nine-region minimap would cost more than it saves.
-    pub fn update(
-        &mut self,
-        scene: Scene,
-        tints: Vec<Option<ColorF>>,
-        player: Option<(f32, f32)>,
-    ) {
+    pub fn update(&mut self, scene: Scene, tints: Vec<Option<ColorF>>, player: Option<(f32, f32)>) {
         if self.scene == scene && self.tints == tints && self.player == player {
             return;
         }
@@ -106,7 +104,10 @@ impl Leaf for MinimapLeaf {
                     .map(|w| w.min(available.height.unwrap_or(w)))
             })
             .unwrap_or(160.0);
-        self.size = Size { width: side, height: side };
+        self.size = Size {
+            width: side,
+            height: side,
+        };
         self.size
     }
 
@@ -135,10 +136,7 @@ impl Leaf for MinimapLeaf {
                 item.transform.translate.x,
                 item.transform.translate.y,
             ));
-            cx.fill_path(
-                Path::circle(x, y, 1.5),
-                ColorF::new(0.85, 0.85, 0.85, 0.9),
-            );
+            cx.fill_path(Path::circle(x, y, 1.5), ColorF::new(0.85, 0.85, 0.85, 0.9));
         }
 
         // The player, over everything: the one mark that answers "where am I".
@@ -175,7 +173,13 @@ mod tests {
 
     fn painted(leaf: &mut MinimapLeaf) -> Vec<PaintCmd> {
         let mut cmds = Vec::new();
-        let mut cx = PaintCx::new(&mut cmds, Size { width: 160.0, height: 160.0 });
+        let mut cx = PaintCx::new(
+            &mut cmds,
+            Size {
+                width: 160.0,
+                height: 160.0,
+            },
+        );
         leaf.paint(&mut cx);
         cmds
     }
@@ -202,7 +206,10 @@ mod tests {
 
         let same = (leaf.scene.clone(), leaf.tints.clone(), leaf.player);
         leaf.update(same.0, same.1, same.2);
-        assert!(!leaf.paint_dirty(), "an identical projection repaints nothing");
+        assert!(
+            !leaf.paint_dirty(),
+            "an identical projection repaints nothing"
+        );
 
         leaf.update(leaf.scene.clone(), leaf.tints.clone(), Some((99.0, 99.0)));
         assert!(leaf.paint_dirty(), "a moved player repaints");
@@ -214,6 +221,9 @@ mod tests {
         // which is exact enough for identical inputs.
         let mut a = leaf();
         let mut b = leaf();
-        assert_eq!(format!("{:?}", painted(&mut a)), format!("{:?}", painted(&mut b)));
+        assert_eq!(
+            format!("{:?}", painted(&mut a)),
+            format!("{:?}", painted(&mut b))
+        );
     }
 }

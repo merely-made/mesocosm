@@ -50,7 +50,9 @@ fn a_body_actually_draws() {
     let source = source();
     let mesh = mesh_body(&body(), &source).unwrap();
     let (min, max) = mesh.bounds().unwrap();
-    let frame = renderer.render(&mesh, &Camera::framing(min, max, 1.0)).unwrap();
+    let frame = renderer
+        .render(&mesh, &Camera::framing(min, max, 1.0))
+        .unwrap();
 
     assert!(!frame.is_blank(), "a solid body must put pixels on screen");
     let covered = frame.covered();
@@ -65,7 +67,10 @@ fn an_empty_scene_is_blank() {
     let Some(renderer) = renderer() else { return };
     let mesh = mesocosm_mesh::BodyMesh::default();
     let frame = renderer.render(&mesh, &Camera::default()).unwrap();
-    assert!(frame.is_blank(), "nothing to draw must leave the frame clear");
+    assert!(
+        frame.is_blank(),
+        "nothing to draw must leave the frame clear"
+    );
 }
 
 #[test]
@@ -81,7 +86,11 @@ fn an_attached_part_is_visible_in_the_frame() {
             VolumeRef::from_tag(2),
             400,
             [1, 1, 1],
-            Attachment { parent: grown.root, offset: [10, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: grown.root,
+                offset: [10, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance::founding(),
         )
         .unwrap();
@@ -115,7 +124,9 @@ fn faces_are_shaded_so_the_form_reads() {
     let source = source();
     let mesh = mesh_body(&body(), &source).unwrap();
     let (min, max) = mesh.bounds().unwrap();
-    let frame = renderer.render(&mesh, &Camera::framing(min, max, 1.0)).unwrap();
+    let frame = renderer
+        .render(&mesh, &Camera::framing(min, max, 1.0))
+        .unwrap();
 
     // A single-material cube must still show more than one brightness, or it
     // reads as a flat silhouette rather than a solid.

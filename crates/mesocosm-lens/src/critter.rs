@@ -44,16 +44,23 @@ impl Chain {
         let radii = |i: usize| -> f32 {
             let t = i as f32 / (length.max(2) - 1) as f32;
             // Head bulge, shoulder dip, belly, tail taper.
-            let profile = 0.85 + 0.35 * (1.0 - t) * (t * 6.0).min(1.0)
-                - 0.55 * (t - 0.55).max(0.0) / 0.45;
+            let profile =
+                0.85 + 0.35 * (1.0 - t) * (t * 6.0).min(1.0) - 0.55 * (t - 0.55).max(0.0) / 0.45;
             scale * profile.max(0.25)
         };
         // Spacing at twice the scale keeps consecutive capsules tangent
         // rather than coincident: an elongated body, not a blob.
         let segments = (0..length)
-            .map(|i| Segment { at: [0.0, 0.0, i as f32 * scale * 2.0], radius: radii(i) })
+            .map(|i| Segment {
+                at: [0.0, 0.0, i as f32 * scale * 2.0],
+                radius: radii(i),
+            })
             .collect();
-        Self { segments, spacing: scale * 2.0, previous_head: [0.0, 0.0, 0.0] }
+        Self {
+            segments,
+            spacing: scale * 2.0,
+            previous_head: [0.0, 0.0, 0.0],
+        }
     }
 
     /// Moves the head to `target` and swings the body after it.
@@ -71,7 +78,11 @@ impl Chain {
             let here = self.segments[i].at;
             let d = distance(here, ahead);
             let mut toward = if d > 1e-5 {
-                [(here[0] - ahead[0]) / d, (here[1] - ahead[1]) / d, (here[2] - ahead[2]) / d]
+                [
+                    (here[0] - ahead[0]) / d,
+                    (here[1] - ahead[1]) / d,
+                    (here[2] - ahead[2]) / d,
+                ]
             } else {
                 [0.0, 0.0, 1.0]
             };
@@ -106,7 +117,7 @@ impl Chain {
             // the segment's own direction, fading with stillness. This is the
             // gait; there is no other animation.
             let phase = i as f32 * 0.9;
-            let wave = (phase + self.wave_clock(target)) .sin()
+            let wave = (phase + self.wave_clock(target)).sin()
                 * (speed * 1.4).min(1.0)
                 * self.spacing
                 * 0.35;
@@ -188,7 +199,10 @@ impl Body {
             .flat_map(|&spine| [(spine, -1.0), (spine, 1.0)])
             .filter(|(spine, _)| *spine + 1 < length)
             .collect();
-        Self { chain: Chain::tapered(length, scale), legs }
+        Self {
+            chain: Chain::tapered(length, scale),
+            legs,
+        }
     }
 
     pub fn step(&mut self, target: [f32; 3], ground: impl Fn(f32, f32) -> f32) {
@@ -245,8 +259,18 @@ impl Body {
             ];
 
             let thigh = hip.radius * 0.3;
-            out.push(Capsule { a: hip.at, ra: thigh, b: knee, rb: thigh * 0.8 });
-            out.push(Capsule { a: knee, ra: thigh * 0.8, b: foot, rb: thigh * 0.6 });
+            out.push(Capsule {
+                a: hip.at,
+                ra: thigh,
+                b: knee,
+                rb: thigh * 0.8,
+            });
+            out.push(Capsule {
+                a: knee,
+                ra: thigh * 0.8,
+                b: foot,
+                rb: thigh * 0.6,
+            });
         }
         out
     }

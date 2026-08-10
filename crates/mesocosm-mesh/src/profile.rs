@@ -117,7 +117,11 @@ impl BodyProfile {
     /// artifact.
     pub fn of(body: &BodyDocument, source: &impl VolumeSource) -> Result<Self, MeshError> {
         let (flattened, attribution) = flatten_attributed(body, source)?;
-        let parts = body.parts.iter().map(|part| PartOrigin::from(&part.provenance)).collect();
+        let parts = body
+            .parts
+            .iter()
+            .map(|part| PartOrigin::from(&part.provenance))
+            .collect();
 
         Ok(Self {
             species: body.species.0,
@@ -196,9 +200,7 @@ impl BodyProfile {
             }
             local[axis] = value as u32;
         }
-        Some(
-            (local[0] + local[1] * self.size[0] + local[2] * self.size[0] * self.size[1]) as usize,
-        )
+        Some((local[0] + local[1] * self.size[0] + local[2] * self.size[0] * self.size[1]) as usize)
     }
 }
 
@@ -215,7 +217,11 @@ mod tests {
             VolumeRef::from_tag(2),
             500,
             [1, 1, 1],
-            Attachment { parent: body.root, offset: [2, 0, 0], yaw: Yaw::Zero },
+            Attachment {
+                parent: body.root,
+                offset: [2, 0, 0],
+                yaw: Yaw::Zero,
+            },
             Provenance {
                 origin: Origin::Incorporated {
                     from_species: SpeciesId(42),
@@ -252,10 +258,17 @@ mod tests {
 
         assert_eq!(read.species, 7);
         assert_eq!(read.parts.len(), 2);
-        assert!(!read.parts[0].is_incorporated(), "the root was there at founding");
+        assert!(
+            !read.parts[0].is_incorporated(),
+            "the root was there at founding"
+        );
         assert_eq!(
             read.parts[1],
-            PartOrigin { from_species: Some(42), from_part: Some(3), epoch: 5 }
+            PartOrigin {
+                from_species: Some(42),
+                from_part: Some(3),
+                epoch: 5
+            }
         );
     }
 
@@ -290,7 +303,11 @@ mod tests {
         assert_eq!(foreign.parts.len(), 2);
         assert_eq!(
             foreign.parts[1],
-            ForeignOrigin { from_species: Some(42), from_part: Some(3), epoch: 5 }
+            ForeignOrigin {
+                from_species: Some(42),
+                from_part: Some(3),
+                epoch: 5
+            }
         );
         assert_eq!(foreign.cells.len(), foreign.attribution.len());
     }
@@ -306,7 +323,11 @@ mod tests {
         for z in 0..profile.size[2] as i32 {
             for y in 0..profile.size[1] as i32 {
                 for x in 0..profile.size[0] as i32 {
-                    let at = [x + profile.origin[0], y + profile.origin[1], z + profile.origin[2]];
+                    let at = [
+                        x + profile.origin[0],
+                        y + profile.origin[1],
+                        z + profile.origin[2],
+                    ];
                     match profile.origin_at(at) {
                         Some(origin) if origin.is_incorporated() => incorporated += 1,
                         Some(_) => founding += 1,
@@ -317,7 +338,10 @@ mod tests {
         }
 
         assert!(founding > 0, "the root's voxels are attributed to the root");
-        assert!(incorporated > 0, "the donated limb's voxels carry its origin");
+        assert!(
+            incorporated > 0,
+            "the donated limb's voxels carry its origin"
+        );
     }
 
     #[test]
@@ -347,13 +371,19 @@ mod tests {
     fn foreign_bytes_are_refused_as_not_a_profile() {
         assert_eq!(
             BodyProfile::from_bytes(b"NOTABODY and then some payload"),
-            Err(ProfileError::WrongSchema { found: *b"NOTABODY", expected: PROFILE_MAGIC })
+            Err(ProfileError::WrongSchema {
+                found: *b"NOTABODY",
+                expected: PROFILE_MAGIC
+            })
         );
     }
 
     #[test]
     fn a_short_read_is_refused_before_the_magic_check() {
-        assert_eq!(BodyProfile::from_bytes(b"MESO"), Err(ProfileError::TooShort { got: 4 }));
+        assert_eq!(
+            BodyProfile::from_bytes(b"MESO"),
+            Err(ProfileError::TooShort { got: 4 })
+        );
     }
 
     #[test]
@@ -366,7 +396,10 @@ mod tests {
 
         assert_eq!(
             BodyProfile::from_bytes(&bytes),
-            Err(ProfileError::UnknownVersion { found: 99, expected: PROFILE_VERSION })
+            Err(ProfileError::UnknownVersion {
+                found: 99,
+                expected: PROFILE_VERSION
+            })
         );
     }
 
@@ -381,7 +414,10 @@ mod tests {
 
         assert_eq!(
             BodyProfile::from_bytes(&bytes),
-            Err(ProfileError::UnknownVersion { found: 7, expected: PROFILE_VERSION })
+            Err(ProfileError::UnknownVersion {
+                found: 7,
+                expected: PROFILE_VERSION
+            })
         );
     }
 

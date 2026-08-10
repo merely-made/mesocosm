@@ -74,16 +74,25 @@ pub fn readings(world: &World, history: &History) -> Vec<Reading> {
 
     for event in history.log().entries() {
         match *event {
-            Event::Born { organism, species, .. } => {
+            Event::Born {
+                organism, species, ..
+            } => {
                 lineage_of.insert(organism, species);
             }
-            Event::Speciated { species, founder, .. } => {
+            Event::Speciated {
+                species, founder, ..
+            } => {
                 lineage_of.insert(founder, species);
             }
             Event::Died { organism, .. } => {
                 dead.insert(organism);
             }
-            Event::Fed { eater, from, mass_mg, kind } => {
+            Event::Fed {
+                eater,
+                from,
+                mass_mg,
+                kind,
+            } => {
                 // Taken from something still alive. Eating carrion is how a
                 // decomposer lives and is not the same feat.
                 if kind == crate::history::MealKind::Predation
@@ -122,7 +131,13 @@ pub fn readings(world: &World, history: &History) -> Vec<Reading> {
 
         let mut note = |feat: Feat, value: i64| {
             if value > 0 {
-                out.push(Reading { species: id, feat, scale, value, took: false });
+                out.push(Reading {
+                    species: id,
+                    feat,
+                    scale,
+                    value,
+                    took: false,
+                });
             }
         };
 
@@ -155,7 +170,11 @@ mod tests {
     }
 
     fn of(readings: &[Reading], feat: Feat) -> Vec<Reading> {
-        readings.iter().copied().filter(|r| r.feat == feat).collect()
+        readings
+            .iter()
+            .copied()
+            .filter(|r| r.feat == feat)
+            .collect()
     }
 
     #[test]
@@ -164,8 +183,14 @@ mod tests {
         let readings = readings(&world, &history);
 
         assert!(!readings.is_empty(), "something happened worth noting");
-        assert!(!of(&readings, Feat::Growth).is_empty(), "lineages have biomass");
-        assert!(!of(&readings, Feat::Spread).is_empty(), "and they are somewhere");
+        assert!(
+            !of(&readings, Feat::Growth).is_empty(),
+            "lineages have biomass"
+        );
+        assert!(
+            !of(&readings, Feat::Spread).is_empty(),
+            "and they are somewhere"
+        );
     }
 
     #[test]

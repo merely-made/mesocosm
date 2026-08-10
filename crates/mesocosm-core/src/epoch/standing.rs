@@ -70,7 +70,11 @@ impl<'a> Standing<'a> {
     ///
     /// The whole reason a round has an order.
     fn ecological(&self, id: u32, role: Role, pressure: Pressure) -> i32 {
-        let living = || self.roster.iter().filter(|other| !other.extinct && other.id != id);
+        let living = || {
+            self.roster
+                .iter()
+                .filter(|other| !other.extinct && other.id != id)
+        };
 
         match pressure {
             // Somebody has to be doing the eating. Producers are not a threat
@@ -120,8 +124,14 @@ mod tests {
         let roster = [];
         let standing = Standing::new(&TIDAL_SHELF, &roster);
         let lone = grazer(0);
-        assert_eq!(standing.on(&lone, Pressure::Cold), TIDAL_SHELF.strength(Pressure::Cold));
-        assert_eq!(standing.on(&lone, Pressure::Predation), TIDAL_SHELF.strength(Pressure::Predation));
+        assert_eq!(
+            standing.on(&lone, Pressure::Cold),
+            TIDAL_SHELF.strength(Pressure::Cold)
+        );
+        assert_eq!(
+            standing.on(&lone, Pressure::Predation),
+            TIDAL_SHELF.strength(Pressure::Predation)
+        );
     }
 
     #[test]
@@ -196,7 +206,10 @@ mod tests {
     fn the_frontier_is_the_most_complex_living_lineage() {
         let mut fancy = Lineage::new(2, "fancy", Role::Consumer, [4, 4, 4, 4, 4, 4, 4]);
         let roster = [grazer(0), hunter(1, 3), fancy.clone()];
-        assert_eq!(Standing::new(&TIDAL_SHELF, &roster).frontier(), fancy.complexity());
+        assert_eq!(
+            Standing::new(&TIDAL_SHELF, &roster).frontier(),
+            fancy.complexity()
+        );
 
         fancy.extinct = true;
         let after = [grazer(0), hunter(1, 3), fancy];

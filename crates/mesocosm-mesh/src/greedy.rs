@@ -55,7 +55,11 @@ impl Quad {
         c[u] += self.size[0] as i32;
         c[v] += self.size[1] as i32;
         d[v] += self.size[1] as i32;
-        if self.positive { [a, b, c, d] } else { [a, d, c, b] }
+        if self.positive {
+            [a, b, c, d]
+        } else {
+            [a, d, c, b]
+        }
     }
 
     pub fn area(&self) -> u32 {
@@ -177,8 +181,7 @@ fn mesh_axis(volume: &Volume, axis: usize, positive: bool, out: &mut Vec<Quad>) 
                 coord[axis] = slice;
                 coord[u] = uu as u32;
                 coord[v] = vv as u32;
-                mask[vv * width + uu] =
-                    visible_face(volume, coord, axis, positive).unwrap_or(0);
+                mask[vv * width + uu] = visible_face(volume, coord, axis, positive).unwrap_or(0);
             }
         }
 
@@ -316,7 +319,10 @@ mod tests {
             .iter()
             .find(|q| q.axis == 0 && q.positive)
             .expect("a +x face exists");
-        assert_eq!(plus_x.origin[0], 2, "the +x face is at the volume's far edge");
+        assert_eq!(
+            plus_x.origin[0], 2,
+            "the +x face is at the volume's far edge"
+        );
         let minus_x = mesh
             .quads
             .iter()
@@ -341,6 +347,9 @@ mod tests {
         assert_eq!(xs.iter().max(), Some(&3));
         assert_eq!(zs.iter().min(), Some(&3));
         assert_eq!(zs.iter().max(), Some(&7));
-        assert!(corners.iter().all(|c| c[1] == 2), "all corners lie on the plane");
+        assert!(
+            corners.iter().all(|c| c[1] == 2),
+            "all corners lie on the plane"
+        );
     }
 }

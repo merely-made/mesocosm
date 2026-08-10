@@ -73,12 +73,17 @@ impl Round {
 
     /// What one lineage decided this round.
     pub fn decision(&self, lineage: u32) -> Option<&Decision> {
-        self.decisions.iter().find(|decision| decision.lineage == lineage)
+        self.decisions
+            .iter()
+            .find(|decision| decision.lineage == lineage)
     }
 
     /// The order lineages acted in.
     pub fn order(&self) -> Vec<u32> {
-        self.decisions.iter().map(|decision| decision.lineage).collect()
+        self.decisions
+            .iter()
+            .map(|decision| decision.lineage)
+            .collect()
     }
 }
 
@@ -170,7 +175,10 @@ mod tests {
 
         let mut descending = complexities.clone();
         descending.sort_by(|a, b| b.cmp(a));
-        assert_eq!(complexities, descending, "initiative is descending complexity");
+        assert_eq!(
+            complexities, descending,
+            "initiative is descending complexity"
+        );
         assert_eq!(roster[order[0]].name, "cicada");
     }
 
@@ -244,7 +252,10 @@ mod tests {
         let a = adapt_round(world, &mut played, &mut Rng::from_seed(5));
         let b = adapt_round(world, &mut unplayed, &mut Rng::from_seed(5));
 
-        assert_eq!(a, b, "the round is identical whether or not anyone played it");
+        assert_eq!(
+            a, b,
+            "the round is identical whether or not anyone played it"
+        );
         assert_ne!(unplayed, roster(), "and the unplayed roster still changed");
     }
 
@@ -257,7 +268,10 @@ mod tests {
         for decision in &round.decisions {
             assert!(!decision.considered.is_empty(), "and showed its work");
         }
-        assert!(round.changes().count() > 0, "at least one of them did something");
+        assert!(
+            round.changes().count() > 0,
+            "at least one of them did something"
+        );
     }
 
     #[test]
@@ -282,7 +296,10 @@ mod tests {
 
         roster[0].played = false;
         roster[1].played = true; // now holding only the fly
-        assert!(!can_switch_to(&roster, 1), "the fly does not earn the cicada");
+        assert!(
+            !can_switch_to(&roster, 1),
+            "the fly does not earn the cicada"
+        );
     }
 
     #[test]
@@ -290,7 +307,13 @@ mod tests {
         let mut roster = roster();
         roster[0].played = true;
         roster[1].extinct = true;
-        assert!(!can_switch_to(&roster, 2), "an extinct line is not a destination");
-        assert!(!can_switch_to(&roster, 99), "nor is one that does not exist");
+        assert!(
+            !can_switch_to(&roster, 2),
+            "an extinct line is not a destination"
+        );
+        assert!(
+            !can_switch_to(&roster, 99),
+            "nor is one that does not exist"
+        );
     }
 }

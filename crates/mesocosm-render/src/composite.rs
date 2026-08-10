@@ -141,7 +141,12 @@ impl Composite {
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        Self { pipeline, layout, sampler, rect }
+        Self {
+            pipeline,
+            layout,
+            sampler,
+            rect,
+        }
     }
 
     /// Blends `content` over `target` at a pixel rectangle of the frame.

@@ -259,7 +259,13 @@ impl Organism {
         self.body
             .living()
             .filter(|part| self.body.processes(part.id).contains(&Process::Contract))
-            .map(|part| part.half_extent.iter().map(|v| v.unsigned_abs()).max().unwrap_or(0))
+            .map(|part| {
+                part.half_extent
+                    .iter()
+                    .map(|v| v.unsigned_abs())
+                    .max()
+                    .unwrap_or(0)
+            })
             .sum::<u32>()
             .max(1)
     }

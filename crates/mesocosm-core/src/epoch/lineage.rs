@@ -130,11 +130,17 @@ impl Lineage {
     }
 
     pub fn level(&self, of: Trait) -> i32 {
-        self.traits[Trait::ALL.iter().position(|t| *t == of).expect("a known trait")]
+        self.traits[Trait::ALL
+            .iter()
+            .position(|t| *t == of)
+            .expect("a known trait")]
     }
 
     pub fn set_level(&mut self, of: Trait, level: i32) {
-        let index = Trait::ALL.iter().position(|t| *t == of).expect("a known trait");
+        let index = Trait::ALL
+            .iter()
+            .position(|t| *t == of)
+            .expect("a known trait");
         self.traits[index] = level.max(0);
     }
 
@@ -189,7 +195,11 @@ mod tests {
 
         let mut heavy = plain(1);
         heavy.set_level(Trait::Shell, 6);
-        assert_eq!(heavy.complexity(), 12, "adding armour makes you more complex");
+        assert_eq!(
+            heavy.complexity(),
+            12,
+            "adding armour makes you more complex"
+        );
     }
 
     #[test]

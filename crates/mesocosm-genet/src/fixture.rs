@@ -125,7 +125,9 @@ mod tests {
                     &world,
                     target,
                     &volumes,
-                    Route::Incorporate { placement: Placement::Planned },
+                    Route::Incorporate {
+                        placement: Placement::Planned,
+                    },
                 ));
                 meals += 1;
                 continue;
@@ -142,10 +144,15 @@ mod tests {
             else {
                 break;
             };
-            world.apply(Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) });
+            world.apply(Intent::Move {
+                delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()),
+            });
         }
 
-        assert!(world.body().unwrap().len() > 6, "the fixture must out-eat one face cycle");
+        assert!(
+            world.body().unwrap().len() > 6,
+            "the fixture must out-eat one face cycle"
+        );
 
         // Every solid voxel is accounted for exactly once: nothing overlaps.
         let flat = flatten(world.body().unwrap(), &volumes).unwrap();
@@ -170,8 +177,17 @@ mod tests {
         let grow = || {
             let mut world = World::new(99, 60);
             for _ in 0..8 {
-                let Some(target) = reachable(&world) else { break };
-                world.apply(metabolize(&world, target, &volumes, Route::Incorporate { placement: Placement::Planned }));
+                let Some(target) = reachable(&world) else {
+                    break;
+                };
+                world.apply(metabolize(
+                    &world,
+                    target,
+                    &volumes,
+                    Route::Incorporate {
+                        placement: Placement::Planned,
+                    },
+                ));
             }
             world.body().unwrap().clone()
         };

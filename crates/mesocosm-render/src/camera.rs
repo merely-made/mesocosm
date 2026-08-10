@@ -121,7 +121,10 @@ mod tests {
 
     #[test]
     fn the_target_lands_in_the_middle_of_the_frame() {
-        let camera = Camera { target: [3.0, 1.0, -2.0], ..Camera::default() };
+        let camera = Camera {
+            target: [3.0, 1.0, -2.0],
+            ..Camera::default()
+        };
         let ndc = projects(&camera, camera.target);
         assert!(ndc.x.abs() < 1e-4, "x centred, got {}", ndc.x);
         assert!(ndc.y.abs() < 1e-4, "y centred, got {}", ndc.y);
@@ -156,8 +159,14 @@ mod tests {
 
     #[test]
     fn a_wider_extent_shrinks_what_is_drawn() {
-        let near = Camera { extent: 8.0, ..Camera::default() };
-        let far = Camera { extent: 32.0, ..Camera::default() };
+        let near = Camera {
+            extent: 8.0,
+            ..Camera::default()
+        };
+        let far = Camera {
+            extent: 32.0,
+            ..Camera::default()
+        };
         let probe = [6.0, 0.0, 0.0];
         assert!(projects(&near, probe).x.abs() > projects(&far, probe).x.abs());
     }

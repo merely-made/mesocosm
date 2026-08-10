@@ -31,8 +31,8 @@ use wgpu::util::DeviceExt;
 
 pub use camera::Camera;
 pub use geometry::{
-    SceneItem, Vertex, build_scene_vertices, build_vertices, deadened, face_shade,
-    kingdom_colour, material_colour, warning_colour,
+    SceneItem, Vertex, build_scene_vertices, build_vertices, deadened, face_shade, kingdom_colour,
+    material_colour, warning_colour,
 };
 
 /// Colour the frame is cleared to. Distinct from every material colour, so
@@ -167,12 +167,7 @@ impl Renderer {
 
     /// Builds a renderer over a device someone else owns, which is the shipped
     /// arrangement: netrender owns the device and composites the result.
-    pub fn with_device(
-        device: wgpu::Device,
-        queue: wgpu::Queue,
-        width: u32,
-        height: u32,
-    ) -> Self {
+    pub fn with_device(device: wgpu::Device, queue: wgpu::Queue, width: u32, height: u32) -> Self {
         Self::with_format(device, queue, width, height, COLOUR_FORMAT)
     }
 
@@ -347,7 +342,10 @@ impl Renderer {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("vertices"),
                 contents: if vertices.is_empty() {
-                    bytemuck::cast_slice(&[Vertex { position: [0.0; 3], color: [0.0; 3] }])
+                    bytemuck::cast_slice(&[Vertex {
+                        position: [0.0; 3],
+                        color: [0.0; 3],
+                    }])
                 } else {
                     bytemuck::cast_slice(&vertices)
                 },
@@ -404,11 +402,7 @@ impl Renderer {
     }
 
     /// Renders a whole scene offscreen and reads the frame back.
-    pub fn render_scene(
-        &self,
-        items: &[SceneItem],
-        camera: &Camera,
-    ) -> Result<Frame, RenderError> {
+    pub fn render_scene(&self, items: &[SceneItem], camera: &Camera) -> Result<Frame, RenderError> {
         self.render_scene_with(items, camera, |_, _| {})
     }
 
@@ -439,7 +433,9 @@ impl Renderer {
 
         let mut encoder = self
             .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("body") });
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("body"),
+            });
         self.draw_scene(&mut encoder, &colour_view, items, camera);
         after(&mut encoder, &colour_view);
 
@@ -502,6 +498,10 @@ impl Renderer {
         drop(mapped);
         staging.unmap();
 
-        Ok(Frame { width: self.width, height: self.height, pixels })
+        Ok(Frame {
+            width: self.width,
+            height: self.height,
+            pixels,
+        })
     }
 }

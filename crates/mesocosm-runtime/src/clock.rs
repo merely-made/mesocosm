@@ -77,15 +77,18 @@ impl Clock {
     /// simulation independent of frame delivery rather than merely tolerant of
     /// it.
     pub fn advance(&mut self, elapsed_us: u64, max_steps: u64) -> Advance {
-        let scaled = (elapsed_us as u128 * self.ticks_per_second as u128)
-            .min(u64::MAX as u128) as u64;
+        let scaled =
+            (elapsed_us as u128 * self.ticks_per_second as u128).min(u64::MAX as u128) as u64;
         self.scaled_remainder = self.scaled_remainder.saturating_add(scaled);
 
         let due = self.scaled_remainder / ONE_SECOND_US;
         let steps = due.min(max_steps);
         self.scaled_remainder -= steps * ONE_SECOND_US;
         self.steps += steps;
-        Advance { steps, deferred: due - steps }
+        Advance {
+            steps,
+            deferred: due - steps,
+        }
     }
 }
 

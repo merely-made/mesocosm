@@ -14,7 +14,7 @@
 //! stays a judgment for the windowed host. What they do establish is that
 //! everything the screen would need is derivable, deterministic, and cheap.
 
-use mesocosm_core::{Intent, Placement, Route, Origin, Outcome, PartId, VolumeRef, World, Yaw};
+use mesocosm_core::{Intent, Origin, Outcome, PartId, Placement, Route, VolumeRef, World, Yaw};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 
 /// Volumes for the fixture: a body, and one for every primitive tag the world
@@ -52,7 +52,9 @@ fn reachable_organism(world: &mut World) -> mesocosm_core::OrganismId {
         if world.in_reach(at) {
             return id;
         }
-        world.apply(Intent::Move { delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()) });
+        world.apply(Intent::Move {
+            delta: [0, 1, 2].map(|a| (at[a] - here[a]).signum()),
+        });
     }
     panic!("nothing came within reach")
 }
@@ -68,8 +70,20 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     let drawn_before = mesh_body(world.body().unwrap(), &source).unwrap();
 
     let target = reachable_organism(&mut world);
-    let outcome = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [9, 0, 0], yaw: Yaw::Zero } } });
-    assert!(matches!(outcome, Outcome::Incorporated { .. }), "{outcome:?}");
+    let outcome = world.apply(Intent::Metabolize {
+        organism: target,
+        route: Route::Incorporate {
+            placement: Placement::Explicit {
+                parent: PartId(0),
+                offset: [9, 0, 0],
+                yaw: Yaw::Zero,
+            },
+        },
+    });
+    assert!(
+        matches!(outcome, Outcome::Incorporated { .. }),
+        "{outcome:?}"
+    );
 
     let drawn_after = mesh_body(world.body().unwrap(), &source).unwrap();
 
@@ -90,11 +104,17 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     );
 
     // Geometry.
-    assert_eq!(drawn_after.placement_count(), drawn_before.placement_count() + 1);
+    assert_eq!(
+        drawn_after.placement_count(),
+        drawn_before.placement_count() + 1
+    );
     assert!(drawn_after.drawn_quads() > drawn_before.drawn_quads());
     let (_, max_before) = drawn_before.bounds().unwrap();
     let (_, max_after) = drawn_after.bounds().unwrap();
-    assert!(max_after[0] > max_before[0], "the drawn body reaches further");
+    assert!(
+        max_after[0] > max_before[0],
+        "the drawn body reaches further"
+    );
 }
 
 #[test]
@@ -109,7 +129,16 @@ fn an_eaten_part_still_says_whose_it_was() {
         .map(|m| m.species)
         .unwrap();
 
-    let Outcome::Incorporated { part } = world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [7, 0, 0], yaw: Yaw::Quarter } } }) else {
+    let Outcome::Incorporated { part } = world.apply(Intent::Metabolize {
+        organism: target,
+        route: Route::Incorporate {
+            placement: Placement::Explicit {
+                parent: PartId(0),
+                offset: [7, 0, 0],
+                yaw: Yaw::Quarter,
+            },
+        },
+    }) else {
         panic!("expected incorporation");
     };
 
@@ -138,7 +167,16 @@ fn attaching_remeshes_only_what_is_new() {
     let root_mesh_before = before.mesh_for(VolumeRef::from_tag(1)).cloned();
 
     let target = reachable_organism(&mut world);
-    world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [6, 0, 0], yaw: Yaw::Zero } } });
+    world.apply(Intent::Metabolize {
+        organism: target,
+        route: Route::Incorporate {
+            placement: Placement::Explicit {
+                parent: PartId(0),
+                offset: [6, 0, 0],
+                yaw: Yaw::Zero,
+            },
+        },
+    });
 
     let after = mesh_body(world.body().unwrap(), &source).unwrap();
 
@@ -158,7 +196,16 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
         let mut world = World::new(9_001, 60);
         for _ in 0..5 {
             let target = reachable_organism(&mut world);
-            world.apply(Intent::Metabolize { organism: target, route: Route::Incorporate { placement: Placement::Explicit { parent: PartId(0), offset: [5, 0, 0], yaw: Yaw::Zero } } });
+            world.apply(Intent::Metabolize {
+                organism: target,
+                route: Route::Incorporate {
+                    placement: Placement::Explicit {
+                        parent: PartId(0),
+                        offset: [5, 0, 0],
+                        yaw: Yaw::Zero,
+                    },
+                },
+            });
         }
         world
     };
@@ -171,5 +218,8 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
     let mesh_b = mesh_body(b.body().unwrap(), &source).unwrap();
     assert_eq!(mesh_a.placements, mesh_b.placements);
     assert_eq!(mesh_a.drawn_quads(), mesh_b.drawn_quads());
-    assert!(mesh_a.placement_count() > 1, "the fixture actually ate something");
+    assert!(
+        mesh_a.placement_count() > 1,
+        "the fixture actually ate something"
+    );
 }

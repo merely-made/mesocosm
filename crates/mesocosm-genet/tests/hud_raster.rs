@@ -43,7 +43,11 @@ fn read_texture(
                 rows_per_image: Some(side),
             },
         },
-        wgpu::Extent3d { width: side, height: side, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width: side,
+            height: side,
+            depth_or_array_layers: 1,
+        },
     );
     queue.submit(Some(encoder.finish()));
 
@@ -71,15 +75,19 @@ fn the_composited_ground_is_the_background_colour() {
         eprintln!("no adapter; skipping");
         return;
     };
-    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default()))
-        .expect("a headless device");
+    let (device, queue) =
+        pollster::block_on(adapter.request_device(&Default::default())).expect("a headless device");
 
     const SIDE: u32 = 32;
     let shot = mesocosm_render::Renderer::with_device(device.clone(), queue.clone(), SIDE, SIDE);
     let make = |format: wgpu::TextureFormat, extra: wgpu::TextureUsages| {
         device.create_texture(&wgpu::TextureDescriptor {
             label: None,
-            size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: SIDE,
+                height: SIDE,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -160,8 +168,8 @@ fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
         eprintln!("no adapter; skipping");
         return;
     };
-    let (device, queue) = pollster::block_on(adapter.request_device(&Default::default()))
-        .expect("a headless device");
+    let (device, queue) =
+        pollster::block_on(adapter.request_device(&Default::default())).expect("a headless device");
 
     const SIDE: u32 = 64;
     let net = create_netrender_instance(
@@ -181,7 +189,11 @@ fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("probe"),
-        size: wgpu::Extent3d { width: SIDE, height: SIDE, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: SIDE,
+            height: SIDE,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -199,7 +211,13 @@ fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
     // through PaintCx, the same door the leaf uses.
     let third = SIDE as f32 / 3.0;
     let mut cmds = Vec::new();
-    let mut cx = PaintCx::new(&mut cmds, Size { width: SIDE as f32, height: SIDE as f32 });
+    let mut cx = PaintCx::new(
+        &mut cmds,
+        Size {
+            width: SIDE as f32,
+            height: SIDE as f32,
+        },
+    );
     cx.fill_path(
         Path::new()
             .move_to(third, third)
@@ -216,13 +234,23 @@ fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
         &[],
         &[],
     );
-    net.render_vello(&translated.scene, &view, ColorLoad::Clear(wgpu::Color::TRANSPARENT));
+    net.render_vello(
+        &translated.scene,
+        &view,
+        ColorLoad::Clear(wgpu::Color::TRANSPARENT),
+    );
 
     // The windowed host renders repeatedly through the tile differ; a
     // second render with a slightly changed scene is where the white
     // ground appeared. Nudge one vertex so a tile is genuinely dirty.
     let mut cmds2 = Vec::new();
-    let mut cx2 = PaintCx::new(&mut cmds2, Size { width: SIDE as f32, height: SIDE as f32 });
+    let mut cx2 = PaintCx::new(
+        &mut cmds2,
+        Size {
+            width: SIDE as f32,
+            height: SIDE as f32,
+        },
+    );
     cx2.fill_path(
         Path::new()
             .move_to(third, third)
@@ -239,7 +267,11 @@ fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
         &[],
         &[],
     );
-    net.render_vello(&translated2.scene, &view, ColorLoad::Clear(wgpu::Color::TRANSPARENT));
+    net.render_vello(
+        &translated2.scene,
+        &view,
+        ColorLoad::Clear(wgpu::Color::TRANSPARENT),
+    );
 
     let pixels = read_texture(&device, &queue, &texture, SIDE);
     let at = |x: u32, y: u32| {
@@ -257,8 +289,13 @@ fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
         }
         let mut leaf = mesocosm_views::minimap_leaf(&world);
         let mut cmds = Vec::new();
-        let mut cx =
-            PaintCx::new(&mut cmds, Size { width: SIDE as f32, height: SIDE as f32 });
+        let mut cx = PaintCx::new(
+            &mut cmds,
+            Size {
+                width: SIDE as f32,
+                height: SIDE as f32,
+            },
+        );
         use sprigging::Leaf as _;
         leaf.paint(&mut cx);
         let translated = paint_list_render::translate_paint_cmd_stream(
@@ -299,7 +336,10 @@ fn the_minimap_texture_is_transparent_where_nothing_was_painted() {
     let corner = at(2, 2);
     let center = at(SIDE / 2, SIDE / 2);
     assert_eq!(center[3], 255, "the square is opaque, got {center:?}");
-    assert!(center[0] > 200 && center[1] < 50, "the square is red, got {center:?}");
+    assert!(
+        center[0] > 200 && center[1] < 50,
+        "the square is red, got {center:?}"
+    );
     assert_eq!(
         corner[3], 0,
         "unpainted texels are transparent, got {corner:?}; an opaque ground here is \

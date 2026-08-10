@@ -107,7 +107,10 @@ pub struct Mark {
 
 impl Mark {
     fn new(high: i64, by: SpeciesId) -> Self {
-        Self { high, holders: BTreeSet::from([by]) }
+        Self {
+            high,
+            holders: BTreeSet::from([by]),
+        }
     }
 
     /// Joins another mark into this one.
@@ -146,7 +149,8 @@ impl WorldRecord {
     /// **The abnormality query.** One comparison, which is the whole reason
     /// the record is a handful of integers rather than an index.
     pub fn is_unprecedented(&self, feat: Feat, scale: Scale, value: i64) -> bool {
-        self.standing(feat, scale).is_none_or(|mark| value > mark.high)
+        self.standing(feat, scale)
+            .is_none_or(|mark| value > mark.high)
     }
 
     /// Whether anyone has ever done this at all, at any magnitude.
@@ -217,7 +221,10 @@ mod tests {
         assert!(world.untouched(Feat::Spread, Scale::Worldwide));
         assert!(world.is_unprecedented(Feat::Spread, Scale::Worldwide, 1));
 
-        assert!(world.note(Feat::Spread, Scale::Worldwide, 1, A), "and it takes the record");
+        assert!(
+            world.note(Feat::Spread, Scale::Worldwide, 1, A),
+            "and it takes the record"
+        );
         assert!(!world.untouched(Feat::Spread, Scale::Worldwide));
     }
 
@@ -228,7 +235,10 @@ mod tests {
         let mut world = WorldRecord::new();
         world.note(Feat::Growth, Scale::Regional, 40, A);
 
-        assert!(!world.is_unprecedented(Feat::Growth, Scale::Regional, 40), "matching is not beating");
+        assert!(
+            !world.is_unprecedented(Feat::Growth, Scale::Regional, 40),
+            "matching is not beating"
+        );
         assert!(!world.is_unprecedented(Feat::Growth, Scale::Regional, 10));
         assert!(world.is_unprecedented(Feat::Growth, Scale::Regional, 41));
     }
@@ -245,7 +255,11 @@ mod tests {
         world.note(Feat::Predation, Scale::Local, 20, C);
         let mark = world.standing(Feat::Predation, Scale::Local).unwrap();
         assert_eq!(mark.high, 20);
-        assert_eq!(mark.holders, BTreeSet::from([C]), "being beaten gives it up");
+        assert_eq!(
+            mark.holders,
+            BTreeSet::from([C]),
+            "being beaten gives it up"
+        );
     }
 
     #[test]
@@ -278,7 +292,10 @@ mod tests {
 
     #[test]
     fn merging_is_commutative() {
-        let left = record(&[(Feat::Growth, Scale::Local, 10, A), (Feat::Spread, Scale::Local, 5, A)]);
+        let left = record(&[
+            (Feat::Growth, Scale::Local, 10, A),
+            (Feat::Spread, Scale::Local, 5, A),
+        ]);
         let right = record(&[(Feat::Growth, Scale::Local, 30, B)]);
 
         let mut a = left.clone();
@@ -293,7 +310,10 @@ mod tests {
     fn merging_is_associative() {
         let x = record(&[(Feat::Growth, Scale::Local, 10, A)]);
         let y = record(&[(Feat::Growth, Scale::Local, 30, B)]);
-        let z = record(&[(Feat::Growth, Scale::Local, 20, C), (Feat::Endurance, Scale::Worldwide, 7, C)]);
+        let z = record(&[
+            (Feat::Growth, Scale::Local, 20, C),
+            (Feat::Endurance, Scale::Worldwide, 7, C),
+        ]);
 
         let mut left = x.clone();
         left.merge(&y);
@@ -339,19 +359,36 @@ mod tests {
         old.merge(&new);
 
         let growth = old.standing(Feat::Growth, Scale::Worldwide).unwrap();
-        assert_eq!((growth.high, growth.holders.len()), (60, 1), "the better mark wins outright");
+        assert_eq!(
+            (growth.high, growth.holders.len()),
+            (60, 1),
+            "the better mark wins outright"
+        );
 
         let spread = old.standing(Feat::Spread, Scale::Local).unwrap();
-        assert_eq!(spread.holders, BTreeSet::from([A, C]), "an equal mark keeps both names");
+        assert_eq!(
+            spread.holders,
+            BTreeSet::from([A, C]),
+            "an equal mark keeps both names"
+        );
 
-        assert!(!old.untouched(Feat::Construction, Scale::Regional), "and axes only they had arrive");
+        assert!(
+            !old.untouched(Feat::Construction, Scale::Regional),
+            "and axes only they had arrive"
+        );
     }
 
     #[test]
     fn a_record_round_trips() {
-        let world = record(&[(Feat::Growth, Scale::Local, 10, A), (Feat::Spread, Scale::Worldwide, 2, B)]);
+        let world = record(&[
+            (Feat::Growth, Scale::Local, 10, A),
+            (Feat::Spread, Scale::Worldwide, 2, B),
+        ]);
         let bytes = crate::snapshot::encode(&world).unwrap();
-        assert_eq!(crate::snapshot::decode::<WorldRecord>(&bytes).unwrap(), world);
+        assert_eq!(
+            crate::snapshot::decode::<WorldRecord>(&bytes).unwrap(),
+            world
+        );
     }
 
     #[test]

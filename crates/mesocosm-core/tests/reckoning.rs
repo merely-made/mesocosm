@@ -37,7 +37,11 @@ fn everything_in_the_enclosure_is_somewhere() {
         "a living organism is in a region"
     );
     for organism in world.living() {
-        assert!(world.places().at(organism.position).is_some(), "{:?} is nowhere", organism.id);
+        assert!(
+            world.places().at(organism.position).is_some(),
+            "{:?} is nowhere",
+            organism.id
+        );
     }
 }
 
@@ -61,11 +65,17 @@ fn a_range_only_grows() {
         world.apply(Intent::Idle);
         let now: Vec<BTreeSet<_>> = (1..6).map(|id| world.range(SpeciesId(id))).collect();
         for (was, is) in before.iter().zip(&now) {
-            assert!(was.is_subset(is), "a lineage un-reached somewhere it had been");
+            assert!(
+                was.is_subset(is),
+                "a lineage un-reached somewhere it had been"
+            );
         }
         before = now;
     }
-    assert!(before.iter().any(|range| range.len() > 1), "something got about");
+    assert!(
+        before.iter().any(|range| range.len() > 1),
+        "something got about"
+    );
 }
 
 #[test]
@@ -110,7 +120,10 @@ fn ending_an_epoch_finally_writes_the_record() {
 
     assert!(world.record().filled() > 0, "and the record has it now");
     for reading in &readings {
-        let mark = world.record().standing(reading.feat, reading.scale).expect("noted");
+        let mark = world
+            .record()
+            .standing(reading.feat, reading.scale)
+            .expect("noted");
         assert!(mark.high >= reading.value, "a mark is at least what set it");
     }
 }
@@ -121,7 +134,10 @@ fn the_first_of_anything_takes_the_record() {
     // them nobody had reached before.
     let (mut world, history) = lived(200);
     let readings = world.end_epoch(&history);
-    assert!(readings.iter().any(|r| r.took), "an empty record is all firsts");
+    assert!(
+        readings.iter().any(|r| r.took),
+        "an empty record is all firsts"
+    );
 }
 
 #[test]
@@ -136,7 +152,10 @@ fn reckoning_twice_changes_nothing() {
 
     let again = world.end_epoch(&history);
     assert_eq!(*world.record(), after, "a second reckoning moved a mark");
-    assert!(again.iter().all(|r| !r.took), "and nothing was a first the second time");
+    assert!(
+        again.iter().all(|r| !r.took),
+        "and nothing was a first the second time"
+    );
 }
 
 #[test]
