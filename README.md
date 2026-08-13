@@ -3,61 +3,60 @@
 A first-person game of lineages.
 
 You are a critter in an enclosed mid-scale ecosystem. You grow only by
-incorporating other organisms — every part you carry used to be somebody.
-You die, and your line continues or it does not. Your aim is to increase your
-kind's share of the world's biomass, which no predator manages alone:
-producers make the biomass, consumers shape the producers, and winning is
-niche construction rather than a power curve.
+incorporating other organisms; you die, and your line continues or it does
+not. Your aim is to increase your kind's share of the world's biomass, which
+no predator manages alone. One verb: **metabolize**. World into self, self
+into world, and the world keeps what your generations did to it.
 
-One verb: **metabolize**. World into self, self into world. Morph yourself,
-morph the world — and the world keeps what your generations did to it.
+This repo is also the canonical design authority for the three-game wing
+(Mesocosm, Paredros, Isometry); the sibling repos cite its wing-level docs
+rather than copy them.
 
-A mesocosm is ecology's mid-scale enclosed experimental ecosystem, larger
-than a microcosm and smaller than the world. Playable forms may range from a
-one-trait cell in proto-conditions to a compound, multicellular, colonial, or
-distributed organism. Each generational run is one experiment in the same
-enclosure.
+## Status (2026-08-12)
 
-Each epoch is embodied play followed by world examination and a turn-based
-adaptation round. Metabolically complex lineages commit first; simpler,
-faster-generating lines adapt later in response. The player may return to
-other unlocked lineages, while every lineage left in the world continues to
-change.
+Early implementation. The simulation, body pipeline, and windowed host run;
+the repeated epoch game loop does not run end to end yet.
 
-## Status
+- Wave 1 complete: the simulation core owns all state, the windowed host
+  runs, and the cross-repo Isometry projection works, coupled by data.
+- Epoch and ecology lab with three authored worlds, plus the two-game proof
+  pair, complete per the 2026-08-07 audit.
+- General-model ecological slices E0-E4 landed workspace-green 2026-08-07:
+  allometry, anatomy-derived feeding and predation, graph dispersal,
+  far-tier cohort projection, drive-based behavior. Formal acceptance gates
+  still open.
+- Grown place-graph worlds (G0/G1) and the process identity layer (PD1b
+  slice 1) landed 2026-08-08.
+- HUD lane landed 2026-08-02: minimap and world-generated backdrop over the
+  game via netrender on a shared wgpu device.
+- Seven crates: core (deterministic, seeded, integer-only simulation),
+  runtime, mesh, render, lens, views, genet (the windowed host binary).
 
-**Early.** The simulation, the body pipeline, and a windowed host run; the
-repeated game loop does not yet. Wave 1 of the execution plan, including the
-cross-repo Isometry projection, is complete. Wave 2 playfeel is active.
+Current plans live in [design_docs/](design_docs/DOC_README.md); the
+2026-08-07 dependency ledger is the ordering authority. Next: one native
+played process (PD1b/PD2) and the place-graph chain (G2-G4) toward the
+composed burrow-run slice. The standing caveat outranks all of it: the game
+must make somebody want another run.
+
+## Use
 
 ```sh
 cargo run -p mesocosm-genet    # WASD move, E/Space eat, arrows orbit, Esc quit
 cargo test --workspace
 ```
 
-| Crate | What it is |
-| ----- | ---------- |
-| `mesocosm-core` | The simulation. Seeded, integer-only, a pure function of ordered intents. Owns all game state. |
-| `mesocosm-runtime` | Host-neutral fixed-step driving, intent queue, and replay. |
-| `mesocosm-mesh` | Body document to geometry: per-part greedy voxel meshing and rigid placement. |
-| `mesocosm-render` | wgpu body renderer, headless-first so visibility is testable. |
-| `mesocosm-genet` | The windowed host. Owns the loop and the device, never a rule. |
-
-- [Project description](design_docs/PROJECT_DESCRIPTION.md)
-- [Execution waves](design_docs/2026-07-31_execution_waves_plan.md) — what is built and what is next
-- [Founding plan](design_docs/2026-07-30_mesocosm_founding_plan.md) — design and phases M0–M5
-- [Phenotype plan](design_docs/2026-07-31_phenotype_plan.md): how anatomy becomes lived capability
-- [Wing phenotype contract](design_docs/2026-07-31_wing_phenotype_contract_plan.md): what body identity crosses games
-- [Games wing founding record](design_docs/2026-07-30_games_wing_founding.md) — shared architecture across Mesocosm, Paredros, and Isometry
-
 ## License
 
-Mesocosm uses an explicit three-part license boundary:
+Three-part boundary (see [LICENSES.md](LICENSES.md)):
 
 - game code and repository documentation: MPL-2.0
 - separately identified reusable library crates: MIT OR Apache-2.0
 - original game assets: CC BY-SA 4.0
 
-See [LICENSES.md](LICENSES.md) for scope and attribution rules. The published
-`0.0.1` name reservation remains available under its original MIT OR
-Apache-2.0 terms; this split begins with `0.0.2`.
+The published `0.0.1` name reservation remains MIT OR Apache-2.0; the split
+begins with `0.0.2`.
+
+---
+
+*This README was generated by AI and will be edited by the author upon
+release.*
