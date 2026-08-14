@@ -182,25 +182,67 @@ whether the bridge code disappears. Either outcome is an answer: it
 decides whether the explicit lane consolidates on CubeCL-JIT or keeps
 both carriages on purpose.
 
-### Lane D. Mechanism proof (after A)
+### Lane D. Mechanism proof (complete 2026-08-14)
 
 Burn tensor view over a synthetic chunk plane, one diffusion or NCA
 pass, one constrained delta committed in the commit shape. No `Ground`,
 no tracer. This clears proof steps 2, 3, and 5 without waiting on the
 wing, so only the wing-specific receipts remain.
 
-### Lane E. Wing materialization (blocked)
+Receipt: Mere's ignored `crates/probes/resident-diffusion` constructs a
+`3x3x3` Burn tensor view from `ResidentChunk`, runs one six-neighbor
+diffusion pass on the RTX 4060, and reads one four-byte candidate value.
+The centre moved `10.000 -> 4.000`; the record constraint reduced the
+proposed `-6000` milli-unit delta to `-1000`, committed revision
+`41 -> 42`, then reproduced the resulting `9000` value from serialized
+integer history with Burn absent. This clears steps 2, 3, and 5 only.
+
+### Lane E. Wing materialization (mechanism receipt; stable-base rerun pending)
 
 `Ground` into a resident chunk bundle, consuming only `Ground`'s public
 revision contract. Blocked on lane A and on the live place-graph work,
 which owns `Ground`'s internals.
 
-### Lane F. Tracer lease (blocked)
+The public surface proved sufficient without reaching into those
+internals, so the mechanism ran while G2 remained dirty. Mere's ignored
+`crates/probes/ground-resident` consumes only `Ground::revision`,
+`drain_dirty`, `keys`, `brick_materials`, and `Brick::{get,raw}`. One
+radius-zero carve produced Ground revision 1 and dirty brick
+`[-4, 0, -4]`; that public brick became one `ResidentChunk` with world
+origin `[-32, 0, -32]`, `8x8x8` extent, one 512-byte exact-U8 CubeCL
+allocation, matching revision 1, and host read epoch 1 on the RTX 4060.
+Ground's raw order is y/z/x, so materialization performs one
+revision-gated staging transpose into canonical world x/y/z order. It
+is not a per-frame consumer bridge. Because the receipt used the live
+dirty G2 tree based at `7b68db0`, repeat it after G2 lands before fixing
+the exact material histogram as a stable fixture.
+
+### Lane F. Tracer lease (still blocked)
 
 The brick tracer reads the leased allocation; revision coherence and
 unchanged-frame silence receipts. Blocked on lane A and on the tracer
 landing: `mesocosm-lens`'s tracer sources are untracked in-flight work
 at the time of writing, so this lane cannot even be scoped yet.
+
+### Execution receipts (2026-08-14)
+
+- **A complete.** `ResidentChunk` landed in Mere commit `986fdb91`
+  (four quint paths; the concurrent epoch-carriage session swept them
+  into its wider commit). Real-adapter allocation-identity and metadata
+  receipts pass.
+- **B complete, local ignored probe.** Nexus `3083a43` radix/LBVH
+  harvest passes duplicate/sorted/reversed/single sort cases, 4096-leaf
+  reachability and containment, and the GPU canary. At 50k, GPU LBVH
+  construction measured 5.042 ms beside the differently scoped 305.451
+  ms CPU Barnes-Hut reference. This does not replace mass aggregation.
+- **C complete, decision made.** Raw CubeCL repulsion agrees with the
+  CPU reference at `1.26e-7` mean relative error and measured
+  9.55-9.71 ms at 50k. **Consolidate the explicit lane on CubeCL-JIT.**
+  Springs, integration, settle readback, and rendering remain outside
+  that capacity claim.
+- **D complete.** Synthetic tensor/process/commit mechanism above.
+- **E mechanism complete against the live G2 tree.** Stable-base rerun
+  remains; tracer consumption remains F.
 
 ## Prior art, harvest, and standards (2026-08-14)
 
