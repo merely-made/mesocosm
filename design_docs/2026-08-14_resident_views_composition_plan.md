@@ -217,12 +217,24 @@ is not a per-frame consumer bridge. Because the receipt used the live
 dirty G2 tree based at `7b68db0`, repeat it after G2 lands before fixing
 the exact material histogram as a stable fixture.
 
-### Lane F. Tracer lease (still blocked)
+### Lane F. Tracer lease (mechanism receipt; permanent adoption pending)
 
 The brick tracer reads the leased allocation; revision coherence and
-unchanged-frame silence receipts. Blocked on lane A and on the tracer
-landing: `mesocosm-lens`'s tracer sources are untracked in-flight work
-at the time of writing, so this lane cannot even be scoped yet.
+unchanged-frame silence receipts. The permanent `mesocosm-lens`
+integration remains blocked on its tracer sources landing, but the public
+resident seam is now sufficient to scope and prove the mechanism without
+editing that in-flight work.
+
+Mere's ignored `crates/probes/resident-tracer-lease` binds the exact 512-byte
+U8 `RawKernelView` allocation directly into a buffer-backed voxel DDA. On the
+RTX 4060, it recorded zero tracer-owned material-upload bytes. An unchanged
+16 ms frame performed zero dispatches, bind-group rebuilds, uploads, or
+readbacks; the same allocation refreshed after the configured 60-second
+elapsed interval without reattachment or upload. A public `Ground` carve
+advanced the observed revision/read epoch from `0/10` to `1/11`, changed
+2973/4096 pixels, and caused the older revision to be rejected. This proves
+the lease, coherence, and elapsed-time silence mechanism. It does not claim
+that the in-flight `BrickTracer` has adopted the lease.
 
 ### Execution receipts (2026-08-14)
 
@@ -242,7 +254,11 @@ at the time of writing, so this lane cannot even be scoped yet.
   that capacity claim.
 - **D complete.** Synthetic tensor/process/commit mechanism above.
 - **E mechanism complete against the live G2 tree.** Stable-base rerun
-  remains; tracer consumption remains F.
+  remains.
+- **F mechanism complete against the live G2 tree.** Direct leased-buffer
+  DDA, revision/read-epoch coherence, stale-lease rejection, and elapsed-time
+  silence pass. Permanent `BrickTracer` adoption waits for its in-flight
+  sources to land.
 
 ## Prior art, harvest, and standards (2026-08-14)
 
