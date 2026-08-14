@@ -118,6 +118,74 @@ and owns `Ground`'s internals right now. This proof starts after that
 work settles; the seam consumes `Ground`'s public revision contract
 and does not reach into brick internals.
 
+## Prior art, harvest, and standards (2026-08-14)
+
+Per the borrowing doctrine: lean on mature references and standards,
+harvest license-clean technique, and never adopt a tool for a
+capability the stack intends to own. Licenses marked **verified** were
+read from source today; everything else is verify-at-adoption.
+
+- **Device and kernel language.** wgpu/WGSL is the W3C WebGPU standard
+  (fetch the spec, cite the section, as always). CubeCL and Burn are
+  MIT/Apache and already in the row. The rust-gpu AOT carriage is
+  working in-tree.
+- **Far field and spatial queries: harvest nexus.** MIT OR Apache-2.0
+  (**verified**, workspace manifest; checkout at `Code/crates/nexus`,
+  commit `3083a43`). Lift as kernels and patterns into conatus lanes,
+  never as an engine dependency (conatus owns the capability). The
+  shopping list: Karras-2012 LBVH (`src_rbd_shaders/broad_phase/lbvh.rs`,
+  723 lines, paper linked in-source), the complete GPU radix sort
+  (`src_rbd_shaders/utils/radix_sort/`, 9 files, 757 lines), the
+  bottom-up refit with atomic arrival counters, the Windows+NVIDIA
+  atomic-load workaround (wgpu#9221), and the radix-sort bounds-check
+  caveat noted in `nexus_rbd2d/build.rs`.
+- **Tracer.** In-house (the brick tracer exists). Its algorithm
+  standard is Amanatides & Woo 1987 (voxel DDA); brickmap residency
+  follows the van Wingerden brickmap thesis; NanoVDB is the reference
+  layout for GPU-resident sparse voxel grids, to align with or diverge
+  from knowingly.
+- **Meshing (bake paths only).** The bonsairobo family
+  (`fast-surface-nets-rs`, `block-mesh-rs`, `ndshape`) is the pure-Rust
+  prior art; surface nets per Gibson 1998. Raymarch stays the hot
+  path; meshing is for bakes and Isometry sprites.
+- **Worldgen.** `noise` 0.9 is Apache-2.0/MIT (**verified**);
+  `fastnoise-lite` as alternative. WFC per Gumin (MIT) with the
+  in-house Isometry experience as the hard-rule layer under any
+  learned prior. NCA per Mordvintsev et al. (distill.pub 2020).
+  Diffusion worldgen stays refused for shipping; NCA plus decoder is
+  the shippable shape.
+- **Field simulation and fluids.** DIY on the standards: Stam's stable
+  fluids and Bridson's course notes for grids; lattice Boltzmann as
+  the grid-native alternative. salva stays refused (CPU SPH against a
+  resident-grid design, and it lags rapier).
+- **Agents.** Burn-native modules (GRU, autodiff in dev builds);
+  evolution strategies per Salimans et al. 2017. Semantics are
+  governed by the general-model plan, never imported from an RL crate.
+- **Content interchange.** `dot_vox` is MIT (**verified**);
+  MagicaVoxel `.vox` is the de facto interchange standard for voxel
+  content packs.
+- **Persistence and replication.** Owned: muniment/codicil for the
+  store, retinue/personae for peers and identity (the dogfood rule;
+  the Syncthing precedent). Minecraft's documented palette-section
+  encoding is prior art for the idea of palette compression; the
+  format itself is not adopted. Content addressing on the BLAKE3 row.
+- **Physics.** parry `Voxels` derives tactile queries from committed
+  revisions, under this wing's own three-tier ruling (integer
+  authority, parry advisor, rapier in reserve). The mere canvas side
+  (seiche) is unaffected.
+
+Three flags:
+
+- **Veloren is GPL-3.0**: read its worldgen writeups for technique,
+  never copy code.
+- **ECS adoption is deferred.** mesocosm-core owns entity state with
+  replay hashes; adopting bevy_ecs or hecs now would risk exactly the
+  second world representation the stop rules refuse. SoA columns
+  aliased as tensors is a view over owned state, not a storage
+  adoption; revisit only if a concrete need survives that framing.
+- **Nothing else in the critique's component list is auto-adopted.**
+  Each entry composes through the seam or waits for a consumer.
+
 ## Stop rules
 
 - No second world representation inside any consumer; a consumer that
