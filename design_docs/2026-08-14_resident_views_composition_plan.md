@@ -240,18 +240,50 @@ that the in-flight `BrickTracer` has adopted the lease.
 
 - **A complete.** `ResidentChunk` landed in Mere commit `986fdb91`
   (four quint paths; the concurrent epoch-carriage session swept them
-  into its wider commit). Real-adapter allocation-identity and metadata
-  receipts pass.
+  into its wider commit; audit confirms the paths are in that commit).
+  Real-adapter allocation-identity and metadata receipts pass, and the
+  identity receipt is the strong form: it resolves the CubeCL handle
+  carried by the public Burn tensor and compares buffer, offset, and
+  size against the raw view, rather than comparing two metadata values
+  quint minted itself. `wgpu::Buffer` equality proxies to the inner
+  handle, so that assertion is identity. A second receipt fixes a
+  constraint worth stating plainly in the seam's own terms: exact U8
+  planes are kernel-viewable but **not** Burn-tensor-viewable
+  (`burn_f32_view` returns `BurnElementType`), so "Burn-addressable"
+  means the float planes. Audit gap: the brief's "no CPU whole-plane
+  read exists in the path" is untested; the test header describes the
+  test's method, not a property of the seam. Lane F shows the right
+  instrument (counted upload bytes, asserted zero). Add that counter or
+  strike the condition.
 - **B complete, local ignored probe.** Nexus `3083a43` radix/LBVH
   harvest passes duplicate/sorted/reversed/single sort cases, 4096-leaf
   reachability and containment, and the GPU canary. At 50k, GPU LBVH
   construction measured 5.042 ms beside the differently scoped 305.451
-  ms CPU Barnes-Hut reference. This does not replace mass aggregation.
-- **C complete, decision made.** Raw CubeCL repulsion agrees with the
-  CPU reference at `1.26e-7` mean relative error and measured
-  9.55-9.71 ms at 50k. **Consolidate the explicit lane on CubeCL-JIT.**
-  Springs, integration, settle readback, and rendering remain outside
-  that capacity claim.
+  ms CPU Barnes-Hut reference (a live in-process `seiche` control, not a
+  remembered figure). This does not replace mass aggregation. Two audit
+  notes: traversal and force accumulation are unmeasured, so no
+  end-to-end claim exists and the two figures should not be read as a
+  ratio; and the harvest landed as hand-written WGSL (`lbvh.wgsl`,
+  `radix.wgsl`), so if lane C's consolidation is eventually made, the
+  algorithm knowledge transfers but the artifact needs rewriting. B and
+  C were briefed as independent; they are not, and the brief was wrong
+  to say so.
+- **C: numeric half complete; the carriage verdict is withdrawn
+  pending a control (audit, 2026-08-14).** Raw CubeCL repulsion agrees
+  with `quint::forces::repulsion_reference` at `1.26e-7` mean relative
+  error, and a warmed repulsion-only pass measured 9.55-9.71 ms at 50k.
+  Both facts stand. The verdict drawn from them does not: the probe
+  compares that repulsion-only pass against `RESIDENT_50K_MS = 12.8`, a
+  constant hardcoded from an earlier session whose own printout names it
+  the resident lane's *full* repulse-plus-springs-plus-integrate-plus-
+  readback frame. Unequal scopes, and no incumbent measurement on this
+  host in this run, so the numbers are equally consistent with CubeCL
+  being slower at repulsion. The control was one call away and unused:
+  `quint::resident::Resident::repulse_only` (resident.rs:445); the probe
+  imports only the CPU reference, never `Resident`. **Rerun before
+  consolidating:** incumbent and CubeCL repulsion, same host, same
+  process, both warmed, with JIT first-launch cost reported separately
+  since that cost is the actual tradeoff.
 - **D complete.** Synthetic tensor/process/commit mechanism above.
 - **E mechanism complete against the live G2 tree.** Stable-base rerun
   remains.
