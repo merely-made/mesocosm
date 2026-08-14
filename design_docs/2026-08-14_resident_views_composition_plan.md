@@ -118,6 +118,90 @@ and owns `Ground`'s internals right now. This proof starts after that
 work settles; the seam consumes `Ground`'s public revision contract
 and does not reach into brick internals.
 
+## Lanes (2026-08-14)
+
+The proof gate above is one sequence, but the work under it is not one
+sequence. These are the independent lanes, each written so a cold
+session can pick it up. Lane briefs are handoffs; the ownership column
+is what makes two of them safe to run at once.
+
+**The safety rule: disjoint file ownership, not good intentions.** This
+tree and mere both had concurrent sessions editing them the day this
+was written. Lanes B, C, and D live in `mere/crates/probes/`, which
+`.gitignore` excludes wholesale, so they touch no tracked file and can
+never appear in another session's staging. Lane A owns quint's source
+alone. While lanes run concurrently, each commits its own paths and
+names what it left unstaged, which is the concurrent-work exception to
+the usual commit-the-whole-tree default.
+
+### Lane A. The seam (keystone, unblocked)
+
+`ResidentChunk` and its view constructors, in mere at
+`crates/conatus/quint/src/`, behind the existing `field-gpu` feature.
+
+**A module, not a crate.** quint already owns resident GPU allocations
+(`quint::resident`), already gates wgpu optionally, and feature gating
+already gives the wing its subset without dragging the field algebra.
+Split it out only if chunk substrates outgrow that neighborhood or a
+consumer needs the seam with none of quint's algebra.
+
+**Done when:** a synthetic chunk yields a Burn tensor view and a raw
+kernel view over the same allocation, proved by buffer identity rather
+than equal contents; revision and valid-read epoch surface to a
+consumer; planes allocate through the CubeCL client (the allocator
+direction); no CPU whole-plane read exists in the path.
+
+Blocks lanes D, E, F. Owns quint's source.
+
+### Lane B. Harvest (unblocked, independent)
+
+Port nexus's GPU radix sort and Karras LBVH build/refit into our
+carriage, in an untracked probe. Carry the two caveats their source
+records: the Windows and NVIDIA atomic-load workaround (wgpu#9221) and
+the radix-sort bounds-check note.
+
+**Done when:** sort correctness against a CPU reference on adversarial
+keys (duplicates, already sorted, reversed, single value); tree
+correctness (every leaf reachable, each node's box containing its
+children's); a timing curve against the CPU Barnes-Hut reference; and
+a positive control proving the GPU path actually ran, per the
+".spv existing is not .spv running" finding.
+
+Promotion into conatus is a separate decision after receipts.
+
+### Lane C. The carriage decision (unblocked, independent)
+
+Port quint's repulsion kernel to a CubeCL raw kernel in an untracked
+probe, with Burn sharing the client so the handoff bridge is absent by
+construction rather than by effort.
+
+**Done when:** numeric agreement with `forces::repulsion_reference` at
+the tolerance the existing handoff receipt used; timing measured
+against the resident lane's 50k figure; and a plain statement of
+whether the bridge code disappears. Either outcome is an answer: it
+decides whether the explicit lane consolidates on CubeCL-JIT or keeps
+both carriages on purpose.
+
+### Lane D. Mechanism proof (after A)
+
+Burn tensor view over a synthetic chunk plane, one diffusion or NCA
+pass, one constrained delta committed in the commit shape. No `Ground`,
+no tracer. This clears proof steps 2, 3, and 5 without waiting on the
+wing, so only the wing-specific receipts remain.
+
+### Lane E. Wing materialization (blocked)
+
+`Ground` into a resident chunk bundle, consuming only `Ground`'s public
+revision contract. Blocked on lane A and on the live place-graph work,
+which owns `Ground`'s internals.
+
+### Lane F. Tracer lease (blocked)
+
+The brick tracer reads the leased allocation; revision coherence and
+unchanged-frame silence receipts. Blocked on lane A and on the tracer
+landing: `mesocosm-lens`'s tracer sources are untracked in-flight work
+at the time of writing, so this lane cannot even be scoped yet.
+
 ## Prior art, harvest, and standards (2026-08-14)
 
 Per the borrowing doctrine: lean on mature references and standards,
