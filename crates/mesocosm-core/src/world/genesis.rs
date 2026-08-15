@@ -172,6 +172,7 @@ impl World {
                 life_history_mass_mg: mass_mg,
                 position: founder.position,
                 tier: crate::places::Tier::Near,
+                last_seen: None,
                 energy_mg: mass_mg,
                 stage: founder.stage,
                 age: founder.age,
@@ -195,6 +196,21 @@ impl World {
             .collect();
 
         let grown = crate::places::Places::grown(seed ^ PLACE_SALT, PLACE_SIDE, ENCLOSURE);
+        let ground = crate::places::Ground::grow(&grown, ENCLOSURE);
+
+        // The old enclosure was an abstract field, so founders carried an
+        // arbitrary y draw. Brick truth makes that invalid: an embodied
+        // creature must begin on footing, with enough headroom for the
+        // near-tier walker. Keep the draw above in the seeded sequence so the
+        // landscape transition does not rearrange every later founder choice.
+        for organism in &mut organisms {
+            let [x, _, z] = organism.position;
+            let surface = ground
+                .surface(x, z)
+                .expect("the grown enclosure covers every founding position");
+            organism.position = [x, surface + 1, z];
+            debug_assert!(ground.stands(organism.position, crate::places::WALKER_HEIGHT));
+        }
 
         let mut world = Self {
             tick: 0,
@@ -215,7 +231,7 @@ impl World {
             // lattice, so the partition is bit-identical, but links derive
             // from the landscape and the ground below is real.
             places: grown.places.clone(),
-            ground: crate::places::Ground::grow(&grown, ENCLOSURE),
+            ground,
             ranges: std::collections::BTreeMap::new(),
             record: crate::record::WorldRecord::new(),
             organisms,

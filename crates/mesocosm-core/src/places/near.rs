@@ -17,6 +17,8 @@
 //! statistical ecology, and the line between them moves with hysteresis
 //! so a critter pacing the border does not flicker between minds.
 
+use std::collections::{BTreeMap, VecDeque};
+
 use serde::{Deserialize, Serialize};
 
 use super::Places;
@@ -83,6 +85,53 @@ pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
     }
     // Boxed in horizontally; at least settle where we are.
     settle(ground, from)
+}
+
+/// The first legal step on a bounded route to `target`. It expands the same
+/// owned [`step`] transitions the player and ecology use, so routing cannot
+/// invent a second collision representation. `None` means the target lies
+/// outside the local budget or no route was found there.
+pub fn route_step(
+    ground: &Ground,
+    from: [i32; 3],
+    target: [i32; 3],
+    budget: i32,
+) -> Option<[i32; 3]> {
+    if from == target || budget < 1 || chebyshev(from, target) > budget {
+        return None;
+    }
+    const DIRECTIONS: [[i32; 2]; 4] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const MAX_ROUTE_STANCES: usize = 256;
+    let mut frontier = VecDeque::from([from]);
+    let mut previous = BTreeMap::from([(from, from)]);
+    while let Some(at) = frontier.pop_front() {
+        for [dx, dz] in DIRECTIONS {
+            let next = step(ground, at, [at[0] + dx, at[1], at[2] + dz]);
+            if next == at || chebyshev(from, next) > budget || previous.contains_key(&next) {
+                continue;
+            }
+            if previous.len() >= MAX_ROUTE_STANCES {
+                return None;
+            }
+            previous.insert(next, at);
+            if next == target {
+                let mut first = target;
+                while previous[&first] != from {
+                    first = previous[&first];
+                }
+                return Some(first);
+            }
+            frontier.push_back(next);
+        }
+    }
+    None
+}
+
+fn chebyshev(a: [i32; 3], b: [i32; 3]) -> i32 {
+    (0..3)
+        .map(|axis| (a[axis] - b[axis]).abs())
+        .max()
+        .unwrap_or(0)
 }
 
 fn solid_span(ground: &Ground, at: [i32; 3]) -> bool {
@@ -159,7 +208,7 @@ pub fn spot(ground: &Ground, eye: [i32; 3], target: [i32; 3], range: i32) -> boo
 
 #[cfg(test)]
 mod tests {
-    use super::super::Places;
+    use super::super::{Places, SURFACE_BAND};
     use super::*;
 
     fn ground() -> Ground {
@@ -214,6 +263,58 @@ mod tests {
             (at[0] - start[0]).abs() + (at[2] - start[2]).abs() > 10,
             "eighty steps went nowhere: {start:?} -> {at:?}"
         );
+    }
+
+    #[test]
+    fn a_bounded_route_uses_legal_steps_around_generated_ground() {
+        let mut ground = ground();
+        // An authoritative L-shaped bore is the smallest turning interior the
+        // player can make with the same carve primitive the run records.
+        for [x, z] in [[0, 0], [4, 0], [4, 4]] {
+            let top = ground.surface(x, z).unwrap();
+            assert!(ground.carve([x, top, z], 1) > 0);
+        }
+        let mut stances = Vec::new();
+        for z in -2..=6 {
+            for x in -2..=6 {
+                for y in 1..SURFACE_BAND {
+                    let at = [x, y, z];
+                    if ground.stands(at, WALKER_HEIGHT) {
+                        stances.push(at);
+                    }
+                }
+            }
+        }
+        for from in &stances {
+            for target in &stances {
+                let mut greedy = *from;
+                for _ in 0..16 {
+                    let next = step(&ground, greedy, *target);
+                    if next == greedy {
+                        break;
+                    }
+                    greedy = next;
+                }
+                if greedy == *target {
+                    continue;
+                }
+                let mut routed = *from;
+                for _ in 0..16 {
+                    let Some(next) = route_step(&ground, routed, *target, 8) else {
+                        break;
+                    };
+                    assert_eq!(step(&ground, routed, next), next);
+                    routed = next;
+                    if routed == *target {
+                        return;
+                    }
+                }
+                if routed != *target {
+                    continue;
+                }
+            }
+        }
+        panic!("seeded L-shaped bore offered no bounded detour");
     }
 
     #[test]

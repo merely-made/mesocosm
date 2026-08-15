@@ -95,7 +95,11 @@ pub enum Route {
 /// `Clone` rather than `Copy`, because naming a lineage carries a name.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Intent {
-    /// Move the critter by a voxel delta.
+    /// Steer the critter toward a local voxel offset.
+    ///
+    /// One intent resolves to one legal near-tier step over the ground. The
+    /// requested offset supplies the heading and vertical preference; it is
+    /// never a licence to cross solid voxels or teleport across a slope.
     Move { delta: [i32; 3] },
     /// Eat something, and decide what it becomes. **The one verb.**
     ///
@@ -368,7 +372,7 @@ impl World {
         // separates an ecology from a field of pickups: things grow, breed,
         // starve, and rot on their own schedule.
         let focus = self.position();
-        self.last_tally = crate::organism::ecology::step_with_places(
+        self.last_tally = crate::organism::ecology::step_with_ground(
             &mut self.organisms,
             &mut self.next_organism,
             &mut self.rng,
@@ -376,6 +380,7 @@ impl World {
             &self.lineages,
             self.development_palette,
             &self.places,
+            &self.ground,
             focus,
         );
 

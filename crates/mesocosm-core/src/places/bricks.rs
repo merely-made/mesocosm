@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use super::grown::Grown;
+use super::grown::{Grown, Nest};
 
 /// Voxels per brick edge.
 pub const BRICK: i32 = 8;
@@ -63,15 +63,30 @@ impl Brick {
 
 /// The ground: every solid voxel the world owns, plus the lifecycle facts
 /// a projection needs (revision, dirty bricks).
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Ground {
     extent: i32,
     /// World y of the water line, derived from the relief's sea.
     pub sea_level: i32,
     bricks: BTreeMap<[i16; 3], Brick>,
     revision: u64,
+    /// Projection work queue, not world authority. Hosts may drain this at
+    /// different frame rates, so it must never alter snapshots or replay
+    /// hashes; the revision and brick bytes carry the authoritative change.
+    #[serde(skip)]
     dirty: BTreeSet<[i16; 3]>,
 }
+
+impl PartialEq for Ground {
+    fn eq(&self, other: &Self) -> bool {
+        self.extent == other.extent
+            && self.sea_level == other.sea_level
+            && self.bricks == other.bricks
+            && self.revision == other.revision
+    }
+}
+
+impl Eq for Ground {}
 
 fn brick_of(at: [i32; 3]) -> [i16; 3] {
     [
@@ -89,6 +104,48 @@ fn local_of(at: [i32; 3]) -> [i32; 3] {
     ]
 }
 
+/// The generated, embodied route into one nest. It is derived from graph
+/// facts, never stored beside the brick truth: Ground owns the resulting
+/// voxels, while tests and generation share the one construction rule.
+#[derive(Clone, Debug)]
+pub(crate) struct NestEntry {
+    pub anchor: [i32; 2],
+    pub floor: i32,
+    pub route: Vec<[i32; 3]>,
+}
+
+pub(crate) fn nest_entry(grown: &Grown, extent: i32, nest: Nest) -> Option<NestEntry> {
+    let host = grown.places.get(nest.host)?;
+    let [cx, cz] = host.centre;
+    let (mut x, mut z, mut anchor) = (cx, cz, 0);
+    for dz in -5..=5 {
+        for dx in -5..=5 {
+            let surface = surface_from(grown, extent, cx + dx, cz + dz);
+            if surface > anchor {
+                (x, z, anchor) = (cx + dx, cz + dz, surface);
+            }
+        }
+    }
+    if anchor < 4 {
+        return None;
+    }
+    let depth = ((anchor - 2) / 3).clamp(1, nest.depth as i32);
+    let floor = (anchor - 3 * depth - 1).max(1);
+    let [dx, dz] = nest_entry_direction(nest.host.0);
+    let route = (0..=anchor - floor)
+        .map(|step| [x + dx * step, anchor + 1 - step, z + dz * step])
+        .collect();
+    Some(NestEntry {
+        anchor: [x, z],
+        floor,
+        route,
+    })
+}
+
+fn surface_from(grown: &Grown, extent: i32, x: i32, z: i32) -> i32 {
+    1 + grown.relief.sample(extent, x, z) * (SURFACE_BAND - 1) / super::relief::CEILING
+}
+
 impl Ground {
     /// Raises the ground a [`Grown`] world described. `extent` must be the
     /// extent the world was grown with.
@@ -103,7 +160,7 @@ impl Ground {
 
         for z in -extent..=extent {
             for x in -extent..=extent {
-                let surface = ground.surface_from(grown, x, z);
+                let surface = surface_from(grown, extent, x, z);
                 for y in 0..=surface {
                     let material = if y + 2 > surface { SOIL } else { ROCK };
                     ground.place([x, y, z], material);
@@ -114,31 +171,21 @@ impl Ground {
         // Burrows: anchored at the highest column near the host, so a
         // low-lying host digs into its own hillside instead of cratering.
         // Rooms scale to the depth the ground actually affords, and every
-        // chamber keeps a roof. Deterministic from the graph alone.
+        // chamber keeps a roof. The entry descends one voxel per horizontal
+        // step, because a vertical hollow is a picture of a burrow, not a
+        // route `near::step` can actually traverse. Deterministic from the
+        // graph alone.
         for nest in &grown.nests {
-            let Some(host) = grown.places.get(nest.host) else {
+            let Some(entry) = nest_entry(grown, extent, *nest) else {
                 continue;
             };
-            let [cx, cz] = host.centre;
-            let (mut x, mut z, mut anchor) = (cx, cz, 0);
-            for dz in -5..=5 {
-                for dx in -5..=5 {
-                    let s = ground.surface_from(grown, cx + dx, cz + dz);
-                    if s > anchor {
-                        (x, z, anchor) = (cx + dx, cz + dz, s);
-                    }
-                }
-            }
-            // Ruggedness gating guarantees a usable anchor; be safe anyway.
-            if anchor < 4 {
-                continue;
-            }
-            let depth = ((anchor - 2) / 3).clamp(1, nest.depth as i32);
-            let floor = (anchor - 3 * depth - 1).max(1);
+            let [x, z] = entry.anchor;
+            let anchor = entry.route[0][1] - 1;
+            let floor = entry.floor;
             let radius = if anchor - floor >= 5 { 2 } else { 1 };
-            for y in floor..=anchor {
-                ground.hollow([x, y, z], 1);
-            }
+            let [entry_dx, entry_dz] = nest_entry_direction(nest.host.0);
+            let drop = anchor - floor;
+            let (entry_x, entry_z) = (x + entry_dx * drop, z + entry_dz * drop);
             for room in 0..nest.rooms {
                 let spin = (nest.host.0 as i32 * 7 + room as i32 * 5) % 8;
                 let (dx, dz) = [
@@ -153,18 +200,15 @@ impl Ground {
                 ][spin as usize];
                 let lift = (room as i32) % (anchor - 1 - radius - floor).max(1);
                 let centre_y = (floor + lift).min(anchor - 1 - radius).max(1 + radius);
-                ground.hollow([x + dx, centre_y, z + dz], radius);
+                ground.hollow([entry_x + dx, centre_y, entry_z + dz], radius);
             }
+            ground.carve_nest_entry(&entry);
         }
 
         // Generation is the world's starting fact, not an edit.
         ground.dirty.clear();
         ground.revision = 0;
         ground
-    }
-
-    fn surface_from(&self, grown: &Grown, x: i32, z: i32) -> i32 {
-        1 + grown.relief.sample(self.extent, x, z) * (SURFACE_BAND - 1) / super::relief::CEILING
     }
 
     fn place(&mut self, at: [i32; 3], material: u8) {
@@ -174,6 +218,40 @@ impl Ground {
             .or_insert_with(Brick::empty)
             .set(local_of(at), material);
         self.dirty.insert(key);
+    }
+
+    /// Clears a two-voxel walker volume while preserving (or supplying) its
+    /// footing. This is generation geometry, not an edit: callers reset the
+    /// revision and dirty queue once the initial world has been raised.
+    fn make_stance(&mut self, at: [i32; 3]) {
+        let floor = [at[0], at[1] - 1, at[2]];
+        if !self.solid(floor) {
+            self.place(floor, SOIL);
+        }
+        for dy in 0..2 {
+            let air = [at[0], at[1] + dy, at[2]];
+            if self.solid(air) {
+                self.place(air, AIR);
+            }
+        }
+    }
+
+    /// Dig the access route for one generated nest. It descends one voxel per
+    /// horizontal step to the roofed entry room. Its directness matters: the
+    /// current embodied ecology follows a visible target vector, and must not
+    /// need an unimplemented pathfinder merely to enter a burrow.
+    fn carve_nest_entry(&mut self, entry: &NestEntry) {
+        for at in &entry.route {
+            self.make_stance(*at);
+        }
+        let inside = *entry
+            .route
+            .last()
+            .expect("a nest entry has a mouth and a room");
+        let roof = [inside[0], inside[1] + 2, inside[2]];
+        if !self.solid(roof) {
+            self.place(roof, ROCK);
+        }
     }
 
     fn hollow(&mut self, centre: [i32; 3], radius: i32) {
@@ -298,6 +376,10 @@ impl Ground {
     }
 }
 
+fn nest_entry_direction(host: u16) -> [i32; 2] {
+    [[1, 0], [0, 1], [-1, 0], [0, -1]][host as usize % 4]
+}
+
 impl Brick {
     /// The brick as raw material bytes, for building a mesh-crate volume.
     pub fn raw(&self) -> &[u8] {
@@ -350,8 +432,8 @@ mod tests {
         for nest in &grown.nests {
             let [x, z] = grown.places.get(nest.host).unwrap().centre;
             let mut roofed = false;
-            'search: for dz in -5..=5 {
-                for dx in -5..=5 {
+            'search: for dz in -12..=12 {
+                for dx in -12..=12 {
                     for y in 1..SURFACE_BAND {
                         let at = [x + dx, y, z + dz];
                         if !ground.solid(at) && ground.solid([at[0], y + 1, at[2]]) {
@@ -362,6 +444,31 @@ mod tests {
                 }
             }
             assert!(roofed, "nest at {:?} has no roofed room", nest.host);
+        }
+    }
+
+    #[test]
+    fn nest_entries_are_walkable_routes_to_the_roofed_interior() {
+        let (grown, ground) = world();
+        for nest in &grown.nests {
+            let entry = nest_entry(&grown, 64, *nest).unwrap();
+            for pair in entry.route.windows(2) {
+                assert!(ground.stands(pair[0], 2), "bad entry stance: {:?}", pair[0]);
+                assert_eq!(
+                    super::super::step(&ground, pair[0], pair[1]),
+                    pair[1],
+                    "entry step failed: {:?} -> {:?}",
+                    pair[0],
+                    pair[1]
+                );
+            }
+            let inside = *entry.route.last().unwrap();
+            assert!(ground.stands(inside, 2));
+            assert!(
+                ground.solid([inside[0], inside[1] + 2, inside[2]]),
+                "nest at {:?} has no roof over its entry room",
+                nest.host
+            );
         }
     }
 
@@ -401,6 +508,16 @@ mod tests {
             crate::snapshot::encode(&a).unwrap(),
             crate::snapshot::encode(&b).unwrap()
         );
+    }
+
+    #[test]
+    fn draining_projection_dirt_does_not_change_the_snapshot() {
+        let (_, mut ground) = world();
+        let top = ground.surface(4, 4).unwrap();
+        ground.carve([4, top, 4], 1);
+        let before = crate::snapshot::encode(&ground).unwrap();
+        assert!(!ground.drain_dirty().is_empty());
+        assert_eq!(crate::snapshot::encode(&ground).unwrap(), before);
     }
 
     #[test]

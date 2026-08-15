@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 
 use crate::cohort;
 use crate::development::PartPalette;
-use crate::places::{Places, Tier, TierLine};
+use crate::places::{Ground, Places, Tier, TierLine};
 use crate::process::FeedingMode;
 use crate::rng::Rng;
 use crate::species::Lineages;
@@ -25,6 +25,13 @@ use crate::species::Lineages;
 use crate::history::Event;
 
 use super::{Kingdom, Organism, OrganismId, Stage, Tally};
+
+mod movement;
+
+use movement::{
+    CarrionTarget, LivingTarget, carrion_cells, choose_carrion_target, choose_living_target,
+    disperse, living_cells, surface_stance,
+};
 
 /// Reference body mass for the allometric rates below.
 const REFERENCE_MASS_MG: u64 = 100;
@@ -47,10 +54,6 @@ const CROWD_CELL: i32 = 8;
 /// Neighbours a cell supports before its occupants start shading each other
 /// out. Beyond this a producer's income falls away and self-thinning begins.
 const CROWD_COMFORT: u32 = 4;
-/// How far a decomposer reaches for the dead, in voxel units.
-const DECOMPOSE_RANGE: i32 = 6;
-/// How far a consumer reaches for a meal, in voxel units.
-const GRAZE_RANGE: i32 = 5;
 /// Fraction of a parent's mass an offspring costs, as a divisor.
 pub(crate) const OFFSPRING_COST: u64 = 4;
 /// Mass below which an organism cannot sustain itself.
@@ -153,7 +156,7 @@ pub fn step(
     palette: PartPalette,
 ) -> Tally {
     step_inner(
-        organisms, next_id, rng, events, lineages, palette, None, None,
+        organisms, next_id, rng, events, lineages, palette, None, None, None,
     )
 }
 
@@ -179,6 +182,35 @@ pub fn step_with_places(
         lineages,
         palette,
         Some(places),
+        None,
+        focus,
+    )
+}
+
+/// Advances a world-owned ecology against its voxel truth. Graph-only
+/// fixtures keep using [`step_with_places`]; a replayed world calls this path
+/// so embodied bodies obey the same footing and sight rules as the player.
+#[allow(clippy::too_many_arguments)]
+pub fn step_with_ground(
+    organisms: &mut Vec<Organism>,
+    next_id: &mut u32,
+    rng: &mut Rng,
+    events: &mut Vec<Event>,
+    lineages: &Lineages,
+    palette: PartPalette,
+    places: &Places,
+    ground: &Ground,
+    focus: Option<[i32; 3]>,
+) -> Tally {
+    step_inner(
+        organisms,
+        next_id,
+        rng,
+        events,
+        lineages,
+        palette,
+        Some(places),
+        Some(ground),
         focus,
     )
 }
@@ -192,6 +224,7 @@ fn step_inner(
     lineages: &Lineages,
     palette: PartPalette,
     places: Option<&Places>,
+    ground: Option<&Ground>,
     focus: Option<[i32; 3]>,
 ) -> Tally {
     let mut tally = Tally::default();
@@ -226,16 +259,17 @@ fn step_inner(
 
     // Carrion positions are read before anything changes, so decomposers all
     // see the same world within a tick rather than racing each other.
-    let carrion: Vec<([i32; 3], usize)> = organisms
+    let carrion: Vec<CarrionTarget> = organisms
         .iter()
         .enumerate()
         .filter(|(_, o)| o.stage == Stage::Carrion)
         .map(|(index, o)| (o.position, index))
         .collect();
+    let carrion_cells = carrion_cells(&carrion);
 
     // Living bodies, read before anything changes, so feeding decisions all
     // see the same enclosure within a tick rather than racing each other.
-    let living: Vec<(OrganismId, [i32; 3], usize, Kingdom, u64, super::Signal)> = organisms
+    let living: Vec<LivingTarget> = organisms
         .iter()
         .enumerate()
         .filter(|(_, o)| o.is_alive())
@@ -250,6 +284,7 @@ fn step_inner(
             )
         })
         .collect();
+    let living_cells = living_cells(&living);
 
     let mut drained: Vec<(usize, u64)> = Vec::new();
     // Feeding is recorded by index and resolved to ids after the pass, because
@@ -291,7 +326,9 @@ fn step_inner(
                         organism.gain_mass(share);
                     }
                     FeedingMode::Grazer | FeedingMode::Predator => {
-                        if let Some(prey) = choose_living_target(organism, &living) {
+                        if let Some(prey) =
+                            choose_living_target(organism, &living, &living_cells, ground)
+                        {
                             let amount = feeding_rate_for_mass(organism.biomass_mg());
                             let kind = if organism.feeding_mode() == FeedingMode::Predator {
                                 crate::history::MealKind::Predation
@@ -305,9 +342,9 @@ fn step_inner(
                     }
                     // Decomposers only earn where something has died.
                     FeedingMode::Scavenger => {
-                        if let Some((_, source)) = carrion.iter().copied().find(|(at, _)| {
-                            (0..3).all(|a| (at[a] - organism.position[a]).abs() <= DECOMPOSE_RANGE)
-                        }) {
+                        if let Some(source) =
+                            choose_carrion_target(organism, &carrion, &carrion_cells, ground)
+                        {
                             let amount = decay_rate_for_mass(organism.biomass_mg());
                             organism.gain_mass(amount);
                             drained.push((source, amount));
@@ -322,7 +359,17 @@ fn step_inner(
                 }
 
                 if let Some(places) = places
-                    && disperse(organism, places, focus, rng, &living, &carrion, events)
+                    && disperse(
+                        organism,
+                        places,
+                        ground,
+                        rng,
+                        &living,
+                        &living_cells,
+                        &carrion,
+                        &carrion_cells,
+                        events,
+                    )
                 {
                     tally.moved += 1;
                 }
@@ -428,6 +475,11 @@ fn step_inner(
         // escapes its own shade, so a short throw would trap every offspring
         // in the same competition its parent is already losing.
         let scatter = [rng.range_i32(-12, 12), 0, rng.range_i32(-12, 12)];
+        let position = [
+            parent.position[0] + scatter[0],
+            parent.position[1],
+            parent.position[2] + scatter[2],
+        ];
         let child = Organism {
             id: child_id,
             species: parent.species,
@@ -438,12 +490,16 @@ fn step_inner(
             development_seed,
             life_history_mass_mg: cost,
             energy_mg: cost,
-            position: [
-                parent.position[0] + scatter[0],
-                parent.position[1],
-                parent.position[2] + scatter[2],
-            ],
+            // A near-tier child is an embodied body immediately, rather
+            // than an abstract point that has to be repaired next tick.
+            position: match (ground, parent.tier) {
+                (Some(ground), Tier::Near) => {
+                    surface_stance(ground, position).unwrap_or(parent.position)
+                }
+                _ => position,
+            },
             tier: parent.tier,
+            last_seen: None,
             stage: Stage::Juvenile,
             age: 0,
             since_offspring: 0,
@@ -471,158 +527,6 @@ fn step_inner(
     organisms.extend(newborns);
     organisms.retain(|o| o.stage != Stage::Spent);
     tally
-}
-
-type LivingTarget = (OrganismId, [i32; 3], usize, Kingdom, u64, super::Signal);
-
-/// Chooses the best currently reachable living target. The drive is explicit:
-/// need, distance, body reach, and the target's advertised danger all take
-/// part in the choice. A predator may take another consumer; a grazer may not.
-fn choose_living_target(organism: &Organism, living: &[LivingTarget]) -> Option<usize> {
-    let mode = organism.feeding_mode();
-    let reach = GRAZE_RANGE + organism.body.reach();
-    living
-        .iter()
-        .filter(|(id, at, _, kingdom, _, signal)| {
-            *id != organism.id
-                && match mode {
-                    FeedingMode::Grazer => *kingdom == Kingdom::Producer,
-                    FeedingMode::Predator => true,
-                    _ => false,
-                }
-                && chebyshev(organism.position, *at) <= reach
-                // A warning is information, not an invulnerability flag. It
-                // only breaks ties against an equally good plain target.
-                && (*signal == super::Signal::Plain || mode == FeedingMode::Grazer)
-        })
-        .min_by_key(|(_, at, _, _, mass, signal)| {
-            let distance = chebyshev(organism.position, *at) as u64;
-            let danger = u64::from(*signal == super::Signal::Warning) * 4;
-            (distance.saturating_mul(16) + danger).saturating_sub((*mass).min(256) / 64)
-        })
-        .map(|(_, _, index, _, _, _)| *index)
-}
-
-fn chebyshev(from: [i32; 3], to: [i32; 3]) -> i32 {
-    (0..3)
-        .map(|axis| (from[axis] - to[axis]).abs())
-        .max()
-        .unwrap_or(0)
-}
-
-fn preferred_target(
-    organism: &Organism,
-    living: &[LivingTarget],
-    carrion: &[([i32; 3], usize)],
-) -> Option<[i32; 3]> {
-    match organism.feeding_mode() {
-        FeedingMode::Grazer | FeedingMode::Predator => living
-            .iter()
-            .filter(|(id, _, _, kingdom, _, _)| {
-                *id != organism.id
-                    && (organism.feeding_mode() == FeedingMode::Predator
-                        || *kingdom == Kingdom::Producer)
-            })
-            .min_by_key(|(_, at, _, _, mass, _)| {
-                (chebyshev(organism.position, *at), std::cmp::Reverse(*mass))
-            })
-            .map(|(_, at, _, _, _, _)| *at),
-        FeedingMode::Scavenger => carrion
-            .iter()
-            .min_by_key(|(at, _)| chebyshev(organism.position, *at))
-            .map(|(at, _)| *at),
-        FeedingMode::Producer => None,
-    }
-}
-
-/// Moves an organism toward the affordance it currently needs. Near bodies
-/// move by one legal integer step; far bodies move through one place-graph
-/// edge. An exhausted body diffuses to a neighbouring place when it has no
-/// target, which is the minimal starvation-driven dispersal law.
-fn disperse(
-    organism: &mut Organism,
-    places: &Places,
-    _focus: Option<[i32; 3]>,
-    rng: &mut Rng,
-    living: &[LivingTarget],
-    carrion: &[([i32; 3], usize)],
-    events: &mut Vec<Event>,
-) -> bool {
-    let target = preferred_target(organism, living, carrion);
-    let old = organism.position;
-    let next = if let Some(target) = target {
-        if organism.tier == Tier::Far {
-            graph_step(places, organism.position, target)
-        } else {
-            let mut at = organism.position;
-            for _ in 0..dispersal_for(organism) {
-                at = integer_step(at, target);
-                if chebyshev(at, target) <= organism.body.reach() + GRAZE_RANGE {
-                    break;
-                }
-            }
-            at
-        }
-    } else if organism.energy_mg == 0 {
-        diffuse(places, organism.position, rng)
-    } else {
-        organism.position
-    };
-
-    if next != old {
-        let distance = chebyshev(old, next) as u64;
-        organism.spend_mass(distance.max(1));
-        organism.position = next;
-        events.push(Event::Moved {
-            organism: organism.id,
-            from: old,
-            to: next,
-        });
-        true
-    } else {
-        false
-    }
-}
-
-fn integer_step(from: [i32; 3], to: [i32; 3]) -> [i32; 3] {
-    [
-        from[0] + (to[0] - from[0]).signum(),
-        from[1] + (to[1] - from[1]).signum(),
-        from[2] + (to[2] - from[2]).signum(),
-    ]
-}
-
-fn graph_step(places: &Places, position: [i32; 3], target: [i32; 3]) -> [i32; 3] {
-    let Some(current) = places.at(position) else {
-        return integer_step(position, target);
-    };
-    let Some(goal) = places.at(target) else {
-        return integer_step(position, target);
-    };
-    let Some(next) = places
-        .neighbours(current)
-        .iter()
-        .filter_map(|id| places.get(*id))
-        .min_by_key(|place| places.hops(place.id, goal).unwrap_or(u32::MAX))
-    else {
-        return integer_step(position, target);
-    };
-    [next.centre[0], position[1], next.centre[1]]
-}
-
-fn diffuse(places: &Places, position: [i32; 3], rng: &mut Rng) -> [i32; 3] {
-    let Some(current) = places.at(position) else {
-        return position;
-    };
-    let neighbours = places.neighbours(current);
-    if neighbours.is_empty() {
-        return position;
-    }
-    let id = neighbours[rng.below(neighbours.len() as u64) as usize];
-    let Some(place) = places.get(id) else {
-        return position;
-    };
-    [place.centre[0], position[1], place.centre[1]]
 }
 
 const FILIAL_SALT: u64 = 0x4649_4C49_414C_0001;

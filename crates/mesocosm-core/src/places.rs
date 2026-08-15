@@ -53,9 +53,11 @@ mod grown;
 mod near;
 mod relief;
 
+#[cfg(test)]
+pub(crate) use bricks::nest_entry;
 pub use bricks::{AIR, BRICK, Brick, Ground, ROCK, SOIL, SURFACE_BAND};
 pub use grown::{Grown, Nest};
-pub use near::{Tier, TierLine, WALKER_HEIGHT, spot, step};
+pub use near::{Tier, TierLine, WALKER_HEIGHT, route_step, spot, step};
 pub use relief::Relief;
 
 use std::collections::{BTreeSet, VecDeque};

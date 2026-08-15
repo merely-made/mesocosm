@@ -33,6 +33,16 @@ use crate::body::{SpeciesId, VolumeRef};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct OrganismId(pub u32);
 
+/// A recent direct observation. It is simulation state: losing sight changes
+/// what an embodied creature does next, so it must replay with the organism
+/// rather than live in a host-side perception cache.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LastSeen {
+    pub target: OrganismId,
+    pub position: [i32; 3],
+    pub ticks_left: u8,
+}
+
 /// Trophic role. Not a character class: these are the three ways of making a
 /// living, and a lineage may combine them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -136,6 +146,10 @@ pub struct Organism {
     /// different ownership depending on where the organism came from.
     #[serde(default)]
     pub tier: Tier,
+    /// The last directly perceived living target, while its short pursuit
+    /// window remains. This is generic perception, not a Hunter FSM state.
+    #[serde(default)]
+    pub last_seen: Option<LastSeen>,
     /// What this organism can spend: its **budget**.
     ///
     /// Distinct from what it weighs, which is its body's business. Before P1
@@ -187,6 +201,7 @@ impl Organism {
             life_history_mass_mg: mass_mg,
             position,
             tier: Tier::Near,
+            last_seen: None,
             energy_mg: mass_mg,
             stage: Stage::Juvenile,
             age: 0,

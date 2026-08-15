@@ -15,17 +15,29 @@
 //! over that same path.
 
 mod body;
+pub mod bricks;
 pub mod critter;
 pub mod maps;
 mod renderer;
 mod scene;
+mod tracer;
+
+#[cfg(test)]
+mod netrender_tests;
+#[cfg(test)]
+mod tracer_tests;
 
 pub use body::{BodyLensProjection, BodyPlacement, BodyProjectionError, BodyRevision, LensPart};
+pub use bricks::{BrickMap, BrickMapError};
 pub use renderer::{
     Capture, DirtyRect, FRAME_FORMAT, FrameDiagnostics, FrameInput, Lens, LensError, MapChange,
     MapRevision,
 };
 pub use scene::{LensScene, SceneCodecError};
+pub use tracer::{
+    BrickCapture, BrickChange, BrickDiagnostics, BrickFrameInput, BrickRevision, BrickTraceError,
+    BrickTracer,
+};
 
 /// Hard admission limit imposed by the baseline uniform layout.
 pub const MAX_CAPSULES: usize = 96;

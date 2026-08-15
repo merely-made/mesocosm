@@ -175,33 +175,38 @@ Landed additively as `places/bricks.rs`: `Ground::grow(&Grown, extent)`
 raises dense 8³ bricks (ordered map, serde-flat) from the relief; nests
 realize as **roofed burrows anchored at the highest column near their
 host** (a low host digs into its hillside rather than cratering; rooms
-scale to afforded depth; every chamber keeps a ceiling). `carve` bumps one
+scale to afforded depth; every chamber keeps a ceiling). Each also has a
+direct one-voxel descending entry to a roofed room: a former vertical shaft
+looked like an interior but could not be climbed by the owned near-stepper.
+`carve` bumps one
 revision and marks dirty bricks; `drain_dirty` is the projection's upload
 discipline. Occupancy (`solid`, `stands`) and integer line-of-sight
 (`sees`) land here too, seeding G3's perception. Receipts, all green with
 strict clippy: same-world bit-equality + serde round-trip; identical
 carves replay to identical bytes; a radius-1 carve dirties ≤8 bricks and
-carving air is not an edit; burrows are roofed voids near every nest;
+carving air is not an edit; burrows are roofed voids near every nest; every
+generated entry step is legal and ends under a roof;
 hills block sight and a bored tunnel grants it (the first scan version
 walked into a burrow corridor, which is its own kind of receipt); and in
 `mesocosm-mesh/tests/ground_projection.rs`, every matter-bearing brick
 meshes through the same `mesh_volume` path bodies use, with clean bricks'
-meshes untouched by a neighbour's carve. **Pending for G1 complete:**
-carve as an ordered `Intent`, `Ground` inside the world snapshot/replay
-hash, and genesis wiring — all in files currently in flight, adopted
-with the `grown` swap.
+meshes untouched by a neighbour's carve. The original remaining G1 pieces —
+carve as an ordered `Intent`, `Ground` inside the world snapshot/replay hash,
+and genesis wiring — all landed with the `grown` swap on 2026-08-08.
 
 Place-keyed brick regions over the one space; carve as an ordered intent;
 dirty regions revisioned (the lens's `MapRevision`/`MapChange` discipline
 generalized); the snapshot/replay hash covers bricks; `mesocosm-mesh`
 consumes a world brick as a `VolumeSource` for the raster projection;
-occupancy derives per brick for collision and perception queries.
+occupancy derives per brick for collision and perception queries. The dirty
+queue is projection-only: it is omitted from snapshots and equality, so a
+host's upload cadence cannot alter replay state.
 
 **Done when:** a carved world replays to an identical hash; an unchanged
 world uploads zero brick bytes across frames; a carve uploads only its
 region; occupancy answers stand, burrow, and see for the near tier.
 
-### G2. The tracer, riding the landed V1 harness
+### G2. The tracer, riding the landed V1 harness — **COMPLETE 2026-08-14**
 
 Fragment-only brick-map DDA in the lens's retained pattern: pointers and
 brick atlas in 3D textures, no storage buffers, no compute; both souls;
@@ -219,7 +224,41 @@ landscape §8.8); a browser receipt lands through the same composition seam
 and recording discipline V1 proved; 1080p fps is recorded on the 4060 and
 on GL, and the number is reported whatever it is.
 
-### G3. The near tier — **core LANDED 2026-08-06; ecology drive/tier slice LANDED 2026-08-07; world adoption OPEN** (audit 2026-08-07: genesis still installs `scatter`, `World` owns no `Ground`, and near-tier ecology does not yet use the occupancy/sight/carve path)
+**2026-08-14, P0 Ground tracer.** `BrickMap` is a lens-owned, rebuildable
+projection of `Ground`: `R32Uint` 3D pointers address a dense `R8Uint` 3D
+material atlas, with slot zero as air. `BrickTracer` does fragment-only DDA
+against those textures, encodes into a caller-owned target, and owns neither
+world state nor submission. A real seed-4242 hill and bored horizontal
+tunnel receipt confirms the visual lifecycle: the initial 265,612-byte upload
+is followed by 43 removed voxels in two changed brick slots, a 1,032-byte
+upload, and changed capture pixels. Steady frames upload zero brick bytes.
+This proves Ground-to-texture provenance and narrow carve propagation. It does
+not by itself prove composition, host, browser, downlevel, or 1080p evidence.
+
+**2026-08-14, P1 composed cross-host receipt.** `BrickFrameInput` now carries
+an optional presentation-only `CritterPose`; the DDA shader sphere-traces its
+capsules and lets the nearer of its SDF hit and Ground hit own each pixel.
+`g2_frame` is the headed harness: generated seed-4242 Ground is reconstructed
+into `BrickMap`, one SDF body is composed with it, and the caller-owned trace
+texture enters netrender at external scene boundary zero. The native release
+run presented the composed 1920×1080 frame on the RTX 4060/Vulkan with scene
+digest `fnv1a64:411f3c4f92446b5a`; the steady second frame made no brick or
+uniform upload and recorded netrender's 991µs span ledger. The browser ran
+the same 232,803-byte scene digest, trace and netrender path headed through
+Browser WebGPU at 960×540, again with a steady no-upload frame and no browser
+validation errors. The rendered canvas, not merely the receipt text, was
+inspected: voxel ground, nearer SDF body, and chrome were all visible.
+
+`g2_glprobe` requested `Limits::downlevel_webgl2_defaults()` on wgpu's real
+GL backend (maximum 2D texture 2048): both clay and retro body-plus-Ground
+frames rendered at 960×540, the grade change changed pixels, and its second
+frame uploaded zero Ground bytes. `g2_bench` performs synchronized, readback-
+free steady DDA frames at 1920×1080, including Ground and the SDF body:
+**482.4 fps median** (2,073µs, 1,825–3,219µs) on Vulkan and **520.8 fps
+median** (1,920µs, 1,697–2,641µs) on GL. These are tracer spans, deliberately
+reported beside rather than mistaken for the headed netrender frame budget.
+
+### G3. The near tier — **core LANDED 2026-08-06; ecology drive/tier slice LANDED 2026-08-07; player ingress, autonomous occupancy/sight wiring, and 300-body scale receipt LANDED 2026-08-14; G4 composition OPEN**
 
 Landed additively as `places/near.rs` (kinematic `step` with slide, climb,
 gravity settle, and doorway drops; `spot` sight; `Tier`/`TierLine` with
@@ -230,9 +269,10 @@ half-speed hunter acquires its quarry, loses it behind a hill, projects
 along its heading, is forced off a cliff edge, re-acquires at a bored
 den's mouth, and follows it inside, with per-tick continuity asserted
 throughout (no teleports). Determinism receipt: identical runs
-bit-identical. Perf receipt: **300 hunters tick in ~62µs** (release), so
-the target population costs well under a millisecond. Tier receipt: the
-line does not flap crossing the band, and a far hunter wakes on
+bit-identical. The former standalone Hunter probe measured **300 hunters in
+~62µs** (release), but it did not exercise world ecology, Ground, or the
+far-cohort projection and is retained as probe evidence only. Tier receipt:
+the line does not flap crossing the band, and a far hunter wakes on
 promotion. Two movement laws were earned by failure, both the same
 lesson: **preferences order, they never refuse** — climb-when-descending
 and the cliff-edge comfort drop each deadlocked an agent until the
@@ -263,9 +303,116 @@ player across a place boundary and a burrow threshold without stutter or
 teleportation; per-tick agent cost is recorded at the target population;
 the far tier's aggregate outcomes stay within its existing receipts.
 
-### G4. The burrow run
+**2026-08-14, V0 player closure.** Genesis now puts every founder on real
+brick footing. `Intent::Move` resolves one `near::step` toward its requested
+offset, charges only horizontal distance actually travelled, and cannot use a
+large offset to cross a wall or slope. The focused receipt finds a real
+climb-blocking face, records a carve that turns it into a doorway, crosses it,
+and replays to an identical hash. This is deliberately not G3 completion:
+`ecology::disperse` still uses its abstract integer step and has not yet read
+`Ground` occupancy or `spot` sight.
+
+**2026-08-14, V1 autonomous closure.** Replayed worlds now call
+`ecology::step_with_ground`: near-tier food and carrion acquisition uses
+`spot`, pursuit takes one or more bounded `near::step`s under the existing
+locomotion budget, and exhausted near bodies wander by a legal grounded step.
+Far cohorts retain their place-graph movement and perception, while graph
+traversal and near-tier birth keep embodied bodies on valid surface footing. The receipt
+finds a generated occluding wall, proves an autonomous predator does not steer
+through it, records a carve, then proves it enters the opened doorway and
+replays identically. Population-cost and full burrow-run receipts remain open.
+
+**2026-08-14, V2 grounded scale receipt.**
+`grounded_ecology_receipt` starts from the actual seed-4242 world with 300
+living Near founders, warms a disposable clone, then measures five
+independent, identical 64-tick idle windows. Refreshed after the G4 perception
+work, this Windows host's release build reports **897.05µs/tick** median
+(887.95–928.89µs; 903.81µs mean), and all samples finish at the same state
+hash. The receipt also rejects an
+unfooted living Near body and rejects any scalar disagreement between raw Far
+bodies and their cohort projection. It replaces the old Hunter number as the
+G3 capacity evidence; it is a host-specific measurement, not a frame-budget
+guarantee. Full player-and-burrow composition remains G4.
+
+### G4. The burrow run — **OPEN 2026-08-14 (P0/P5 landed)**
 
 Compose G0 through G3 into §2's scenario. Its done-conditions are §2's.
+
+**2026-08-14, P0 one-world doorway run.** `burrow_run_receipt` and the
+Lens `burrow_run` example now begin from one real `World`, rather than an
+adjacent demo Ground. A played producer begins occluded from a near consumer
+by generated brick terrain; an ordered `Idle`, then legal `Carve`, opens the
+doorway; Ground sight changes; the consumer enters by its ordinary grounded
+ecology step; and a twin produces the same outcomes and final replay hash.
+The lens refreshes just one dirty atlas slot (516 bytes) and the DDA capture
+changes after the eight-voxel carve. This is the composed authority and
+projection join, but not the full G4 verdict: it is a generated occluding
+doorway, not yet a selected roofed burrow encounter; the live run is not yet
+headed through the G2 netrender/browser harness; population sight cost and
+the human tension judgment remain open.
+
+**2026-08-14, P1 generated-entry correction.** A nest's old vertical hollow
+was a visual and raycastable burrow, not one an embodied body could enter:
+`near::step` cannot climb a shaft. Generation now produces a direct,
+one-voxel descending route into a roofed room and relocates the generated
+room cluster at that entry. The Ground receipt walks every route edge through
+the actual stepper. The world receipt then places a producer under that roof
+and a Near consumer at the mouth: on `Idle` it sees the producer, descends on
+the generated route, remains grounded, and twin-replays identically. This
+settles actual continuous burrow ingress, not the full G4 scene. The existing
+hide/reacquire-and-carve proof is still a selected generated doorway; combining
+it with a turning interior needs a local path-search policy, not another
+geometric special case.
+
+**2026-08-14, P2 local lost-sight pursuit.** `LastSeen` is now serialized
+organism state, rather than a host perception cache: a Near consumer refreshes
+it from direct `spot` acquisition; it lasts for eight failed perception ticks
+and clears on expiry, target death, or a tier change. `route_step` is a small,
+deterministic breadth-first search over the actual `near::step` transition
+relation, limited to an eight-voxel horizon and 256 examined stances. It adds
+no collision map and makes no global-path claim. The generated-entry receipt
+proves direct observation writes the replayed state. A separate one-world
+receipt carves an L-shaped bore with the ordinary Ground primitive, puts a
+target beyond an occluded turn, and proves a consumer's remembered target
+takes the legal first detour and twin-replays. The expiry and Near/Far boundary
+are unit-receipted too. Reacquiring a *moving* target through that turning
+interior, the headless G2 scene composition, performance at population, and
+the human tension judgment remain G4 work.
+
+**2026-08-14, P3 external-frame closure.** The Lens `burrow_run` receipt no
+longer stops at a tracer capture. Its same-device `G4Frame` encodes the
+World-derived DDA view into an external texture and passes that texture through
+netrender, which owns the final master frame. The before/after frames differ
+after the recorded eight-voxel carve; the after frame carries one dirty atlas
+slot and 516 brick-upload bytes into the composed master. The native receipt
+also records netrender span count and writes that actual master as PNG. This
+proves the headless frame seam for this run, not browser parity for this
+particular scenario: the existing browser/downlevel G2 host remains a generic
+Ground projection proof. A browser-directed burrow-run harness, moving-target
+reacquisition through the turn, population cost under sight/routing, and the
+human tension judgment remain G4 work.
+
+**2026-08-14, P4 moving-target reacquisition.** The World receipt now uses
+the played producer, rather than a fixed quarry: it is seen by a Near
+consumer, moves through an ordinary player-carved L turn out of sight, leaves
+the consumer following its serialized last-seen position, and is reacquired
+within the eight-tick local window. Every step stays grounded and the whole
+intent trace twin-replays. This composes acquisition, pursuit, loss, and
+reacquisition through a real turning obstruction. It is intentionally a local
+carved-turn proof, not the final §2 claim across both a generated burrow
+threshold and a place boundary. Those two conditions, the browser-directed
+burrow run, population sight/routing cost, and the human tension judgment still
+keep G4 open.
+
+**2026-08-14, P5 embodied scene subject.** The G4 frame no longer supplies a
+handmade capsule as its player. It projects the controlled organism's
+authoritative `BodyDocument` through `BodyLensProjection`, checks every living
+part became an SDF capsule, and records that body revision with the composed
+frame receipt. Thus the DDA terrain, played body, and netrender master all
+come from the same World run without introducing a presentation body format.
+The selected player currently has one living root part, so this is a real
+ownership join rather than a multi-part visual stress case. The remaining G4
+conditions are unchanged.
 
 ## 4. Wing checks
 
@@ -437,5 +584,11 @@ standing rule: after two real consumers, never declared in advance.
   threshold), so the tier receipt now finds a maximally distant pair
   rather than assuming corners; a larger PLACE_SIDE would widen the far
   tier and is a world-size question, flagged, not silently retuned.
-  Remaining on the chain: G2 integration, G3 world wiring (Move/near
-  tier onto occupancy), G4.
+- 2026-08-14: G3 world ingress and autonomous embodiment landed, followed by
+  the grounded 300-founder scale receipt. Remaining on the chain: G2
+  integration and G4 composition.
+- 2026-08-14: **G2 complete.** The retained Ground-to-DDA core now composes
+  nearer SDF bodies, enters netrender's external-texture seam, renders headed
+  through Browser WebGPU, passes wgpu-GL under the WebGL2-class limit profile,
+  and carries synchronized 1080p Vulkan and GL tracer measurements. G4 is the
+  remaining composed game-pressure gate.

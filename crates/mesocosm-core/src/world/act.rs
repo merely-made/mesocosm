@@ -11,6 +11,7 @@
 
 use crate::body::{Attachment, BodyDocument, Origin, PartId, Provenance, VolumeRef};
 use crate::organism::{Kingdom, Organism, OrganismId, Stage};
+use crate::places::step;
 
 use super::{Intent, Outcome, Placement, Rejection, Route, World};
 
@@ -59,18 +60,33 @@ impl World {
             }
 
             Intent::Move { delta } => {
-                let distance = delta.iter().map(|d| d.unsigned_abs() as u64).sum::<u64>();
+                let Some((from, energy_mg)) = self
+                    .controlled()
+                    .map(|organism| (organism.position, organism.energy_mg))
+                else {
+                    return Outcome::Rejected(Rejection::Disembodied);
+                };
+                let toward = [
+                    from[0].saturating_add(delta[0]),
+                    from[1].saturating_add(delta[1]),
+                    from[2].saturating_add(delta[2]),
+                ];
+                let next = step(&self.ground, from, toward);
+                // Gravity is not an exertion. Spend only for horizontal ground
+                // actually covered, so a wall does not consume an arbitrary
+                // requested displacement and a long input cannot buy a
+                // teleport.
+                let distance = u64::from((next[0] - from[0]).unsigned_abs())
+                    + u64::from((next[2] - from[2]).unsigned_abs());
                 let cost = distance * MOVE_COST_MG;
+                if cost > energy_mg {
+                    return Outcome::Rejected(Rejection::InsufficientMass);
+                }
                 let Some(me) = self.controlled_mut() else {
                     return Outcome::Rejected(Rejection::Disembodied);
                 };
-                if cost > me.energy_mg {
-                    return Outcome::Rejected(Rejection::InsufficientMass);
-                }
                 me.energy_mg -= cost;
-                for (axis, step) in me.position.iter_mut().zip(delta) {
-                    *axis += step;
-                }
+                me.position = next;
                 Outcome::Moved
             }
 
