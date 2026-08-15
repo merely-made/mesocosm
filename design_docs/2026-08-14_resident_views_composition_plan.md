@@ -233,6 +233,28 @@ scopable against real code. The shape to reconcile: `BrickMap` owns an
 same bytes as a `RawKernelView` on a CubeCL sub-allocation. Adoption means
 choosing which of the two owns residency, not keeping both.
 
+**Blocked again, on a wgpu major split (found 2026-08-15).** netrender main
+moved to wgpu 30 (`7aa8c88d3`, "Move to wgpu 30 and vello 0.10", pushed),
+while this workspace pins wgpu 29 and quint's resident lane is wgpu 29 as
+well. A `wgpu::Buffer` from a 29 device is a different *type* than a 30 one,
+so the lease cannot cross that boundary at all: this is a compile error, not
+a performance question, and no amount of contract design routes around it.
+Adoption waits on the row.
+
+This tree builds today only because its lock is behind: it holds netrender at
+`c7cedd2a`, a pre-30 commit, resolving wgpu 29.0.4. The next `cargo update`
+that touches netrender breaks the workspace. Pinning netrender to the stale
+commit is the wrong repair (branches are tracked, not pinned around); the
+repair is to move the row.
+
+Moving the row has a price worth knowing before choosing: wgpu 30.0.0 is
+stable, but Burn and CubeCL reach it only through prereleases
+(`cubecl-wgpu 0.11.0-pre.2` requires `^30.0.0`; `burn 0.22.0-pre.2`), against
+today's stable `burn 0.21` / `cubecl 0.10` on wgpu 29. Both prereleases are
+already vendored locally, so someone has scouted this. The composition thesis
+does not depend on *which* wgpu version, only on everyone sharing one, so
+either row works; what does not work is the current split.
+
 Mere's ignored `crates/probes/resident-tracer-lease` binds the exact 512-byte
 U8 `RawKernelView` allocation directly into a buffer-backed voxel DDA. On the
 RTX 4060, it recorded zero tracer-owned material-upload bytes. An unchanged
