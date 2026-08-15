@@ -197,7 +197,7 @@ proposed `-6000` milli-unit delta to `-1000`, committed revision
 `41 -> 42`, then reproduced the resulting `9000` value from serialized
 integer history with Burn absent. This clears steps 2, 3, and 5 only.
 
-### Lane E. Wing materialization (mechanism receipt; stable-base rerun pending)
+### Lane E. Wing materialization (mechanism receipt; stable base now available)
 
 `Ground` into a resident chunk bundle, consuming only `Ground`'s public
 revision contract. Blocked on lane A and on the live place-graph work,
@@ -214,16 +214,24 @@ allocation, matching revision 1, and host read epoch 1 on the RTX 4060.
 Ground's raw order is y/z/x, so materialization performs one
 revision-gated staging transpose into canonical world x/y/z order. It
 is not a per-frame consumer bridge. Because the receipt used the live
-dirty G2 tree based at `7b68db0`, repeat it after G2 lands before fixing
-the exact material histogram as a stable fixture.
+dirty G2 tree based at `7b68db0`, it must be repeated before the exact
+material histogram becomes a stable fixture. **Unblocked 2026-08-14:** that
+G2 session landed at `7869c96` (verified green first: 316 core tests, 25 lens
+tests, fmt, and clippy `-D warnings`), so the stable base now exists and the
+rerun is ordinary work.
 
-### Lane F. Tracer lease (mechanism receipt; permanent adoption pending)
+### Lane F. Tracer lease (mechanism receipt; adoption now scopable)
 
 The brick tracer reads the leased allocation; revision coherence and
 unchanged-frame silence receipts. The permanent `mesocosm-lens`
-integration remains blocked on its tracer sources landing, but the public
-resident seam is now sufficient to scope and prove the mechanism without
-editing that in-flight work.
+integration was blocked on its tracer sources landing, and the public resident
+seam was sufficient to prove the mechanism without editing that in-flight
+work. **Unblocked 2026-08-14:** those sources landed at `7869c96`
+(`BrickTracer`, `tracer.wgsl`, `BrickMap` in `bricks.rs`), so adoption is now
+scopable against real code. The shape to reconcile: `BrickMap` owns an
+`R8Uint` material atlas it rebuilds from `Ground`, while the lease offers the
+same bytes as a `RawKernelView` on a CubeCL sub-allocation. Adoption means
+choosing which of the two owns residency, not keeping both.
 
 Mere's ignored `crates/probes/resident-tracer-lease` binds the exact 512-byte
 U8 `RawKernelView` allocation directly into a buffer-backed voxel DDA. On the
