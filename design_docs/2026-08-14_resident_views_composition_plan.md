@@ -398,6 +398,58 @@ the record with their replay hashes; the ECS is a disposable projection
 of them, exactly as GPU allocations are. It holds handles and gameplay
 state, not a mirror of every body's pose.
 
+### The seed crystal: the ruling's P0, landed 2026-08-16
+
+One frame loop, all four roles composed, in mere's ignored
+`crates/probes/seed-crystal` (windowed, winit): a crystal-growth
+automaton and a voxel DDA raymarcher, both authored as CubeCL kernels,
+advance and draw two ping-ponged 96-cubed F32 planes held by a
+`ResidentChunk`; the raymarcher writes packed RGBA8 into a
+CubeCL-allocated pixel plane; one pre-authorized buffer-to-texture
+copy (3,686,400 bytes) feeds netrender's composition (chrome bar with
+a motion sweep at scene-op boundary zero); the swapchain presents.
+Burn addresses the same plane for the growth curve, one scalar
+readback per 120 frames.
+
+Receipts on the RTX 4060/Vulkan, wgpu-30 row, 1280x720, 900 frames:
+
+- Steady median 5.91 ms, p95 12.62 ms, worst 37.47 ms; the first
+  frame is 66 ms and carries both kernel JIT compiles (the carriage
+  cost, one frame wide, matching lane C's measurement).
+- Zero CPU-side voxel or pixel bytes per frame; the only per-frame
+  GPU copy is the priced present copy.
+- Allocation identity asserted at init (the Burn view and raw view of
+  each plane are one buffer), and the kernels launch over the same
+  CubeCL handles the Burn views resolve to.
+- The growth curve read through Burn is monotone (100 to 77,129 cells
+  over 450 ticks), and two runs agree on 77,129 exactly: the automaton
+  is deterministic (hash-gated, ping-ponged, no atomics).
+- The capture (`testing/mere/seed_crystal.png`) was inspected, not
+  just measured: dendritic voxel crystal, face-shaded, sky gradient,
+  chrome composed above. Guard measured per row against the row's own
+  edge, because a gradient background makes corner-pixel guards count
+  the sky as lit (the guard-calibration lesson, recurring).
+
+Findings, for every CubeCL kernel that follows:
+
+- The cube macro cannot expand `==` on floats, and a `let mut` local
+  that is later *compared* needs a written type annotation (the
+  comparison expansion erases back-inference; arithmetic-only locals
+  infer fine). Band tests (`>`, `<`) replace equality.
+- CubeCL 0.10 has no texture bindings, so a compute renderer's output
+  is a storage buffer plus the one copy the ruling priced. Confirmed
+  in practice; the copy is invisible at this scale.
+- This probe is the first windowed harness on the real wgpu-30 row
+  (P3's lock predates the move): `SurfaceTexture::present` moved to
+  `Queue::present`, and `SurfaceConfiguration` grew a `color_space`
+  field. Recorded so the next windowed probe does not rediscover them.
+- Growth tuning is a design lever, not a bug: high accretion
+  probability grows a boulder that self-blocks (every frontier cell
+  gains two neighbours and the automaton freezes); low probability
+  keeps single-neighbour tips alive and the structure dendritic. The
+  freeze is legitimate physics for the rule, so the stall assert only
+  fires below a minimum size.
+
 ### The remaining genuinely new system
 
 VRAM residency policy: which chunks live resident, paging, the budget.
