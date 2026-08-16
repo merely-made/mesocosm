@@ -366,7 +366,7 @@ impl Lens {
             .recv()
             .map_err(|error| LensError::Readback(error.to_string()))?
             .map_err(|error| LensError::Readback(error.to_string()))?;
-        let data = slice.get_mapped_range();
+        let data = slice.get_mapped_range().expect("map range");
         let mut pixels = Vec::with_capacity((self.width * self.height * 4) as usize);
         for row in 0..self.height {
             let start = (row * padded) as usize;

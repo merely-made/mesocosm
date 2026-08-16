@@ -54,7 +54,7 @@ fn read_texture(
     let slice = staging.slice(..);
     slice.map_async(wgpu::MapMode::Read, |_| {});
     device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-    let data = slice.get_mapped_range();
+    let data = slice.get_mapped_range().expect("map range");
     let mut out = Vec::with_capacity((side * side * 4) as usize);
     for row in 0..side {
         let start = (row * padded) as usize;

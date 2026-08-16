@@ -337,7 +337,8 @@ impl Host {
             );
         }
         gpu.renderer.queue().submit(Some(encoder.finish()));
-        surface_texture.present();
+        // wgpu 30 moved presentation from SurfaceTexture to Queue.
+        gpu.renderer.queue().present(surface_texture);
 
         self.frames += 1;
         if let Some(limit) = self.config.frames
@@ -449,6 +450,7 @@ impl ApplicationHandler for Host {
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::default(),
             force_fallback_adapter: false,
+            apply_limit_buckets: false,
             compatible_surface: Some(&surface),
         }))
         .expect("an adapter that can present to this surface");
@@ -475,6 +477,9 @@ impl ApplicationHandler for Host {
             width: self.config.width,
             height: self.config.height,
             present_mode: caps.present_modes[0],
+            // wgpu 30 made surface color space explicit; Auto keeps the
+            // pre-30 platform-chosen behavior.
+            color_space: wgpu::SurfaceColorSpace::Auto,
             alpha_mode: caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,

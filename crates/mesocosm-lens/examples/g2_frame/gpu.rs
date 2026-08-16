@@ -53,6 +53,7 @@ impl Gpu {
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
                 compatible_surface: Some(&surface),
             })
             .await
@@ -83,6 +84,9 @@ impl Gpu {
             width: size[0],
             height: size[1],
             present_mode: caps.present_modes[0],
+            // wgpu 30 made surface color space explicit; Auto keeps the pre-30
+            // platform-chosen behavior.
+            color_space: wgpu::SurfaceColorSpace::Auto,
             alpha_mode: caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
@@ -154,7 +158,8 @@ impl Gpu {
         };
         let view = surface.texture.create_view(&Default::default());
         let rendered = self.render(&view, frame);
-        surface.present();
+        // wgpu 30 moved presentation from SurfaceTexture to Queue.
+        self.handles.queue.present(surface);
         rendered.map(Some)
     }
 

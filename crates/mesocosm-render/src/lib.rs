@@ -150,6 +150,7 @@ impl Renderer {
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
                 compatible_surface: None,
             })
             .await
@@ -226,7 +227,7 @@ impl Renderer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::LAYOUT],
+                buffers: &[Some(Vertex::LAYOUT)],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -489,7 +490,7 @@ impl Renderer {
             .poll(wgpu::PollType::wait_indefinitely())
             .map_err(|_| RenderError::Readback)?;
 
-        let mapped = slice.get_mapped_range();
+        let mapped = slice.get_mapped_range().expect("map range");
         let mut pixels = Vec::with_capacity((unpadded * self.height) as usize);
         for row in 0..self.height {
             let start = (row * padded) as usize;

@@ -56,17 +56,20 @@ postcard = { version = "1", default-features = false, features = ["alloc"] }
 # incompatible device types, and this game is meant to share a device with
 # netrender rather than create a second one.
 #
-# Pinned to 29 rather than upstream 30 because **vello gates it**, verified
-# 2026-07-31: netrender's sole rasterizer is `vello = "0.9"`, and vello 0.9.0
-# requires `wgpu ^29.0.3`, which semver-excludes 30. Every family repo that
-# touches wgpu is on 29 for the same reason. Bump when vello ships a wgpu-30
-# release, and bump the family together.
+# On 30 as of 2026-08-16, with the family. The 29 pin here existed because
+# **vello gated it**: netrender rasterized through `vello = "0.9"`, which
+# requires `wgpu ^29.0.3` and semver-excludes 30. Vello still has not shipped
+# a wgpu-30 release (0.10, 2026-08-14, is still on 29, and their own migration
+# PR is stalled), so the family took vello from an owned fork instead: the
+# v0.10.0 tag plus the API changes from linebender/vello#1754. That is what
+# unblocks this row, and it is why the `[patch.crates-io]` below is not
+# optional here.
 #
 # Backends are named here because `default-features = false` turns them all
 # off, and an instance with no backend panics at construction rather than
 # reporting a missing adapter. Sibling repos omit them because their leaf
 # binaries supply them; this workspace is its own leaf.
-wgpu = { version = "29", default-features = false, features = [
+wgpu = { version = "30", default-features = false, features = [
     "std",
     "wgsl",
     "dx12",
@@ -77,3 +80,12 @@ wgpu = { version = "29", default-features = false, features = [
 ] }
 
 [dependencies]
+
+# Vello on wgpu 30, from the owned fork. Upstream vello 0.10 still requires
+# wgpu 29 and their migration PR is stalled, so netrender (and through it this
+# workspace's frame) takes vello from the v0.10.0 tag plus the API changes in
+# linebender/vello#1754. `[patch]` applies only from the top-level manifest
+# and is not inherited from netrender, so this workspace restates it. Retires
+# by deletion when upstream ships a wgpu-30 vello.
+[patch.crates-io]
+vello = { git = "https://github.com/mark-ik/vello.git", branch = "mark-ik/wgpu-30" }
