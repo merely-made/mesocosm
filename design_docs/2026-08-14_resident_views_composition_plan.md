@@ -322,6 +322,85 @@ that the in-flight `BrickTracer` has adopted the lease.
   silence pass. Permanent `BrickTracer` adoption waits for its in-flight
   sources to land.
 
+## The engine composition ruling (2026-08-16)
+
+Ratified by Mark, 2026-08-16, from the renderling/Burn/nexus/hecs
+composition discussion. Four decisions and their consequences; this
+section is the authority for the core module's shape.
+
+### 1. The core render module: hybrid, raymarch-first
+
+Designed on its own terms, not conditioned on what any prototype
+currently calls (that framing was retracted): mesocosm and paredros are
+the two consumers that will prove the seam, per the promotion rule.
+
+1. **CubeCL passes** own procgen, growth/NCA, field simulation, and
+   meshing only where meshes are genuinely needed (colliders, bakes,
+   sprites, distant-LOD impostors). All authored kernels, all
+   Burn-addressable by construction.
+2. **The brick raymarch draws the ground**: color plus depth into real
+   depth targets. No mesh extraction in the hot path, so LOD is brick
+   clipmaps/mips; T-junction seam stitching is a mesh-path disease and
+   returns only for distant-LOD bakes.
+3. **Renderling rasters the dynamic bodies** as instanced meshes,
+   depth-tested against the raymarched ground. Thousands of bodies are
+   what its slab instancing is for (P3: 400k vertices,
+   transforms-first); per-pixel SDF composition stays for the few, not
+   the many.
+4. **netrender composites** what it never parses, as already ratified.
+
+Transforms flow GPU to GPU, solver buffer into instance slab; the P3
+ambience lease is the receipt for exactly this bridge (3.6ms, epoch
+control). The CPU reads only the sparse set gameplay touches. A
+per-frame full transform readback into the ECS is refused; that copy
+boundary is the one this architecture exists to delete.
+
+### 2. The carriage line: author CubeCL, consume rust-gpu
+
+Exclusivity applies to what we write, not what we run. Our kernels
+(quint's, procgen, growth, the brick renderer, meshing) are authored in
+CubeCL, where Burn synergy pays. rust-gpu remains in the stack as
+*consumed artifacts* from upstreams that maintain them: renderling's
+shaders, and nexus's khal-compiled kernels at adoption. The local
+rust-gpu fork and rebuilt cargo-gpu are the maintenance tooling for
+consumed artifacts, no longer an authoring lane.
+
+### 3. Nexus: adopted at the bodies gate
+
+Thousands of dynamic bodies is a bought capability by ruling, not a
+speculative one. Nexus arrives as a dependency (same dimforge family as
+the tactile tier; its kernels share rapier's types), meeting the stack
+at the wgpu buffer contract. The 6,302-line solver is not ported.
+Verified 2026-08-16: nexus is rigid-body only today (the umbrella crate
+gates a lone `rbd` subsystem; the only "sph" in the tree is "swept
+sphere"), so water-worlds fluids stay on the grid/channel plane lane.
+Adoption-time gates, per the consumer-pull rule: khal's wgpu row
+membership, and nexus's feature requirements against the greedy tenant.
+
+### 4. Renderling: hands-on fork, not a frozen inheritance
+
+Adopting renderling into the core module upgrades the fork's posture:
+Mark accepts a hands-on approach. The 0.9-to-0.10 shader-source
+migration (45 committed `.spv`, currently inherited rather than
+reproducible) is a sanctioned work item, tooled by the rust-gpu
+carriage we already built, with priority set by the first shader edit
+the engine actually needs (voxel-aware lighting is the likely first
+customer). The shader-edit wall is hereby a planned doorway.
+
+### hecs, placed
+
+Runtime index, never the record. Adopted at the gameplay tier (hecs
+over bevy_ecs: small, MIT/Apache). Authoritative entity facts stay in
+the record with their replay hashes; the ECS is a disposable projection
+of them, exactly as GPU allocations are. It holds handles and gameplay
+state, not a mirror of every body's pose.
+
+### The remaining genuinely new system
+
+VRAM residency policy: which chunks live resident, paging, the budget.
+CubeCL's allocator is the pool (the 8MB pooled-buffer observation and
+the sub-allocation triple rule stand); the policy above it is ours.
+
 ## Prior art, harvest, and standards (2026-08-14)
 
 Per the borrowing doctrine: lean on mature references and standards,
