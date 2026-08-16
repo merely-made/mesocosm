@@ -298,22 +298,25 @@ that the in-flight `BrickTracer` has adopted the lease.
   algorithm knowledge transfers but the artifact needs rewriting. B and
   C were briefed as independent; they are not, and the brief was wrong
   to say so.
-- **C: numeric half complete; the carriage verdict is withdrawn
-  pending a control (audit, 2026-08-14).** Raw CubeCL repulsion agrees
-  with `quint::forces::repulsion_reference` at `1.26e-7` mean relative
-  error, and a warmed repulsion-only pass measured 9.55-9.71 ms at 50k.
-  Both facts stand. The verdict drawn from them does not: the probe
-  compares that repulsion-only pass against `RESIDENT_50K_MS = 12.8`, a
-  constant hardcoded from an earlier session whose own printout names it
-  the resident lane's *full* repulse-plus-springs-plus-integrate-plus-
-  readback frame. Unequal scopes, and no incumbent measurement on this
-  host in this run, so the numbers are equally consistent with CubeCL
-  being slower at repulsion. The control was one call away and unused:
-  `quint::resident::Resident::repulse_only` (resident.rs:445); the probe
-  imports only the CPU reference, never `Resident`. **Rerun before
-  consolidating:** incumbent and CubeCL repulsion, same host, same
-  process, both warmed, with JIT first-launch cost reported separately
-  since that cost is the actual tradeoff.
+- **C complete, verdict earned with a control (2026-08-16).** The
+  audit of 2026-08-14 withdrew the original verdict because the probe
+  compared a repulsion-only pass against a hardcoded full-frame figure
+  from another session. The control has now run: the probe builds
+  `quint::resident::Resident` on the same device in the same process
+  and times `repulse_only` under the same wait boundary, both carriages
+  warmed, 20 synchronized frames at n=50k on the RTX 4060/Vulkan,
+  wgpu-30 row. **CubeCL 11.39 ms (9.97-12.52) vs incumbent rust-gpu
+  15.84 ms (15.68-15.97), ratio 0.72; the incumbent confirmed it ran
+  the committed SPIR-V via passthrough, so the comparison beat the real
+  artifact, not the WGSL fallback.** JIT first launch, compile
+  included, is 12.61 ms, one frame's worth. Numeric agreement stands at
+  `1.26e-7` mean relative error. **Verdict: consolidate the explicit
+  lane on CubeCL-JIT**, now aligned with the engine composition
+  ruling's authored-in-CubeCL line rather than substituting for it. The
+  audit's caution is also vindicated in passing: `repulse_only` alone
+  measures above the old 12.8 ms "full frame" number on today's row,
+  which proves the cross-session constant was never a comparable
+  baseline.
 - **D complete.** Synthetic tensor/process/commit mechanism above.
 - **E mechanism complete against the live G2 tree.** Stable-base rerun
   remains.
