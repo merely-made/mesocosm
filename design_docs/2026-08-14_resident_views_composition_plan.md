@@ -197,7 +197,7 @@ proposed `-6000` milli-unit delta to `-1000`, committed revision
 `41 -> 42`, then reproduced the resulting `9000` value from serialized
 integer history with Burn absent. This clears steps 2, 3, and 5 only.
 
-### Lane E. Wing materialization (mechanism receipt; stable base now available)
+### Lane E. Wing materialization (complete 2026-08-16)
 
 `Ground` into a resident chunk bundle, consuming only `Ground`'s public
 revision contract. Blocked on lane A and on the live place-graph work,
@@ -217,10 +217,17 @@ is not a per-frame consumer bridge. Because the receipt used the live
 dirty G2 tree based at `7b68db0`, it must be repeated before the exact
 material histogram becomes a stable fixture. **Unblocked 2026-08-14:** that
 G2 session landed at `7869c96` (verified green first: 316 core tests, 25 lens
-tests, fmt, and clippy `-D warnings`), so the stable base now exists and the
-rerun is ordinary work.
+tests, fmt, and clippy `-D warnings`).
 
-### Lane F. Tracer lease (mechanism receipt; adoption now scopable)
+**Closed 2026-08-16.** The rerun against the landed base reproduces the same
+selection, and the histogram is now pinned as a fixture rather than reported:
+brick `[-4, 0, -4]`, origin `[-32, 0, -32]`, and 512 voxels of
+(air 130, rock 254, soil 128, other 0) after the one radius-zero carve. The
+asserts carry their own diagnosis ("Ground generation changed"), and the
+fixture assert was verified to fire by perturbing it, since an assertion that
+has never failed is not a proven instrument.
+
+### Lane F. Tracer lease (mechanism and adoption path proven 2026-08-16)
 
 The brick tracer reads the leased allocation; revision coherence and
 unchanged-frame silence receipts. The permanent `mesocosm-lens`
@@ -232,6 +239,23 @@ scopable against real code. The shape to reconcile: `BrickMap` owns an
 `R8Uint` material atlas it rebuilds from `Ground`, while the lease offers the
 same bytes as a `RawKernelView` on a CubeCL sub-allocation. Adoption means
 choosing which of the two owns residency, not keeping both.
+
+**Answered 2026-08-16, and the brief had it wrong.** `BrickTracer` binds
+`texture_3d<u32>` and holds no storage buffer at all, because G2 built it
+fragment-only for downlevel reach (`g2_glprobe` runs
+`downlevel_webgl2_defaults`, and WebGL2 has neither compute nor storage
+buffers). So adoption cannot mean "bind the lease" the way the probe's DDA
+does; that would trade away the downlevel path G2 deliberately bought.
+
+Adoption is a change of the atlas's **source**, not of the tracer's bindings:
+the lease feeds the atlas texture by GPU copy on capable devices, and the CPU
+upload stays as the downlevel fallback. Proven in the probe: the leased
+allocation copies GPU-side into an `R8Uint` `texture_3d` and the 512 voxels
+read back matching the lease exactly, with zero CPU upload bytes. One wrinkle
+recorded because it will recur: buffer-to-texture copies require 256-byte
+rows and a brick row is 8 bytes, so a device-local repack sits in the path;
+every byte still stays on the GPU. Wiring this into `mesocosm-lens` is the
+follow-on edit, and it is now a small one.
 
 **Blocked again, on a wgpu major split (found 2026-08-15).** netrender main
 moved to wgpu 30 (`7aa8c88d3`, "Move to wgpu 30 and vello 0.10", pushed),
