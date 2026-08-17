@@ -414,6 +414,33 @@ The selected player currently has one living root part, so this is a real
 ownership join rather than a multi-part visual stress case. The remaining G4
 conditions are unchanged.
 
+**2026-08-16, P6 sight cost at population.** §2 asks for per-tick
+sight-line cost at the target critter population, and the existing
+`grounded_ecology_receipt` did not answer it: it measures 64 ticks over
+which the founders fall from 300 Near to 145, so its figure averages a
+shrinking population. For a capacity question that is the whole
+question. `sight_cost_receipt` measures a short window with the
+population intact and sweeps it, so level and shape are both visible.
+This Windows host, release: 75 bodies 133us/tick, 150 -> 398,
+300 -> 1234, 600 -> 3747. **At the target, a tick with 300 Near bodies
+seeing and routing costs about 1.23ms, roughly 7.8% of a 16.7ms
+frame.** Per-body cost grows 2.31x across a 4x population: super-linear,
+so the pairwise sight term is real, but well short of the 4x that fully
+pairwise would give, and the tier line holds the target with room. The
+span is a whole `Idle` tick with sight and routing active rather than
+sight isolated, since there is no sight-off control to subtract; the
+shape rather than the level is what implicates sight. Its assert
+catches a blow-up rather than freezing a constant.
+
+**G4's remaining conditions**, after P6: the browser-directed burrow
+run (P3 closed the native external-frame seam; the browser host is
+still a generic Ground projection proof, not this scenario), the final
+§2 claim across both a generated burrow threshold and a place boundary
+in one run, and the headed tension judgment. That last one is Mark's
+and cannot be receipted: Wave 2.1's founding condition outranks every
+number above it, and it needs a person watching a hunter come through
+the doorway.
+
 ## 4. Wing checks
 
 During G1, before the brick container's shape hardens: read it against
