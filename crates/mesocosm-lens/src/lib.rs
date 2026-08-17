@@ -36,7 +36,7 @@ pub use renderer::{
 pub use scene::{LensScene, SceneCodecError};
 pub use tracer::{
     BrickCapture, BrickChange, BrickDiagnostics, BrickFrameInput, BrickRevision, BrickTraceError,
-    BrickTracer,
+    BrickTracer, LeasedAtlas,
 };
 
 /// Hard admission limit imposed by the baseline uniform layout.

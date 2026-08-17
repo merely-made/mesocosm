@@ -27,6 +27,35 @@ pub struct BrickFrameInput<'a> {
     /// Presentation-only SDF bodies. Their source remains the caller's
     /// projection, never the brick map or world state.
     pub pose: Option<&'a CritterPose>,
+    /// Where the atlas texture's voxels come from this frame. `None`
+    /// keeps the CPU upload from [`BrickMap`], which is also the
+    /// downlevel path. See [`LeasedAtlas`].
+    pub leased_atlas: Option<LeasedAtlas<'a>>,
+}
+
+/// A GPU-resident atlas the tracer may fill its texture from without the
+/// CPU seeing a voxel.
+///
+/// The tracer samples `texture_3d` and holds no storage buffer, because
+/// it is fragment-only for downlevel reach (WebGL2 has neither compute
+/// nor storage buffers). So a resident producer does not change the
+/// tracer's bindings; it changes where the atlas texture's bytes come
+/// from. This is deliberately a plain wgpu triple rather than a
+/// producer's own view type: the buffer contract is the meeting point,
+/// so the lens depends on no compute stack.
+///
+/// The producer owns the allocation and its lifetime. `revision` must
+/// be the world revision those bytes were materialized at, so a stale
+/// lease cannot be presented as current.
+#[derive(Clone, Copy, Debug)]
+pub struct LeasedAtlas<'a> {
+    pub buffer: &'a wgpu::Buffer,
+    pub offset: u64,
+    pub size: u64,
+    /// Where in the atlas these voxels belong, and how many.
+    pub slot_origin: [u32; 3],
+    pub extent: [u32; 3],
+    pub revision: BrickRevision,
 }
 
 impl<'a> BrickFrameInput<'a> {
@@ -43,11 +72,19 @@ impl<'a> BrickFrameInput<'a> {
             flight,
             grade,
             pose: None,
+            leased_atlas: None,
         }
     }
 
     pub fn changed(mut self, change: BrickChange<'a>) -> Self {
         self.change = change;
+        self
+    }
+
+    /// Fill the atlas from a GPU-resident producer this frame instead of
+    /// uploading it from the CPU.
+    pub fn with_leased_atlas(mut self, leased: LeasedAtlas<'a>) -> Self {
+        self.leased_atlas = Some(leased);
         self
     }
 
@@ -61,6 +98,12 @@ impl<'a> BrickFrameInput<'a> {
 pub struct BrickDiagnostics {
     pub cpu_prepare_us: u64,
     pub brick_upload_bytes: u64,
+    /// Voxel bytes that reached the atlas from a GPU-resident producer
+    /// rather than the CPU. These are not counted in
+    /// `brick_upload_bytes`, which stays the CPU-upload measure.
+    pub leased_atlas_bytes: u64,
+    /// Leases refused because their revision did not match the frame's.
+    pub stale_lease_rejections: u32,
     pub uniform_upload_bytes: u64,
     pub resource_creations: u32,
     pub bind_group_rebuilds: u32,

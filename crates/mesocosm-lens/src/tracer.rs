@@ -21,6 +21,7 @@ use types::{TraceParams, validates_pose};
 
 pub use types::{
     BrickCapture, BrickChange, BrickDiagnostics, BrickFrameInput, BrickRevision, BrickTraceError,
+    LeasedAtlas,
 };
 
 struct ResidentMap {
@@ -66,6 +67,13 @@ impl BrickTracer {
         let (device, queue) =
             pollster::block_on(adapter.request_device(&Default::default())).ok()?;
         Some(Self::with_device(device, queue, width, height))
+    }
+
+    /// The device this tracer renders on, so a resident producer can
+    /// allocate its lease against the same one. A lease from another
+    /// device cannot be copied into this tracer's atlas.
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
     }
 
     pub fn with_device(device: wgpu::Device, queue: wgpu::Queue, width: u32, height: u32) -> Self {
@@ -294,6 +302,23 @@ impl BrickTracer {
         if resident.revision == input.revision && !recreate {
             return;
         }
+        // A leased atlas replaces the CPU upload for the voxels it
+        // covers: the producer already has them resident, so they move
+        // GPU-side. The pointer volume still uploads from the map,
+        // which is tiny and identifies slots rather than carrying
+        // material.
+        if let Some(leased) = input.leased_atlas {
+            if leased.revision != input.revision {
+                diagnostics.stale_lease_rejections += 1;
+            } else {
+                copy_leased_atlas(&self.device, &self.queue, &resident.atlas, leased);
+                diagnostics.leased_atlas_bytes += leased.size;
+            }
+        }
+
+        let atlas_from_cpu = input
+            .leased_atlas
+            .is_none_or(|l| l.revision != input.revision);
         if recreate || matches!(input.change, BrickChange::Full) {
             write_texture_3d(
                 &self.queue,
@@ -303,16 +328,18 @@ impl BrickTracer {
                 4,
                 bytemuck::cast_slice(input.map.pointers()),
             );
-            write_texture_3d(
-                &self.queue,
-                &resident.atlas,
-                [0, 0, 0],
-                input.map.atlas_extent(),
-                1,
-                input.map.atlas(),
-            );
-            diagnostics.brick_upload_bytes +=
-                (size_of_val(input.map.pointers()) + input.map.atlas().len()) as u64;
+            diagnostics.brick_upload_bytes += size_of_val(input.map.pointers()) as u64;
+            if atlas_from_cpu {
+                write_texture_3d(
+                    &self.queue,
+                    &resident.atlas,
+                    [0, 0, 0],
+                    input.map.atlas_extent(),
+                    1,
+                    input.map.atlas(),
+                );
+                diagnostics.brick_upload_bytes += input.map.atlas().len() as u64;
+            }
         } else if let BrickChange::Slots(slots) = input.change {
             for slot in slots {
                 let Some(pointer_coord) = input.map.pointer_coord(*slot) else {
@@ -327,17 +354,20 @@ impl BrickTracer {
                     4,
                     bytemuck::bytes_of(&pointer),
                 );
-                let atlas_origin = input.map.atlas_slot_origin(*slot).expect("assigned slot");
-                let texels = input.map.slot_texels(*slot).expect("assigned slot");
-                write_texture_3d(
-                    &self.queue,
-                    &resident.atlas,
-                    atlas_origin,
-                    [8, 8, 8],
-                    1,
-                    &texels,
-                );
-                diagnostics.brick_upload_bytes += (size_of::<u32>() + texels.len()) as u64;
+                diagnostics.brick_upload_bytes += size_of::<u32>() as u64;
+                if atlas_from_cpu {
+                    let atlas_origin = input.map.atlas_slot_origin(*slot).expect("assigned slot");
+                    let texels = input.map.slot_texels(*slot).expect("assigned slot");
+                    write_texture_3d(
+                        &self.queue,
+                        &resident.atlas,
+                        atlas_origin,
+                        [8, 8, 8],
+                        1,
+                        &texels,
+                    );
+                    diagnostics.brick_upload_bytes += texels.len() as u64;
+                }
             }
         }
         resident.revision = input.revision;
@@ -439,6 +469,70 @@ impl BrickTracer {
             padded_bytes_per_row,
         });
     }
+}
+
+/// Copy a producer's resident voxels into the atlas texture, GPU-side.
+///
+/// Buffer-to-texture copies require `COPY_BYTES_PER_ROW_ALIGNMENT`-byte
+/// rows and a brick row is eight bytes, so the leased rows are repacked
+/// into an aligned staging buffer first. That repack is device-local:
+/// the CPU still never sees a voxel.
+fn copy_leased_atlas(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    atlas: &wgpu::Texture,
+    leased: LeasedAtlas<'_>,
+) {
+    let [width, height, depth] = leased.extent;
+    if width == 0 || height == 0 || depth == 0 {
+        return;
+    }
+    let aligned_row = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+    let rows = height * depth;
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("leased atlas repack"),
+    });
+    let staging = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("leased atlas staging"),
+        size: (aligned_row * rows) as u64,
+        usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    for row in 0..rows {
+        encoder.copy_buffer_to_buffer(
+            leased.buffer,
+            leased.offset + (row * width) as u64,
+            &staging,
+            (row * aligned_row) as u64,
+            width as u64,
+        );
+    }
+    encoder.copy_buffer_to_texture(
+        wgpu::TexelCopyBufferInfo {
+            buffer: &staging,
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(aligned_row),
+                rows_per_image: Some(height),
+            },
+        },
+        wgpu::TexelCopyTextureInfo {
+            texture: atlas,
+            mip_level: 0,
+            origin: wgpu::Origin3d {
+                x: leased.slot_origin[0],
+                y: leased.slot_origin[1],
+                z: leased.slot_origin[2],
+            },
+            aspect: wgpu::TextureAspect::All,
+        },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: depth,
+        },
+    );
+    queue.submit([encoder.finish()]);
 }
 
 fn write_texture_3d(
