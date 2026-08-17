@@ -271,11 +271,40 @@ directions. 26 lens tests green, fmt and clippy `-D warnings` clean.
 
 **The promotion trigger has fired.** The lease now has a shipped producer
 (`ResidentChunk` in quint) and a shipped consumer (`BrickTracer`), which is
-the condition §1 named. What remains is the reconciliation the audit flagged:
-`ResidentChunk` and the `SpatialBufferLease` sketch describe the same thing
-for two substrates, and `LeasedAtlas` is now a third spelling of the triple.
-Reconciling the three into one contract is the promotion work itself, and it
-is now owed rather than hypothetical.
+the condition §1 named.
+
+**Reconciled 2026-08-16, and extraction is deliberately not the answer.**
+The three spellings (`ResidentChunk`, the `SpatialBufferLease` sketch,
+`LeasedAtlas`) were reviewed against each other. Extracting a shared type
+would put a common crate between mere and mesocosm, and the whole reason
+`LeasedAtlas` is a plain wgpu triple is that `mesocosm-lens` must depend on
+no compute stack: the buffer contract is the meeting point. There is also
+exactly **one** shipped consumer, and this plan's own rule promotes a
+reusable view only after *multiple* consumers prove it. Extraction is
+therefore premature by our own standard, and the trigger for it is a second
+shipped consumer, not this one.
+
+What the reconciliation did instead:
+
+- **One producing-side definition.** `RawKernelView::lease()` yields a
+  `SpatialLease` (buffer range, shape, element type, stamp). Consumers keep
+  their own spelling; this is the single place the producing side says what
+  those terms mean, so a host cannot invent a field or drop the stamp.
+- **It closed a real hole rather than a stylistic one.** The consumer sized
+  its copy from `extent` and never checked `extent` against `size`. A
+  producer pools many planes into one buffer, so an overrunning extent does
+  not fault, it reads whichever plane sits next in the pool and paints it
+  into the world. `byte_len`/`fits` exist on both sides now, the tracer
+  refuses a misfit lease as it refuses a stale one, and **both refusals fall
+  back to the CPU upload** rather than leaving the atlas unwritten (the
+  second half of the same bug: a refused frame would otherwise have shown
+  whatever the atlas held before).
+- Diagnostics separate every path: `leased_atlas_bytes`,
+  `brick_upload_bytes`, `stale_lease_rejections`, `misfit_lease_rejections`.
+
+The lesson worth keeping: the drift the audit feared was not two types
+disagreeing about field names. It was two types disagreeing about *who
+checks the bounds*, and neither did.
 
 **Blocked again, on a wgpu major split (found 2026-08-15).** netrender main
 moved to wgpu 30 (`7aa8c88d3`, "Move to wgpu 30 and vello 0.10", pushed),
