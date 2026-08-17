@@ -227,7 +227,7 @@ asserts carry their own diagnosis ("Ground generation changed"), and the
 fixture assert was verified to fire by perturbing it, since an assertion that
 has never failed is not a proven instrument.
 
-### Lane F. Tracer lease (mechanism and adoption path proven 2026-08-16)
+### Lane F. Tracer lease (complete 2026-08-16)
 
 The brick tracer reads the leased allocation; revision coherence and
 unchanged-frame silence receipts. The permanent `mesocosm-lens`
@@ -254,8 +254,28 @@ allocation copies GPU-side into an `R8Uint` `texture_3d` and the 512 voxels
 read back matching the lease exactly, with zero CPU upload bytes. One wrinkle
 recorded because it will recur: buffer-to-texture copies require 256-byte
 rows and a brick row is 8 bytes, so a device-local repack sits in the path;
-every byte still stays on the GPU. Wiring this into `mesocosm-lens` is the
-follow-on edit, and it is now a small one.
+every byte still stays on the GPU.
+
+**Landed in tracked code (mesocosm `a1805d2`).** `BrickFrameInput` gains an
+optional `LeasedAtlas`, and the tracer copies a producer's resident voxels
+into the atlas texture instead of uploading them. `LeasedAtlas` is a plain
+wgpu buffer/offset/size triple plus the revision it was materialized at,
+deliberately not a producer's view type, so `mesocosm-lens` depends on no
+compute stack and the buffer contract stays the meeting point. A lease whose
+revision does not match the frame's is refused and the frame falls back to
+the CPU upload, so a stale lease cannot present itself as current.
+Diagnostics separate the paths (`leased_atlas_bytes` for what arrived
+GPU-side, `brick_upload_bytes` unchanged as the CPU measure,
+`stale_lease_rejections` for refusals), and the receipt asserts both
+directions. 26 lens tests green, fmt and clippy `-D warnings` clean.
+
+**The promotion trigger has fired.** The lease now has a shipped producer
+(`ResidentChunk` in quint) and a shipped consumer (`BrickTracer`), which is
+the condition §1 named. What remains is the reconciliation the audit flagged:
+`ResidentChunk` and the `SpatialBufferLease` sketch describe the same thing
+for two substrates, and `LeasedAtlas` is now a third spelling of the triple.
+Reconciling the three into one contract is the promotion work itself, and it
+is now owed rather than hypothetical.
 
 **Blocked again, on a wgpu major split (found 2026-08-15).** netrender main
 moved to wgpu 30 (`7aa8c88d3`, "Move to wgpu 30 and vello 0.10", pushed),
