@@ -127,27 +127,36 @@ impl Scenario {
         }
     }
 
-    fn hunter(&self) -> [i32; 3] {
+    /// Where the hunter is, or `None` if there is no living hunter.
+    ///
+    /// Deliberately not defaulted to its start. An earlier version fell
+    /// back to `hunter_start` when the organism was missing, and the
+    /// panel then reported a confident "2.8 voxels away" for twenty
+    /// thousand ticks after the hunter had starved and been reaped. An
+    /// instrument that cannot say "gone" will say something false
+    /// instead, and a judgment taken against it is worthless.
+    fn hunter(&self) -> Option<[i32; 3]> {
         self.world
             .organisms
             .iter()
-            .find(|organism| organism.id == OrganismId(900))
+            .find(|organism| organism.id == OrganismId(900) && organism.is_alive())
             .map(|organism| organism.position)
-            .unwrap_or(self.hunter_start)
     }
 
     /// Whether the hunter can see the hiding organism right now. The
     /// same call the simulation makes, asked from the same end.
     fn seen(&self) -> bool {
-        spot(self.world.ground(), self.hunter(), self.player, SIGHT)
+        self.hunter()
+            .is_some_and(|hunter| spot(self.world.ground(), hunter, self.player, SIGHT))
     }
 
-    fn hunter_distance(&self) -> f32 {
-        let h = self.hunter();
-        let dx = (h[0] - self.player[0]) as f32;
-        let dy = (h[1] - self.player[1]) as f32;
-        let dz = (h[2] - self.player[2]) as f32;
-        (dx * dx + dy * dy + dz * dz).sqrt()
+    fn hunter_distance(&self) -> Option<f32> {
+        self.hunter().map(|h| {
+            let dx = (h[0] - self.player[0]) as f32;
+            let dy = (h[1] - self.player[1]) as f32;
+            let dz = (h[2] - self.player[2]) as f32;
+            (dx * dx + dy * dy + dz * dz).sqrt()
+        })
     }
 
     fn tick(&mut self) {
@@ -415,14 +424,17 @@ impl Watch {
         self.state.tick();
         if self.state.seen() != was_seen {
             println!(
-                "tick {}: sight {} (hunter {:.1} voxels away)",
+                "tick {}: sight {} (hunter {})",
                 self.state.ticks,
                 if self.state.seen() {
                     "OPENED"
                 } else {
                     "closed"
                 },
-                self.state.hunter_distance()
+                match self.state.hunter_distance() {
+                    Some(distance) => format!("{distance:.1} voxels away"),
+                    None => "gone".into(),
+                }
             );
         }
 
@@ -465,7 +477,7 @@ impl Watch {
             self.state.seen(),
             self.state.hunter_distance(),
             self.state.carved,
-            self.state.hunter() == self.state.doorway,
+            self.state.hunter() == Some(self.state.doorway),
         );
         let external = [ExternalTextureComposite::new(
             &live.trace_view,
@@ -513,14 +525,18 @@ impl Watch {
 
         self.frames += 1;
         if self.frames.is_multiple_of(600) {
-            println!(
-                "tick {}: hunter at {:?}, {:.1} voxels away, sight {}, world hash {}",
-                self.state.ticks,
-                self.state.hunter(),
-                self.state.hunter_distance(),
-                if self.state.seen() { "open" } else { "blocked" },
-                state_hash(&self.state.world)
-            );
+            match (self.state.hunter(), self.state.hunter_distance()) {
+                (Some(at), Some(distance)) => println!(
+                    "tick {}: hunter at {at:?}, {distance:.1} voxels away, sight {}, world hash {}",
+                    self.state.ticks,
+                    if self.state.seen() { "open" } else { "blocked" },
+                    state_hash(&self.state.world)
+                ),
+                _ => println!(
+                    "tick {}: NO LIVING HUNTER (it starved and was reaped); nothing to judge until the scenario keeps one alive",
+                    self.state.ticks
+                ),
+            }
         }
         live.window.request_redraw();
     }
@@ -529,21 +545,23 @@ impl Watch {
 /// The instrument panel, in rects: sight lamp, closing distance, and a
 /// threshold lamp. A judgment about tension needs the simulation's own
 /// state legible, or it becomes a judgment about the picture.
-fn instrument(seen: bool, distance: f32, carved: bool, at_doorway: bool) -> Scene {
+fn instrument(seen: bool, distance: Option<f32>, carved: bool, at_doorway: bool) -> Scene {
     let width = SIZE[0] as f32;
     let mut scene = Scene::new(SIZE[0], SIZE[1]);
     scene.push_rect(0.0, 0.0, width, 44.0, [0.02, 0.03, 0.05, 0.86]);
 
-    // Sight: green while it cannot see you, red when it can.
-    let sight = if seen {
-        [0.94, 0.28, 0.24, 0.95]
-    } else {
-        [0.22, 0.78, 0.48, 0.92]
+    // Sight: green while it cannot see you, red when it can, and a
+    // dead grey when there is no hunter left to see anything. The third
+    // state exists because the scenario reaches it.
+    let sight = match (distance, seen) {
+        (None, _) => [0.35, 0.35, 0.38, 0.9],
+        (Some(_), true) => [0.94, 0.28, 0.24, 0.95],
+        (Some(_), false) => [0.22, 0.78, 0.48, 0.92],
     };
     scene.push_rect(18.0, 12.0, 150.0, 32.0, sight);
 
     // Distance, closing left to right: the bar grows as it nears.
-    let near = (1.0 - (distance / 12.0).clamp(0.0, 1.0)).clamp(0.0, 1.0);
+    let near = distance.map_or(0.0, |d| (1.0 - (d / 12.0).clamp(0.0, 1.0)).clamp(0.0, 1.0));
     let bar_left = 170.0;
     let bar_right = width - 200.0;
     scene.push_rect(bar_left, 18.0, bar_right, 26.0, [0.10, 0.12, 0.16, 0.9]);
