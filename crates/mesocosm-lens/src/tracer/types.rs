@@ -58,6 +58,25 @@ pub struct LeasedAtlas<'a> {
     pub revision: BrickRevision,
 }
 
+impl LeasedAtlas<'_> {
+    /// The bytes `extent` describes, at one byte per voxel (the atlas is
+    /// `R8Uint`).
+    pub fn byte_len(&self) -> u64 {
+        u64::from(self.extent[0]) * u64::from(self.extent[1]) * u64::from(self.extent[2])
+    }
+
+    /// Whether the described extent fits inside the leased range.
+    ///
+    /// Load-bearing rather than defensive: a producer's allocator pools
+    /// many planes into one buffer, so copying an extent larger than the
+    /// lease does not fault, it reads whatever plane happens to sit
+    /// next in the pool and paints it into the world. Silent corruption
+    /// is worse than a refusal, so an ill-fitting lease is refused.
+    pub fn fits(&self) -> bool {
+        self.byte_len() <= self.size
+    }
+}
+
 impl<'a> BrickFrameInput<'a> {
     pub fn new(
         map: &'a BrickMap,
@@ -104,6 +123,8 @@ pub struct BrickDiagnostics {
     pub leased_atlas_bytes: u64,
     /// Leases refused because their revision did not match the frame's.
     pub stale_lease_rejections: u32,
+    /// Leases refused because their extent did not fit the leased range.
+    pub misfit_lease_rejections: u32,
     pub uniform_upload_bytes: u64,
     pub resource_creations: u32,
     pub bind_group_rebuilds: u32,

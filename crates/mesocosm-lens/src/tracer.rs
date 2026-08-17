@@ -310,15 +310,22 @@ impl BrickTracer {
         if let Some(leased) = input.leased_atlas {
             if leased.revision != input.revision {
                 diagnostics.stale_lease_rejections += 1;
+            } else if !leased.fits() {
+                // An extent larger than the leased range would copy a
+                // neighbouring allocation out of the producer's pool.
+                diagnostics.misfit_lease_rejections += 1;
             } else {
                 copy_leased_atlas(&self.device, &self.queue, &resident.atlas, leased);
                 diagnostics.leased_atlas_bytes += leased.size;
             }
         }
 
+        // The CPU upload stands unless a lease actually took the atlas:
+        // a refused lease (stale or ill-fitting) must not leave the
+        // atlas unwritten, or the frame shows whatever was there before.
         let atlas_from_cpu = input
             .leased_atlas
-            .is_none_or(|l| l.revision != input.revision);
+            .is_none_or(|l| l.revision != input.revision || !l.fits());
         if recreate || matches!(input.change, BrickChange::Full) {
             write_texture_3d(
                 &self.queue,

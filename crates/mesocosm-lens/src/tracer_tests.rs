@@ -213,4 +213,26 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
         stale_frame.diagnostics.brick_upload_bytes >= map.atlas().len() as u64,
         "a refused lease must fall back to the CPU upload"
     );
+
+    // A lease whose extent overruns its range is refused too. The
+    // producer pools planes into one buffer, so copying this would paint
+    // a neighbouring allocation into the world rather than fault.
+    let mut third = BrickTracer::headless(64, 64).expect("third tracer");
+    let misfit = LeasedAtlas {
+        extent: [edge * 2, edge, edge],
+        ..leased
+    };
+    assert!(!misfit.fits());
+    let misfit_frame = third
+        .capture(BrickFrameInput::new(&map, revision, &camera, &grade).with_leased_atlas(misfit))
+        .expect("misfit lease frame");
+    assert_eq!(misfit_frame.diagnostics.misfit_lease_rejections, 1);
+    assert_eq!(misfit_frame.diagnostics.leased_atlas_bytes, 0);
+    assert!(
+        misfit_frame.diagnostics.brick_upload_bytes >= map.atlas().len() as u64,
+        "a misfit lease must fall back to the CPU upload: uploaded {} of atlas {} (stale case uploaded {})",
+        misfit_frame.diagnostics.brick_upload_bytes,
+        map.atlas().len(),
+        stale_frame.diagnostics.brick_upload_bytes
+    );
 }
