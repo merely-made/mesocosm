@@ -7,10 +7,16 @@ first when starting any session.
 
 ## Project Identity
 
-**Mesocosm** is a first-person game of lineages: you are a critter in an
-enclosed mid-scale ecosystem, you grow only by incorporating other organisms,
-and you try to increase your kind's share of the world's biomass. Rogue
-Legacy's generational loop pointed at an ecosystem rather than a castle.
+**Mesocosm** is an ecological roguelike of lineages: you are a critter in an
+enclosed mid-scale ecosystem, presented as a side-on terrarium section
+(ruled 2026-08-18; first person names the agency, never the camera). You
+grow only by incorporating other organisms, and you try to increase your
+lineage's share of the world's biomass without triggering a trophic
+collapse. Play runs in epochs: live the round in the terrarium, then
+review and revise your organism on the trait board, in initiative order
+by biomass. Rogue Legacy's generational loop pointed at an ecosystem
+rather than a castle. See
+`design_docs/2026-08-18_vessel_briefs_and_presentation.md`.
 
 Vessel 1 of a three-game wing — Mesocosm (first person), Paredros (second
 person), Isometry (third person) — that shares a world substrate, a lineage

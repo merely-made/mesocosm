@@ -868,6 +868,14 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
    Isometry contradicts a standing ruling in that repo**, which needs its own
    plan there rather than arriving as a side effect.
 
+   **Closed 2026-08-18.** The camera decisions are ruled in
+   [the vessel briefs and presentation record](2026-08-18_vessel_briefs_and_presentation.md):
+   Mesocosm is a side-on terrarium section with a trait-graph board for
+   the epoch review; Paredros is third-person 3D on one continuous
+   Kenshi-style zoom, with first person composable as a Paredros-only
+   setting under the guardrails; Isometry stays isometric. Person and
+   care rulings here are untouched.
+
    **Decided 2026-07-31 for Mesocosm**: a small custom wgpu body renderer,
    with netrender owning the device and compositing, built headless-first so
    visibility is testable. The engine lane is dropped, because this game's
