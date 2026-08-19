@@ -1,6 +1,11 @@
 # Engine and Render Lane: Landscape
 
-**Status: research, updated 2026-08-04. No engine adoption decision.** Rewritten the same day after a
+**Status: historical research, updated 2026-08-04.** Candidate labels in
+this document do not override the engine composition ruling in
+[2026-08-14_resident_views_composition_plan.md](2026-08-14_resident_views_composition_plan.md)
+or its
+[2026-08-18 critical review](2026-08-18_engine_ecology_rulings_and_review.md).
+This document was rewritten after a
 review found two systematic faults in the first draft: it counted an
 ingredient shelf as a nearly finished engine, and it let "engine" mean two
 different things in one document. Both are fixed below. The body-pipeline decision

@@ -172,3 +172,8 @@ The founding record's §8 dimensionality carry is closed by §2 above; a
 dated note there points here. Mesocosm's CLAUDE.md identity paragraph
 is corrected in the same commit ("first-person game" implied a camera;
 the person-is-agency ruling and this doc supersede that reading).
+
+The engine consequences and their critical review are recorded separately in
+[2026-08-18_engine_ecology_rulings_and_review.md](2026-08-18_engine_ecology_rulings_and_review.md).
+That document is provisional and does not amend the vessel identities or
+camera rulings here.

@@ -1,8 +1,9 @@
 # Resident Views Composition Plan (2026-08-14)
 
-**Status: founded 2026-08-14; proof gate open.** How the voxel world,
-Burn/CubeCL, the tracer, the mesher, collision, and persistence compose
-on one device. Ratified direction (Mark, 2026-08-14): the voxel world
+**Status: founded 2026-08-14; lanes A-F and the seed crystal complete;
+composed real-Ground proof still open.** How the voxel world, Burn/CubeCL,
+the tracer, the mesher, collision, and persistence compose on one device.
+Ratified direction (Mark, 2026-08-14): the voxel world
 is Burn-addressable state while remaining voxel-authoritative state.
 Burn does not import voxels into a second world representation; every
 consumer receives a resident view of the same facts.
@@ -391,12 +392,11 @@ that the in-flight `BrickTracer` has adopted the lease.
   which proves the cross-session constant was never a comparable
   baseline.
 - **D complete.** Synthetic tensor/process/commit mechanism above.
-- **E mechanism complete against the live G2 tree.** Stable-base rerun
-  remains.
-- **F mechanism complete against the live G2 tree.** Direct leased-buffer
-  DDA, revision/read-epoch coherence, stale-lease rejection, and elapsed-time
-  silence pass. Permanent `BrickTracer` adoption waits for its in-flight
-  sources to land.
+- **E complete against the live G2 tree.** The stable-base histogram rerun
+  is pinned as a fixture.
+- **F complete and adopted in tracked code.** Direct leased-buffer DDA,
+  revision/read-epoch coherence, stale-lease and undersized-lease rejection,
+  and elapsed-time silence pass. The downlevel CPU upload path remains.
 
 ## The engine composition ruling (2026-08-16)
 
@@ -589,11 +589,11 @@ Three flags:
 
 - **Veloren is GPL-3.0**: read its worldgen writeups for technique,
   never copy code.
-- **ECS adoption is deferred.** mesocosm-core owns entity state with
-  replay hashes; adopting bevy_ecs or hecs now would risk exactly the
-  second world representation the stop rules refuse. SoA columns
-  aliased as tensors is a view over owned state, not a storage
-  adoption; revisit only if a concrete need survives that framing.
+- **hecs is approved only as a gameplay runtime index.** `mesocosm-core`
+  retains record authority and replay identity. Adoption begins with a
+  concrete gameplay consumer and may not turn the runtime index into a
+  second world representation. SoA columns aliased as tensors remain views
+  over owned state rather than a storage transfer.
 - **Nothing else in the critique's component list is auto-adopted.**
   Each entry composes through the seam or waits for a consumer.
 
