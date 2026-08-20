@@ -235,7 +235,7 @@ consumer.
 
 The engine proofs should be pulled by that slice:
 
-### R1. Shared traversal profile
+### R1. Shared traversal profile: **COMPLETE 2026-08-20**
 
 Run one brick/DDA data contract under a Mesocosm slab camera and a Paredros
 perspective camera. Vessel-specific lighting and LOD policy may differ.
@@ -243,6 +243,35 @@ perspective camera. Vessel-specific lighting and LOD policy may differ.
 **Done when:** both headed views consume the same traversal implementation and
 brick ABI; captures and timings are recorded; no renderer-wide abstraction is
 introduced merely to hide their policy differences.
+
+**Receipt, 2026-08-20.** `BrickTracer` now accepts a camera-neutral ray
+basis: origin, forward, right, and up, plus projection kind and far cut. Its
+WGSL keeps one pointer lookup, material atlas, ray-box intersection, and DDA;
+only ray construction differs. The old `Flight` constructor remains a
+perspective adapter, so the existing G2, carve, lease, and downlevel receipts
+retain their source contract.
+
+Mesocosm's real headed G2 frame now supplies a 16-voxel orthographic slab at
+the ratified terrarium angle. On the RTX 4060 Laptop GPU at 1920×1080, frame
+32 recorded 3 µs tracer preparation, zero steady brick and uniform upload,
+and 1.238 ms in netrender's reported frame total. The inspected capture and
+JSON receipt are `Code/testing/mesocosm/r1_terrarium.{png,json}`.
+
+Paredros's real S0 room host consumes the same `mesocosm_lens::BrickTracer`
+behind its opt-in `r1-proof` feature while retaining its own close-perspective
+eye and target. Its 64-frame 1280×720 headed run recorded 6.977–19.074 ms
+overall, 10.362 ms median, zero steady brick upload, 2,357 capture colours,
+and the unchanged position-log hash `0x27a905731c6bfc61`. Both receipts name
+the same Rust `BrickMap` ABI: origin `[-9,0,-8]`, pointer extent `[18,3,17]`,
+atlas extent `[128,16,128]`, 3,672 pointer bytes, and 262,144 atlas bytes.
+
+This closes traversal reuse, not renderer unification. Mesocosm owns the
+slab; Paredros owns the perspective rig, torch, and later LOD. The Paredros
+dependency is disabled by default and proves that the current
+`mesocosm-lens` owner is now too low: the next permanent adoption must lift
+the traversal organ to an actual platform owner. R1 does not choose that
+owner, create a renderer-wide camera abstraction, or claim the later
+raymarch-depth/renderling join.
 
 ### R2. GPU mesh bake into renderling
 

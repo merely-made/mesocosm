@@ -21,7 +21,7 @@ use types::{TraceParams, validates_pose};
 
 pub use types::{
     BrickCapture, BrickChange, BrickDiagnostics, BrickFrameInput, BrickRevision, BrickTraceError,
-    LeasedAtlas,
+    LeasedAtlas, TraceCamera,
 };
 
 struct ResidentMap {

@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use mesocosm_core::places::{Ground, Places};
 use mesocosm_lens::{
-    BrickFrameInput, BrickMap, BrickRevision, BrickTracer, CritterPose, FRAME_FORMAT, Flight,
-    Grade, critter::Capsule,
+    BrickFrameInput, BrickMap, BrickRevision, BrickTracer, CritterPose, FRAME_FORMAT, Grade,
+    TraceCamera, critter::Capsule,
 };
 use mesocosm_render::composite::Composite;
 use netrender::{
@@ -24,7 +24,7 @@ const MASTER_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 struct Document {
     map: BrickMap,
     revision: BrickRevision,
-    flight: Flight,
+    camera: TraceCamera,
     grade: Grade,
     pose: CritterPose,
     bytes: Vec<u8>,
@@ -179,10 +179,10 @@ impl Gpu {
             .encode(
                 &mut encoder,
                 &self.trace_view,
-                BrickFrameInput::new(
+                BrickFrameInput::for_camera(
                     &self.document.map,
                     self.document.revision,
-                    &self.document.flight,
+                    self.document.camera,
                     &self.document.grade,
                 )
                 .with_pose(&self.document.pose),
@@ -222,6 +222,7 @@ impl Gpu {
                 size,
                 self.surface_config.format,
                 &self.document.bytes,
+                &self.document.map,
                 &self.handles.adapter,
                 trace,
                 timings,
@@ -357,22 +358,23 @@ fn chrome_scene(size: [u32; 2]) -> Scene {
 fn document() -> Result<Document, String> {
     let ground = Ground::grow(&Places::grown(4_242, 4, 64), 64);
     let map = BrickMap::from_ground(&ground).map_err(|error| error.to_string())?;
-    let eye_top = ground
-        .surface(4, 4)
-        .ok_or("fixture column is outside Ground")? as f32;
     let body_top = ground
         .surface(4, 18)
         .ok_or("body fixture column is outside Ground")? as f32;
     let body = [4.5, body_top + 1.15, 18.5];
-    let eye = [4.5, eye_top + 17.0, 4.5];
-    let distance = ((body[0] - eye[0]).powi(2) + (body[2] - eye[2]).powi(2)).sqrt();
-    let flight = Flight {
-        eye,
-        yaw: 0.0,
-        pitch: f32::atan2(body[1] - eye[1], distance),
-        fov: 0.9,
-        far: 48.0,
-    };
+    // The product camera is a side-on section, not the first-person G2
+    // camera this harness originally inherited. Keep the body in the centre
+    // of a sixteen-voxel slab and enough vertical range for bedrock, surface,
+    // and sky to read together.
+    let camera = TraceCamera::orthographic_slab(
+        [body[0], body_top * 0.5 + 4.0, body[2]],
+        [0.0, 0.0, -1.0],
+        [0.0, 1.0, 0.0],
+        20.0,
+        16.0 / 9.0,
+        16.0,
+    )
+    .ok_or("invalid terrarium camera")?;
     let pose = CritterPose::from_capsules(
         vec![Capsule {
             a: [body[0] - 0.7, body[1], body[2]],
@@ -387,12 +389,12 @@ fn document() -> Result<Document, String> {
         [0.15, 0.86, 0.32],
     );
     let grade = Grade::retro(3);
-    let bytes = postcard::to_allocvec(&(ground, flight, grade, pose.clone()))
+    let bytes = postcard::to_allocvec(&(ground, camera, grade, pose.clone()))
         .map_err(|error| error.to_string())?;
     Ok(Document {
         map,
         revision: BrickRevision(0),
-        flight,
+        camera,
         grade,
         pose,
         bytes,
