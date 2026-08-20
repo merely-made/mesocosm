@@ -2,13 +2,19 @@
 // dense 8³ material slot in the atlas. It does not write, allocate, or derive
 // simulation facts.
 
-struct TraceParams {
-    eye: vec3<f32>,
-    yaw: f32,
-    pitch: f32,
-    fov: f32,
+struct TraceCamera {
+    origin: vec3<f32>,
+    projection: u32,
+    forward: vec3<f32>,
     far: f32,
-    _pad: f32,
+    right: vec3<f32>,
+    _right_pad: f32,
+    up: vec3<f32>,
+    _up_pad: f32,
+};
+
+struct TraceParams {
+    camera: TraceCamera,
     world_min: vec4<f32>,
     pointer_extent: vec4<u32>,
     atlas_slots: vec4<u32>,
@@ -40,6 +46,11 @@ struct Hit {
     t: f32,
     normal: vec3<f32>,
     found: bool,
+};
+
+struct Ray {
+    origin: vec3<f32>,
+    direction: vec3<f32>,
 };
 
 @vertex
@@ -86,7 +97,7 @@ fn ray_box(eye: vec3<f32>, direction: vec3<f32>) -> vec2<f32> {
     let low = params.world_min.xyz;
     let high = low + vec3<f32>(params.pointer_extent.xyz) * 8.0;
     var enter = 0.0;
-    var exit = params.far;
+    var exit = params.camera.far;
     for (var axis = 0; axis < 3; axis = axis + 1) {
         let d = direction[axis];
         if (abs(d) < 1e-6) {
@@ -116,7 +127,7 @@ fn initial_crossing(position: f32, direction: f32, voxel: i32, start_t: f32) -> 
 fn dda(eye: vec3<f32>, direction: vec3<f32>) -> Hit {
     let interval = ray_box(eye, direction);
     if (interval.x > interval.y || interval.y < 0.0) {
-        return Hit(0u, params.far, vec3(0.0, 1.0, 0.0), false);
+        return Hit(0u, params.camera.far, vec3(0.0, 1.0, 0.0), false);
     }
     let start_t = max(interval.x, 0.0) + 0.0001;
     let start = eye + direction * start_t;
@@ -159,11 +170,11 @@ fn dda(eye: vec3<f32>, direction: vec3<f32>) -> Hit {
             voxel.z = voxel.z + step.z;
             normal = vec3(0.0, 0.0, -f32(step.z));
         }
-        if (t > interval.y || t > params.far) {
+        if (t > interval.y || t > params.camera.far) {
             break;
         }
     }
-    return Hit(0u, params.far, vec3(0.0, 1.0, 0.0), false);
+    return Hit(0u, params.camera.far, vec3(0.0, 1.0, 0.0), false);
 }
 
 fn material_colour(material: u32) -> vec3<f32> {
@@ -231,7 +242,10 @@ fn trace_critter(eye: vec3<f32>, direction: vec3<f32>) -> f32 {
         return -1.0;
     }
     var travel = max(-projection - sqrt(discriminant), 0.05);
-    let exit = -projection + sqrt(discriminant);
+    let exit = min(-projection + sqrt(discriminant), params.camera.far);
+    if (travel > exit) {
+        return -1.0;
+    }
     for (var step = 0; step < 48; step = step + 1) {
         let distance = critter_distance(eye + direction * travel);
         if (distance < 0.02) {
@@ -256,7 +270,7 @@ fn bayer(pixel: vec2<u32>) -> f32 {
 }
 
 fn grade(colour: vec3<f32>, t: f32, pixel: vec2<u32>) -> vec3<f32> {
-    var fog = clamp((t / params.far - params.fog.w) / max(1.0 - params.fog.w, 0.001), 0.0, 1.0);
+    var fog = clamp((t / params.camera.far - params.fog.w) / max(1.0 - params.fog.w, 0.001), 0.0, 1.0);
     if (params.look.y > 0.5) {
         fog = floor(fog * params.look.y) / params.look.y;
     }
@@ -267,25 +281,33 @@ fn grade(colour: vec3<f32>, t: f32, pixel: vec2<u32>) -> vec3<f32> {
     return out;
 }
 
+fn camera_ray(ndc: vec2<f32>) -> Ray {
+    if (params.camera.projection == 1u) {
+        return Ray(
+            params.camera.origin + params.camera.right * ndc.x + params.camera.up * ndc.y,
+            params.camera.forward,
+        );
+    }
+    return Ray(
+        params.camera.origin,
+        normalize(
+            params.camera.forward + params.camera.right * ndc.x + params.camera.up * ndc.y,
+        ),
+    );
+}
+
 @fragment
 fn fs(in: VsOut) -> @location(0) vec4<f32> {
-    let half_fov = params.fov * 0.5;
-    let ray_yaw = params.yaw + in.ndc.x * half_fov;
-    let ray_pitch = params.pitch + in.ndc.y * half_fov * 0.5625;
-    let direction = vec3(
-        sin(ray_yaw) * cos(ray_pitch),
-        sin(ray_pitch),
-        cos(ray_yaw) * cos(ray_pitch),
-    );
-    let hit = dda(params.eye, direction);
+    let ray = camera_ray(in.ndc);
+    let hit = dda(ray.origin, ray.direction);
     let pixel = vec2<u32>(u32(in.pos.x), u32(in.pos.y));
-    let body_t = trace_critter(params.eye, direction);
+    let body_t = trace_critter(ray.origin, ray.direction);
     if (body_t > 0.0 && (!hit.found || body_t < hit.t)) {
-        let point = params.eye + direction * body_t;
+        let point = ray.origin + ray.direction * body_t;
         let normal = critter_normal(point);
         let sun = normalize(vec3(0.4, 0.8, 0.3));
         let light = clamp(dot(normal, sun), 0.0, 1.0);
-        let rim = pow(1.0 - clamp(dot(normal, -direction), 0.0, 1.0), 2.0) * 0.35;
+        let rim = pow(1.0 - clamp(dot(normal, -ray.direction), 0.0, 1.0), 2.0) * 0.35;
         var base = params.critter.tint_count.xyz;
         if (eye_distance(point) < 0.05) {
             base = base * 0.12;
@@ -294,8 +316,8 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
         return vec4(grade(lit, body_t, pixel), 1.0);
     }
     if (!hit.found) {
-        let sky = mix(vec3(0.65, 0.72, 0.80), vec3(0.35, 0.45, 0.62), clamp(ray_pitch * 3.0 + 0.3, 0.0, 1.0));
-        return vec4(grade(sky, params.far, pixel), 1.0);
+        let sky = mix(vec3(0.65, 0.72, 0.80), vec3(0.35, 0.45, 0.62), clamp(ray.direction.y * 3.0 + 0.3, 0.0, 1.0));
+        return vec4(grade(sky, params.camera.far, pixel), 1.0);
     }
     let sun = normalize(vec3(0.4, 0.8, 0.3));
     let light = 0.38 + 0.62 * max(0.0, dot(hit.normal, sun));

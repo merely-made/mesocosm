@@ -3,12 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use mesocosm_lens::BrickDiagnostics;
+use mesocosm_lens::{BrickDiagnostics, BrickMap};
 use netrender::profiling::FrameTimings;
 
 #[derive(Debug, serde::Serialize)]
 pub struct Receipt {
     pub gate: &'static str,
+    pub shared_traversal_gate: &'static str,
+    pub camera_profile: &'static str,
     pub target: &'static str,
     pub profile: &'static str,
     pub frame: u32,
@@ -16,6 +18,7 @@ pub struct Receipt {
     pub surface_format: String,
     pub scene_digest: String,
     pub scene_bytes: usize,
+    pub brick_abi: BrickAbiReceipt,
     pub adapter: AdapterReceipt,
     pub tracer: TracerReceipt,
     pub netrender: NetrenderReceipt,
@@ -41,6 +44,15 @@ pub struct TracerReceipt {
 }
 
 #[derive(Debug, serde::Serialize)]
+pub struct BrickAbiReceipt {
+    pub origin: [i16; 3],
+    pub pointer_extent: [u32; 3],
+    pub atlas_extent: [u32; 3],
+    pub pointer_bytes: usize,
+    pub atlas_bytes: usize,
+}
+
+#[derive(Debug, serde::Serialize)]
 pub struct NetrenderReceipt {
     pub total_us: u64,
     pub dirty_tiles: usize,
@@ -60,6 +72,7 @@ impl Receipt {
         size: [u32; 2],
         format: wgpu::TextureFormat,
         scene: &[u8],
+        map: &BrickMap,
         adapter: &wgpu::Adapter,
         tracer: BrickDiagnostics,
         netrender: FrameTimings,
@@ -69,6 +82,8 @@ impl Receipt {
         let limits = adapter.limits();
         Self {
             gate: "G2",
+            shared_traversal_gate: "R1",
+            camera_profile: "mesocosm-terrarium-slab",
             target: if cfg!(target_arch = "wasm32") {
                 "browser"
             } else {
@@ -80,6 +95,13 @@ impl Receipt {
             surface_format: format!("{format:?}"),
             scene_digest: format!("fnv1a64:{:016x}", digest(scene)),
             scene_bytes: scene.len(),
+            brick_abi: BrickAbiReceipt {
+                origin: map.origin(),
+                pointer_extent: map.pointer_extent(),
+                atlas_extent: map.atlas_extent(),
+                pointer_bytes: std::mem::size_of_val(map.pointers()),
+                atlas_bytes: map.atlas().len(),
+            },
             adapter: AdapterReceipt {
                 name: info.name,
                 backend: format!("{:?}", info.backend),

@@ -7,6 +7,156 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::{BrickMap, CritterPose, Flight, Grade, MAX_CAPSULES};
 
+const PERSPECTIVE: u32 = 0;
+const ORTHOGRAPHIC: u32 = 1;
+const LEGACY_ASPECT: f32 = 16.0 / 9.0;
+
+/// The rays a camera contributes to the brick traversal.
+///
+/// Camera policy stays with the vessel. The tracer needs only an origin
+/// plane, a forward direction, and the horizontal and vertical ray spans.
+/// Perspective and orthographic projections therefore share the exact same
+/// map bindings and DDA implementation.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable, serde::Serialize, serde::Deserialize)]
+pub struct TraceCamera {
+    origin: [f32; 3],
+    projection: u32,
+    forward: [f32; 3],
+    far: f32,
+    right: [f32; 3],
+    _right_pad: f32,
+    up: [f32; 3],
+    _up_pad: f32,
+}
+
+impl TraceCamera {
+    /// A rectilinear perspective camera aimed at `target`.
+    pub fn perspective(
+        eye: [f32; 3],
+        target: [f32; 3],
+        up: [f32; 3],
+        vertical_fov: f32,
+        aspect: f32,
+        far: f32,
+    ) -> Option<Self> {
+        if !(vertical_fov > 0.0 && vertical_fov < std::f32::consts::PI && aspect > 0.0 && far > 0.0)
+        {
+            return None;
+        }
+        let forward = normalize(sub(target, eye))?;
+        let right_unit = normalize(cross(forward, up))?;
+        let up_unit = normalize(cross(right_unit, forward))?;
+        let half_height = (vertical_fov * 0.5).tan();
+        Some(Self {
+            origin: eye,
+            projection: PERSPECTIVE,
+            forward,
+            far,
+            right: scale(right_unit, half_height * aspect),
+            _right_pad: 0.0,
+            up: scale(up_unit, half_height),
+            _up_pad: 0.0,
+        })
+    }
+
+    /// An orthographic section whose ray interval is exactly `depth` voxels.
+    ///
+    /// `centre` is the middle of the retained slab rather than the eye. This
+    /// keeps the near and far cut planes symmetric when the section is moved.
+    pub fn orthographic_slab(
+        centre: [f32; 3],
+        forward: [f32; 3],
+        up: [f32; 3],
+        half_height: f32,
+        aspect: f32,
+        depth: f32,
+    ) -> Option<Self> {
+        if !(half_height > 0.0 && aspect > 0.0 && depth > 0.0) {
+            return None;
+        }
+        let forward = normalize(forward)?;
+        let right_unit = normalize(cross(forward, up))?;
+        let up_unit = normalize(cross(right_unit, forward))?;
+        Some(Self {
+            origin: sub(centre, scale(forward, depth * 0.5)),
+            projection: ORTHOGRAPHIC,
+            forward,
+            far: depth,
+            right: scale(right_unit, half_height * aspect),
+            _right_pad: 0.0,
+            up: scale(up_unit, half_height),
+            _up_pad: 0.0,
+        })
+    }
+
+    fn from_flight(flight: &Flight) -> Self {
+        let forward = [
+            flight.yaw.sin() * flight.pitch.cos(),
+            flight.pitch.sin(),
+            flight.yaw.cos() * flight.pitch.cos(),
+        ];
+        let target = add(flight.eye, forward);
+        let vertical_fov = 2.0 * ((flight.fov * 0.5).tan() / LEGACY_ASPECT).atan();
+        Self::perspective(
+            flight.eye,
+            target,
+            [0.0, 1.0, 0.0],
+            vertical_fov,
+            LEGACY_ASPECT,
+            flight.far,
+        )
+        .expect("Flight carries a valid camera")
+    }
+
+    #[cfg(test)]
+    fn ray_at(self, ndc: [f32; 2]) -> ([f32; 3], [f32; 3]) {
+        if self.projection == ORTHOGRAPHIC {
+            (
+                add(
+                    self.origin,
+                    add(scale(self.right, ndc[0]), scale(self.up, ndc[1])),
+                ),
+                self.forward,
+            )
+        } else {
+            (
+                self.origin,
+                normalize(add(
+                    self.forward,
+                    add(scale(self.right, ndc[0]), scale(self.up, ndc[1])),
+                ))
+                .expect("camera rays are nonzero"),
+            )
+        }
+    }
+}
+
+fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+}
+
+fn sub(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn scale(value: [f32; 3], amount: f32) -> [f32; 3] {
+    [value[0] * amount, value[1] * amount, value[2] * amount]
+}
+
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+fn normalize(value: [f32; 3]) -> Option<[f32; 3]> {
+    let length = (value[0] * value[0] + value[1] * value[1] + value[2] * value[2]).sqrt();
+    (length > 1e-6).then(|| scale(value, 1.0 / length))
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct BrickRevision(pub u64);
 
@@ -22,7 +172,7 @@ pub struct BrickFrameInput<'a> {
     pub map: &'a BrickMap,
     pub revision: BrickRevision,
     pub change: BrickChange<'a>,
-    pub flight: &'a Flight,
+    pub camera: TraceCamera,
     pub grade: &'a Grade,
     /// Presentation-only SDF bodies. Their source remains the caller's
     /// projection, never the brick map or world state.
@@ -88,7 +238,25 @@ impl<'a> BrickFrameInput<'a> {
             map,
             revision,
             change: BrickChange::Full,
-            flight,
+            camera: TraceCamera::from_flight(flight),
+            grade,
+            pose: None,
+            leased_atlas: None,
+        }
+    }
+
+    /// Construct a frame from a vessel-owned camera policy.
+    pub fn for_camera(
+        map: &'a BrickMap,
+        revision: BrickRevision,
+        camera: TraceCamera,
+        grade: &'a Grade,
+    ) -> Self {
+        Self {
+            map,
+            revision,
+            change: BrickChange::Full,
+            camera,
             grade,
             pose: None,
             leased_atlas: None,
@@ -172,12 +340,7 @@ impl std::error::Error for BrickTraceError {}
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 pub(super) struct TraceParams {
-    pub eye: [f32; 3],
-    pub yaw: f32,
-    pub pitch: f32,
-    pub fov: f32,
-    pub far: f32,
-    pub _pad: f32,
+    pub camera: TraceCamera,
     pub world_min: [f32; 4],
     pub pointer_extent: [u32; 4],
     pub atlas_slots: [u32; 4],
@@ -199,12 +362,7 @@ impl TraceParams {
     pub(super) fn from_input(input: BrickFrameInput<'_>) -> Self {
         let map = input.map;
         Self {
-            eye: input.flight.eye,
-            yaw: input.flight.yaw,
-            pitch: input.flight.pitch,
-            fov: input.flight.fov,
-            far: input.flight.far,
-            _pad: 0.0,
+            camera: input.camera,
             world_min: [
                 map.origin()[0] as f32 * 8.0,
                 map.origin()[1] as f32 * 8.0,
@@ -232,6 +390,48 @@ impl TraceParams {
             ],
             critter: CritterParams::from_pose(input.pose),
         }
+    }
+}
+
+#[cfg(test)]
+mod camera_tests {
+    use super::*;
+
+    #[test]
+    fn orthographic_rays_share_direction_but_move_across_the_slab() {
+        let camera = TraceCamera::orthographic_slab(
+            [0.0, 4.0, 8.0],
+            [0.0, 0.0, -1.0],
+            [0.0, 1.0, 0.0],
+            5.0,
+            2.0,
+            6.0,
+        )
+        .unwrap();
+        let left = camera.ray_at([-1.0, 0.0]);
+        let right = camera.ray_at([1.0, 0.0]);
+        assert_eq!(left.1, right.1);
+        assert_eq!(left.0[0], -10.0);
+        assert_eq!(right.0[0], 10.0);
+        assert_eq!(left.0[2], 11.0);
+    }
+
+    #[test]
+    fn perspective_rays_share_an_eye_and_diverge() {
+        let camera = TraceCamera::perspective(
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, -1.0],
+            [0.0, 1.0, 0.0],
+            std::f32::consts::FRAC_PI_2,
+            1.0,
+            20.0,
+        )
+        .unwrap();
+        let left = camera.ray_at([-1.0, 0.0]);
+        let right = camera.ray_at([1.0, 0.0]);
+        assert_eq!(left.0, right.0);
+        assert!(left.1[0] < 0.0);
+        assert!(right.1[0] > 0.0);
     }
 }
 
