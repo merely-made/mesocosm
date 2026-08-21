@@ -75,8 +75,9 @@ lighting, LOD, composition, picking, and readability policy.
 
 - Mesocosm uses an orthographic terrarium section with a near/far slab and
   organism presentation composed over it.
-- Paredros uses perspective traversal, sparse residency, and clipmap or mip
-  policy for continuous pull-back.
+- Paredros uses perspective traversal and sparse residency. A clipmap or mip
+  joins the continuous pull-back when a real exact camera footprint exceeds
+  its resident budget.
 - Isometry may use orthographic traversal where live volume matters and baked
   sprites or meshes where a stable tabletop asset is cheaper.
 
@@ -406,7 +407,7 @@ This closes the authority-path choice in favour of quantized integer state.
 Floating-point Burn batches remain candidate generators only if a later
 consumer records or requantizes their proposals before authority.
 
-### V1. Residency budget under Paredros scale
+### V1. Residency budget under Paredros scale: **COMPLETE 2026-08-21**
 
 Let a concrete continuous-zoom scene pull the residency policy. Do not design
 a universal pager without the scale pressure that makes its tradeoffs visible.
@@ -415,12 +416,47 @@ a universal pager without the scale pressure that makes its tradeoffs visible.
 eviction cadence, camera hitch behavior, and recovery after rapid zoom or
 travel.
 
+**Receipt, 2026-08-21.** Paredros's feature-gated `v1_residency` binary grows
+a 256-voxel-half-extent Ground and drives the ratified third-person camera
+from distance 8 to 72 while it rises from 50 to 65 degrees. Visible range is
+the four-corner ground-plane footprint plus one brick. The complete 6,091
+brick region refuses the exact tracer's 4,096-brick ceiling, while the camera
+pulls exact page radii 40, 88, and 128 through the new bounded
+`BrickMap::from_ground_keys` seam.
+
+The far planning frame covers radius 127 with 1,411 bricks and 795,144 logical
+pointer-plus-atlas bytes under a 1 MiB budget. Five page transitions over 96
+frames moved 2,250,848 bytes. Warm page preparation took 230 to 1,463
+microseconds. On the RTX 4060 Laptop GPU at 1280x720, frame spans were 4.385
+to 32.271 ms, 5.918 ms median, with a 5.876 ms steady median. The four warm
+transition frames took 5.534, 6.822, 5.995, and 6.724 ms; the maximum was an
+unchanged close-page frame. Both abrupt zooms met their profile's 125 percent
+recovery threshold on the next frame. The inspected final capture has 63
+distinct colours. Paredros owns the camera and key selection; Mesocosm owns
+exact Ground and `BrickMap` allocation.
+
+Two corrections carry forward. The byte budget is logical payload, not
+allocator-observed VRAM, and excludes driver rounding plus transition overlap.
+The load and eviction counts are policy deltas. Physically, today's
+`BrickTracer` creates replacement textures and uploads the full page at every
+band change. It cannot safely publish same-sized travel pages at one Ground
+revision because its cache identity observes source revision and texture
+extents, not projection identity; the V1 adapter refuses that case.
+
+**Verdict.** Exact sparse pages are sufficient for this first base-planning
+view, so V1 does not justify building a clipmap yet. The permanent seam is a
+stable `ResidentChunk`-backed brick cache with explicit projection revision,
+per-brick publication, and allocator-observed bytes. Larger planning views or
+travel can then pull clipmap or mip work if they exceed the exact budget. The
+feature-gated sideways proof still does not choose the platform owner.
+
 ## 6. Open choices carried to proof
 
 - which tactile gameplay host promotes the proved Ground-to-Parry adapter;
 - the exact shared spatial contract for contemporaneous construction across
   vessels;
-- the Paredros scene and scale that define the first residency budget.
+- the platform owner that joins `ResidentChunk` residency to the shared DDA
+  after a permanent Paredros consumer exists.
 
 These are not prerequisites for the Mesocosm epoch slice. Each has a consumer
 and a receipt that can decide it without inventing an engine in advance.
