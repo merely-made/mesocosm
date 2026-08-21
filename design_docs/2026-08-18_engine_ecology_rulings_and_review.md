@@ -199,7 +199,7 @@ GPU results remain derived fields or proposals.
 | The trait board is Mere's canvas. | Plausible substrate. | It becomes true only after one Mesocosm review adapter completes a commit and replay receipt. |
 | One intent log solves three time models. | Overstated. | The grammar can be shared; scheduling and conflict semantics remain distinct. |
 | Every authoritative number is integer or fixed-point. | Good default, too absolute. | Require cross-host replay identity; integers, fixed point, exact forms, or recorded resolution may satisfy it. |
-| Burn to CubeCL to renderling needs only a few fork lines. | Direction valid, scope understated. | The allocation API is small, but lifetime, capacity, count, ABI, and draw submission form the actual proof. |
+| Burn to CubeCL to renderling needs only a few fork lines. | Direction valid, scope understated. | The allocation API is small, but lifetime, capacity, count, ABI, and draw submission form the actual proof. R2 also found that CubeCL 0.10 cannot import renderling's slab allocation: the live path is one device, two allocators, and one device-local publication copy. |
 | Parry or Nexus can collide with these forms. | Split answer. | Parry can query committed voxel truth. Nexus can later simulate baked dynamic shapes after an interop proof. |
 | Squid-style neuroevolution supplies flora and fauna behavior. | Promising mechanism, wrong authority. | Evolve a bounded proposal policy behind existing deterministic ecology resolution; treat flora separately. |
 
@@ -273,7 +273,7 @@ the traversal organ to an actual platform owner. R1 does not choose that
 owner, create a renderer-wide camera abstraction, or claim the later
 raymarch-depth/renderling join.
 
-### R2. GPU mesh bake into renderling
+### R2. GPU mesh bake into renderling: **COMPLETE 2026-08-21**
 
 Add the smallest safe GPU-only range allocation seam, extract one resident
 field with CubeCL, and draw the resulting compacted vertices through
@@ -283,6 +283,44 @@ renderling.
 overflow behavior, compacted draw count, slab-growth invalidation, zero CPU
 vertex staging, and a headed capture. The receipt decides full `Vertex` versus
 a compact procedural ABI.
+
+**Receipt, 2026-08-21.** Craballoc now allocates a contiguous GPU-only array
+without queuing initial CPU values. Renderling exposes that capacity as
+`Vertices<GpuOnlyArray>` and refuses a bounded draw count above it while
+retaining the full allocation lease.
+
+The probe generated a 48 by 48 floating field through Burn, then ran CubeCL
+count, exclusive prefix, and scatter passes. It produced 7,182 vertices, equal
+to the CPU count oracle. A deliberate 7,181-vertex capacity raised the GPU
+overflow flag and renderling separately refused `capacity + 1`. The retained
+range was 13,824 vertices, or 359,424 contiguous words. Forced slab growth
+invalidated the old buffer, produced a new identity, and publication targeted
+the buffer attached on the following commit. The allocation queued zero CPU
+vertex values.
+
+The discussion shorthand was wrong about one allocator. CubeCL 0.10 can reuse
+the host's wgpu device, but its compute server cannot import an arbitrary
+renderling slab buffer as a CubeCL handle. The proven path is therefore:
+
+```text
+Burn field
+    -> CubeCL count / prefix / scatter in CubeCL-owned memory
+    -> one device-local buffer copy
+    -> GPU-only renderling range plus bounded draw count
+```
+
+Vertex contents never cross the CPU. Two u32 values, compacted count and
+overflow, return at the asynchronous bake boundary. This is one device and two
+allocators, not the claimed one-device/one-allocator path.
+
+On the RTX 4060 Laptop GPU the final headed run drew the 7,182 vertices with 63
+distinct scene-region colours and 31.6% non-background coverage. Full
+renderling `Vertex` cost 746,928 bytes; a ten-word procedural position/colour/
+normal ABI would cost 287,280 bytes, 2.6 times less. The ruling is to keep full
+`Vertex` for bounded asynchronous bakes because it draws through stock
+renderling after the small allocation seam. It is not the universal procedural
+ABI. A compact path must be pulled by a high-density bake that proves the
+bandwidth and shader complexity are worth a second draw contract.
 
 ### R3. Committed voxel collision
 
