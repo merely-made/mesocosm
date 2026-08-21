@@ -200,7 +200,7 @@ GPU results remain derived fields or proposals.
 | One intent log solves three time models. | Overstated. | The grammar can be shared; scheduling and conflict semantics remain distinct. |
 | Every authoritative number is integer or fixed-point. | Good default, too absolute. | Require cross-host replay identity; integers, fixed point, exact forms, or recorded resolution may satisfy it. |
 | Burn to CubeCL to renderling needs only a few fork lines. | Direction valid, scope understated. | The allocation API is small, but lifetime, capacity, count, ABI, and draw submission form the actual proof. R2 also found that CubeCL 0.10 cannot import renderling's slab allocation: the live path is one device, two allocators, and one device-local publication copy. |
-| Parry or Nexus can collide with these forms. | Split answer. | Parry can query committed voxel truth. Nexus can later simulate baked dynamic shapes after an interop proof. |
+| Parry or Nexus can collide with these forms. | Split answer. | R3 proves Parry ray, point, and contact-manifold queries over revision-gated committed occupancy. Nexus can later simulate baked dynamic shapes after an interop proof. |
 | Squid-style neuroevolution supplies flora and fauna behavior. | Promising mechanism, wrong authority. | Evolve a bounded proposal policy behind existing deterministic ecology resolution; treat flora separately. |
 
 ## 4. Authority and projection flow
@@ -322,7 +322,7 @@ renderling after the small allocation seam. It is not the universal procedural
 ABI. A compact path must be pulled by a high-density bake that proves the
 bandwidth and shader complexity are worth a second draw contract.
 
-### R3. Committed voxel collision
+### R3. Committed voxel collision: **COMPLETE 2026-08-21**
 
 Project one Ground revision into Parry `Voxels`, apply a later Ground delta,
 and compare ray, point, and contact results with exact occupancy.
@@ -331,6 +331,38 @@ and compare ray, point, and contact results with exact occupancy.
 expected queries, revision mismatch is refused, and replay produces the same
 collision answers. Only then test a learned field through propose, constrain,
 commit, and collision projection.
+
+**Receipt, 2026-08-21.** The standalone `crates/probes/parry-ground` receipt
+consumes only public `Ground` revision, dirty-brick, key, material, and
+occupancy APIs. It projected 136 stored Ground bricks into Parry 0.29
+`Voxels`: 69,632 cells compared and 41,763 occupied voxels. Parry's internal
+3D chunks are also 8 cubed, so they align with Ground's brick grid.
+
+One boundary carve committed Ground revision 0 to 1 and removed 19 voxels
+across four dirty bricks. The projection rescanned exactly those four regions,
+2,048 cells, and changed exactly the 19 committed occupancies. The other 132
+region occupancy signatures stayed unchanged. Parry's `set_voxel` maintained
+the cross-brick neighbor masks needed to suppress internal collision edges;
+the adapter did not rescan adjacent Ground materials.
+
+The committed delta moved a downward ray hit from 2.5 to 4.5 voxel units,
+changed point containment from true to false, and cleared a ball contact
+manifold from one contact to zero. The ray result matched an exact Ground
+occupancy oracle before and after. A stale source revision and a skipped target
+revision were both refused before mutation. Re-growing the same seed and
+replaying the carve reproduced the whole query receipt bit for bit.
+
+Two API boundaries matter. Ray and point queries are direct `Voxels` traits,
+while contact uses Parry's persistent contact-manifold dispatcher; its simpler
+single-contact helper does not dispatch voxel shapes in 0.29. The finite
+`Voxels` projection covers stored Ground bricks at `y >= 0`. Ground's implicit
+solid bedrock below zero is an analytic half-space, not an infinite voxel
+allocation.
+
+This remains a host-side projection. `mesocosm-core` stays integer-only and
+Parry-free. Promotion waits for the first tactile gameplay consumer to name the
+adapter's permanent host crate; R3 proves the contract rather than choosing
+that owner early.
 
 ### B1. Bounded evolved fauna policy
 
@@ -352,8 +384,7 @@ travel.
 
 ## 6. Open choices carried to proof
 
-- whether procedural extraction targets renderling's full `Vertex` or a
-  compact fork-owned ABI;
+- which tactile gameplay host promotes the proved Ground-to-Parry adapter;
 - whether the first evolved controller runs fixed-point on the authority path
   or proposes recorded intents from a floating-point batch;
 - the exact shared spatial contract for contemporaneous construction across
