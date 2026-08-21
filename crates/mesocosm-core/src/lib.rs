@@ -75,7 +75,10 @@ pub use development::{
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use growth::{Growth, resolve};
 pub use history::{Event, History, MealKind};
-pub use organism::{Kingdom, Organism, OrganismId, Signal, Stage, Tally};
+pub use organism::{
+    FaunaDecisionTrace, FaunaDrive, FaunaDriveScores, FaunaPolicy, FaunaSenses, FaunaTraits,
+    Kingdom, Organism, OrganismId, Signal, Stage, Tally,
+};
 pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use process::{BULK_REACH, Capability, FeedingMode, Process, Unmet};

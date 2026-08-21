@@ -364,7 +364,7 @@ Parry-free. Promotion waits for the first tactile gameplay consumer to name the
 adapter's permanent host crate; R3 proves the contract rather than choosing
 that owner early.
 
-### B1. Bounded evolved fauna policy
+### B1. Bounded evolved fauna policy: **COMPLETE 2026-08-21**
 
 Insert one quantized recurrent policy at the existing target-choice seam.
 
@@ -372,6 +372,39 @@ Insert one quantized recurrent policy at the existing target-choice seam.
 traits, sensed facts, and selected drive, the established behavior receipt
 still passes, and distant cohort conservation is unchanged. A useful strange
 behavior is evidence; a higher synthetic score alone is not.
+
+**Receipt, 2026-08-21.** Near grazers and predators now rank directly visible
+targets through one fixed three-drive recurrent topology. Five integer inputs
+carry energy deficit, target nearness, relative mass, a sensed warning, and
+recent target memory. The policy uses signed byte weights, signed integer
+biases and recurrent state, and proposes only pursue, avoid, or hold. Sight,
+grounded stepping, route legality, movement cost, feeding, and event emission
+remain in their established resolvers.
+
+The decision trace names the body's current feeding mode, reach, locomotion,
+and sensory-part count; the exact local facts; all three drive scores; and the
+selected target and drive. Warning input is available only when the body has a
+`Sense` part. Feeding mode gates eligible prey, reach gates the visible set,
+and locomotion still gates the resolver's step budget. A sensed warning can
+therefore reverse the default pursuit into avoidance without granting the
+policy any new terrain authority.
+
+The genotype and recurrent state are snapshot authority. Each child inherits
+its parent's weights with one bounded mutation derived from the filial seed,
+then starts with clear recurrent memory. Survival and ordinary reproduction
+therefore provide selection; B1 introduces no synthetic fitness score. Far
+bodies, producers, and scavengers retain their previous policies, so the
+individual controller does not leak across the tier line or force flora
+through a fauna mechanism.
+
+The grounded receipt snapshots and restores the full decision trace and
+recurrent state, while a twin fixed-seed run produces the same state hash. The
+pre-existing wall-and-door autonomous movement receipt still passes, including
+grounded legality and replay. The 300-organism mixed-tier receipt also still
+matches state hashes and exact far-cohort member, biomass, and energy totals.
+This closes the authority-path choice in favour of quantized integer state.
+Floating-point Burn batches remain candidate generators only if a later
+consumer records or requantizes their proposals before authority.
 
 ### V1. Residency budget under Paredros scale
 
@@ -385,8 +418,6 @@ travel.
 ## 6. Open choices carried to proof
 
 - which tactile gameplay host promotes the proved Ground-to-Parry adapter;
-- whether the first evolved controller runs fixed-point on the authority path
-  or proposes recorded intents from a floating-point batch;
 - the exact shared spatial contract for contemporaneous construction across
   vessels;
 - the Paredros scene and scale that define the first residency budget.

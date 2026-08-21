@@ -466,4 +466,6 @@ impl World {
 }
 
 #[cfg(test)]
+mod behavior_tests;
+#[cfg(test)]
 mod tests;

@@ -173,6 +173,8 @@ impl World {
                 position: founder.position,
                 tier: crate::places::Tier::Near,
                 last_seen: None,
+                fauna_policy: crate::organism::FaunaPolicy::default(),
+                last_fauna_decision: None,
                 energy_mg: mass_mg,
                 stage: founder.stage,
                 age: founder.age,

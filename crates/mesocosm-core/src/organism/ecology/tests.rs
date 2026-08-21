@@ -1,7 +1,7 @@
 use super::*;
 use crate::body::{SpeciesId, VolumeRef};
 use crate::history::{Event, MealKind};
-use crate::organism::Signal;
+use crate::organism::{Kingdom, Signal};
 
 fn organism(kingdom: Kingdom, mass: u64) -> Organism {
     Organism::founding(

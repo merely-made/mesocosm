@@ -24,7 +24,7 @@ use crate::species::Lineages;
 
 use crate::history::Event;
 
-use super::{Kingdom, Organism, OrganismId, Stage, Tally};
+use super::{Organism, OrganismId, Stage, Tally};
 
 mod movement;
 
@@ -500,6 +500,8 @@ fn step_inner(
             },
             tier: parent.tier,
             last_seen: None,
+            fauna_policy: parent.fauna_policy.inherited(development_seed),
+            last_fauna_decision: None,
             stage: Stage::Juvenile,
             age: 0,
             since_offspring: 0,

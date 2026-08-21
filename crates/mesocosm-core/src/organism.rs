@@ -23,8 +23,12 @@ use crate::places::Tier;
 use crate::plan::Symmetry;
 use crate::process::{FeedingMode, Process};
 
+mod behavior;
 pub mod ecology;
 
+pub use behavior::{
+    FaunaDecisionTrace, FaunaDrive, FaunaDriveScores, FaunaPolicy, FaunaSenses, FaunaTraits,
+};
 pub use ecology::step;
 use ecology::{OFFSPRING_COST, STARVATION_MG};
 
@@ -150,6 +154,13 @@ pub struct Organism {
     /// window remains. This is generic perception, not a Hunter FSM state.
     #[serde(default)]
     pub last_seen: Option<LastSeen>,
+    /// The inherited, quantized proposal policy used only by near fauna.
+    /// Movement legality and ecology resolution remain outside it.
+    #[serde(default)]
+    pub fauna_policy: FaunaPolicy,
+    /// Inspectable evidence for the policy's most recent proposal.
+    #[serde(default)]
+    pub last_fauna_decision: Option<FaunaDecisionTrace>,
     /// What this organism can spend: its **budget**.
     ///
     /// Distinct from what it weighs, which is its body's business. Before P1
@@ -202,6 +213,8 @@ impl Organism {
             position,
             tier: Tier::Near,
             last_seen: None,
+            fauna_policy: FaunaPolicy::default(),
+            last_fauna_decision: None,
             energy_mg: mass_mg,
             stage: Stage::Juvenile,
             age: 0,

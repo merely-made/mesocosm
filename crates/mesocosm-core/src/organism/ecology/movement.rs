@@ -18,8 +18,12 @@ use crate::places::{Ground, Places, Tier, WALKER_HEIGHT, route_step, spot, step 
 use crate::process::FeedingMode;
 use crate::rng::Rng;
 
-use super::{Kingdom, Organism, OrganismId, dispersal_for};
-use crate::organism::LastSeen;
+use crate::organism::{
+    FaunaDecisionTrace, FaunaDrive, FaunaSenses, FaunaTraits, Kingdom, LastSeen, Organism,
+    OrganismId,
+};
+
+use super::dispersal_for;
 
 /// How far a consumer reaches for a meal, in voxel units.
 pub(super) const GRAZE_RANGE: i32 = 5;
@@ -201,9 +205,62 @@ fn preferred_living<'a>(
         })
 }
 
+fn policy_living<'a>(
+    organism: &mut Organism,
+    candidates: impl Iterator<Item = (usize, &'a LivingTarget)>,
+    ground: &Ground,
+    sight: i32,
+) -> Option<MovementTarget> {
+    let traits = FaunaTraits::read(organism);
+    let own_mass = organism.biomass_mg();
+    let policy = organism.fauna_policy;
+    let candidate = candidates
+        .filter(|(_, (id, _, _, kingdom, _, _))| {
+            *id != organism.id
+                && (traits.feeding_mode == FeedingMode::Predator || *kingdom == Kingdom::Producer)
+        })
+        .filter_map(|(order, target @ (id, at, _, _, mass, signal))| {
+            let distance = chebyshev(organism.position, *at);
+            if !can_perceive(organism, *at, sight, Some(ground)) {
+                return None;
+            }
+            let senses = FaunaSenses::read(organism, traits, *id, distance, *mass, *signal);
+            let scores = policy.score(senses, own_mass, sight);
+            let drive = scores.selected();
+            let rank = (
+                scores.score(drive),
+                Reverse(distance),
+                *mass,
+                Reverse(order),
+            );
+            Some((rank, target, senses, scores, drive))
+        })
+        .max_by_key(|(rank, ..)| *rank);
+
+    let Some((_, (id, at, ..), senses, scores, drive)) = candidate else {
+        organism.last_fauna_decision = None;
+        return None;
+    };
+    organism.fauna_policy.remember(scores);
+    organism.last_fauna_decision = Some(FaunaDecisionTrace {
+        traits,
+        senses,
+        selected_drive: drive,
+        selected_target: Some(*id),
+        scores,
+    });
+    Some(match drive {
+        FaunaDrive::Pursue => MovementTarget::Seen(*id, *at),
+        FaunaDrive::Avoid => MovementTarget::Avoid(*id, *at),
+        FaunaDrive::Hold => MovementTarget::Hold(*id, *at),
+    })
+}
+
 #[derive(Clone, Copy)]
 enum MovementTarget {
     Seen(OrganismId, [i32; 3]),
+    Avoid(OrganismId, [i32; 3]),
+    Hold(OrganismId, [i32; 3]),
     Other([i32; 3]),
 }
 
@@ -222,7 +279,7 @@ fn preferred_carrion<'a>(
 }
 
 fn preferred_target(
-    organism: &Organism,
+    organism: &mut Organism,
     living: &[LivingTarget],
     living_cells: &Cells,
     carrion: &[CarrionTarget],
@@ -233,21 +290,22 @@ fn preferred_target(
         FeedingMode::Grazer | FeedingMode::Predator => {
             let reach = GRAZE_RANGE + organism.body.reach();
             let sight = sight_range(organism, reach, ground);
-            if organism.tier == Tier::Near && ground.is_some() {
-                preferred_living(
+            if let (Tier::Near, Some(ground)) = (organism.tier, ground) {
+                policy_living(
                     organism,
                     nearby_indexes(living_cells, organism.position, sight)
                         .filter_map(|order| living.get(order).map(|target| (order, target))),
                     ground,
                     sight,
                 )
-                .map(|(id, at)| MovementTarget::Seen(id, at))
             } else {
+                organism.last_fauna_decision = None;
                 preferred_living(organism, living.iter().enumerate(), ground, sight)
                     .map(|(id, at)| MovementTarget::Seen(id, at))
             }
         }
         FeedingMode::Scavenger => {
+            organism.last_fauna_decision = None;
             if organism.tier == Tier::Near && ground.is_some() {
                 preferred_carrion(
                     organism,
@@ -261,7 +319,10 @@ fn preferred_target(
                     .map(MovementTarget::Other)
             }
         }
-        FeedingMode::Producer => None,
+        FeedingMode::Producer => {
+            organism.last_fauna_decision = None;
+            None
+        }
     }
 }
 
@@ -318,6 +379,29 @@ pub(super) fn disperse(
                 ticks_left: MEMORY_TICKS,
             });
             (Some(at), false)
+        }
+        Some(MovementTarget::Avoid(id, at)) => {
+            organism.last_seen = Some(LastSeen {
+                target: id,
+                position: at,
+                ticks_left: MEMORY_TICKS,
+            });
+            (
+                Some([
+                    organism.position[0] + (organism.position[0] - at[0]),
+                    organism.position[1],
+                    organism.position[2] + (organism.position[2] - at[2]),
+                ]),
+                false,
+            )
+        }
+        Some(MovementTarget::Hold(id, at)) => {
+            organism.last_seen = Some(LastSeen {
+                target: id,
+                position: at,
+                ticks_left: MEMORY_TICKS,
+            });
+            (None, false)
         }
         Some(MovementTarget::Other(at)) => (Some(at), false),
         None => (remembered_target(organism, living, ground), true),
