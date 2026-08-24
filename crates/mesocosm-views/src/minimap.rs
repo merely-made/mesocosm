@@ -60,6 +60,12 @@ pub fn minimap_score(world: &World) -> Score {
             )),
             layer: 0,
             visible: true,
+            // A place discloses where it is and nothing else. The score's other
+            // disclosure fields exist for arrangements that place along an axis
+            // or from precomputed coordinates; Hulls reads the coordinate above.
+            axis: None,
+            embedding: None,
+            weight: None,
         });
     }
     score
