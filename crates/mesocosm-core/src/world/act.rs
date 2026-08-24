@@ -11,7 +11,7 @@
 
 use crate::body::{Attachment, BodyDocument, Origin, PartId, Provenance, VolumeRef};
 use crate::organism::{Kingdom, Organism, OrganismId, Stage};
-use crate::places::step;
+use crate::places::step_for;
 
 use super::{Intent, Outcome, Placement, Rejection, Route, World};
 
@@ -60,10 +60,13 @@ impl World {
             }
 
             Intent::Move { delta } => {
-                let Some((from, energy_mg)) = self
-                    .controlled()
-                    .map(|organism| (organism.position, organism.energy_mg))
-                else {
+                let Some((from, energy_mg, shape)) = self.controlled().map(|organism| {
+                    (
+                        organism.position,
+                        organism.energy_mg,
+                        organism.walker_shape(),
+                    )
+                }) else {
                     return Outcome::Rejected(Rejection::Disembodied);
                 };
                 let toward = [
@@ -71,7 +74,7 @@ impl World {
                     from[1].saturating_add(delta[1]),
                     from[2].saturating_add(delta[2]),
                 ];
-                let next = step(&self.ground, from, toward);
+                let next = step_for(&self.ground, shape, from, toward);
                 // Gravity is not an exertion. Spend only for horizontal ground
                 // actually covered, so a wall does not consume an arbitrary
                 // requested displacement and a long input cannot buy a
@@ -215,6 +218,9 @@ impl World {
             }
             _ => None,
         };
+        let body_before = matches!(route, Route::Incorporate { .. })
+            .then(|| self.body().cloned())
+            .flatten();
 
         let eaten = self.organisms.remove(index);
         let (outcome, gain_mg) = self.land(&eaten, route, growth);
@@ -223,6 +229,22 @@ impl World {
             // Nothing landed, so nothing was eaten and nothing is owed.
             self.organisms.insert(index, eaten);
             return outcome;
+        }
+
+        // A body cannot grow through Ground. Land against a cloned rollback
+        // point because planned incorporation may add a mirrored pair: either
+        // the complete live anatomy fits this stance, or the meal and body are
+        // both restored.
+        if let Some(before) = body_before
+            && self.controlled().is_some_and(|organism| {
+                !organism
+                    .walker_shape()
+                    .stands(&self.ground, organism.position)
+            })
+        {
+            *self.controlled_body_mut() = before;
+            self.organisms.insert(index, eaten);
+            return Outcome::Rejected(Rejection::NoRoom);
         }
 
         // **Gains before costs.** Subtracting venom first let a nearly starved

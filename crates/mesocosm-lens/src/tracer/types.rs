@@ -200,22 +200,35 @@ pub struct BrickFrameInput<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct LeasedAtlas<'a> {
     pub buffer: &'a wgpu::Buffer,
+    /// Start and length of the producer allocation. Source coordinates below
+    /// are relative to this range rather than forged into the buffer offset.
     pub offset: u64,
     pub size: u64,
+    /// Source voxel coordinate and row/image strides inside the producer's
+    /// R8 allocation. These permit one brick to be leased from a larger atlas.
+    pub source_origin: [u32; 3],
+    pub source_bytes_per_row: u32,
+    pub source_rows_per_image: u32,
     /// Where in the atlas these voxels belong, and how many.
     pub slot_origin: [u32; 3],
     pub extent: [u32; 3],
     pub revision: BrickRevision,
+    /// Host-issued schedule epoch at which the producer made these bytes
+    /// safe for reader tenants.
+    pub read_epoch: u64,
 }
 
 impl LeasedAtlas<'_> {
     /// The bytes `extent` describes, at one byte per voxel (the atlas is
     /// `R8Uint`).
     pub fn byte_len(&self) -> u64 {
-        u64::from(self.extent[0]) * u64::from(self.extent[1]) * u64::from(self.extent[2])
+        self.extent
+            .into_iter()
+            .try_fold(1u64, |total, axis| total.checked_mul(u64::from(axis)))
+            .unwrap_or(u64::MAX)
     }
 
-    /// Whether the described extent fits inside the leased range.
+    /// Whether the strided source extent fits inside the leased range.
     ///
     /// Load-bearing rather than defensive: a producer's allocator pools
     /// many planes into one buffer, so copying an extent larger than the
@@ -223,7 +236,74 @@ impl LeasedAtlas<'_> {
     /// next in the pool and paints it into the world. Silent corruption
     /// is worse than a refusal, so an ill-fitting lease is refused.
     pub fn fits(&self) -> bool {
-        self.byte_len() <= self.size
+        if self.extent.contains(&0)
+            || self.source_bytes_per_row == 0
+            || self.source_rows_per_image == 0
+        {
+            return false;
+        }
+        let Some(source_x_end) = self.source_origin[0].checked_add(self.extent[0]) else {
+            return false;
+        };
+        let Some(source_y_end) = self.source_origin[1].checked_add(self.extent[1]) else {
+            return false;
+        };
+        if source_x_end > self.source_bytes_per_row || source_y_end > self.source_rows_per_image {
+            return false;
+        }
+        self.source_end().is_some_and(|end| end <= self.size)
+    }
+
+    /// Whether wgpu can copy this source into the destination atlas without
+    /// crossing either range or violating buffer-copy alignment.
+    pub fn copyable_into(&self, atlas_extent: [u32; 3]) -> bool {
+        let destination_fits = (0..3).all(|axis| {
+            self.slot_origin[axis]
+                .checked_add(self.extent[axis])
+                .is_some_and(|end| end <= atlas_extent[axis])
+        });
+        let alignment = wgpu::COPY_BUFFER_ALIGNMENT;
+        self.fits()
+            && destination_fits
+            && self.extent[0].is_multiple_of(alignment as u32)
+            && self.source_bytes_per_row.is_multiple_of(alignment as u32)
+            && self
+                .source_start()
+                .and_then(|start| self.offset.checked_add(start))
+                .is_some_and(|start| start.is_multiple_of(alignment))
+    }
+
+    /// Whether this destination lease contains another atlas box completely.
+    pub fn covers(&self, origin: [u32; 3], extent: [u32; 3]) -> bool {
+        (0..3).all(|axis| {
+            let Some(required_end) = origin[axis].checked_add(extent[axis]) else {
+                return false;
+            };
+            let Some(leased_end) = self.slot_origin[axis].checked_add(self.extent[axis]) else {
+                return false;
+            };
+            origin[axis] >= self.slot_origin[axis] && required_end <= leased_end
+        })
+    }
+
+    fn source_start(&self) -> Option<u64> {
+        let bytes_per_row = u64::from(self.source_bytes_per_row);
+        let rows_per_image = u64::from(self.source_rows_per_image);
+        let image_stride = bytes_per_row.checked_mul(rows_per_image)?;
+        u64::from(self.source_origin[2])
+            .checked_mul(image_stride)?
+            .checked_add(u64::from(self.source_origin[1]).checked_mul(bytes_per_row)?)?
+            .checked_add(u64::from(self.source_origin[0]))
+    }
+
+    fn source_end(&self) -> Option<u64> {
+        let bytes_per_row = u64::from(self.source_bytes_per_row);
+        let rows_per_image = u64::from(self.source_rows_per_image);
+        let image_stride = bytes_per_row.checked_mul(rows_per_image)?;
+        self.source_start()?
+            .checked_add(u64::from(self.extent[2] - 1).checked_mul(image_stride)?)?
+            .checked_add(u64::from(self.extent[1] - 1).checked_mul(bytes_per_row)?)?
+            .checked_add(u64::from(self.extent[0]))
     }
 }
 
@@ -289,10 +369,15 @@ pub struct BrickDiagnostics {
     /// rather than the CPU. These are not counted in
     /// `brick_upload_bytes`, which stays the CPU-upload measure.
     pub leased_atlas_bytes: u64,
+    /// Producer schedule epoch observed by the accepted atlas lease.
+    pub observed_read_epoch: Option<u64>,
     /// Leases refused because their revision did not match the frame's.
     pub stale_lease_rejections: u32,
     /// Leases refused because their extent did not fit the leased range.
     pub misfit_lease_rejections: u32,
+    /// Leases refused because they did not cover every atlas region named by
+    /// the frame's change declaration.
+    pub incomplete_lease_rejections: u32,
     pub uniform_upload_bytes: u64,
     pub resource_creations: u32,
     pub bind_group_rebuilds: u32,
@@ -393,6 +478,46 @@ impl TraceParams {
     }
 }
 
+impl CritterParams {
+    fn from_pose(pose: Option<&CritterPose>) -> Self {
+        let Some(pose) = pose else {
+            return Self::zeroed();
+        };
+        let mut pairs = [[0.0; 4]; 192];
+        for (index, capsule) in pose.capsules.iter().enumerate() {
+            pairs[index * 2] = [capsule.a[0], capsule.a[1], capsule.a[2], capsule.ra];
+            pairs[index * 2 + 1] = [capsule.b[0], capsule.b[1], capsule.b[2], capsule.rb];
+        }
+        Self {
+            bounds: [
+                pose.bounds_centre[0],
+                pose.bounds_centre[1],
+                pose.bounds_centre[2],
+                pose.bounds_radius,
+            ],
+            tint_count: [
+                pose.tint[0],
+                pose.tint[1],
+                pose.tint[2],
+                pose.capsules.len() as f32,
+            ],
+            eyes: pose.eyes,
+            pairs,
+        }
+    }
+}
+
+pub(super) fn validates_pose(input: BrickFrameInput<'_>) -> Result<(), BrickTraceError> {
+    let actual = input.pose.map_or(0, |pose| pose.capsules.len());
+    if actual > MAX_CAPSULES {
+        return Err(BrickTraceError::TooManyCapsules {
+            actual,
+            maximum: MAX_CAPSULES,
+        });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod camera_tests {
     use super::*;
@@ -433,44 +558,4 @@ mod camera_tests {
         assert!(left.1[0] < 0.0);
         assert!(right.1[0] > 0.0);
     }
-}
-
-impl CritterParams {
-    fn from_pose(pose: Option<&CritterPose>) -> Self {
-        let Some(pose) = pose else {
-            return Self::zeroed();
-        };
-        let mut pairs = [[0.0; 4]; 192];
-        for (index, capsule) in pose.capsules.iter().enumerate() {
-            pairs[index * 2] = [capsule.a[0], capsule.a[1], capsule.a[2], capsule.ra];
-            pairs[index * 2 + 1] = [capsule.b[0], capsule.b[1], capsule.b[2], capsule.rb];
-        }
-        Self {
-            bounds: [
-                pose.bounds_centre[0],
-                pose.bounds_centre[1],
-                pose.bounds_centre[2],
-                pose.bounds_radius,
-            ],
-            tint_count: [
-                pose.tint[0],
-                pose.tint[1],
-                pose.tint[2],
-                pose.capsules.len() as f32,
-            ],
-            eyes: pose.eyes,
-            pairs,
-        }
-    }
-}
-
-pub(super) fn validates_pose(input: BrickFrameInput<'_>) -> Result<(), BrickTraceError> {
-    let actual = input.pose.map_or(0, |pose| pose.capsules.len());
-    if actual > MAX_CAPSULES {
-        return Err(BrickTraceError::TooManyCapsules {
-            actual,
-            maximum: MAX_CAPSULES,
-        });
-    }
-    Ok(())
 }

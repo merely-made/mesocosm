@@ -1,7 +1,10 @@
 use super::*;
-use crate::body::{Origin, VolumeRef};
+use crate::body::{Attachment, Origin, Provenance, VolumeRef};
+use crate::history::History;
 use crate::organism::{Kingdom, LastSeen, Stage};
-use crate::places::{Places, Tier, WALKER_HEIGHT, route_step, spot, step};
+use crate::places::{
+    Places, Tier, WALKER_HEIGHT, WalkerShape, route_step, spot, spot_for, step, surface_stance_for,
+};
 
 /// Walks the critter to its nearest neighbour and returns it.
 fn near_organism(world: &mut World) -> OrganismId {
@@ -34,7 +37,9 @@ fn assert_grounded_near(world: &World) {
         .filter(|organism| organism.is_alive() && organism.tier == Tier::Near)
     {
         assert!(
-            world.ground().stands(organism.position, WALKER_HEIGHT),
+            organism
+                .walker_shape()
+                .stands(world.ground(), organism.position),
             "near organism {:?} left footing at {:?}",
             organism.id,
             organism.position
@@ -52,6 +57,174 @@ fn generated_nest_entry(seed: u64) -> Vec<[i32; 3]> {
         .route
 }
 
+fn generated_sight_split(
+    ground: &crate::places::Ground,
+    compact: WalkerShape,
+    tall: WalkerShape,
+    target_shape: WalkerShape,
+) -> ([i32; 3], [i32; 3]) {
+    const DIRECTIONS: [[i32; 2]; 8] = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+        [1, 1],
+        [1, -1],
+        [-1, 1],
+        [-1, -1],
+    ];
+    const RANGE: i32 = 8;
+    for z in -40..40 {
+        for x in -40..40 {
+            let Some(observer) = surface_stance_for(ground, compact, [x, 0, z]) else {
+                continue;
+            };
+            if !tall.stands(ground, observer) {
+                continue;
+            }
+            for distance in 3..=RANGE {
+                for [dx, dz] in DIRECTIONS {
+                    let Some(target) = surface_stance_for(
+                        ground,
+                        target_shape,
+                        [x + dx * distance, 0, z + dz * distance],
+                    ) else {
+                        continue;
+                    };
+                    if !spot_for(ground, compact, observer, target_shape, target, RANGE)
+                        && spot_for(ground, tall, observer, target_shape, target, RANGE)
+                    {
+                        return (observer, target);
+                    }
+                }
+            }
+        }
+    }
+    panic!("generated Ground offered no compact/tall terrain sight split");
+}
+
+#[test]
+fn hunter_and_player_cross_one_generated_entry_and_place_boundary() {
+    const SEED: u64 = 0;
+    let grown = Places::grown(SEED ^ PLACE_SALT, PLACE_SIDE, ENCLOSURE);
+    let (route, boundary_step, from_place, to_place) = grown
+        .nest_entries(ENCLOSURE)
+        .find_map(|(_, entry)| {
+            let route = entry.route;
+            let boundary_step = route
+                .windows(2)
+                .position(|step| grown.places.at(step[0]) != grown.places.at(step[1]))?;
+            Some((
+                route.clone(),
+                boundary_step,
+                grown.places.at(route[boundary_step])?,
+                grown.places.at(route[boundary_step + 1])?,
+            ))
+        })
+        .expect("seed has a generated entry crossing a place boundary");
+    assert_ne!(from_place, to_place);
+    assert_eq!(boundary_step, 2, "the pinned run moved its place edge");
+    assert!(route.len() > boundary_step + 2);
+
+    let mut world = World::new(SEED, 0);
+    world.organisms = vec![
+        Organism::founding(
+            OrganismId(0),
+            SpeciesId(3),
+            Kingdom::Producer,
+            VolumeRef::from_tag(18),
+            [1, 1, 1],
+            route[1],
+            300,
+        ),
+        Organism::founding(
+            OrganismId(900),
+            SpeciesId(2),
+            Kingdom::Consumer,
+            VolumeRef::from_tag(16),
+            [3, 1, 1],
+            route[0],
+            300,
+        ),
+    ];
+    let mut twin = world.clone();
+    let mut history = History::new();
+    let mut twin_history = History::new();
+    let mut player_positions = vec![route[1]];
+    let mut hunter_positions = vec![route[0]];
+    let trace = route
+        .windows(2)
+        .skip(1)
+        .map(|step| Intent::Move {
+            delta: [0, 1, 2].map(|axis| step[1][axis] - step[0][axis]),
+        })
+        .collect::<Vec<_>>();
+
+    for (index, intent) in trace.iter().enumerate() {
+        let target = route[index + 2];
+        let player = world.position().unwrap();
+        assert_eq!(step(world.ground(), player, target), target);
+        let outcome = world.apply(intent.clone());
+        let twin_outcome = twin.apply(intent.clone());
+        history.record_all(world.drain_events());
+        twin_history.record_all(twin.drain_events());
+        assert_eq!(outcome, twin_outcome, "replay changed an outcome");
+        assert!(matches!(outcome, Outcome::Moved));
+        assert_eq!(
+            world.position(),
+            Some(target),
+            "player stuttered on the entry"
+        );
+        let hunter = world
+            .organisms
+            .iter()
+            .find(|organism| organism.id == OrganismId(900))
+            .unwrap();
+        assert_eq!(
+            hunter.position,
+            route[index + 1],
+            "hunter did not follow one generated stance behind"
+        );
+        assert_eq!(
+            hunter
+                .last_fauna_decision
+                .as_ref()
+                .map(|decision| decision.selected_drive),
+            Some(crate::organism::FaunaDrive::Pursue)
+        );
+        assert!(world.ground().stands(hunter.position, WALKER_HEIGHT));
+        player_positions.push(target);
+        hunter_positions.push(hunter.position);
+    }
+
+    assert_eq!(grown.places.at(player_positions[0]), Some(from_place));
+    assert_eq!(
+        grown.places.at(*player_positions.last().unwrap()),
+        Some(to_place)
+    );
+    assert_eq!(grown.places.at(hunter_positions[0]), Some(from_place));
+    assert_eq!(
+        grown.places.at(*hunter_positions.last().unwrap()),
+        Some(to_place)
+    );
+    assert_eq!(hunter_positions[1], route[1], "hunter missed the threshold");
+    assert_eq!(
+        player_positions.iter().collect::<BTreeSet<_>>().len(),
+        player_positions.len(),
+        "player stuttered"
+    );
+    assert_eq!(
+        hunter_positions.iter().collect::<BTreeSet<_>>().len(),
+        hunter_positions.len(),
+        "hunter stuttered"
+    );
+    assert_eq!(
+        crate::snapshot::state_hash(&world),
+        crate::snapshot::state_hash(&twin)
+    );
+    assert_eq!(history, twin_history);
+}
+
 #[test]
 fn same_seed_builds_the_same_world() {
     assert_eq!(World::new(1234, 12), World::new(1234, 12));
@@ -66,6 +239,39 @@ fn different_seeds_build_different_worlds() {
 fn metabolize_grows_mass_and_collision() {
     let mut world = World::new(99, 24);
     let target = near_organism(&mut world);
+    let eaten = world
+        .organisms
+        .iter()
+        .find(|organism| organism.id == target)
+        .unwrap()
+        .clone();
+    let mut preview = world.body().unwrap().clone();
+    preview
+        .attach(
+            eaten.volume(),
+            eaten.biomass_mg(),
+            eaten.half_extent(),
+            Attachment {
+                parent: preview.root,
+                offset: [5, 0, 0],
+                yaw: Yaw::Zero,
+            },
+            Provenance::founding(),
+        )
+        .unwrap();
+    let stance = crate::places::surface_stance_for(
+        world.ground(),
+        crate::places::WalkerShape::from_aabb(preview.aabb()),
+        world.position().unwrap(),
+    )
+    .expect("the generated surface has room for the previewed body");
+    world.controlled_mut().unwrap().position = stance;
+    world
+        .organisms
+        .iter_mut()
+        .find(|organism| organism.id == target)
+        .unwrap()
+        .position = stance;
     let mass_before = world.total_mass_mg();
     let box_before = world.collision().unwrap();
 
@@ -201,7 +407,9 @@ fn founders_begin_on_footing() {
     let world = World::new(4_242, 24);
     for organism in &world.organisms {
         assert!(
-            world.ground().stands(organism.position, WALKER_HEIGHT),
+            organism
+                .walker_shape()
+                .stands(world.ground(), organism.position),
             "founder {:?} begins without footing at {:?}",
             organism.id,
             organism.position
@@ -276,6 +484,269 @@ fn a_near_consumer_descends_a_generated_roofed_nest_entry() {
     assert_eq!(
         crate::snapshot::state_hash(&world),
         crate::snapshot::state_hash(&twin)
+    );
+}
+
+#[test]
+fn the_same_pursuit_selects_between_bodies_at_a_generated_threshold() {
+    const SEED: u64 = 0;
+    const PREY: OrganismId = OrganismId(0);
+    const HUNTER: OrganismId = OrganismId(900);
+    let route = generated_nest_entry(SEED);
+    let setup = |hunter_extent| {
+        let mut world = World::new(SEED, 0);
+        world.organisms = vec![
+            Organism::founding(
+                PREY,
+                SpeciesId(3),
+                Kingdom::Producer,
+                VolumeRef::from_tag(18),
+                [1, 1, 1],
+                route[2],
+                300,
+            ),
+            Organism::founding(
+                HUNTER,
+                SpeciesId(2),
+                Kingdom::Consumer,
+                VolumeRef::from_tag(16),
+                hunter_extent,
+                route[0],
+                300,
+            ),
+        ];
+        world
+    };
+    let mut compact = setup([1, 1, 1]);
+    let mut broad = setup([3, 1, 3]);
+    let mut compact_twin = compact.clone();
+    let mut broad_twin = broad.clone();
+
+    compact.apply(Intent::Idle);
+    broad.apply(Intent::Idle);
+    compact_twin.apply(Intent::Idle);
+    broad_twin.apply(Intent::Idle);
+
+    fn hunter(world: &World, id: OrganismId) -> &Organism {
+        world
+            .organisms
+            .iter()
+            .find(|organism| organism.id == id)
+            .unwrap()
+    }
+    for world in [&compact, &broad] {
+        assert_eq!(
+            hunter(world, HUNTER)
+                .last_fauna_decision
+                .as_ref()
+                .map(|decision| decision.selected_drive),
+            Some(crate::organism::FaunaDrive::Pursue),
+            "body shape must constrain the shared pursuit rather than select it"
+        );
+        assert!(
+            hunter(world, HUNTER)
+                .walker_shape()
+                .stands(world.ground(), hunter(world, HUNTER).position)
+        );
+    }
+    assert_eq!(hunter(&compact, HUNTER).walker_shape().radius(), 0);
+    assert_eq!(hunter(&broad, HUNTER).walker_shape().radius(), 1);
+    assert_eq!(hunter(&compact, HUNTER).position, route[1]);
+    assert_ne!(
+        hunter(&broad, HUNTER).position,
+        route[1],
+        "the broad body entered the one-voxel generated threshold"
+    );
+    assert_eq!(
+        crate::snapshot::state_hash(&compact),
+        crate::snapshot::state_hash(&compact_twin)
+    );
+    assert_eq!(
+        crate::snapshot::state_hash(&broad),
+        crate::snapshot::state_hash(&broad_twin)
+    );
+}
+
+#[test]
+fn live_height_changes_perception_and_behavior_over_the_same_ground() {
+    const SEED: u64 = 0;
+    const PREY: OrganismId = OrganismId(0);
+    const HUNTER: OrganismId = OrganismId(900);
+    const RANGE: i32 = 8;
+    let make_hunter = |tall: bool, position| {
+        let mut hunter = Organism::founding(
+            HUNTER,
+            SpeciesId(2),
+            Kingdom::Consumer,
+            VolumeRef::from_tag(16),
+            [3, 1, 1],
+            position,
+            300,
+        );
+        if tall {
+            hunter
+                .body
+                .attach(
+                    VolumeRef::from_tag(17),
+                    1,
+                    [1, 5, 1],
+                    Attachment {
+                        parent: hunter.body.root,
+                        offset: [0, 6, 0],
+                        yaw: Yaw::Zero,
+                    },
+                    Provenance::founding(),
+                )
+                .unwrap();
+        }
+        hunter
+    };
+    let make_prey = |position| {
+        Organism::founding(
+            PREY,
+            SpeciesId(3),
+            Kingdom::Producer,
+            VolumeRef::from_tag(18),
+            [1, 1, 1],
+            position,
+            300,
+        )
+    };
+    let compact_hunter = make_hunter(false, [0; 3]);
+    let tall_hunter = make_hunter(true, [0; 3]);
+    let prey_shape = make_prey([0; 3]).walker_shape();
+    let compact_shape = compact_hunter.walker_shape();
+    let tall_shape = tall_hunter.walker_shape();
+    assert_eq!(compact_hunter.feeding_mode(), tall_hunter.feeding_mode());
+    assert_eq!((compact_shape.radius(), compact_shape.height()), (0, 1));
+    assert_eq!((tall_shape.radius(), tall_shape.height()), (0, 3));
+
+    let terrain = World::new(SEED, 0);
+    let (observer, target) =
+        generated_sight_split(terrain.ground(), compact_shape, tall_shape, prey_shape);
+    let setup = |hunter: Organism| {
+        let mut world = World::new(SEED, 0);
+        let mut hunter = hunter;
+        hunter.position = observer;
+        world.organisms = vec![make_prey(target), hunter];
+        world
+    };
+    let mut compact = setup(compact_hunter);
+    let mut tall = setup(tall_hunter);
+    let mut compact_twin = compact.clone();
+    let mut tall_twin = tall.clone();
+
+    assert!(!spot_for(
+        compact.ground(),
+        compact_shape,
+        observer,
+        prey_shape,
+        target,
+        RANGE,
+    ));
+    assert!(spot_for(
+        tall.ground(),
+        tall_shape,
+        observer,
+        prey_shape,
+        target,
+        RANGE,
+    ));
+
+    compact.apply(Intent::Idle);
+    tall.apply(Intent::Idle);
+    compact_twin.apply(Intent::Idle);
+    tall_twin.apply(Intent::Idle);
+
+    let decision = |world: &World| {
+        world
+            .organisms
+            .iter()
+            .find(|organism| organism.id == HUNTER)
+            .and_then(|organism| organism.last_fauna_decision.as_ref())
+            .map(|decision| decision.selected_drive)
+    };
+    assert_eq!(decision(&compact), None);
+    assert_eq!(decision(&tall), Some(crate::organism::FaunaDrive::Pursue));
+    assert_eq!(
+        crate::snapshot::state_hash(&compact),
+        crate::snapshot::state_hash(&compact_twin)
+    );
+    assert_eq!(
+        crate::snapshot::state_hash(&tall),
+        crate::snapshot::state_hash(&tall_twin)
+    );
+}
+
+#[test]
+fn incorporation_fits_on_the_surface_and_refuses_inside_the_same_burrow() {
+    const SEED: u64 = 0;
+    const PREY: OrganismId = OrganismId(900);
+    let route = generated_nest_entry(SEED);
+    let setup = |eater_at, prey_at| {
+        let mut world = World::new(SEED, 0);
+        world.organisms = vec![
+            Organism::founding(
+                OrganismId(0),
+                SpeciesId(1),
+                Kingdom::Consumer,
+                VolumeRef::from_tag(1),
+                [1, 1, 1],
+                eater_at,
+                300,
+            ),
+            Organism::founding(
+                PREY,
+                SpeciesId(3),
+                Kingdom::Producer,
+                VolumeRef::from_tag(2),
+                [3, 1, 3],
+                prey_at,
+                100,
+            ),
+        ];
+        world
+    };
+    let meal = Intent::Metabolize {
+        organism: PREY,
+        route: Route::Incorporate {
+            placement: Placement::Explicit {
+                parent: PartId(0),
+                offset: [0, 2, 0],
+                yaw: Yaw::Zero,
+            },
+        },
+    };
+
+    let mut surface = setup(route[0], route[1]);
+    assert!(matches!(
+        surface.apply(meal.clone()),
+        Outcome::Incorporated { .. }
+    ));
+    assert_eq!(surface.controlled().unwrap().walker_shape().radius(), 1);
+    assert!(
+        surface
+            .controlled()
+            .unwrap()
+            .walker_shape()
+            .stands(surface.ground(), route[0])
+    );
+
+    let mut inside = setup(route[1], route[2]);
+    let parts_before = inside.body().unwrap().parts.len();
+    let hash_before = crate::snapshot::state_hash(&inside);
+    assert_eq!(
+        inside.apply(meal),
+        Outcome::Rejected(Rejection::NoRoom),
+        "the one-voxel interior accepted anatomy with a three-voxel cross-section"
+    );
+    assert_eq!(inside.body().unwrap().parts.len(), parts_before);
+    assert_eq!(inside.controlled().unwrap().walker_shape().radius(), 0);
+    assert!(inside.organisms.iter().any(|organism| organism.id == PREY));
+    assert_ne!(
+        crate::snapshot::state_hash(&inside),
+        hash_before,
+        "a rejected intent still advances the ordered world"
     );
 }
 

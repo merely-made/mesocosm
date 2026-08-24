@@ -19,6 +19,9 @@ use winit::window::Window;
 use crate::receipt::Receipt;
 
 const MASTER_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+pub const INITIAL_SIZE: [u32; 2] = [960, 540];
+pub const MIN_FRAMES: u32 = 2;
+pub const WINDOW_TITLE: &str = "Mesocosm V1";
 
 pub struct Gpu {
     pub surface: wgpu::Surface<'static>,
@@ -68,7 +71,7 @@ impl Gpu {
             .copied()
             .find(|format| format.is_srgb())
             .unwrap_or(caps.formats[0]);
-        let size = [960, 540];
+        let size = INITIAL_SIZE;
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,

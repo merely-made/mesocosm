@@ -206,12 +206,11 @@ impl World {
         // near-tier walker. Keep the draw above in the seeded sequence so the
         // landscape transition does not rearrange every later founder choice.
         for organism in &mut organisms {
-            let [x, _, z] = organism.position;
-            let surface = ground
-                .surface(x, z)
-                .expect("the grown enclosure covers every founding position");
-            organism.position = [x, surface + 1, z];
-            debug_assert!(ground.stands(organism.position, crate::places::WALKER_HEIGHT));
+            let shape = organism.walker_shape();
+            organism.position =
+                crate::places::surface_stance_for(&ground, shape, organism.position)
+                    .expect("the grown enclosure covers every founding body");
+            debug_assert!(shape.stands(&ground, organism.position));
         }
 
         let mut world = Self {

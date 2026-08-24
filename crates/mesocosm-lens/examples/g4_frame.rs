@@ -3,16 +3,19 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! G2's headed native/WebGPU receipt: real Ground, DDA, SDF body, and
-//! netrender composition in one frame.
+//! G4's headed native/browser receipt. The shared V1/G2 frame host presents
+//! the seed-0 player and autonomous hunter crossing one generated burrow entry
+//! and one place boundary in the same ordered run.
 
 #[path = "v1_frame/app.rs"]
 mod app;
+#[path = "g4_frame/fixture.rs"]
+mod burrow_scenario;
 #[path = "g2_frame/gpu.rs"]
 mod gpu;
-#[path = "g2_frame/receipt.rs"]
+#[path = "g4_frame/receipt.rs"]
 mod receipt;
-#[path = "g2_frame/scenario.rs"]
+#[path = "g4_frame/scenario.rs"]
 mod scenario;
 
 fn main() {

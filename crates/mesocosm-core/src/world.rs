@@ -151,9 +151,9 @@ pub enum Rejection {
     /// at all, or one that does not extend far enough.
     OutOfReach(Unmet),
     InsufficientMass,
-    /// The body plan found nowhere for a part of this shape to go. Refusing is
-    /// correct: forcing it would overlap existing parts, and a plan that
-    /// cannot place something is telling you to change the plan.
+    /// The body plan found nowhere for a part of this shape to go, or the
+    /// resulting live body would not fit its current Ground stance. Refusing
+    /// keeps both body topology and terrain occupancy honest.
     NoRoom,
 }
 

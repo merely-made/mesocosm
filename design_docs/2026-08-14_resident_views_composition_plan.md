@@ -1,7 +1,10 @@
 # Resident Views Composition Plan (2026-08-14)
 
 **Status: founded 2026-08-14; lanes A-F and the seed crystal complete;
-composed real-Ground proof still open.** How the voxel world, Burn/CubeCL,
+the first real-Ground composition receipt was implemented locally 2026-08-20;
+retained-allocation mutation closed locally 2026-08-21; landing waits on the
+Quint-first commit order; strided subregion carriage closed locally 2026-08-21;
+field-plane visualization remains open.** How the voxel world, Burn/CubeCL,
 the tracer, the mesher, collision, and persistence compose on one device.
 Ratified direction (Mark, 2026-08-14): the voxel world
 is Burn-addressable state while remaining voxel-authoritative state.
@@ -93,7 +96,7 @@ time.
 - **Persistence and peers** exchange canonical chunk facts and deltas,
   never GPU allocation details.
 
-## The first proof (gate open)
+## The first proof (partially closed)
 
 Use one existing `Ground` region; invent no second chunk model.
 
@@ -110,6 +113,36 @@ Use one existing `Ground` region; invent no second chunk model.
    (facts reproduce the committed state with no simulation present);
    unchanged-frame silence (a static world causes no recomputation,
    gated on elapsed time, never frame counts).
+
+The feature-gated `mesocosm-lens` `resident_ground` example now closes the
+authority-shaped path through those pieces: a material-derived 3D Burn pass
+proposes one scalar consequence; `Ground` validates and commits one integer
+voxel removal; Quint writes the accepted four-byte aligned range into the
+existing exact atlas plane and publishes revision 1 at read epoch 11;
+`BrickTracer` consumes that retained allocation with zero CPU voxel upload;
+and the serialized accepted delta replays without Burn. `commit_plane_patch`
+refuses a stale source stamp, a non-advancing revision or read epoch, the wrong
+scalar type, an invalid or unaligned range, and a dirty region outside the
+chunk. It also refuses multi-plane bundles: advancing a bundle-wide stamp
+after changing one plane would falsely mark every untouched plane current.
+A future multi-plane form must validate and publish one batch.
+
+The RTX 4060/Vulkan receipt proves the stronger identity claim: buffer,
+offset, and size are identical before and after the Ground commit. It records
+a four-byte proposal readback, a four-byte resident patch, revision `0 -> 1`,
+one retained 262,144-byte atlas allocation, a 512-byte committed GPU copy, a
+four-byte pointer upload, 184 changed pixels, zero atlas bytes on the unchanged
+frame, and replay from the 112-byte accepted delta.
+
+The subregion transport gate is also closed locally. `LeasedAtlas` now carries
+a source origin, source bytes per row, and source rows per image. The tracer
+repackages only the named strided rows into its aligned device-local staging
+buffer, then copies that box into the destination texture. It refuses source
+or destination overruns, unaligned buffer copies, and partial leases that do
+not cover every region in the frame's declared `BrickChange`. The real-Ground
+commit therefore moves one 8x8x8 brick, 512 bytes GPU-to-GPU, while its source
+allocation remains the same full atlas. Field visualization remains a
+separate derived-plane consumer.
 
 Generation, batched brains, fluids, and learned growth then stack on
 this seam rather than each negotiating its own import path.
@@ -307,27 +340,15 @@ The lesson worth keeping: the drift the audit feared was not two types
 disagreeing about field names. It was two types disagreeing about *who
 checks the bounds*, and neither did.
 
-**Blocked again, on a wgpu major split (found 2026-08-15).** netrender main
-moved to wgpu 30 (`7aa8c88d3`, "Move to wgpu 30 and vello 0.10", pushed),
-while this workspace pins wgpu 29 and quint's resident lane is wgpu 29 as
-well. A `wgpu::Buffer` from a 29 device is a different *type* than a 30 one,
-so the lease cannot cross that boundary at all: this is a compile error, not
-a performance question, and no amount of contract design routes around it.
-Adoption waits on the row.
-
-This tree builds today only because its lock is behind: it holds netrender at
-`c7cedd2a`, a pre-30 commit, resolving wgpu 29.0.4. The next `cargo update`
-that touches netrender breaks the workspace. Pinning netrender to the stale
-commit is the wrong repair (branches are tracked, not pinned around); the
-repair is to move the row.
-
-Moving the row has a price worth knowing before choosing: wgpu 30.0.0 is
-stable, but Burn and CubeCL reach it only through prereleases
-(`cubecl-wgpu 0.11.0-pre.2` requires `^30.0.0`; `burn 0.22.0-pre.2`), against
-today's stable `burn 0.21` / `cubecl 0.10` on wgpu 29. Both prereleases are
-already vendored locally, so someone has scouted this. The composition thesis
-does not depend on *which* wgpu version, only on everyone sharing one, so
-either row works; what does not work is the current split.
+**The wgpu split found 2026-08-15 is resolved.** Mesocosm, netrender, Quint,
+Burn, and CubeCL now compile on wgpu 30. Mere commit `6ce399ea` moved Quint to
+Burn `0.22.0-pre.2` and CubeCL `0.11.0-pre.2`, retiring the local
+`cubecl-wgpu` 0.10 backport. The retained real-Ground receipt compiles and runs
+against that row and the published native `cubecl-runtime`. Browser manifest
+and existing-device receipts closed in Mere `19d2cb60`. Because Cargo patches
+are workspace-root scoped, Mesocosm would need to restate Mere's temporary
+`cubecl-runtime` manifest patch if this opt-in receipt becomes a browser
+target. Its current gate is native.
 
 Mere's ignored `crates/probes/resident-tracer-lease` binds the exact 512-byte
 U8 `RawKernelView` allocation directly into a buffer-backed voxel DDA. On the
@@ -397,6 +418,19 @@ that the in-flight `BrickTracer` has adopted the lease.
 - **F complete and adopted in tracked code.** Direct leased-buffer DDA,
   revision/read-epoch coherence, stale-lease and undersized-lease rejection,
   and elapsed-time silence pass. The downlevel CPU upload path remains.
+- **Real-Ground composition and retention closed locally (2026-08-20/21).**
+  `mesocosm-lens --example resident_ground`, behind the
+  `resident-ground-receipt` feature, is the first source-level cross-repository
+  consumer of Quint's `ResidentChunk`. On the RTX 4060/Vulkan it proved
+  Burn/raw allocation identity, a four-byte candidate read, constrained
+  `Ground` revision `0 -> 1`, a four-byte accepted patch into one retained
+  262,144-byte atlas allocation, restamping at read epoch 11, four CPU bytes
+  for its pointer projection, 184 changed pixels, unchanged-frame atlas
+  silence, and replay from the 112-byte accepted delta. The identity assertion
+  compares buffer, offset, and size across the commit. Source origin and
+  row/image strides narrow the committed tracer copy to the changed 512-byte
+  brick. Lease validation also proves that a partial source cannot suppress a
+  full refresh or an unrelated changed slot.
 
 ## The engine composition ruling (2026-08-16)
 

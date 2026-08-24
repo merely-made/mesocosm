@@ -5,11 +5,7 @@
 
 use std::sync::Arc;
 
-use mesocosm_core::places::{Ground, Places};
-use mesocosm_lens::{
-    BrickFrameInput, BrickMap, BrickRevision, BrickTracer, CritterPose, FRAME_FORMAT, Grade,
-    TraceCamera, critter::Capsule,
-};
+use mesocosm_lens::{BrickTracer, FRAME_FORMAT};
 use mesocosm_render::composite::Composite;
 use netrender::{
     Compositor, ExternalTextureComposite, ExternalTexturePlacement, NetrenderOptions,
@@ -18,17 +14,12 @@ use netrender::{
 use winit::window::Window;
 
 use crate::receipt::Receipt;
+use crate::scenario::Scenario;
 
 const MASTER_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
-
-struct Document {
-    map: BrickMap,
-    revision: BrickRevision,
-    camera: TraceCamera,
-    grade: Grade,
-    pose: CritterPose,
-    bytes: Vec<u8>,
-}
+pub const INITIAL_SIZE: [u32; 2] = crate::scenario::INITIAL_SIZE;
+pub const MIN_FRAMES: u32 = crate::scenario::MIN_FRAMES;
+pub const WINDOW_TITLE: &str = crate::scenario::WINDOW_TITLE;
 
 pub struct Gpu {
     pub surface: wgpu::Surface<'static>,
@@ -39,7 +30,7 @@ pub struct Gpu {
     trace_view: wgpu::TextureView,
     net: netrender::Renderer,
     composite: Composite,
-    document: Document,
+    scenario: Scenario,
     chrome: Scene,
 }
 
@@ -60,7 +51,7 @@ impl Gpu {
             .map_err(|error| error.to_string())?;
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
-                label: Some("Mesocosm G2"),
+                label: Some("Mesocosm headed frame host"),
                 required_features: netrender::REQUIRED_FEATURES,
                 required_limits: wgpu::Limits {
                     max_inter_stage_shader_variables: 28,
@@ -77,7 +68,7 @@ impl Gpu {
             .copied()
             .find(|format| format.is_srgb())
             .unwrap_or(caps.formats[0]);
-        let size = [960, 540];
+        let size = INITIAL_SIZE;
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
@@ -107,7 +98,7 @@ impl Gpu {
             },
         )
         .map_err(|error| format!("netrender init failed: {error:?}"))?;
-        let document = document()?;
+        let scenario = Scenario::new()?;
         let tracer = BrickTracer::with_format(
             handles.device.clone(),
             handles.queue.clone(),
@@ -125,7 +116,7 @@ impl Gpu {
             trace_view,
             net,
             composite: Composite::new(&handles.device, format),
-            document,
+            scenario,
             chrome: chrome_scene(size),
         })
     }
@@ -172,22 +163,11 @@ impl Gpu {
             self.handles
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Mesocosm G2 trace"),
+                    label: Some("Mesocosm headed trace"),
                 });
-        let trace = self
-            .tracer
-            .encode(
-                &mut encoder,
-                &self.trace_view,
-                BrickFrameInput::for_camera(
-                    &self.document.map,
-                    self.document.revision,
-                    self.document.camera,
-                    &self.document.grade,
-                )
-                .with_pose(&self.document.pose),
-            )
-            .map_err(|error| error.to_string())?;
+        let trace =
+            self.scenario
+                .encode(&mut self.tracer, &mut encoder, &self.trace_view, frame)?;
         self.handles.queue.submit([encoder.finish()]);
 
         let size = [self.surface_config.width, self.surface_config.height];
@@ -221,8 +201,7 @@ impl Gpu {
                 frame,
                 size,
                 self.surface_config.format,
-                &self.document.bytes,
-                &self.document.map,
+                &self.scenario,
                 &self.handles.adapter,
                 trace,
                 timings,
@@ -283,11 +262,11 @@ impl Compositor for FramePresenter<'_> {
                 .handles
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Mesocosm G2 present"),
+                    label: Some("Mesocosm headed present"),
                 });
         {
             let _clear = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Mesocosm G2 clear"),
+                label: Some("Mesocosm headed clear"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: self.target,
                     depth_slice: None,
@@ -319,7 +298,7 @@ impl Compositor for FramePresenter<'_> {
 
 fn trace_target(device: &wgpu::Device, size: [u32; 2]) -> (wgpu::Texture, wgpu::TextureView) {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("Mesocosm G2 trace target"),
+        label: Some("Mesocosm headed trace target"),
         size: wgpu::Extent3d {
             width: size[0],
             height: size[1],
@@ -353,52 +332,6 @@ fn chrome_scene(size: [u32; 2]) -> Scene {
     scene.push_rect(0.0, 0.0, width, 2.0, [0.50, 0.95, 0.72, 1.0]);
     scene.push_rect(0.0, height - 2.0, width, height, [0.50, 0.95, 0.72, 1.0]);
     scene
-}
-
-fn document() -> Result<Document, String> {
-    let ground = Ground::grow(&Places::grown(4_242, 4, 64), 64);
-    let map = BrickMap::from_ground(&ground).map_err(|error| error.to_string())?;
-    let body_top = ground
-        .surface(4, 18)
-        .ok_or("body fixture column is outside Ground")? as f32;
-    let body = [4.5, body_top + 1.15, 18.5];
-    // The product camera is a side-on section, not the first-person G2
-    // camera this harness originally inherited. Keep the body in the centre
-    // of a sixteen-voxel slab and enough vertical range for bedrock, surface,
-    // and sky to read together.
-    let camera = TraceCamera::orthographic_slab(
-        [body[0], body_top * 0.5 + 4.0, body[2]],
-        [0.0, 0.0, -1.0],
-        [0.0, 1.0, 0.0],
-        20.0,
-        16.0 / 9.0,
-        16.0,
-    )
-    .ok_or("invalid terrarium camera")?;
-    let pose = CritterPose::from_capsules(
-        vec![Capsule {
-            a: [body[0] - 0.7, body[1], body[2]],
-            ra: 0.65,
-            b: [body[0] + 0.7, body[1], body[2]],
-            rb: 0.52,
-        }],
-        [
-            [body[0] - 0.45, body[1] + 0.15, body[2] - 0.35, 0.10],
-            [body[0] - 0.45, body[1] - 0.15, body[2] - 0.35, 0.10],
-        ],
-        [0.15, 0.86, 0.32],
-    );
-    let grade = Grade::retro(3);
-    let bytes = postcard::to_allocvec(&(ground, camera, grade, pose.clone()))
-        .map_err(|error| error.to_string())?;
-    Ok(Document {
-        map,
-        revision: BrickRevision(0),
-        camera,
-        grade,
-        pose,
-        bytes,
-    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -10,81 +10,36 @@
 //! asking every embodied body about every other body before a sight query.
 
 use std::cmp::Reverse;
-use std::collections::BTreeMap;
 
 use crate::history::Event;
-use crate::organism::Signal;
-use crate::places::{Ground, Places, Tier, WALKER_HEIGHT, route_step, spot, step as grounded_step};
+use crate::organism::{Kingdom, Signal};
+use crate::places::{
+    Ground, Places, Tier, WalkerShape, route_step_for, step_for as grounded_step,
+    surface_stance_for,
+};
 use crate::process::FeedingMode;
 use crate::rng::Rng;
 
 use crate::organism::{
-    FaunaDecisionTrace, FaunaDrive, FaunaSenses, FaunaTraits, Kingdom, LastSeen, Organism,
-    OrganismId,
+    FaunaDecisionTrace, FaunaDrive, FaunaSenses, FaunaTraits, LastSeen, Organism, OrganismId,
 };
 
 use super::dispersal_for;
+
+mod perception;
+
+pub(super) use perception::{CarrionTarget, LivingTarget, carrion_cells, living_cells};
+use perception::{Cells, can_perceive, can_perceive_position, nearby_indexes, sight_range};
 
 /// How far a consumer reaches for a meal, in voxel units.
 pub(super) const GRAZE_RANGE: i32 = 5;
 /// How far a decomposer reaches for the dead, in voxel units.
 pub(super) const DECOMPOSE_RANGE: i32 = 6;
-/// An embodied mind's local visual horizon. Anatomy still decides what it can
-/// reach after it sees a target; an enormous body does not make terrain sight
-/// globally omniscient.
-const NEAR_SIGHT_RANGE: i32 = 8;
 /// A remembered sight line can take a short detour, but never authorizes a
 /// global navigation search in an ecology tick.
 const MEMORY_ROUTE_BUDGET: i32 = 8;
 /// Direct observation is fresh for this many failed perception ticks.
 const MEMORY_TICKS: u8 = 8;
-/// Target-query cells are finer than crowding cells: they bound perception
-/// work, while crowding deliberately groups a wider ecological neighbourhood.
-const SENSORY_CELL: i32 = 4;
-
-pub(super) type LivingTarget = (OrganismId, [i32; 3], usize, Kingdom, u64, Signal);
-pub(super) type CarrionTarget = ([i32; 3], usize);
-
-type Cells = BTreeMap<(i32, i32), Vec<usize>>;
-
-fn sensory_cell(position: [i32; 3]) -> (i32, i32) {
-    (
-        position[0].div_euclid(SENSORY_CELL),
-        position[2].div_euclid(SENSORY_CELL),
-    )
-}
-
-pub(super) fn living_cells(living: &[LivingTarget]) -> Cells {
-    let mut cells = Cells::new();
-    for (index, (_, at, ..)) in living.iter().enumerate() {
-        cells.entry(sensory_cell(*at)).or_default().push(index);
-    }
-    cells
-}
-
-pub(super) fn carrion_cells(carrion: &[CarrionTarget]) -> Cells {
-    let mut cells = Cells::new();
-    for (index, (at, _)) in carrion.iter().enumerate() {
-        cells.entry(sensory_cell(*at)).or_default().push(index);
-    }
-    cells
-}
-
-/// Candidate indexes in the horizontal cells intersecting a local range.
-/// Buckets are BTree-ordered; the original vector order is still added to
-/// target tie-breaks below, so this changes cost rather than preference.
-fn nearby_indexes(
-    cells: &Cells,
-    position: [i32; 3],
-    range: i32,
-) -> impl Iterator<Item = usize> + '_ {
-    let (min_x, min_z) = sensory_cell([position[0] - range, position[1], position[2] - range]);
-    let (max_x, max_z) = sensory_cell([position[0] + range, position[1], position[2] + range]);
-    cells
-        .range((min_x, i32::MIN)..=(max_x, i32::MAX))
-        .filter(move |((_, z), _)| *z >= min_z && *z <= max_z)
-        .flat_map(|(_, indexes)| indexes.iter().copied())
-}
 
 /// Chooses a food source within the body's actual reach. This is local for
 /// both tiers, so it never needs a global scan.
@@ -97,39 +52,33 @@ pub(super) fn choose_living_target(
     let mode = organism.feeding_mode();
     let reach = GRAZE_RANGE + organism.body.reach();
     let sight = sight_range(organism, reach, ground);
+    let observer_shape = organism.walker_shape();
     let mut candidates: Vec<(u64, usize, usize)> = Vec::new();
     for order in nearby_indexes(cells, organism.position, sight) {
-        let Some((id, at, index, kingdom, mass, signal)) = living.get(order) else {
+        let Some(target) = living.get(order) else {
             continue;
         };
-        if *id == organism.id
+        if target.id == organism.id
             || !matches!(mode, FeedingMode::Grazer | FeedingMode::Predator)
-            || (mode == FeedingMode::Grazer && *kingdom != Kingdom::Producer)
-            || chebyshev(organism.position, *at) > reach
-            || (*signal != Signal::Plain && mode != FeedingMode::Grazer)
+            || (mode == FeedingMode::Grazer && target.kingdom != Kingdom::Producer)
+            || chebyshev(organism.position, target.position) > reach
+            || (target.signal != Signal::Plain && mode != FeedingMode::Grazer)
         {
             continue;
         }
-        let distance = chebyshev(organism.position, *at) as u64;
-        let danger = u64::from(*signal == Signal::Warning) * 4;
-        let score = (distance.saturating_mul(16) + danger).saturating_sub((*mass).min(256) / 64);
-        candidates.push((score, order, *index));
+        let distance = chebyshev(organism.position, target.position) as u64;
+        let danger = u64::from(target.signal == Signal::Warning) * 4;
+        let score =
+            (distance.saturating_mul(16) + danger).saturating_sub(target.mass_mg.min(256) / 64);
+        candidates.push((score, order, target.organism_index));
     }
     candidates.sort_unstable();
     candidates.into_iter().find_map(|(_, order, index)| {
         living
             .get(order)
-            .is_some_and(|(_, at, ..)| can_perceive(organism, *at, sight, ground))
+            .is_some_and(|target| can_perceive(organism, observer_shape, target, sight, ground))
             .then_some(index)
     })
-}
-
-fn sight_range(organism: &Organism, reach: i32, ground: Option<&Ground>) -> i32 {
-    if organism.tier == Tier::Near && ground.is_some() {
-        reach.min(NEAR_SIGHT_RANGE)
-    } else {
-        reach
-    }
 }
 
 /// Carrion feeding is local too. Returning the original organism index keeps
@@ -140,14 +89,23 @@ pub(super) fn choose_carrion_target(
     cells: &Cells,
     ground: Option<&Ground>,
 ) -> Option<usize> {
+    let observer_shape = organism.walker_shape();
     nearby_indexes(cells, organism.position, DECOMPOSE_RANGE)
         .filter_map(|order| carrion.get(order).map(|target| (order, target)))
-        .filter(|(_, (at, _))| {
-            (0..3).all(|axis| (at[axis] - organism.position[axis]).abs() <= DECOMPOSE_RANGE)
-                && can_perceive(organism, *at, DECOMPOSE_RANGE, ground)
+        .filter(|(_, target)| {
+            (0..3).all(|axis| {
+                (target.position[axis] - organism.position[axis]).abs() <= DECOMPOSE_RANGE
+            }) && can_perceive_position(
+                organism,
+                observer_shape,
+                target.position,
+                target.shape,
+                DECOMPOSE_RANGE,
+                ground,
+            )
         })
         .min_by_key(|(order, _)| *order)
-        .map(|(_, (_, index))| *index)
+        .map(|(_, target)| target.organism_index)
 }
 
 fn chebyshev(from: [i32; 3], to: [i32; 3]) -> i32 {
@@ -157,28 +115,15 @@ fn chebyshev(from: [i32; 3], to: [i32; 3]) -> i32 {
         .unwrap_or(0)
 }
 
-/// Terrain perception belongs to embodied agents. Far cohorts retain their
-/// aggregate place-graph affordances until their promotion boundary is crossed.
-fn can_perceive(
-    organism: &Organism,
-    target: [i32; 3],
-    range: i32,
-    ground: Option<&Ground>,
-) -> bool {
-    match (organism.tier, ground) {
-        (Tier::Near, Some(ground)) => spot(ground, organism.position, target, range),
-        _ => true,
-    }
-}
-
 /// Finds a valid surface stance for a graph position, if it is resident in the
 /// grown ground. Callers choose the fallback: a near-tier birth remains beside
 /// its grounded parent when its scatter leaves the grown enclosure.
-pub(super) fn surface_stance(ground: &Ground, position: [i32; 3]) -> Option<[i32; 3]> {
-    ground
-        .surface(position[0], position[2])
-        .map(|surface| [position[0], surface + 1, position[2]])
-        .filter(|at| ground.stands(*at, WALKER_HEIGHT))
+pub(super) fn surface_stance(
+    ground: &Ground,
+    shape: WalkerShape,
+    position: [i32; 3],
+) -> Option<[i32; 3]> {
+    surface_stance_for(ground, shape, position)
 }
 
 fn preferred_living<'a>(
@@ -187,22 +132,27 @@ fn preferred_living<'a>(
     ground: Option<&Ground>,
     sight: i32,
 ) -> Option<(OrganismId, [i32; 3])> {
+    let observer_shape = organism.walker_shape();
     let mut ranked: Vec<(i32, u64, usize, &'a LivingTarget)> = candidates
-        .filter(|(_, (id, _, _, kingdom, _, _))| {
-            *id != organism.id
+        .filter(|(_, target)| {
+            target.id != organism.id
                 && (organism.feeding_mode() == FeedingMode::Predator
-                    || *kingdom == Kingdom::Producer)
+                    || target.kingdom == Kingdom::Producer)
         })
-        .map(|(order, target @ (_, at, _, _, mass, _))| {
-            (chebyshev(organism.position, *at), *mass, order, target)
+        .map(|(order, target)| {
+            (
+                chebyshev(organism.position, target.position),
+                target.mass_mg,
+                order,
+                target,
+            )
         })
         .collect();
     ranked.sort_unstable_by_key(|(distance, mass, order, _)| (*distance, Reverse(*mass), *order));
-    ranked
-        .into_iter()
-        .find_map(|(_, _, _, (id, at, _, _, _, _))| {
-            can_perceive(organism, *at, sight, ground).then_some((*id, *at))
-        })
+    ranked.into_iter().find_map(|(_, _, _, target)| {
+        can_perceive(organism, observer_shape, target, sight, ground)
+            .then_some((target.id, target.position))
+    })
 }
 
 fn policy_living<'a>(
@@ -214,30 +164,39 @@ fn policy_living<'a>(
     let traits = FaunaTraits::read(organism);
     let own_mass = organism.biomass_mg();
     let policy = organism.fauna_policy;
+    let observer_shape = organism.walker_shape();
     let candidate = candidates
-        .filter(|(_, (id, _, _, kingdom, _, _))| {
-            *id != organism.id
-                && (traits.feeding_mode == FeedingMode::Predator || *kingdom == Kingdom::Producer)
+        .filter(|(_, target)| {
+            target.id != organism.id
+                && (traits.feeding_mode == FeedingMode::Predator
+                    || target.kingdom == Kingdom::Producer)
         })
-        .filter_map(|(order, target @ (id, at, _, _, mass, signal))| {
-            let distance = chebyshev(organism.position, *at);
-            if !can_perceive(organism, *at, sight, Some(ground)) {
+        .filter_map(|(order, target)| {
+            let distance = chebyshev(organism.position, target.position);
+            if !can_perceive(organism, observer_shape, target, sight, Some(ground)) {
                 return None;
             }
-            let senses = FaunaSenses::read(organism, traits, *id, distance, *mass, *signal);
+            let senses = FaunaSenses::read(
+                organism,
+                traits,
+                target.id,
+                distance,
+                target.mass_mg,
+                target.signal,
+            );
             let scores = policy.score(senses, own_mass, sight);
             let drive = scores.selected();
             let rank = (
                 scores.score(drive),
                 Reverse(distance),
-                *mass,
+                target.mass_mg,
                 Reverse(order),
             );
             Some((rank, target, senses, scores, drive))
         })
         .max_by_key(|(rank, ..)| *rank);
 
-    let Some((_, (id, at, ..), senses, scores, drive)) = candidate else {
+    let Some((_, target, senses, scores, drive)) = candidate else {
         organism.last_fauna_decision = None;
         return None;
     };
@@ -246,13 +205,13 @@ fn policy_living<'a>(
         traits,
         senses,
         selected_drive: drive,
-        selected_target: Some(*id),
+        selected_target: Some(target.id),
         scores,
     });
     Some(match drive {
-        FaunaDrive::Pursue => MovementTarget::Seen(*id, *at),
-        FaunaDrive::Avoid => MovementTarget::Avoid(*id, *at),
-        FaunaDrive::Hold => MovementTarget::Hold(*id, *at),
+        FaunaDrive::Pursue => MovementTarget::Seen(target.id, target.position),
+        FaunaDrive::Avoid => MovementTarget::Avoid(target.id, target.position),
+        FaunaDrive::Hold => MovementTarget::Hold(target.id, target.position),
     })
 }
 
@@ -269,12 +228,21 @@ fn preferred_carrion<'a>(
     candidates: impl Iterator<Item = (usize, &'a CarrionTarget)>,
     ground: Option<&Ground>,
 ) -> Option<[i32; 3]> {
+    let observer_shape = organism.walker_shape();
     let mut ranked: Vec<(i32, usize, &'a CarrionTarget)> = candidates
-        .map(|(order, target @ (at, _))| (chebyshev(organism.position, *at), order, target))
+        .map(|(order, target)| (chebyshev(organism.position, target.position), order, target))
         .collect();
     ranked.sort_unstable_by_key(|(distance, order, _)| (*distance, *order));
-    ranked.into_iter().find_map(|(_, _, (at, _))| {
-        can_perceive(organism, *at, DECOMPOSE_RANGE, ground).then_some(*at)
+    ranked.into_iter().find_map(|(_, _, target)| {
+        can_perceive_position(
+            organism,
+            observer_shape,
+            target.position,
+            target.shape,
+            DECOMPOSE_RANGE,
+            ground,
+        )
+        .then_some(target.position)
     })
 }
 
@@ -338,7 +306,7 @@ fn remembered_target(
         return None;
     }
     let memory = organism.last_seen?;
-    if memory.ticks_left == 0 || !living.iter().any(|(id, ..)| *id == memory.target) {
+    if memory.ticks_left == 0 || !living.iter().any(|target| target.id == memory.target) {
         organism.last_seen = None;
         return None;
     }
@@ -407,20 +375,21 @@ pub(super) fn disperse(
         None => (remembered_target(organism, living, ground), true),
     };
     let old = organism.position;
+    let shape = organism.walker_shape();
     let next = if let Some(target) = target {
         if organism.tier == Tier::Far {
             let next = graph_step(places, organism.position, target);
             ground
-                .and_then(|ground| surface_stance(ground, next))
+                .and_then(|ground| surface_stance(ground, shape, next))
                 .unwrap_or(next)
         } else if let Some(ground) = ground {
             let mut at = organism.position;
             for _ in 0..dispersal_for(organism) {
                 let next = if pursuing_memory {
-                    route_step(ground, at, target, MEMORY_ROUTE_BUDGET)
-                        .unwrap_or_else(|| grounded_step(ground, at, target))
+                    route_step_for(ground, shape, at, target, MEMORY_ROUTE_BUDGET)
+                        .unwrap_or_else(|| grounded_step(ground, shape, at, target))
                 } else {
-                    grounded_step(ground, at, target)
+                    grounded_step(ground, shape, at, target)
                 };
                 if next == at {
                     break;
@@ -445,13 +414,14 @@ pub(super) fn disperse(
         if organism.tier == Tier::Far {
             let next = diffuse(places, organism.position, rng);
             ground
-                .and_then(|ground| surface_stance(ground, next))
+                .and_then(|ground| surface_stance(ground, shape, next))
                 .unwrap_or(next)
         } else if let Some(ground) = ground {
             const WANDER: [[i32; 2]; 4] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
             let [dx, dz] = WANDER[rng.below(WANDER.len() as u64) as usize];
             grounded_step(
                 ground,
+                shape,
                 organism.position,
                 [
                     organism.position[0] + dx,
@@ -526,6 +496,7 @@ fn diffuse(places: &Places, position: [i32; 3], rng: &mut Rng) -> [i32; 3] {
 mod tests {
     use super::*;
     use crate::body::{SpeciesId, VolumeRef};
+    use crate::organism::{Kingdom, Signal};
 
     #[test]
     fn lost_sight_memory_expires_and_cannot_cross_the_tier_line() {
@@ -539,7 +510,15 @@ mod tests {
             300,
         );
         let target = OrganismId(900);
-        let living = vec![(target, [4, 1, 0], 0, Kingdom::Producer, 300, Signal::Plain)];
+        let living = vec![LivingTarget {
+            id: target,
+            position: [4, 1, 0],
+            organism_index: 0,
+            kingdom: Kingdom::Producer,
+            mass_mg: 300,
+            signal: Signal::Plain,
+            shape: WalkerShape::STANDARD,
+        }];
         let ground = Ground::default();
         hunter.last_seen = Some(LastSeen {
             target,

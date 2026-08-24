@@ -155,12 +155,25 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
     };
     let camera = flight(&ground);
     let grade = Grade::clay();
-    let revision = BrickRevision(ground.revision());
+    let source_revision = BrickRevision(ground.revision());
+    let revision = BrickRevision(source_revision.0 + 1);
 
-    // A producer's resident voxels: one brick of solid material, on the
-    // tracer's own device.
+    tracer
+        .capture(BrickFrameInput::new(&map, source_revision, &camera, &grade))
+        .expect("baseline CPU frame");
+
+    // A producer's resident voxels: one brick of solid material inside a
+    // wider strided source allocation, on the tracer's own device.
     let edge = 8u32;
-    let voxels = vec![2u8; (edge * edge * edge) as usize];
+    let source_width = edge * 2;
+    let mut voxels = vec![0u8; (source_width * edge * edge) as usize];
+    for z in 0..edge {
+        for y in 0..edge {
+            for x in edge..source_width {
+                voxels[((z * edge + y) * source_width + x) as usize] = 2;
+            }
+        }
+    }
     let leased_buffer = tracer
         .device()
         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -172,23 +185,34 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
         buffer: &leased_buffer,
         offset: 0,
         size: voxels.len() as u64,
-        slot_origin: [0, 0, 0],
+        source_origin: [edge, 0, 0],
+        source_bytes_per_row: source_width,
+        source_rows_per_image: edge,
+        slot_origin: map.atlas_slot_origin(1).expect("first atlas slot"),
         extent: [edge; 3],
         revision,
+        read_epoch: 73,
     };
+    let changed_slots = [1];
 
     let leased_frame = tracer
-        .capture(BrickFrameInput::new(&map, revision, &camera, &grade).with_leased_atlas(leased))
+        .capture(
+            BrickFrameInput::new(&map, revision, &camera, &grade)
+                .changed(BrickChange::Slots(&changed_slots))
+                .with_leased_atlas(leased),
+        )
         .expect("leased brick frame");
     assert_eq!(
         leased_frame.diagnostics.leased_atlas_bytes,
-        voxels.len() as u64,
+        u64::from(edge * edge * edge),
         "the lease did not reach the atlas"
     );
     assert_eq!(
         leased_frame.diagnostics.stale_lease_rejections, 0,
         "a current lease was refused"
     );
+    assert_eq!(leased_frame.diagnostics.observed_read_epoch, Some(73));
+    assert_eq!(leased_frame.diagnostics.incomplete_lease_rejections, 0);
     // The pointer volume still uploads (it identifies slots and carries
     // no material); the atlas does not.
     assert!(
@@ -200,17 +224,26 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
     // A lease stamped at another revision is refused, and the frame
     // falls back to the CPU upload rather than showing stale voxels.
     let mut fresh = BrickTracer::headless(64, 64).expect("second tracer");
+    fresh
+        .capture(BrickFrameInput::new(&map, source_revision, &camera, &grade))
+        .expect("stale-case baseline");
     let stale = LeasedAtlas {
         revision: BrickRevision(revision.0 + 1),
         ..leased
     };
     let stale_frame = fresh
-        .capture(BrickFrameInput::new(&map, revision, &camera, &grade).with_leased_atlas(stale))
+        .capture(
+            BrickFrameInput::new(&map, revision, &camera, &grade)
+                .changed(BrickChange::Slots(&changed_slots))
+                .with_leased_atlas(stale),
+        )
         .expect("stale lease frame");
     assert_eq!(stale_frame.diagnostics.stale_lease_rejections, 1);
     assert_eq!(stale_frame.diagnostics.leased_atlas_bytes, 0);
+    assert_eq!(stale_frame.diagnostics.observed_read_epoch, None);
+    assert_eq!(stale_frame.diagnostics.incomplete_lease_rejections, 0);
     assert!(
-        stale_frame.diagnostics.brick_upload_bytes >= map.atlas().len() as u64,
+        stale_frame.diagnostics.brick_upload_bytes >= u64::from(edge * edge * edge + 4),
         "a refused lease must fall back to the CPU upload"
     );
 
@@ -218,21 +251,43 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
     // producer pools planes into one buffer, so copying this would paint
     // a neighbouring allocation into the world rather than fault.
     let mut third = BrickTracer::headless(64, 64).expect("third tracer");
+    third
+        .capture(BrickFrameInput::new(&map, source_revision, &camera, &grade))
+        .expect("misfit-case baseline");
     let misfit = LeasedAtlas {
         extent: [edge * 2, edge, edge],
         ..leased
     };
     assert!(!misfit.fits());
     let misfit_frame = third
-        .capture(BrickFrameInput::new(&map, revision, &camera, &grade).with_leased_atlas(misfit))
+        .capture(
+            BrickFrameInput::new(&map, revision, &camera, &grade)
+                .changed(BrickChange::Slots(&changed_slots))
+                .with_leased_atlas(misfit),
+        )
         .expect("misfit lease frame");
     assert_eq!(misfit_frame.diagnostics.misfit_lease_rejections, 1);
     assert_eq!(misfit_frame.diagnostics.leased_atlas_bytes, 0);
+    assert_eq!(misfit_frame.diagnostics.observed_read_epoch, None);
+    assert_eq!(misfit_frame.diagnostics.incomplete_lease_rejections, 0);
     assert!(
-        misfit_frame.diagnostics.brick_upload_bytes >= map.atlas().len() as u64,
+        misfit_frame.diagnostics.brick_upload_bytes >= u64::from(edge * edge * edge + 4),
         "a misfit lease must fall back to the CPU upload: uploaded {} of atlas {} (stale case uploaded {})",
         misfit_frame.diagnostics.brick_upload_bytes,
         map.atlas().len(),
         stale_frame.diagnostics.brick_upload_bytes
+    );
+
+    // A valid partial lease cannot stand in for a declared full refresh.
+    let mut fourth = BrickTracer::headless(64, 64).expect("fourth tracer");
+    let incomplete_frame = fourth
+        .capture(BrickFrameInput::new(&map, revision, &camera, &grade).with_leased_atlas(leased))
+        .expect("incomplete lease frame");
+    assert_eq!(incomplete_frame.diagnostics.incomplete_lease_rejections, 1);
+    assert_eq!(incomplete_frame.diagnostics.leased_atlas_bytes, 0);
+    assert_eq!(incomplete_frame.diagnostics.observed_read_epoch, None);
+    assert!(
+        incomplete_frame.diagnostics.brick_upload_bytes >= map.atlas().len() as u64,
+        "an incomplete full-frame lease suppressed the CPU fallback"
     );
 }

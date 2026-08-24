@@ -19,7 +19,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::body::BodyDocument;
-use crate::places::Tier;
+use crate::places::{Tier, WalkerShape};
 use crate::plan::Symmetry;
 use crate::process::{FeedingMode, Process};
 
@@ -242,6 +242,15 @@ impl Organism {
             .part(self.body.root)
             .map(|p| p.half_extent)
             .unwrap_or([1, 1, 1])
+    }
+
+    /// The cross-section this body's live anatomy presents to Ground.
+    ///
+    /// This is recomputed from the collision box so incorporation, growth, or
+    /// injury can change where the organism fits without synchronizing a
+    /// second locomotion size field.
+    pub fn walker_shape(&self) -> WalkerShape {
+        WalkerShape::from_aabb(self.body.aabb())
     }
 
     /// What this organism weighs: the sum of its surviving parts.

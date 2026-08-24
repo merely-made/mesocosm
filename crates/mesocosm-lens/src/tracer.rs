@@ -307,25 +307,34 @@ impl BrickTracer {
         // GPU-side. The pointer volume still uploads from the map,
         // which is tiny and identifies slots rather than carrying
         // material.
-        if let Some(leased) = input.leased_atlas {
+        let atlas_from_lease = if let Some(leased) = input.leased_atlas {
             if leased.revision != input.revision {
                 diagnostics.stale_lease_rejections += 1;
-            } else if !leased.fits() {
-                // An extent larger than the leased range would copy a
-                // neighbouring allocation out of the producer's pool.
+                false
+            } else if !leased.copyable_into(resident.atlas_extent) {
+                // An invalid strided range could copy a neighbouring
+                // allocation out of the producer's pool or cross the atlas.
                 diagnostics.misfit_lease_rejections += 1;
+                false
+            } else if !lease_covers_change(leased, input.map, input.change, recreate) {
+                // A valid partial lease must not suppress uploads for changed
+                // slots it does not actually contain.
+                diagnostics.incomplete_lease_rejections += 1;
+                false
             } else {
                 copy_leased_atlas(&self.device, &self.queue, &resident.atlas, leased);
-                diagnostics.leased_atlas_bytes += leased.size;
+                diagnostics.leased_atlas_bytes += leased.byte_len();
+                diagnostics.observed_read_epoch = Some(leased.read_epoch);
+                true
             }
-        }
+        } else {
+            false
+        };
 
         // The CPU upload stands unless a lease actually took the atlas:
-        // a refused lease (stale or ill-fitting) must not leave the
+        // a refused lease must not leave the
         // atlas unwritten, or the frame shows whatever was there before.
-        let atlas_from_cpu = input
-            .leased_atlas
-            .is_none_or(|l| l.revision != input.revision || !l.fits());
+        let atlas_from_cpu = !atlas_from_lease;
         if recreate || matches!(input.change, BrickChange::Full) {
             write_texture_3d(
                 &self.queue,
@@ -478,6 +487,24 @@ impl BrickTracer {
     }
 }
 
+fn lease_covers_change(
+    leased: LeasedAtlas<'_>,
+    map: &BrickMap,
+    change: BrickChange<'_>,
+    recreate: bool,
+) -> bool {
+    if recreate || matches!(change, BrickChange::Full) {
+        return leased.covers([0; 3], map.atlas_extent());
+    }
+    let BrickChange::Slots(slots) = change else {
+        return false;
+    };
+    slots.iter().all(|slot| {
+        map.atlas_slot_origin(*slot)
+            .is_some_and(|origin| leased.covers(origin, [8; 3]))
+    })
+}
+
 /// Copy a producer's resident voxels into the atlas texture, GPU-side.
 ///
 /// Buffer-to-texture copies require `COPY_BYTES_PER_ROW_ALIGNMENT`-byte
@@ -494,7 +521,7 @@ fn copy_leased_atlas(
     if width == 0 || height == 0 || depth == 0 {
         return;
     }
-    let aligned_row = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+    let aligned_row = width.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
     let rows = height * depth;
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("leased atlas repack"),
@@ -505,14 +532,23 @@ fn copy_leased_atlas(
         usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
-    for row in 0..rows {
-        encoder.copy_buffer_to_buffer(
-            leased.buffer,
-            leased.offset + (row * width) as u64,
-            &staging,
-            (row * aligned_row) as u64,
-            width as u64,
-        );
+    for z in 0..depth {
+        for y in 0..height {
+            let destination_row = z * height + y;
+            let source_row = (leased.source_origin[2] + z) * leased.source_rows_per_image
+                + leased.source_origin[1]
+                + y;
+            let source_offset = leased.offset
+                + u64::from(source_row) * u64::from(leased.source_bytes_per_row)
+                + u64::from(leased.source_origin[0]);
+            encoder.copy_buffer_to_buffer(
+                leased.buffer,
+                source_offset,
+                &staging,
+                (destination_row * aligned_row) as u64,
+                width as u64,
+            );
+        }
     }
     encoder.copy_buffer_to_texture(
         wgpu::TexelCopyBufferInfo {

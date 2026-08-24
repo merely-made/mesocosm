@@ -55,9 +55,12 @@ mod relief;
 
 #[cfg(test)]
 pub(crate) use bricks::nest_entry;
-pub use bricks::{AIR, BRICK, Brick, Ground, ROCK, SOIL, SURFACE_BAND};
+pub use bricks::{AIR, BRICK, Brick, Ground, NestEntry, ROCK, SOIL, SURFACE_BAND};
 pub use grown::{Grown, Nest};
-pub use near::{Tier, TierLine, WALKER_HEIGHT, route_step, spot, step};
+pub use near::{
+    BODY_VOXELS_PER_GROUND_VOXEL, Tier, TierLine, WALKER_HEIGHT, WalkerShape, route_step,
+    route_step_for, spot, spot_for, step, step_for, surface_stance_for,
+};
 pub use relief::Relief;
 
 use std::collections::{BTreeSet, VecDeque};

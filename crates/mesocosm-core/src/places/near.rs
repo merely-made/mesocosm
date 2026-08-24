@@ -21,21 +21,108 @@ use std::collections::{BTreeMap, VecDeque};
 
 use serde::{Deserialize, Serialize};
 
+use crate::body::Aabb;
+
 use super::Places;
 use super::bricks::Ground;
 
 /// How tall a walker is, in voxels, for occupancy checks.
 pub const WALKER_HEIGHT: i32 = 2;
+/// Body-space voxels represented by one Ground voxel for locomotion.
+///
+/// The primitive developmental palette makes one mass segment four body
+/// voxels across. Treating that as one Ground voxel keeps a root segment at
+/// the old one-column scale while still letting lateral anatomy widen the
+/// passage a body needs.
+pub const BODY_VOXELS_PER_GROUND_VOXEL: i32 = 4;
 /// One step may climb this many voxels of ledge.
 pub const CLIMB: i32 = 1;
 /// A fall taller than this is not walked off voluntarily by prey-seekers.
 pub const COMFORT_DROP: i32 = 4;
+
+/// The turning cross-section a body presents to Ground.
+///
+/// Movement does not yet retain facing, so the shorter horizontal axis is the
+/// honest passage width: an elongated body may align itself with a corridor,
+/// but broad anatomy still cannot. Height and width are derived readings of
+/// [`Aabb`], never a second body shape stored on an organism.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WalkerShape {
+    radius: i32,
+    height: i32,
+}
+
+impl WalkerShape {
+    pub const STANDARD: Self = Self {
+        radius: 0,
+        height: WALKER_HEIGHT,
+    };
+
+    pub fn from_aabb(box_: Aabb) -> Self {
+        let extent = box_.extent().map(i32::abs);
+        let cross_section = extent[0].min(extent[2]);
+        let scale = BODY_VOXELS_PER_GROUND_VOXEL;
+        let radius = cross_section
+            .saturating_sub(scale)
+            .saturating_add(2 * scale - 1)
+            / (2 * scale);
+        let height = extent[1].saturating_add(scale - 1).div_euclid(scale).max(1);
+        Self { radius, height }
+    }
+
+    pub fn radius(self) -> i32 {
+        self.radius
+    }
+
+    pub fn height(self) -> i32 {
+        self.height
+    }
+
+    /// The top-centre point this body uses for terrain sight.
+    ///
+    /// A one-voxel body keeps the established head-height ray one voxel above
+    /// its stance. Anatomy taller than the old two-voxel walker lifts the ray;
+    /// the visual horizon itself does not grow.
+    pub fn sight_point(self, stance: [i32; 3]) -> [i32; 3] {
+        [
+            stance[0],
+            stance[1] + self.height.max(WALKER_HEIGHT) - 1,
+            stance[2],
+        ]
+    }
+
+    /// Whether the whole cross-section is clear and at least one column has
+    /// footing. Wide bodies may bridge a small hollow; they may not intersect
+    /// its rim.
+    pub fn stands(self, ground: &Ground, at: [i32; 3]) -> bool {
+        self.clear(ground, at) && self.supported(ground, at)
+    }
+
+    fn clear(self, ground: &Ground, at: [i32; 3]) -> bool {
+        (-self.radius..=self.radius).all(|dx| {
+            (-self.radius..=self.radius).all(|dz| {
+                (0..self.height).all(|dy| !ground.solid([at[0] + dx, at[1] + dy, at[2] + dz]))
+            })
+        })
+    }
+
+    fn supported(self, ground: &Ground, at: [i32; 3]) -> bool {
+        (-self.radius..=self.radius).any(|dx| {
+            (-self.radius..=self.radius).any(|dz| ground.solid([at[0] + dx, at[1] - 1, at[2] + dz]))
+        })
+    }
+}
 
 /// One kinematic step toward `toward`: slide on block, climb one ledge,
 /// then settle under gravity. Returns where the walker ends up; the
 /// result is always a standable voxel, and never more than one voxel of
 /// horizontal travel from `from`.
 pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
+    step_for(ground, WalkerShape::STANDARD, from, toward)
+}
+
+/// [`step`] with occupancy derived from the body that is moving.
+pub fn step_for(ground: &Ground, shape: WalkerShape, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
     let want = [
         (toward[0] - from[0]).signum(),
         (toward[2] - from[2]).signum(),
@@ -60,8 +147,8 @@ pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
         };
         for lift in lifts {
             let at = [target[0], from[1] + lift, target[2]];
-            if ground.stands(at, WALKER_HEIGHT) {
-                return settle(ground, at);
+            if shape.stands(ground, at) {
+                return settle(ground, shape, at);
             }
         }
         // The doorway case: air ahead but no floor (a shaft, a burrow
@@ -70,8 +157,8 @@ pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
         // orders choices, and when the drop is the only way off a cliff
         // edge, standing there forever is not an option.
         let ahead = [target[0], from[1], target[2]];
-        if !solid_span(ground, ahead) {
-            let landing = settle(ground, ahead);
+        if !solid_span(ground, shape, ahead) {
+            let landing = settle(ground, shape, ahead);
             if from[1] - landing[1] <= COMFORT_DROP || vertical < 0 {
                 return landing;
             }
@@ -84,7 +171,7 @@ pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
         return landing;
     }
     // Boxed in horizontally; at least settle where we are.
-    settle(ground, from)
+    settle(ground, shape, from)
 }
 
 /// The first legal step on a bounded route to `target`. It expands the same
@@ -93,6 +180,17 @@ pub fn step(ground: &Ground, from: [i32; 3], toward: [i32; 3]) -> [i32; 3] {
 /// outside the local budget or no route was found there.
 pub fn route_step(
     ground: &Ground,
+    from: [i32; 3],
+    target: [i32; 3],
+    budget: i32,
+) -> Option<[i32; 3]> {
+    route_step_for(ground, WalkerShape::STANDARD, from, target, budget)
+}
+
+/// [`route_step`] over the transition relation of one body's cross-section.
+pub fn route_step_for(
+    ground: &Ground,
+    shape: WalkerShape,
     from: [i32; 3],
     target: [i32; 3],
     budget: i32,
@@ -106,7 +204,7 @@ pub fn route_step(
     let mut previous = BTreeMap::from([(from, from)]);
     while let Some(at) = frontier.pop_front() {
         for [dx, dz] in DIRECTIONS {
-            let next = step(ground, at, [at[0] + dx, at[1], at[2] + dz]);
+            let next = step_for(ground, shape, at, [at[0] + dx, at[1], at[2] + dz]);
             if next == at || chebyshev(from, next) > budget || previous.contains_key(&next) {
                 continue;
             }
@@ -134,17 +232,43 @@ fn chebyshev(a: [i32; 3], b: [i32; 3]) -> i32 {
         .unwrap_or(0)
 }
 
-fn solid_span(ground: &Ground, at: [i32; 3]) -> bool {
-    (0..WALKER_HEIGHT).any(|dy| ground.solid([at[0], at[1] + dy, at[2]]))
+fn solid_span(ground: &Ground, shape: WalkerShape, at: [i32; 3]) -> bool {
+    !shape.clear(ground, at)
 }
 
 /// Fall until footing. Bedrock guarantees termination.
-fn settle(ground: &Ground, at: [i32; 3]) -> [i32; 3] {
+fn settle(ground: &Ground, shape: WalkerShape, at: [i32; 3]) -> [i32; 3] {
     let mut here = at;
-    while !ground.solid([here[0], here[1] - 1, here[2]]) && here[1] > 0 {
+    while !shape.supported(ground, here) && here[1] > 0 {
+        let below = [here[0], here[1] - 1, here[2]];
+        if !shape.clear(ground, below) {
+            break;
+        }
         here[1] -= 1;
     }
     here
+}
+
+/// Places a body on the highest surface under its cross-section.
+///
+/// This is used when a graph-level position becomes embodied. It does not
+/// search for a route or alter Ground; it only realizes that x/z position as
+/// a legal stance when its footprint overlaps resident terrain.
+pub fn surface_stance_for(
+    ground: &Ground,
+    shape: WalkerShape,
+    position: [i32; 3],
+) -> Option<[i32; 3]> {
+    let mut surface = None;
+    for dx in -shape.radius..=shape.radius {
+        for dz in -shape.radius..=shape.radius {
+            if let Some(column) = ground.surface(position[0] + dx, position[2] + dz) {
+                surface = Some(surface.map_or(column, |top: i32| top.max(column)));
+            }
+        }
+    }
+    let at = [position[0], surface? + 1, position[2]];
+    shape.stands(ground, at).then_some(at)
 }
 
 /// Which mind runs an agent: embodied, or the statistical ecology.
@@ -194,15 +318,37 @@ impl TierLine {
 /// Whether `eye` can see `target`: distance-capped line of sight from
 /// head height to head height.
 pub fn spot(ground: &Ground, eye: [i32; 3], target: [i32; 3], range: i32) -> bool {
-    let dx = (eye[0] - target[0]).abs();
-    let dy = (eye[1] - target[1]).abs();
-    let dz = (eye[2] - target[2]).abs();
+    spot_for(
+        ground,
+        WalkerShape::STANDARD,
+        eye,
+        WalkerShape::STANDARD,
+        target,
+        range,
+    )
+}
+
+/// [`spot`] between sight points derived from both live bodies.
+///
+/// Range remains stance-to-stance. Becoming taller changes which terrain
+/// occludes a body, rather than granting a longer visual horizon.
+pub fn spot_for(
+    ground: &Ground,
+    observer_shape: WalkerShape,
+    observer: [i32; 3],
+    target_shape: WalkerShape,
+    target: [i32; 3],
+    range: i32,
+) -> bool {
+    let dx = (observer[0] - target[0]).abs();
+    let dy = (observer[1] - target[1]).abs();
+    let dz = (observer[2] - target[2]).abs();
     if dx.max(dy).max(dz) > range {
         return false;
     }
     ground.sees(
-        [eye[0], eye[1] + 1, eye[2]],
-        [target[0], target[1] + 1, target[2]],
+        observer_shape.sight_point(observer),
+        target_shape.sight_point(target),
     )
 }
 
@@ -210,6 +356,8 @@ pub fn spot(ground: &Ground, eye: [i32; 3], target: [i32; 3], range: i32) -> boo
 mod tests {
     use super::super::{Places, SURFACE_BAND};
     use super::*;
+    use crate::body::{Attachment, BodyDocument, Provenance, SpeciesId, VolumeRef, Yaw};
+    use crate::world::{ENCLOSURE, PLACE_SALT, PLACE_SIDE};
 
     fn ground() -> Ground {
         let grown = Places::grown(4_242, 4, 64);
@@ -228,6 +376,79 @@ mod tests {
             }
         }
         unreachable!("a world with no footing");
+    }
+
+    #[test]
+    fn live_anatomy_decides_the_turning_cross_section() {
+        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, [1, 1, 1]);
+        let compact = WalkerShape::from_aabb(body.aabb());
+        assert_eq!((compact.radius(), compact.height()), (0, 1));
+
+        let plate = body
+            .attach(
+                VolumeRef::from_tag(2),
+                50,
+                [3, 1, 3],
+                Attachment {
+                    parent: body.root,
+                    offset: [0, 2, 0],
+                    yaw: Yaw::Zero,
+                },
+                Provenance::founding(),
+            )
+            .unwrap();
+        let broad = WalkerShape::from_aabb(body.aabb());
+        assert_eq!(broad.radius(), 1);
+
+        assert_eq!(body.sever(plate), vec![plate]);
+        assert_eq!(WalkerShape::from_aabb(body.aabb()), compact);
+
+        let stalk = body
+            .attach(
+                VolumeRef::from_tag(3),
+                1,
+                [1, 5, 1],
+                Attachment {
+                    parent: body.root,
+                    offset: [0, 6, 0],
+                    yaw: Yaw::Zero,
+                },
+                Provenance::founding(),
+            )
+            .unwrap();
+        let tall = WalkerShape::from_aabb(body.aabb());
+        assert_eq!((tall.radius(), tall.height()), (0, 3));
+        assert_eq!(compact.sight_point([4, 7, 9]), [4, 8, 9]);
+        assert_eq!(tall.sight_point([4, 7, 9]), [4, 9, 9]);
+
+        assert_eq!(body.sever(stalk), vec![stalk]);
+        assert_eq!(WalkerShape::from_aabb(body.aabb()), compact);
+    }
+
+    #[test]
+    fn one_generated_burrow_admits_a_compact_body_and_excludes_a_broad_one() {
+        let grown = Places::grown(PLACE_SALT, PLACE_SIDE, ENCLOSURE);
+        let ground = Ground::grow(&grown, ENCLOSURE);
+        let route = grown
+            .nest_entries(ENCLOSURE)
+            .next()
+            .expect("seed 0 grows a burrow entry")
+            .1
+            .route;
+        let compact = WalkerShape::STANDARD;
+        let broad = WalkerShape::from_aabb(Aabb {
+            min: [-3, -2, -3],
+            max: [3, 2, 3],
+        });
+        let threshold = route[1];
+
+        assert!(compact.stands(&ground, threshold));
+        assert_eq!(step_for(&ground, compact, route[0], threshold), threshold);
+        assert_eq!(broad.radius(), 1);
+        assert!(
+            !broad.stands(&ground, threshold),
+            "the generated one-voxel threshold unexpectedly admits a broad body"
+        );
     }
 
     #[test]

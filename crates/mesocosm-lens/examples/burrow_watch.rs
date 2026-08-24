@@ -35,11 +35,8 @@
 
 use std::sync::Arc;
 
-use mesocosm_core::places::{WALKER_HEIGHT, spot, step};
-use mesocosm_core::world::ENCLOSURE;
-use mesocosm_core::{
-    Intent, Kingdom, Organism, OrganismId, SpeciesId, VolumeRef, World, state_hash,
-};
+use mesocosm_core::places::spot;
+use mesocosm_core::{Intent, OrganismId, World, state_hash};
 use mesocosm_lens::{
     BodyLensProjection, BodyPlacement, BrickChange, BrickFrameInput, BrickMap, BrickRevision,
     BrickTracer, CritterPose, Flight, Grade,
@@ -55,7 +52,9 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
-const SEED: u64 = 4_242;
+#[path = "g4_frame/doorway_fixture.rs"]
+mod burrow_scenario;
+
 const SIZE: [u32; 2] = [1280, 720];
 const MASTER_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 const TRACE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -96,18 +95,21 @@ struct Scenario {
 
 impl Scenario {
     fn new() -> Self {
-        let (world, hunter_start, doorway, player) = setup();
+        let fixture = burrow_scenario::setup();
         // Face the doorway: the thing worth watching.
-        let dx = (doorway[0] - player[0]) as f32;
-        let dz = (doorway[2] - player[2]) as f32;
+        let dx = (fixture.doorway[0] - fixture.player[0]) as f32;
+        let dz = (fixture.doorway[2] - fixture.player[2]) as f32;
+        let horizontal = (dx * dx + dz * dz).sqrt();
+        let eye_y = fixture.player[1] as f32 + 1.3;
+        let doorway_eye_y = fixture.doorway[1] as f32 + 1.0;
         Self {
-            world,
-            hunter_start,
-            doorway,
-            player,
+            world: fixture.world,
+            hunter_start: fixture.hunter_start,
+            doorway: fixture.doorway,
+            player: fixture.player,
             carved: false,
             yaw: f32::atan2(dx, dz),
-            pitch: 0.0,
+            pitch: f32::atan2(doorway_eye_y - eye_y, horizontal),
             ticks: 0,
             before_carve: None,
         }
@@ -187,66 +189,6 @@ impl Scenario {
             self.carved = false;
         }
     }
-}
-
-/// The scenario, verbatim from `burrow_run`: seed 4242's occluded
-/// grounded doorway, a producer hidden behind it, a consumer outside.
-/// Kept identical on purpose, so the thing being judged is the thing
-/// being receipted.
-fn setup() -> (World, [i32; 3], [i32; 3], [i32; 3]) {
-    let mut world = World::new(SEED, 0);
-    let directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    let (from, doorway, player) = (-ENCLOSURE..=ENCLOSURE)
-        .find_map(|z| {
-            (-ENCLOSURE..=ENCLOSURE).find_map(|x| {
-                let top = world.ground().surface(x, z)?;
-                let from = [x, top + 1, z];
-                if !world.ground().stands(from, WALKER_HEIGHT) {
-                    return None;
-                }
-                directions.into_iter().find_map(|[dx, dz]| {
-                    let doorway = [from[0] + dx, from[1], from[2] + dz];
-                    let top = world.ground().surface(doorway[0] + dx, doorway[2] + dz)?;
-                    let player = [doorway[0] + dx, top + 1, doorway[2] + dz];
-                    let blocked = step(world.ground(), from, doorway) == from
-                        && world.ground().solid(doorway)
-                        && world
-                            .ground()
-                            .solid([doorway[0], doorway[1] + 1, doorway[2]])
-                        && world
-                            .ground()
-                            .solid([doorway[0], doorway[1] - 1, doorway[2]]);
-                    let close = (0..3).all(|axis| (player[axis] - from[axis]).abs() <= 8);
-                    (blocked
-                        && close
-                        && world.ground().stands(player, WALKER_HEIGHT)
-                        && !spot(world.ground(), from, player, 8))
-                    .then_some((from, doorway, player))
-                })
-            })
-        })
-        .expect("seed-4242 has an occluded grounded doorway");
-    world.organisms = vec![
-        Organism::founding(
-            OrganismId(0),
-            SpeciesId(3),
-            Kingdom::Producer,
-            VolumeRef::from_tag(18),
-            [1, 1, 1],
-            player,
-            300,
-        ),
-        Organism::founding(
-            OrganismId(900),
-            SpeciesId(2),
-            Kingdom::Consumer,
-            VolumeRef::from_tag(16),
-            [3, 1, 1],
-            from,
-            300,
-        ),
-    ];
-    (world, from, doorway, player)
 }
 
 struct Live {

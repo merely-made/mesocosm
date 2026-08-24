@@ -1,7 +1,9 @@
 # Place-Graph Engine Plan (2026-08-05)
 
-**Status: plan, 2026-08-05.** Founded from the 2026-08-04/05 engine
-rumination. Sibling to the
+**Status: active substrate record, corrected 2026-08-21.** Founded from the
+2026-08-04/05 engine rumination. The G labels below record the order in which
+the substrate was assembled. They are historical indexing, not current
+acceptance gates. Sibling to the
 [render lane landscape](2026-07-30_engine_and_render_lane_landscape.md),
 which owns renderer research and the V-gates, and subordinate to the
 [execution waves plan](2026-07-31_execution_waves_plan.md) for ordering.
@@ -109,14 +111,14 @@ rapier adapter derives colliders from the same snapshot when it arrives
 
 ## 2. The slice: the burrow run
 
-One composed scenario, the standard every gate feeds.
+One composed scenario used to expose joins between systems.
 
 Worldgen lays a place graph over one voxel space; one region generates
 with a burrow. A catalogue critter hunts the player by real sight-lines
 through real bricks. The player flees or carves, and hides inside
 geometry. The hunter follows across the threshold without a stutter.
 
-**Done when**, all in one run, receipts kept:
+The original integration claims, now exercised in one run, were:
 
 - the run replay-hashes identically from its recorded intents;
 - the brick tracer renders it headed, native and browser, both souls, with
@@ -124,14 +126,17 @@ geometry. The hunter follows across the threshold without a stutter.
 - a carve lands: intent, dirty brick, region re-upload, collision refresh,
   with the latency recorded;
 - the burrow needs no special casing in tracer, collision, or perception;
-- per-tick sight-line cost is recorded at the target critter population;
-- the headed judgment is taken seriously: does hiding from a hunter have
-  tension. Wave 2.1's founding condition outranks every receipt here.
+- per-tick sight-line cost is recorded at the target critter population.
+
+The run is an integration specimen, not a game-completion test. Whether one
+unfinished encounter feels tense neither validates nor blocks the engine. The
+useful next move is to connect another independently owned fact to the same
+scene and see which behavior appears without an authored branch.
 
 The engine document (profile, capability matrix, external references) is
 written after this run exists, from its numbers, not before.
 
-## 3. Gates
+## 3. Build history
 
 ### G0. A graph worth the name — **COMPLETE 2026-08-08** (constructor 2026-08-06; genesis adoption 2026-08-08)
 
@@ -258,7 +263,7 @@ free steady DDA frames at 1920×1080, including Ground and the SDF body:
 median** (1,920µs, 1,697–2,641µs) on GL. These are tracer spans, deliberately
 reported beside rather than mistaken for the headed netrender frame budget.
 
-### G3. The near tier — **core LANDED 2026-08-06; ecology drive/tier slice LANDED 2026-08-07; player ingress, autonomous occupancy/sight wiring, and 300-body scale receipt LANDED 2026-08-14; G4 composition OPEN**
+### G3. The near tier — **core LANDED 2026-08-06; ecology drive/tier slice LANDED 2026-08-07; player ingress, autonomous occupancy/sight wiring, and 300-body scale receipt LANDED 2026-08-14**
 
 Landed additively as `places/near.rs` (kinematic `step` with slide, climb,
 gravity settle, and doorway drops; `spot` sight; `Tier`/`TierLine` with
@@ -334,9 +339,10 @@ bodies and their cohort projection. It replaces the old Hunter number as the
 G3 capacity evidence; it is a host-specific measurement, not a frame-budget
 guarantee. Full player-and-burrow composition remains G4.
 
-### G4. The burrow run — **OPEN 2026-08-14 (P0/P5 landed)**
+### G4. The burrow run — **COMPOSED 2026-08-21; interaction expansion continues**
 
-Compose G0 through G3 into §2's scenario. Its done-conditions are §2's.
+G0 through G3 now meet in §2's scenario. P0-P8 below are the assembly record,
+not a reason to stop extending the causal joins.
 
 **2026-08-14, P0 one-world doorway run.** `burrow_run_receipt` and the
 Lens `burrow_run` example now begin from one real `World`, rather than an
@@ -432,14 +438,97 @@ sight isolated, since there is no sight-off control to subtract; the
 shape rather than the level is what implicates sight. Its assert
 catches a blow-up rather than freezing a constant.
 
-**G4's remaining conditions**, after P6: the browser-directed burrow
-run (P3 closed the native external-frame seam; the browser host is
-still a generic Ground projection proof, not this scenario), the final
-§2 claim across both a generated burrow threshold and a place boundary
-in one run, and the headed tension judgment. That last one is Mark's
-and cannot be receipted: Wave 2.1's founding condition outranks every
-number above it, and it needs a person watching a hunter come through
-the doorway.
+**2026-08-21, P7 browser-directed doorway run (implemented locally).**
+The V1/G2 headed host now accepts a scenario module rather than owning one
+hardcoded G2 document. `g4_frame` uses that same surface, device, tracer,
+external-texture, netrender, and receipt path for P0's independently generated
+seed-4242 Worlds and ordered `Idle`/`Carve` trace. Native Vulkan presented at
+1920×1080; Browser WebGPU presented at 960×540. Both reported replay hash
+`10803197323918604988`, scene digest `fnv1a64:ef6d3107b0e8b508`, eight removed
+voxels, one dirty slot, a 516-byte brick upload, zero readback, and the
+netrender span ledger. The browser canvas was inspected headed and emitted no
+warnings or errors.
+
+This receipt also corrected two presentation lies found during the run.
+P0's hunter-side capture changed pixels but was mostly a wall, so the browser
+receipt uses the judgment harness's actual subject position: the hidden
+player's eye watches the authoritative hunter body enter the opening. That
+view initially looked horizontally above the lower doorway; the browser and
+judgment harness now derive the downward pitch from eye to threshold. The page
+also puts the appended canvas before the long JSON receipt visually. These are
+camera and host corrections over the same World and intents, not new scenario
+facts. The two-frame timings are receipts, not an fps benchmark; G2's
+synchronized 1080p spans remain the performance evidence.
+
+**2026-08-21, P8 generated crossing.** The final machine claim now has one
+run rather than an inference across fixtures. Seed 0 grows a five-stance nest
+entry. The threshold is its first step; its third step crosses Place 3 into
+Place 0. The played producer descends three ordinary `Intent::Move` steps and
+the autonomous consumer selects `Pursue` on every ecology tick, following
+exactly one generated stance behind. Both bodies cross the place edge, the
+hunter crosses the burrow threshold, every position is grounded and unique,
+and an independent twin returns the same seven history events and state hash
+`7286350926008272852`. `Grown::nest_entries` is the narrow read model that
+lets this receipt and a projection name the generator's exact route; terrain
+generation still owns the construction rule and Ground remains the collision
+authority.
+
+The shared headed host presents that same three-intent run. Native Vulkan at
+1920×1080 and Browser WebGPU at 960×540 reported scene digest
+`fnv1a64:e90af60c63d5c6ec`, the same replay hash, revision zero before and
+after, zero dirty slots, zero brick upload on the final movement frame, zero
+readback, and the netrender span ledger. Native's final frame reported 163 µs
+of tracer preparation and 4591 µs in netrender; the browser reported 0 µs and
+1300 µs respectively. These four-frame timings are receipts rather than a
+benchmark. The browser canvas was inspected headed and its diagnostics log was
+empty. A too-close first camera cut through the wide hunter, so the final
+projection keeps the actual player eye, aims at the body centre, and scales the
+body to fit the one-voxel separation. World state and the ordered trace did not
+change.
+
+**2026-08-21, P9 body-terrain composition.** The universal two-high movement
+column is now only the compatibility wrapper. `WalkerShape` derives a turning
+cross-section from each live `BodyDocument::aabb`: one primitive mass segment
+maps to one Ground voxel, height remains exact at that scale, and the shorter
+horizontal axis lets an elongated body align with a passage until facing
+becomes authoritative. Player movement, near pursuit, remembered routing,
+wander, graph-to-Ground realization, founders, and births all use the derived
+shape.
+
+The resulting behavior needs no hunter variant. At the same generated seed-0
+threshold, compact and broad consumers both select `Pursue`; the compact body
+descends while the broad body is diverted onto the roof. Both branches replay
+identically. Live anatomy owns the answer: adding a broad part widens the
+cross-section, severing it narrows the body again, and incorporation that would
+expand a body through its current tunnel rolls the whole meal transaction back
+as `NoRoom`. `body_clearance_receipt` keeps the two pursuit branches visible.
+
+The deliberate approximation is now explicit: this is a turning
+cross-section, not oriented collision. Facing, gait, and deformability can
+refine it later without adding another body-size field or changing Ground
+authority.
+
+**2026-08-21, P10 body-perception composition.** `spot_for` now derives the
+terrain ray's endpoints from both live `WalkerShape`s. A baseline body keeps
+the established one-voxel head offset; anatomy taller than the old walker
+lifts its top-centre sight point while the stance-to-stance horizon remains
+bounded. The ecology tick's temporary living and carrion target views carry
+those derived shapes, so feeding, fauna policy, lost-sight acquisition, and
+scavenging all ask Ground about the bodies that are actually present.
+
+At generated seed 0, the same observer stance `[-15, 15, -16]`, prey stance
+`[-10, 16, -16]`, terrain, range, and default fauna policy split on one live
+part. The compact hunter's sight point `[-15, 16, -16]` is occluded and it
+records no target decision. Adding a narrow vertical part keeps passage width
+unchanged, raises the sight point to `[-15, 17, -16]`, clears the ridge, and
+selects `Pursue`. Independent copies replay to the same hashes;
+`body_sight_receipt` exposes the pair.
+
+This is body-height sight, not a claim that the top of every critter is an
+eye. `Process::Sense` already exists, but Ground has no derived location for a
+living sensor part yet. A later composition can replace the top-centre fallback
+with sensor-part positions without changing sight authority or storing another
+perception profile.
 
 ## 4. Wing checks
 
@@ -460,9 +549,8 @@ standing rule: after two real consumers, never declared in advance.
   trace against real mutation workloads (V4 discipline).
 - No graph ships without its distinctness receipts.
 - Compile-only wasm evidence is not browser support.
-- A gate proven alone is not proven for the wing; the slice is the unit.
-- The founding condition outranks all receipts: somebody wants another
-  run.
+- A component proven alone is weak evidence; joins are the unit of progress.
+- Prefer another causal join over declaring the current encounter finished.
 
 ## Findings
 

@@ -10,11 +10,8 @@
 
 use std::fs::File;
 
-use mesocosm_core::places::{WALKER_HEIGHT, spot, step};
-use mesocosm_core::world::ENCLOSURE;
-use mesocosm_core::{
-    Intent, Kingdom, Organism, OrganismId, Outcome, SpeciesId, VolumeRef, World, state_hash,
-};
+use mesocosm_core::places::{WALKER_HEIGHT, spot};
+use mesocosm_core::{Intent, OrganismId, Outcome, World, state_hash};
 use mesocosm_lens::{
     BodyLensProjection, BodyPlacement, BrickChange, BrickDiagnostics, BrickFrameInput, BrickMap,
     BrickRevision, BrickTracer, Flight, Grade,
@@ -24,7 +21,10 @@ use netrender::{
     WgpuHandles, create_netrender_instance,
 };
 
-const SEED: u64 = 4_242;
+#[path = "g4_frame/doorway_fixture.rs"]
+mod burrow_scenario;
+
+const SEED: u64 = burrow_scenario::SEED;
 const FRAME_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 struct Run {
@@ -314,58 +314,11 @@ fn player_body(world: &World) -> Result<BodyLensProjection, String> {
 }
 
 fn setup() -> Run {
-    let mut world = World::new(SEED, 0);
-    let directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    let (from, doorway, player) = (-ENCLOSURE..=ENCLOSURE)
-        .find_map(|z| {
-            (-ENCLOSURE..=ENCLOSURE).find_map(|x| {
-                let top = world.ground().surface(x, z)?;
-                let from = [x, top + 1, z];
-                if !world.ground().stands(from, WALKER_HEIGHT) {
-                    return None;
-                }
-                directions.into_iter().find_map(|[dx, dz]| {
-                    let doorway = [from[0] + dx, from[1], from[2] + dz];
-                    let top = world.ground().surface(doorway[0] + dx, doorway[2] + dz)?;
-                    let player = [doorway[0] + dx, top + 1, doorway[2] + dz];
-                    let blocked = step(world.ground(), from, doorway) == from
-                        && world.ground().solid(doorway)
-                        && world
-                            .ground()
-                            .solid([doorway[0], doorway[1] + 1, doorway[2]])
-                        && world
-                            .ground()
-                            .solid([doorway[0], doorway[1] - 1, doorway[2]]);
-                    let close = (0..3).all(|axis| (player[axis] - from[axis]).abs() <= 8);
-                    (blocked
-                        && close
-                        && world.ground().stands(player, WALKER_HEIGHT)
-                        && !spot(world.ground(), from, player, 8))
-                    .then_some((from, doorway, player))
-                })
-            })
-        })
-        .expect("seed-4242 has an occluded grounded doorway");
-    world.organisms = vec![
-        Organism::founding(
-            OrganismId(0),
-            SpeciesId(3),
-            Kingdom::Producer,
-            VolumeRef::from_tag(18),
-            [1, 1, 1],
-            player,
-            300,
-        ),
-        Organism::founding(
-            OrganismId(900),
-            SpeciesId(2),
-            Kingdom::Consumer,
-            VolumeRef::from_tag(16),
-            [3, 1, 1],
-            from,
-            300,
-        ),
-    ];
+    let fixture = burrow_scenario::setup();
+    let world = fixture.world;
+    let from = fixture.hunter_start;
+    let doorway = fixture.doorway;
+    let player = fixture.player;
     Run {
         world,
         from,

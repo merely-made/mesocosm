@@ -108,10 +108,27 @@ fn local_of(at: [i32; 3]) -> [i32; 3] {
 /// facts, never stored beside the brick truth: Ground owns the resulting
 /// voxels, while tests and generation share the one construction rule.
 #[derive(Clone, Debug)]
-pub(crate) struct NestEntry {
+pub struct NestEntry {
+    /// Surface column at the mouth of the entry.
     pub anchor: [i32; 2],
+    /// Floor height of the roofed room at the inner end.
     pub floor: i32,
+    /// Ordered standable voxels from surface mouth to inner room.
     pub route: Vec<[i32; 3]>,
+}
+
+impl Grown {
+    /// The exact generated access routes embodied by [`Ground::grow`].
+    ///
+    /// This is a read model over the same construction rule as terrain
+    /// generation. Debuggers and projections can name a threshold without
+    /// reconstructing one from rendered voxels or storing another authority.
+    pub fn nest_entries(&self, extent: i32) -> impl Iterator<Item = (Nest, NestEntry)> + '_ {
+        self.nests
+            .iter()
+            .copied()
+            .filter_map(move |nest| nest_entry(self, extent, nest).map(|entry| (nest, entry)))
+    }
 }
 
 pub(crate) fn nest_entry(grown: &Grown, extent: i32, nest: Nest) -> Option<NestEntry> {

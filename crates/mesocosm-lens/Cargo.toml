@@ -7,6 +7,10 @@ description = "The biosphere lens probe: a fullscreen heightfield raymarch plus 
 repository = "https://github.com/merely-made/mesocosm"
 publish = false
 
+[features]
+default = []
+resident-ground-receipt = ["dep:burn", "dep:quint"]
+
 # The probe for the unified-raymarch candidate (render lane landscape §7).
 # Everything it consumes is 2D data: a heightmap, a colormap, a grade block.
 # If this earns its keep it dies into a netrender render-graph task; it never
@@ -18,6 +22,8 @@ bytemuck = { version = "1", features = ["derive"] }
 pollster = "0.4"
 serde = { workspace = true }
 postcard = { workspace = true }
+burn = { version = "0.22.0-pre.2", default-features = false, features = ["std", "wgpu"], optional = true }
+quint = { git = "https://github.com/merely-made/mere.git", branch = "main", features = ["field-gpu"], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-time = "1"
@@ -34,3 +40,7 @@ winit = "0.30"
 console_error_panic_hook = "0.1"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Document", "Element", "HtmlElement", "Window"] }
+
+[[example]]
+name = "resident_ground"
+required-features = ["resident-ground-receipt"]

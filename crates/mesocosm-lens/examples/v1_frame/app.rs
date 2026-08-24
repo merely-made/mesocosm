@@ -10,11 +10,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::{Window, WindowId};
 
-use crate::gpu::Gpu;
-
-const WIDTH: u32 = 960;
-const HEIGHT: u32 = 540;
-const FRAMES: u32 = 2;
+use crate::gpu::{Gpu, INITIAL_SIZE, MIN_FRAMES, WINDOW_TITLE};
 
 pub fn run() -> Result<(), String> {
     let event_loop = EventLoop::<InitEvent>::with_user_event()
@@ -50,12 +46,12 @@ impl Config {
     fn read() -> Result<Self, String> {
         #[cfg(target_arch = "wasm32")]
         {
-            Ok(Self { frames: FRAMES })
+            Ok(Self { frames: MIN_FRAMES })
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut config = Self {
-                frames: FRAMES,
+                frames: MIN_FRAMES,
                 capture: None,
                 receipt: None,
             };
@@ -75,6 +71,7 @@ impl Config {
                     other => return Err(format!("unknown argument: {other}")),
                 }
             }
+            config.frames = config.frames.max(MIN_FRAMES);
             Ok(config)
         }
     }
@@ -177,8 +174,11 @@ impl ApplicationHandler<InitEvent> for App {
             return;
         }
         let attributes = Window::default_attributes()
-            .with_title("Mesocosm V1")
-            .with_inner_size(winit::dpi::LogicalSize::new(WIDTH, HEIGHT));
+            .with_title(WINDOW_TITLE)
+            .with_inner_size(winit::dpi::LogicalSize::new(
+                INITIAL_SIZE[0],
+                INITIAL_SIZE[1],
+            ));
         #[cfg(target_arch = "wasm32")]
         let attributes = {
             use winit::platform::web::WindowAttributesExtWebSys;

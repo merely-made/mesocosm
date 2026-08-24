@@ -3,8 +3,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use mesocosm_lens::{BrickDiagnostics, BrickMap};
+use mesocosm_lens::BrickDiagnostics;
 use netrender::profiling::FrameTimings;
+
+use crate::scenario::Scenario;
 
 #[derive(Debug, serde::Serialize)]
 pub struct Receipt {
@@ -71,8 +73,7 @@ impl Receipt {
         frame: u32,
         size: [u32; 2],
         format: wgpu::TextureFormat,
-        scene: &[u8],
-        map: &BrickMap,
+        scenario: &Scenario,
         adapter: &wgpu::Adapter,
         tracer: BrickDiagnostics,
         netrender: FrameTimings,
@@ -93,14 +94,14 @@ impl Receipt {
             frame,
             size,
             surface_format: format!("{format:?}"),
-            scene_digest: format!("fnv1a64:{:016x}", digest(scene)),
-            scene_bytes: scene.len(),
+            scene_digest: format!("fnv1a64:{:016x}", digest(scenario.bytes())),
+            scene_bytes: scenario.bytes().len(),
             brick_abi: BrickAbiReceipt {
-                origin: map.origin(),
-                pointer_extent: map.pointer_extent(),
-                atlas_extent: map.atlas_extent(),
-                pointer_bytes: std::mem::size_of_val(map.pointers()),
-                atlas_bytes: map.atlas().len(),
+                origin: scenario.map().origin(),
+                pointer_extent: scenario.map().pointer_extent(),
+                atlas_extent: scenario.map().atlas_extent(),
+                pointer_bytes: std::mem::size_of_val(scenario.map().pointers()),
+                atlas_bytes: scenario.map().atlas().len(),
             },
             adapter: AdapterReceipt {
                 name: info.name,

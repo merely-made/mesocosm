@@ -263,7 +263,11 @@ fn step_inner(
         .iter()
         .enumerate()
         .filter(|(_, o)| o.stage == Stage::Carrion)
-        .map(|(index, o)| (o.position, index))
+        .map(|(index, o)| CarrionTarget {
+            position: o.position,
+            organism_index: index,
+            shape: o.walker_shape(),
+        })
         .collect();
     let carrion_cells = carrion_cells(&carrion);
 
@@ -273,15 +277,14 @@ fn step_inner(
         .iter()
         .enumerate()
         .filter(|(_, o)| o.is_alive())
-        .map(|(index, o)| {
-            (
-                o.id,
-                o.position,
-                index,
-                o.kingdom(),
-                o.biomass_mg(),
-                o.signal,
-            )
+        .map(|(index, o)| LivingTarget {
+            id: o.id,
+            position: o.position,
+            organism_index: index,
+            kingdom: o.kingdom(),
+            mass_mg: o.biomass_mg(),
+            signal: o.signal,
+            shape: o.walker_shape(),
         })
         .collect();
     let living_cells = living_cells(&living);
@@ -480,6 +483,7 @@ fn step_inner(
             parent.position[1],
             parent.position[2] + scatter[2],
         ];
+        let walker_shape = crate::places::WalkerShape::from_aabb(body.aabb());
         let child = Organism {
             id: child_id,
             species: parent.species,
@@ -493,9 +497,9 @@ fn step_inner(
             // A near-tier child is an embodied body immediately, rather
             // than an abstract point that has to be repaired next tick.
             position: match (ground, parent.tier) {
-                (Some(ground), Tier::Near) => {
-                    surface_stance(ground, position).unwrap_or(parent.position)
-                }
+                (Some(ground), Tier::Near) => surface_stance(ground, walker_shape, position)
+                    .or_else(|| surface_stance(ground, walker_shape, parent.position))
+                    .unwrap_or(parent.position),
                 _ => position,
             },
             tier: parent.tier,
