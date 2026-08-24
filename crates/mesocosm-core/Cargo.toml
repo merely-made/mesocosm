@@ -14,6 +14,7 @@ publish = false
 serde = { workspace = true }
 postcard = { workspace = true }
 codicil = { workspace = true }
+conatus = { workspace = true }
 
 [dev-dependencies]
 codicil = { workspace = true }

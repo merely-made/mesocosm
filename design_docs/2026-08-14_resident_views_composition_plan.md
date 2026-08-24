@@ -597,6 +597,30 @@ Three flags:
 - **Nothing else in the critique's component list is auto-adopted.**
   Each entry composes through the seam or waits for a consumer.
 
+## Product adoption correction (2026-08-23)
+
+Mesocosm is now the first tracked consumer of Conatus's CPU voxel mechanics,
+without transferring `Ground` authority. `mesocosm_core::voxel_profile` keeps
+disposable `VoxelChunk<u8>` views beside the record, preserves Mesocosm's
+global source revision separately from Conatus's per-chunk mechanics, and
+lowers only occupancy-changing patches for tactile consumers. The adapter
+refuses stale or regressed source revisions atomically. It does not enter a
+snapshot, and a repeated unchanged source produces an empty update.
+
+The focused receipt proves four things against the real `Ground`: constructing
+and synchronizing the profile leaves snapshot bytes untouched; one accepted
+carve produces revision-addressed chunk and occupancy changes; the same source
+revision is silent on the next sync; and two replay-identical grounds produce
+identical snapshot bytes and projection changes. This is first-consumer
+evidence for the mechanics, not promotion of a cross-product voxel authority,
+identity, resident lease, or frame contract.
+
+The dependency baseline is also repaired. Mesocosm's Mere-family Git source
+moved together from stale commit `c10d82bd` to `5767563c`, so the real
+`resident_ground` example now compiles with Quint's `commit_plane_patch` API.
+The example remains part of the concurrent resident-view lane and is not
+claimed by this adapter commit.
+
 ## Stop rules
 
 - No second world representation inside any consumer; a consumer that

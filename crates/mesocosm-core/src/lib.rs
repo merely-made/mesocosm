@@ -56,6 +56,7 @@ pub mod rng;
 pub mod score;
 pub mod snapshot;
 pub mod species;
+pub mod voxel_profile;
 pub mod world;
 
 pub mod chronicle;

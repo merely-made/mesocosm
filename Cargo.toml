@@ -30,6 +30,10 @@ members = [
 # The append-only log, from mere's eidetic family. Branch-tracked rather
 # than pinned; its causal shape landed 2026-08-01 for exactly this use.
 codicil = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+# Shared spatial mechanics. Mesocosm keeps `Ground` as the durable authority;
+# its product adapter consumes Conatus chunk and patch machinery as a derived
+# view over accepted ground revisions.
+conatus = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # The scenograph projection contract and its solvers: the adapter-first UI
 # posture. Mesocosm discloses facts as a score; scenomise places them; a host
 # realizes the scene. Views never hand-roll layout.
