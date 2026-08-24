@@ -16,7 +16,9 @@ use std::{
     fmt,
 };
 
-use conatus::{VoxelCellEdit, VoxelChunk, VoxelChunkError, VoxelEdit, VoxelPatch, VoxelRegion};
+use conatus_voxel::{
+    VoxelCellEdit, VoxelChunk, VoxelChunkError, VoxelEdit, VoxelPatch, VoxelRegion,
+};
 
 use crate::places::{AIR, BRICK, Ground};
 
