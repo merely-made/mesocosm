@@ -18,7 +18,8 @@ use burn::{
 };
 use mesocosm_core::places::{Ground, Places};
 use mesocosm_lens::{
-    BrickChange, BrickFrameInput, BrickMap, BrickRevision, BrickTracer, Flight, Grade, LeasedAtlas,
+    BrickChange, BrickFrameInput, BrickMap, BrickProjectionRevision, BrickRevision, BrickTracer,
+    Flight, Grade, LeasedAtlas,
 };
 use quint::resident::{
     ChunkBounds, ChunkStamp, DirtyRegion, PlaneClass, PlaneElementType, PlaneId, RawKernelView,
@@ -265,6 +266,7 @@ fn resident_atlas(
 
 fn tracer_lease<'a>(
     view: &'a RawKernelView,
+    projection_revision: BrickProjectionRevision,
     atlas_extent: [u32; 3],
     source_origin: [u32; 3],
     slot_origin: [u32; 3],
@@ -292,6 +294,7 @@ fn tracer_lease<'a>(
         slot_origin,
         extent,
         revision: BrickRevision(lease.stamp.revision),
+        projection_revision,
         read_epoch: lease.stamp.valid_read_epoch.get(),
     };
     assert!(
@@ -345,6 +348,7 @@ fn main() {
             BrickFrameInput::new(&map, BrickRevision(ground.revision()), &view, &grade)
                 .with_leased_atlas(tracer_lease(
                     &initial_atlas,
+                    map.projection_revision(),
                     initial_extent,
                     [0; 3],
                     [0; 3],
@@ -435,6 +439,7 @@ fn main() {
                 .changed(BrickChange::Slots(&slots))
                 .with_leased_atlas(tracer_lease(
                     &committed_atlas,
+                    map.projection_revision(),
                     initial_extent,
                     slot_origin,
                     slot_origin,

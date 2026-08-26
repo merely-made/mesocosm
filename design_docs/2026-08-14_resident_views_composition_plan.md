@@ -1,11 +1,13 @@
 # Resident Views Composition Plan (2026-08-14)
 
-**Status: founded 2026-08-14; lanes A-F and the seed crystal complete;
-the first real-Ground composition receipt was implemented locally 2026-08-20;
-retained-allocation mutation closed locally 2026-08-21; landing waits on the
-Quint-first commit order; strided subregion carriage closed locally 2026-08-21;
-field-plane visualization remains open.** How the voxel world, Burn/CubeCL,
-the tracer, the mesher, collision, and persistence compose on one device.
+**Status: founded 2026-08-14; lanes A-F, the seed crystal, real-Ground
+composition, retained-allocation mutation, and strided subregion carriage are
+landed in tracked code; Conatus voxel mechanics are adopted through
+`GroundVoxelProfile`; equal-sized projection cache coherence was implemented
+2026-08-26 with its refreshed headed travel receipt still open; field-plane
+visualization, incremental per-brick residency, and allocator-observed bytes
+remain open.** How the voxel world, Burn/CubeCL, the
+tracer, the mesher, collision, and persistence compose on one device.
 Ratified direction (Mark, 2026-08-14): the voxel world
 is Burn-addressable state while remaining voxel-authoritative state.
 Burn does not import voxels into a second world representation; every
@@ -654,6 +656,35 @@ moved together from stale commit `c10d82bd` to `5767563c`, so the real
 `resident_ground` example now compiles with Quint's `commit_plane_patch` API.
 The example remains part of the concurrent resident-view lane and is not
 claimed by this adapter commit.
+
+## Projection cache correction (2026-08-26)
+
+`BrickProjectionRevision` identifies a selected key-to-slot projection
+separately from Ground's `BrickRevision`. The product working-set policy
+advances it when selection changes, including travel inside one unchanged zoom
+band. The keyed constructor requires that explicit identity rather than
+silently assigning revision zero. `BrickTracer` retains equal-sized textures,
+fully republishes them when the projection revision changes, and performs no
+brick upload on a repeated unchanged stamp.
+
+`LeasedAtlas` carries the same projection revision, so a valid buffer range
+from another page cannot masquerade as the current slot mapping. That mismatch
+is refused and falls back to the CPU atlas. Unknown changed slots are refused
+before any upload or resident cache-stamp advance.
+
+The lens has a headless equal-extent cache/lease test, and Paredros has policy
+coverage for same-band travel. The headed V1 trace now contains an explicit
+travel event and requires `projection_replaced` with zero texture or bind-group
+creation, but that artifact must be refreshed before this gate is called
+closed.
+
+This remains evidence over the lens-local texture owner. It does not promote
+projection identity, frame cadence, or leases into a cross-product contract.
+`LeasedAtlas::read_epoch` is observed diagnostics; safe reuse remains a host
+scheduling promise until the eventual platform owner supplies an expected
+epoch or equivalent token. A `ResidentChunk`-backed per-brick cache and
+allocator-observed resident plus transition bytes remain the next residency
+gate.
 
 ## Stop rules
 

@@ -1,7 +1,7 @@
 # Engine and Ecology Rulings: Critical Review (2026-08-18)
 
-**Status: provisional engine rulings, reviewed against the live code on
-2026-08-18.** The vessel brief remains authority for product identity,
+**Status: provisional engine rulings, reviewed against the live code through
+2026-08-26.** The vessel brief remains authority for product identity,
 camera, and presentation. The resident-views composition plan remains
 authority for the shared-device seam and the completed A-F proofs. This
 document records the consequences of those decisions, corrects the
@@ -228,13 +228,12 @@ revisioned projection with an explicit validity boundary.
 
 ## 5. Recommended build order
 
-The next product target should be a Mesocosm epoch slice rather than a generic
-engine program: one terrarium section, one controlled organism, legible local
-ecology, an end-of-epoch trait-board decision, and deterministic replay. It is
-the smallest slice that makes the engine, ecology, and review UI answer to one
-consumer.
-
-The engine proofs should be pulled by that slice:
+R1, R2, R3, B1, and V1 moved the shared engine past feasibility. The next
+shared-engine work is bounded consolidation: projection-correct residency,
+then the proven brick ABI and camera-neutral DDA lift, then real raymarch depth
+composition, then a Mesocosm tactile consumer through Conatus. Product work,
+including the epoch slice, remains independently ordered by its own consumer
+gates rather than serving as a prerequisite for every reusable mechanism.
 
 ### R1. Shared traversal profile: **COMPLETE 2026-08-20**
 
@@ -422,7 +421,8 @@ from distance 8 to 72 while it rises from 50 to 65 degrees. Visible range is
 the four-corner ground-plane footprint plus one brick. The complete 6,091
 brick region refuses the exact tracer's 4,096-brick ceiling, while the camera
 pulls exact page radii 40, 88, and 128 through the new bounded
-`BrickMap::from_ground_keys` seam.
+`BrickMap::from_ground_keys` seam, which requires an explicit projection
+revision.
 
 The far planning frame covers radius 127 with 1,411 bricks and 795,144 logical
 pointer-plus-atlas bytes under a 1 MiB budget. Five page transitions over 96
@@ -437,11 +437,10 @@ exact Ground and `BrickMap` allocation.
 
 Two corrections carry forward. The byte budget is logical payload, not
 allocator-observed VRAM, and excludes driver rounding plus transition overlap.
-The load and eviction counts are policy deltas. Physically, today's
-`BrickTracer` creates replacement textures and uploads the full page at every
-band change. It cannot safely publish same-sized travel pages at one Ground
-revision because its cache identity observes source revision and texture
-extents, not projection identity; the V1 adapter refuses that case.
+The load and eviction counts are policy deltas. Extent changes still create
+replacement textures and upload a complete page. Equal-sized pages now retain
+the existing textures and fully republish when their explicit projection
+revision changes.
 
 **Verdict.** Exact sparse pages are sufficient for this first base-planning
 view, so V1 does not justify building a clipmap yet. The permanent seam is a
@@ -450,13 +449,40 @@ per-brick publication, and allocator-observed bytes. Larger planning views or
 travel can then pull clipmap or mip work if they exceed the exact budget. The
 feature-gated sideways proof still does not choose the platform owner.
 
+### V1a. Projection identity for equal-sized pages: **IMPLEMENTED 2026-08-26;
+HEADED TRAVEL RECEIPT OPEN**
+
+`BrickProjectionRevision` now identifies one selected key-to-slot projection,
+separately from Ground's authoritative `BrickRevision`. Dynamic working-set
+owners advance it when selection or slot assignment changes. The retained
+tracer compares it before the cache-hit return, fully republishes a changed
+equal-sized projection without rebuilding textures or bind groups, and keeps
+an unchanged projection upload-silent.
+
+Resident atlas leases carry the same projection revision. A lease from another
+page is refused even when Ground revision, physical range, and slot coordinates
+match, and the CPU path fills the frame instead. A changed-slot declaration
+that names an unknown slot is refused before uploads or cache-stamp advance.
+Paredros now detects key-set changes inside one zoom band and advances the
+projection revision, removing V1's travel refusal. The lens owns a headless
+equal-extent cache/lease receipt and Paredros owns a same-band policy test. Its
+headed V1 trace now moves the focus and asserts retained texture publication;
+the refreshed artifact is the remaining closing evidence.
+
+This implements cache coherence for equal-sized travel. It does not make the
+identity durable or cross-product. Lease `read_epoch` remains a host scheduling
+promise rather than tracer-validated identity, and incremental
+`ResidentChunk` publication, allocator-observed bytes, and platform ownership
+remain open.
+
 ## 6. Open choices carried to proof
 
-- which tactile gameplay host promotes the proved Ground-to-Parry adapter;
+- which Mesocosm tactile consumer completes
+  `Ground -> GroundVoxelProfile -> Conatus` while Rapier remains private;
 - the exact shared spatial contract for contemporaneous construction across
   vessels;
 - the platform owner that joins `ResidentChunk` residency to the shared DDA
   after a permanent Paredros consumer exists.
 
-These are not prerequisites for the Mesocosm epoch slice. Each has a consumer
-and a receipt that can decide it without inventing an engine in advance.
+These remain consumer-forced contracts. They do not suspend unrelated product
+work, and none authorizes a generic engine umbrella in advance.

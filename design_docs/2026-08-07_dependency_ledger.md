@@ -1,18 +1,20 @@
 # Dependency Ledger (2026-08-07)
 
-**Status: active ordering authority.** Successor to the
+**Status: active ordering authority, corrected against live code
+2026-08-26.** Successor to the
 [execution waves plan](2026-07-31_execution_waves_plan.md), demoted to
 Wave 1/2 history by the audit. The governing plans own the *what*; this
 owns the *when* and the *blocks-what*. One page on purpose; when it
 stops fitting on one page, that is a finding.
 
-The standing caveat transfers whole from Wave 2.1 and outranks
-everything below: **somebody wants another run.** No receipt substitutes
-for the founding condition.
+The founding condition remains causal: another run should pull product work.
+It does not make one product slice a prerequisite for reusable mechanics whose
+ownership and consumer proof have already settled.
 
 ## Mesocosm lanes
 
-**ProcessDef/phenotype chain** (audit: active and next):
+**ProcessDef/phenotype chain** (active product chain, not the global engine
+order):
 
 ```text
 PD1b -> PD2 (one native played process) -> P3 (branch transfer)
@@ -22,18 +24,30 @@ PD1b -> PD2 (one native played process) -> P3 (branch transfer)
 PD1b also unblocks the general model's **E1 acceptance gate** (feeding as
 satisfied processes; trophic role as a summary of realized activity).
 
-**Place-graph chain:**
-
-```text
-G0/G1 world adoption  [LANDED 2026-08-08]
-  -> G2 integration (tracer into the lens's retained pattern; grade;
-     bodies; netrender frame; browser receipt per D0 discipline)
-  -> G3 world wiring (Move and the near tier onto occupancy/sight)
-  -> G4 the burrow run (the composed slice)
-```
+**Place-graph chain:** G0-G4 are historical build labels rather than pending
+gates. G0/G1 landed 2026-08-08, G2 and G3's ingress/scale receipts landed
+2026-08-14, and G4 was composed by 2026-08-21. P9/P10 body-shaped locomotion
+and perception are also implemented.
 
 Adoption changes replay hashes; old fixtures are historical by ruling
 (Mark, 2026-08-06) and are re-greened, not preserved.
+
+**Shared-engine consolidation:**
+
+```text
+projection-correct equal-sized residency  [IMPLEMENTED 2026-08-26;
+                                             headed travel receipt open]
+  -> lift the proven brick ABI and camera-neutral DDA
+  -> raymarch depth / renderling occlusion receipt
+  -> a real Mesocosm tactile consumer through
+     Ground -> GroundVoxelProfile -> Conatus
+```
+
+The first row has a headless lens cache receipt and Paredros policy coverage;
+the headed V1 trace now contains the travel gate but still needs a fresh
+receipt. Incremental
+`ResidentChunk` publication, allocator-observed bytes, platform ownership,
+and every cross-product frame or lease contract remain open.
 
 **Open acceptance gates riding those chains** (general model plan): E1 on
 PD1b; E2's epoch receipt; E3's sufficient statistics, authority move, and
@@ -48,9 +62,10 @@ the ecology's acceptance gates stop moving under it).
 ## Paredros lane
 
 The [execution plan](../../paredros/design_docs/2026-08-07_paredros_execution_plan.md)
-orders itself: identity facts, then S0 -> S6. S0 consumes Mesocosm's
-near-tier kinematics and the renderling tenant seam as-is. R4 (extraction
-review) fires after S3.
+orders itself. S0-S3 are foundation receipts; F0-F2 are closed, F3 is active,
+and F3a is landed. Its opt-in traversal/residency code now handles equal-sized
+travel through product-owned projection revision; a fresh headed travel
+receipt remains the closing evidence. R4 already fired and was decided.
 
 ## Isometry lane (audit order; work deferred while source-time is in flight)
 
@@ -63,8 +78,8 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Cross-lane facts
 
-- The **consequence envelope** is extracted only after Paredros S3
-  provides the third sovereign proof (general model evaluator rule).
+- R4's extraction review already refused a shared consequence grammar and
+  promoted only the proven platform organs.
 - The **wing-noun profile** is extracted only after two real consumers,
   unchanged.
 - Renderer work follows the landscape's decision index; nothing here
@@ -72,5 +87,10 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
+- **2026-08-26:** corrected stale global ordering after R1/R2/R3/B1/V1 and
+  Conatus voxel adoption. Equal-sized projection cache coherence was
+  implemented first, with its refreshed headed receipt still open;
+  DDA ownership lift, depth composition, and the real Mesocosm Conatus tactile
+  consumer remain ordered shared-engine work.
 - **2026-08-07:** founded, replacing the waves plan as ordering
   authority.

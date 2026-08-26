@@ -19,6 +19,13 @@ const SLOTS_Z: u32 = 16;
 const MAX_SLOTS_Y: u32 = 8;
 const MAX_BRICKS: usize = (SLOTS_X * SLOTS_Z * MAX_SLOTS_Y - 1) as usize;
 
+/// Host-issued revision of one selected key-to-slot brick projection.
+///
+/// This is separate from Ground's authoritative revision. A product advances
+/// it whenever its selected working set or slot assignment changes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct BrickProjectionRevision(pub u64);
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BrickMapError {
     TooManyBricks { actual: usize, maximum: usize },
@@ -45,6 +52,7 @@ impl std::error::Error for BrickMapError {}
 /// `texture_3d<u32>` material atlas.
 #[derive(Clone, Debug)]
 pub struct BrickMap {
+    projection_revision: BrickProjectionRevision,
     origin: [i16; 3],
     pointer_extent: [u32; 3],
     slots: [u32; 3],
@@ -55,17 +63,21 @@ pub struct BrickMap {
 
 impl BrickMap {
     pub fn from_ground(ground: &Ground) -> Result<Self, BrickMapError> {
-        Self::from_ground_keys(ground, ground.keys())
+        Self::from_ground_keys(ground, BrickProjectionRevision(0), ground.keys())
     }
 
-    /// Builds a bounded presentation map from selected world bricks.
+    /// Builds a bounded presentation map at an explicit host projection
+    /// revision.
     ///
-    /// Selection is presentation policy rather than world authority. Keys are
+    /// Selection is presentation policy rather than world authority. Dynamic
+    /// working-set owners must advance `projection_revision` whenever selection
+    /// or slot assignment changes, including equal-sized travel. Keys are
     /// deduplicated and ordered here so camera traversal cannot make slot
     /// assignment nondeterministic. A missing key is refused rather than
     /// silently presented as air.
     pub fn from_ground_keys(
         ground: &Ground,
+        projection_revision: BrickProjectionRevision,
         keys: impl IntoIterator<Item = [i16; 3]>,
     ) -> Result<Self, BrickMapError> {
         let keys: Vec<_> = keys
@@ -95,6 +107,7 @@ impl BrickMap {
             .map(|(index, key)| (*key, index as u32 + 1))
             .collect();
         let mut map = Self {
+            projection_revision,
             origin,
             pointer_extent,
             slots,
@@ -131,6 +144,10 @@ impl BrickMap {
 
     pub fn origin(&self) -> [i16; 3] {
         self.origin
+    }
+
+    pub fn projection_revision(&self) -> BrickProjectionRevision {
+        self.projection_revision
     }
 
     pub fn pointer_extent(&self) -> [u32; 3] {
@@ -325,8 +342,9 @@ mod tests {
         reversed.reverse();
         reversed.extend(selected.iter().copied());
 
-        let a = BrickMap::from_ground_keys(&ground, selected.clone()).unwrap();
-        let b = BrickMap::from_ground_keys(&ground, reversed).unwrap();
+        let a = BrickMap::from_ground_keys(&ground, BrickProjectionRevision(0), selected.clone())
+            .unwrap();
+        let b = BrickMap::from_ground_keys(&ground, BrickProjectionRevision(0), reversed).unwrap();
         assert_eq!(a.origin(), b.origin());
         assert_eq!(a.pointer_extent(), b.pointer_extent());
         assert_eq!(a.pointers(), b.pointers());
@@ -348,7 +366,7 @@ mod tests {
     fn a_selected_working_set_refuses_a_missing_brick() {
         let ground = ground();
         assert!(matches!(
-            BrickMap::from_ground_keys(&ground, [[i16::MAX; 3]]),
+            BrickMap::from_ground_keys(&ground, BrickProjectionRevision(0), [[i16::MAX; 3]],),
             Err(BrickMapError::GroundShapeChanged)
         ));
     }

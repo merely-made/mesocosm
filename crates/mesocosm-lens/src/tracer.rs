@@ -16,8 +16,8 @@ use web_time::Instant;
 
 mod types;
 
-use crate::{BrickMap, FRAME_FORMAT};
-use types::{TraceParams, validates_pose};
+use crate::{BrickMap, BrickProjectionRevision, FRAME_FORMAT};
+use types::{TraceParams, validates_change, validates_pose};
 
 pub use types::{
     BrickCapture, BrickChange, BrickDiagnostics, BrickFrameInput, BrickRevision, BrickTraceError,
@@ -28,6 +28,7 @@ struct ResidentMap {
     pointer_extent: [u32; 3],
     atlas_extent: [u32; 3],
     revision: BrickRevision,
+    projection_revision: BrickProjectionRevision,
     pointer: wgpu::Texture,
     atlas: wgpu::Texture,
     bind: wgpu::BindGroup,
@@ -186,6 +187,7 @@ impl BrickTracer {
     ) -> Result<BrickDiagnostics, BrickTraceError> {
         let started = Instant::now();
         validates_pose(input)?;
+        validates_change(input)?;
         let mut diagnostics = BrickDiagnostics {
             resource_creations: std::mem::take(&mut self.pending_resource_creations),
             ..Default::default()
@@ -299,9 +301,11 @@ impl BrickTracer {
             diagnostics.map_recreated = true;
         }
         let resident = self.map.as_mut().expect("map created");
-        if resident.revision == input.revision && !recreate {
+        let projection_changed = resident.projection_revision != input.map.projection_revision();
+        if resident.revision == input.revision && !projection_changed && !recreate {
             return;
         }
+        diagnostics.projection_replaced = projection_changed && !recreate;
         // A leased atlas replaces the CPU upload for the voxels it
         // covers: the producer already has them resident, so they move
         // GPU-side. The pointer volume still uploads from the map,
@@ -311,12 +315,20 @@ impl BrickTracer {
             if leased.revision != input.revision {
                 diagnostics.stale_lease_rejections += 1;
                 false
+            } else if leased.projection_revision != input.map.projection_revision() {
+                diagnostics.projection_lease_rejections += 1;
+                false
             } else if !leased.copyable_into(resident.atlas_extent) {
                 // An invalid strided range could copy a neighbouring
                 // allocation out of the producer's pool or cross the atlas.
                 diagnostics.misfit_lease_rejections += 1;
                 false
-            } else if !lease_covers_change(leased, input.map, input.change, recreate) {
+            } else if !lease_covers_change(
+                leased,
+                input.map,
+                input.change,
+                recreate || projection_changed,
+            ) {
                 // A valid partial lease must not suppress uploads for changed
                 // slots it does not actually contain.
                 diagnostics.incomplete_lease_rejections += 1;
@@ -335,7 +347,7 @@ impl BrickTracer {
         // a refused lease must not leave the
         // atlas unwritten, or the frame shows whatever was there before.
         let atlas_from_cpu = !atlas_from_lease;
-        if recreate || matches!(input.change, BrickChange::Full) {
+        if recreate || projection_changed || matches!(input.change, BrickChange::Full) {
             write_texture_3d(
                 &self.queue,
                 &resident.pointer,
@@ -387,6 +399,7 @@ impl BrickTracer {
             }
         }
         resident.revision = input.revision;
+        resident.projection_revision = input.map.projection_revision();
     }
 
     fn create_map(&self, map: &BrickMap) -> ResidentMap {
@@ -440,6 +453,7 @@ impl BrickTracer {
             pointer_extent: map.pointer_extent(),
             atlas_extent: map.atlas_extent(),
             revision: BrickRevision(u64::MAX),
+            projection_revision: BrickProjectionRevision(u64::MAX),
             pointer,
             atlas,
             bind,

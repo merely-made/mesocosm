@@ -5,7 +5,7 @@
 
 use bytemuck::{Pod, Zeroable};
 
-use crate::{BrickMap, CritterPose, Flight, Grade, MAX_CAPSULES};
+use crate::{BrickMap, BrickProjectionRevision, CritterPose, Flight, Grade, MAX_CAPSULES};
 
 const PERSPECTIVE: u32 = 0;
 const ORTHOGRAPHIC: u32 = 1;
@@ -213,6 +213,8 @@ pub struct LeasedAtlas<'a> {
     pub slot_origin: [u32; 3],
     pub extent: [u32; 3],
     pub revision: BrickRevision,
+    /// Selected brick projection these resident bytes materialize.
+    pub projection_revision: BrickProjectionRevision,
     /// Host-issued schedule epoch at which the producer made these bytes
     /// safe for reader tenants.
     pub read_epoch: u64,
@@ -371,8 +373,10 @@ pub struct BrickDiagnostics {
     pub leased_atlas_bytes: u64,
     /// Producer schedule epoch observed by the accepted atlas lease.
     pub observed_read_epoch: Option<u64>,
-    /// Leases refused because their revision did not match the frame's.
+    /// Leases refused because their Ground revision did not match the frame's.
     pub stale_lease_rejections: u32,
+    /// Leases refused because they materialized another selected projection.
+    pub projection_lease_rejections: u32,
     /// Leases refused because their extent did not fit the leased range.
     pub misfit_lease_rejections: u32,
     /// Leases refused because they did not cover every atlas region named by
@@ -382,6 +386,9 @@ pub struct BrickDiagnostics {
     pub resource_creations: u32,
     pub bind_group_rebuilds: u32,
     pub map_recreated: bool,
+    /// Existing equal-sized textures were retained and fully republished for a
+    /// new selected projection.
+    pub projection_replaced: bool,
     pub trace_passes: u32,
     pub readback_bytes: u64,
 }
@@ -398,6 +405,7 @@ pub struct BrickCapture {
 pub enum BrickTraceError {
     CaptureFormat(wgpu::TextureFormat),
     TooManyCapsules { actual: usize, maximum: usize },
+    UnknownBrickSlot(u32),
     DevicePoll(String),
     Readback(String),
 }
@@ -413,6 +421,9 @@ impl std::fmt::Display for BrickTraceError {
             }
             Self::TooManyCapsules { actual, maximum } => {
                 write!(f, "brick trace has {actual} capsules; maximum is {maximum}")
+            }
+            Self::UnknownBrickSlot(slot) => {
+                write!(f, "brick change names unknown atlas slot {slot}")
             }
             Self::DevicePoll(message) => write!(f, "device poll failed: {message}"),
             Self::Readback(message) => write!(f, "readback failed: {message}"),
@@ -514,6 +525,17 @@ pub(super) fn validates_pose(input: BrickFrameInput<'_>) -> Result<(), BrickTrac
             actual,
             maximum: MAX_CAPSULES,
         });
+    }
+    Ok(())
+}
+
+pub(super) fn validates_change(input: BrickFrameInput<'_>) -> Result<(), BrickTraceError> {
+    if let BrickChange::Slots(slots) = input.change {
+        for slot in slots {
+            if input.map.pointer_coord(*slot).is_none() {
+                return Err(BrickTraceError::UnknownBrickSlot(*slot));
+            }
+        }
     }
     Ok(())
 }

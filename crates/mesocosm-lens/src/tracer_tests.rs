@@ -6,8 +6,8 @@
 use mesocosm_core::places::{Ground, Places};
 
 use crate::{
-    BrickChange, BrickFrameInput, BrickMap, BrickRevision, BrickTracer, CritterPose, Flight, Grade,
-    LeasedAtlas, critter::Capsule,
+    BrickChange, BrickFrameInput, BrickMap, BrickProjectionRevision, BrickRevision, BrickTracer,
+    CritterPose, Flight, Grade, LeasedAtlas, critter::Capsule,
 };
 
 fn ground() -> Ground {
@@ -90,6 +90,93 @@ fn a_steady_brick_frame_has_no_upload_churn() {
     assert_eq!(steady.diagnostics.uniform_upload_bytes, 0);
     assert_eq!(steady.diagnostics.resource_creations, 0);
     assert_eq!(steady.pixels, first.pixels);
+}
+
+#[test]
+fn an_equal_extent_projection_republishes_without_recreating_textures() {
+    let ground = ground();
+    let mut keys = ground.keys();
+    let first_key = keys.next().expect("ground has a first brick");
+    let second_key = keys
+        .find(|key| *key != first_key)
+        .expect("ground has a second brick");
+    let first_map = BrickMap::from_ground_keys(&ground, BrickProjectionRevision(4), [first_key])
+        .expect("first one-brick projection");
+    let second_map = BrickMap::from_ground_keys(&ground, BrickProjectionRevision(5), [second_key])
+        .expect("second one-brick projection");
+    assert_eq!(first_map.pointer_extent(), second_map.pointer_extent());
+    assert_eq!(first_map.atlas_extent(), second_map.atlas_extent());
+    assert_ne!(first_map.origin(), second_map.origin());
+
+    let Some(mut tracer) = BrickTracer::headless(64, 64) else {
+        eprintln!("no adapter; skipping projection replacement receipt");
+        return;
+    };
+    let camera = flight(&ground);
+    let grade = Grade::clay();
+    let revision = BrickRevision(ground.revision());
+    tracer
+        .capture(BrickFrameInput::new(&first_map, revision, &camera, &grade))
+        .expect("first projection");
+    let replaced = tracer
+        .capture(BrickFrameInput::new(&second_map, revision, &camera, &grade))
+        .expect("equal-sized replacement projection");
+
+    assert!(replaced.diagnostics.projection_replaced);
+    assert!(!replaced.diagnostics.map_recreated);
+    assert_eq!(replaced.diagnostics.resource_creations, 0);
+    assert_eq!(replaced.diagnostics.bind_group_rebuilds, 0);
+    assert_eq!(
+        replaced.diagnostics.brick_upload_bytes,
+        size_of_val(second_map.pointers()) as u64 + second_map.atlas().len() as u64
+    );
+    let mut control = BrickTracer::headless(64, 64).expect("control tracer");
+    let control_frame = control
+        .capture(BrickFrameInput::new(&second_map, revision, &camera, &grade))
+        .expect("fresh second projection");
+    assert_eq!(
+        replaced.pixels, control_frame.pixels,
+        "equal-sized replacement did not publish the selected page"
+    );
+
+    let steady = tracer
+        .capture(BrickFrameInput::new(&second_map, revision, &camera, &grade))
+        .expect("steady replacement projection");
+    assert!(!steady.diagnostics.projection_replaced);
+    assert_eq!(steady.diagnostics.brick_upload_bytes, 0);
+}
+
+#[test]
+fn an_unknown_changed_slot_is_refused_before_the_cache_stamp_advances() {
+    let ground = ground();
+    let map = BrickMap::from_ground(&ground).expect("atlas capacity");
+    let Some(mut tracer) = BrickTracer::headless(64, 64) else {
+        eprintln!("no adapter; skipping invalid-slot receipt");
+        return;
+    };
+    let camera = flight(&ground);
+    let grade = Grade::clay();
+    let revision = BrickRevision(ground.revision());
+    tracer
+        .capture(BrickFrameInput::new(&map, revision, &camera, &grade))
+        .expect("baseline frame");
+
+    let next = BrickRevision(revision.0 + 1);
+    let invalid = [u32::MAX];
+    assert!(matches!(
+        tracer.capture(
+            BrickFrameInput::new(&map, next, &camera, &grade).changed(BrickChange::Slots(&invalid))
+        ),
+        Err(crate::BrickTraceError::UnknownBrickSlot(u32::MAX))
+    ));
+
+    let admitted = tracer
+        .capture(BrickFrameInput::new(&map, next, &camera, &grade))
+        .expect("full publication after refusal");
+    assert!(
+        admitted.diagnostics.brick_upload_bytes > 0,
+        "the refused slot change advanced the resident cache stamp"
+    );
 }
 
 #[test]
@@ -191,6 +278,7 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
         slot_origin: map.atlas_slot_origin(1).expect("first atlas slot"),
         extent: [edge; 3],
         revision,
+        projection_revision: map.projection_revision(),
         read_epoch: 73,
     };
     let changed_slots = [1];
@@ -245,6 +333,74 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
     assert!(
         stale_frame.diagnostics.brick_upload_bytes >= u64::from(edge * edge * edge + 4),
         "a refused lease must fall back to the CPU upload"
+    );
+
+    // Equal-sized pages can reuse every physical coordinate while assigning
+    // slot one to another world brick. A lease for the previous projection is
+    // therefore stale even when its Ground revision and range still match.
+    let mut projection_keys = ground.keys();
+    let previous_key = projection_keys.next().expect("one ground brick");
+    let replacement_key = projection_keys
+        .find(|key| *key != previous_key)
+        .expect("another ground brick");
+    let previous_map =
+        BrickMap::from_ground_keys(&ground, BrickProjectionRevision(0), [previous_key])
+            .expect("previous projected map");
+    let projected_map =
+        BrickMap::from_ground_keys(&ground, BrickProjectionRevision(1), [replacement_key])
+            .expect("replacement projected map");
+    assert_eq!(
+        previous_map.pointer_extent(),
+        projected_map.pointer_extent()
+    );
+    assert_eq!(previous_map.atlas_extent(), projected_map.atlas_extent());
+    let mut projected = BrickTracer::headless(64, 64).expect("projected tracer");
+    projected
+        .capture(BrickFrameInput::new(
+            &previous_map,
+            source_revision,
+            &camera,
+            &grade,
+        ))
+        .expect("projection baseline");
+    let wrong_projection = LeasedAtlas {
+        revision: source_revision,
+        projection_revision: BrickProjectionRevision(0),
+        slot_origin: projected_map
+            .atlas_slot_origin(1)
+            .expect("projected first slot"),
+        ..leased
+    };
+    let projection_frame = projected
+        .capture(
+            BrickFrameInput::new(&projected_map, source_revision, &camera, &grade)
+                .with_leased_atlas(wrong_projection),
+        )
+        .expect("projection-mismatch lease frame");
+    assert_eq!(projection_frame.diagnostics.projection_lease_rejections, 1);
+    assert_eq!(projection_frame.diagnostics.leased_atlas_bytes, 0);
+    assert!(projection_frame.diagnostics.projection_replaced);
+    assert!(!projection_frame.diagnostics.map_recreated);
+    assert_eq!(projection_frame.diagnostics.resource_creations, 0);
+    assert_eq!(projection_frame.diagnostics.bind_group_rebuilds, 0);
+    assert_eq!(
+        projection_frame.diagnostics.brick_upload_bytes,
+        size_of_val(projected_map.pointers()) as u64 + projected_map.atlas().len() as u64,
+        "a projection-mismatch lease must fall back to a full CPU publication"
+    );
+    let mut projection_control =
+        BrickTracer::headless(64, 64).expect("projection CPU control tracer");
+    let projection_control_frame = projection_control
+        .capture(BrickFrameInput::new(
+            &projected_map,
+            source_revision,
+            &camera,
+            &grade,
+        ))
+        .expect("fresh projection CPU control");
+    assert_eq!(
+        projection_frame.pixels, projection_control_frame.pixels,
+        "projection lease refusal did not render the CPU fallback"
     );
 
     // A lease whose extent overruns its range is refused too. The
