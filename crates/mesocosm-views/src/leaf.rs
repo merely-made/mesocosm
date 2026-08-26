@@ -160,15 +160,11 @@ impl Leaf for MinimapLeaf {
 mod tests {
     use super::*;
     use crate::minimap::minimap_leaf;
-    use mesocosm_core::{Intent, World};
+    use mesocosm_core::World;
     use sprigging::PaintCmd;
 
     fn leaf() -> MinimapLeaf {
-        let mut world = World::new(4_242, 40);
-        for _ in 0..50 {
-            world.apply(Intent::Idle);
-        }
-        minimap_leaf(&world)
+        minimap_leaf(&World::new(4_242, 40))
     }
 
     fn painted(leaf: &mut MinimapLeaf) -> Vec<PaintCmd> {
@@ -187,14 +183,20 @@ mod tests {
     #[test]
     fn a_minimap_paints_its_regions_sites_and_player() {
         let mut leaf = leaf();
+        let region_paths = leaf.scene.regions.len();
+        let site_paths = leaf.scene.items.iter().filter(|item| item.visible).count();
+        assert!(leaf.player.is_some(), "the paint fixture is embodied");
         let cmds = painted(&mut leaf);
 
         let paths = cmds
             .iter()
             .filter(|cmd| matches!(cmd, PaintCmd::DrawPath(_)))
             .count();
-        // Nine cells, nine site dots, one player marker.
-        assert_eq!(paths, 9 + 9 + 1, "got {paths} path draws");
+        assert_eq!(
+            paths,
+            region_paths + site_paths + 1,
+            "got {paths} path draws for {region_paths} regions, {site_paths} sites, and one player"
+        );
     }
 
     #[test]
