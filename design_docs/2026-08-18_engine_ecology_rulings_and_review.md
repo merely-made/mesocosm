@@ -229,11 +229,13 @@ revisioned projection with an explicit validity boundary.
 ## 5. Recommended build order
 
 R1, R2, R3, B1, and V1 moved the shared engine past feasibility.
-Projection-correct residency and the brick ABI/DDA ownership lift are now
-complete. The next shared-engine work is real raymarch-depth composition,
-then a Mesocosm tactile consumer through Conatus. Product work,
-including the epoch slice, remains independently ordered by its own consumer
-gates rather than serving as a prerequisite for every reusable mechanism.
+Projection-correct residency, the brick ABI/DDA ownership lift, and
+raymarch-depth composition (D1, 2026-08-26) are now complete. The next
+shared-engine work is a real Mesocosm tactile consumer through Conatus;
+the separate residency lane remains incremental `ResidentChunk`-backed
+publication. Product work, including the epoch slice, remains
+independently ordered by its own consumer gates rather than serving as a
+prerequisite for every reusable mechanism.
 
 ### R1. Shared traversal profile: **COMPLETE 2026-08-20**
 
@@ -285,6 +287,34 @@ and its PNG remained byte-identical to the pre-extraction artifact. This
 promotes the proven mechanism only. Quint still owns `ResidentChunk`; product
 profiles still own source bindings; projection identity, frame cadence, and
 lease scheduling remain provisional.
+
+### D1. Raymarch depth composed with renderling: **COMPLETE 2026-08-26**
+
+Brick-raymarch ground and renderling raster geometry occlude each other per
+pixel on one device, closing the join R1 deliberately did not claim.
+
+The mechanism is a shared depth attachment, not a second compose pass.
+Renderling's stage already stores single-sampled standard-z `Depth32Float`
+depth; `brick_dda` already returns hit distance. `mesocosm_lens::BrickTracer`
+gained the camera-neutral half — a `clip_from_world` uniform, an `fs_depth`
+entry writing `@builtin(frag_depth)` from the raster tenant's own matrix, a
+lazily created depth-pipeline variant, and `encode_with_depth` under
+`LessEqual` with the colour target loaded rather than cleared. The plain
+`encode` path is untouched, and a headless lens test proves the join without
+renderling by pre-filling depth and asserting the occlusion split; all 33
+lens tests are green. Draw order and the receipt scene stay vessel-side:
+Paredros's opt-in `d1_depth` bin drew its body and three cyan witness
+pillars through renderling over the raymarched room and judged projected
+point probes on the RTX 4060 — raster covering rock where nearer, the floor
+covering a buried pillar base, a wholly sunken pillar invisible, with a
+positive control in the same frame and the replay hash unchanged. Receipt at
+`paredros/design_docs/2026-08-07_paredros_execution_plan.md` §3 D1 and
+`Code/testing/paredros/d1_depth.{json,png}`.
+
+One durable caution: the stage *replaces* its depth texture on size or
+multisample changes, so a consumer fetches the depth view after each raster
+draw; a held view silently tests the join against zeroed memory and loses
+every pixel.
 
 ### R2. GPU mesh bake into renderling: **COMPLETE 2026-08-21**
 

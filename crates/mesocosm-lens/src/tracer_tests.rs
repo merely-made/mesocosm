@@ -6,8 +6,8 @@
 use mesocosm_core::places::{Ground, Places};
 
 use crate::{
-    BrickChange, BrickFrameInput, BrickMap, BrickProjectionRevision, BrickRevision, BrickTracer,
-    CritterPose, Flight, Grade, LeasedAtlas, critter::Capsule,
+    BrickChange, BrickFrameInput, BrickMap, BrickProjectionRevision, BrickRevision, BrickTraceError,
+    BrickTracer, CritterPose, Flight, Grade, LeasedAtlas, critter::Capsule,
 };
 
 fn ground() -> Ground {
@@ -445,5 +445,209 @@ fn a_leased_atlas_fills_the_tracer_without_a_cpu_upload() {
     assert!(
         incomplete_frame.diagnostics.brick_upload_bytes >= map.atlas().len() as u64,
         "an incomplete full-frame lease suppressed the CPU fallback"
+    );
+}
+
+/// The depth join, proven without a raster engine: a caller-owned depth
+/// texture pre-cleared to a chosen plane stands in for a raster tenant's
+/// stored depth, and the traced pass must lose exactly where that plane is
+/// nearer than the traced surface's own clip depth.
+#[test]
+fn the_depth_join_settles_pixels_between_tracer_and_raster_depth() {
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let Ok(adapter) =
+        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
+    else {
+        eprintln!("no adapter; skipping depth join receipt");
+        return;
+    };
+    let Ok((device, queue)) = pollster::block_on(adapter.request_device(&Default::default()))
+    else {
+        eprintln!("no device; skipping depth join receipt");
+        return;
+    };
+    let (width, height) = (96u32, 64u32);
+    let mut tracer = BrickTracer::with_device(device.clone(), queue.clone(), width, height);
+    let ground = ground();
+    let map = BrickMap::from_ground(&ground).expect("atlas capacity");
+    let camera = flight(&ground);
+    let grade = Grade::clay();
+
+    let colour = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("depth join colour"),
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: crate::FRAME_FORMAT,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let colour_view = colour.create_view(&Default::default());
+    let depth = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("depth join depth"),
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Depth32Float,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        view_formats: &[],
+    });
+    let depth_view = depth.create_view(&Default::default());
+
+    // The stand-in raster: sentinel red everywhere, depth at a chosen value.
+    let clear = |depth_value: f32| {
+        let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("stand-in raster clear"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &colour_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 1.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(depth_value),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        drop(pass);
+        queue.submit([encoder.finish()]);
+    };
+    let sentinel_pixels = |label: &str| -> usize {
+        let padded = (width * 4).next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let staging = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("depth join readback"),
+            size: u64::from(padded) * u64::from(height),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        encoder.copy_texture_to_buffer(
+            colour.as_image_copy(),
+            wgpu::TexelCopyBufferInfo {
+                buffer: &staging,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+        queue.submit([encoder.finish()]);
+        let slice = staging.slice(..);
+        slice.map_async(wgpu::MapMode::Read, |_| {});
+        device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .expect(label);
+        let data = slice.get_mapped_range().expect("map range");
+        let mut sentinels = 0;
+        for row in 0..height {
+            let start = (row * padded) as usize;
+            for pixel in data[start..start + (width * 4) as usize].chunks_exact(4) {
+                if pixel[..3] == [255, 0, 0] {
+                    sentinels += 1;
+                }
+            }
+        }
+        sentinels
+    };
+    // Depth as a world-z ramp: clip.z = (z - 4.6) / 1.2, clip.w = 1. The
+    // flight camera's rays leave eye z 4.5 and descend roughly 14 voxels
+    // with forward z slopes of 0.009 to 0.093, so hits land near z 4.6 at
+    // the frame's bottom and z 5.8 at its top. Against a raster plane at
+    // 0.5 the trace then wins below z 5.2 and loses above it, and the
+    // gentle ramp keeps both classes present under relief variation.
+    // Columns are WGSL mat4x4 columns.
+    let z_plane = [
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0 / 1.2, 0.0],
+        [0.0, 0.0, -4.6 / 1.2, 1.0],
+    ];
+    let input = |clip: [[f32; 4]; 4]| {
+        BrickFrameInput::new(&map, BrickRevision(ground.revision()), &camera, &grade)
+            .with_clip_from_world(clip)
+    };
+    let trace = |tracer: &mut BrickTracer, clip: [[f32; 4]; 4]| {
+        let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        tracer
+            .encode_with_depth(&mut encoder, &colour_view, &depth_view, input(clip))
+            .expect("depth join frame");
+        queue.submit([encoder.finish()]);
+    };
+    let total = (width * height) as usize;
+
+    // A frame input without the matrix must refuse rather than write
+    // identity depth.
+    let mut encoder =
+        device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+    let refused = tracer.encode_with_depth(
+        &mut encoder,
+        &colour_view,
+        &depth_view,
+        BrickFrameInput::new(&map, BrickRevision(ground.revision()), &camera, &grade),
+    );
+    assert_eq!(refused, Err(BrickTraceError::MissingClipFromWorld));
+    drop(encoder);
+
+    // Constant traced depth on either side of the raster plane first: the
+    // whole frame must change hands, both ways.
+    let constant_depth = |depth: f32| {
+        [
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, depth, 1.0],
+        ]
+    };
+    clear(0.5);
+    trace(&mut tracer, constant_depth(0.0));
+    assert_eq!(sentinel_pixels("nearer trace"), 0);
+
+    clear(0.5);
+    trace(&mut tracer, constant_depth(1.0));
+    assert_eq!(sentinel_pixels("farther trace"), total);
+
+    // Raster mid-plane: the trace wins exactly where its surface sits
+    // before world z 4.55, and only there.
+    clear(0.5);
+    trace(&mut tracer, z_plane);
+    let split = sentinel_pixels("mid raster");
+    assert!(
+        split > 0 && split < total,
+        "the mid-plane raster must occlude some traced pixels and lose others, kept {split} of {total}"
     );
 }

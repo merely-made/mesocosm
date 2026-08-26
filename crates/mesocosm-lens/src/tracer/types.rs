@@ -182,6 +182,11 @@ pub struct BrickFrameInput<'a> {
     /// keeps the CPU upload from [`BrickMap`], which is also the
     /// downlevel path. See [`LeasedAtlas`].
     pub leased_atlas: Option<LeasedAtlas<'a>>,
+    /// Column-major world-to-clip matrix for the depth join. Required by
+    /// [`super::BrickTracer::encode_with_depth`], which writes
+    /// `@builtin(frag_depth)` from it so a raster tenant sharing the same
+    /// matrix occludes and is occluded exactly. Ignored by plain `encode`.
+    pub clip_from_world: Option<[[f32; 4]; 4]>,
 }
 
 /// A GPU-resident atlas the tracer may fill its texture from without the
@@ -325,6 +330,7 @@ impl<'a> BrickFrameInput<'a> {
             grade,
             pose: None,
             leased_atlas: None,
+            clip_from_world: None,
         }
     }
 
@@ -343,6 +349,7 @@ impl<'a> BrickFrameInput<'a> {
             grade,
             pose: None,
             leased_atlas: None,
+            clip_from_world: None,
         }
     }
 
@@ -360,6 +367,13 @@ impl<'a> BrickFrameInput<'a> {
 
     pub fn with_pose(mut self, pose: &'a CritterPose) -> Self {
         self.pose = Some(pose);
+        self
+    }
+
+    /// Supply the raster tenant's column-major world-to-clip matrix so the
+    /// depth join can write comparable fragment depth.
+    pub fn with_clip_from_world(mut self, clip_from_world: [[f32; 4]; 4]) -> Self {
+        self.clip_from_world = Some(clip_from_world);
         self
     }
 }
@@ -407,6 +421,9 @@ pub enum BrickTraceError {
     CaptureFormat(wgpu::TextureFormat),
     TooManyCapsules { actual: usize, maximum: usize },
     UnknownBrickSlot(u32),
+    /// The depth join cannot write comparable fragment depth without the
+    /// raster tenant's world-to-clip matrix.
+    MissingClipFromWorld,
     DevicePoll(String),
     Readback(String),
 }
@@ -426,6 +443,12 @@ impl std::fmt::Display for BrickTraceError {
             Self::UnknownBrickSlot(slot) => {
                 write!(f, "brick change names unknown atlas slot {slot}")
             }
+            Self::MissingClipFromWorld => {
+                write!(
+                    f,
+                    "the depth join needs a clip_from_world matrix on its frame input"
+                )
+            }
             Self::DevicePoll(message) => write!(f, "device poll failed: {message}"),
             Self::Readback(message) => write!(f, "readback failed: {message}"),
         }
@@ -441,8 +464,17 @@ pub(super) struct TraceParams {
     pub space: BrickTraceSpace,
     pub fog: [f32; 4],
     pub look: [f32; 4],
+    /// Column-major, identity when the frame carries no depth join.
+    pub clip_from_world: [[f32; 4]; 4],
     pub critter: CritterParams,
 }
+
+pub(super) const IDENTITY: [[f32; 4]; 4] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
@@ -471,6 +503,7 @@ impl TraceParams {
                 input.grade.palette_len as f32,
                 0.0,
             ],
+            clip_from_world: input.clip_from_world.unwrap_or(IDENTITY),
             critter: CritterParams::from_pose(input.pose),
         }
     }

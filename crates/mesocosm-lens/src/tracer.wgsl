@@ -16,6 +16,8 @@ struct TraceParams {
     space: BrickTraceSpace,
     fog: vec4<f32>,
     look: vec4<f32>,
+    // Column-major world-to-clip for the depth join; identity when unused.
+    clip_from_world: mat4x4<f32>,
     critter: CritterParams,
 };
 
@@ -170,8 +172,14 @@ fn camera_ray(ndc: vec2<f32>) -> Ray {
     );
 }
 
-@fragment
-fn fs(in: VsOut) -> @location(0) vec4<f32> {
+// One traced pixel: its graded colour and the world point that owns it,
+// so the depth entry can place the same surface in the raster's clip space.
+struct TraceSample {
+    colour: vec4<f32>,
+    world: vec3<f32>,
+};
+
+fn trace_sample(in: VsOut) -> TraceSample {
     let ray = camera_ray(in.ndc);
     let hit = brick_dda(params.space, params.camera.far, ray.origin, ray.direction);
     let pixel = vec2<u32>(u32(in.pos.x), u32(in.pos.y));
@@ -187,13 +195,42 @@ fn fs(in: VsOut) -> @location(0) vec4<f32> {
             base = base * 0.12;
         }
         let lit = base * (0.4 + 0.6 * light) + vec3(rim * 0.6);
-        return vec4(grade(lit, body_t, pixel), 1.0);
+        return TraceSample(vec4(grade(lit, body_t, pixel), 1.0), point);
     }
     if (!hit.found) {
         let sky = mix(vec3(0.65, 0.72, 0.80), vec3(0.35, 0.45, 0.62), clamp(ray.direction.y * 3.0 + 0.3, 0.0, 1.0));
-        return vec4(grade(sky, params.camera.far, pixel), 1.0);
+        return TraceSample(
+            vec4(grade(sky, params.camera.far, pixel), 1.0),
+            ray.origin + ray.direction * params.camera.far,
+        );
     }
     let sun = normalize(vec3(0.4, 0.8, 0.3));
     let light = 0.38 + 0.62 * max(0.0, dot(hit.normal, sun));
-    return vec4(grade(material_colour(hit.material) * light, hit.t, pixel), 1.0);
+    return TraceSample(
+        vec4(grade(material_colour(hit.material) * light, hit.t, pixel), 1.0),
+        ray.origin + ray.direction * hit.t,
+    );
+}
+
+@fragment
+fn fs(in: VsOut) -> @location(0) vec4<f32> {
+    return trace_sample(in).colour;
+}
+
+struct DepthOut {
+    @location(0) colour: vec4<f32>,
+    @builtin(frag_depth) depth: f32,
+};
+
+// The depth join: the traced surface expressed in the raster tenant's own
+// clip space, so hardware depth testing settles every pixel between them.
+// A miss carries the far point, whose depth clamps to the far plane.
+@fragment
+fn fs_depth(in: VsOut) -> DepthOut {
+    let sample = trace_sample(in);
+    let clip = params.clip_from_world * vec4(sample.world, 1.0);
+    var out: DepthOut;
+    out.colour = sample.colour;
+    out.depth = clamp(clip.z / max(clip.w, 1e-6), 0.0, 1.0);
+    return out;
 }

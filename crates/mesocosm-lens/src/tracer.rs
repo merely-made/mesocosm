@@ -52,6 +52,12 @@ pub struct BrickTracer {
     width: u32,
     height: u32,
     pipeline: wgpu::RenderPipeline,
+    /// The depth-join variant: `fs_depth` against a caller-owned
+    /// `Depth32Float` attachment. Built on first use so plain tracing pays
+    /// nothing for it.
+    depth_pipeline: Option<wgpu::RenderPipeline>,
+    shader: wgpu::ShaderModule,
+    pipeline_layout: wgpu::PipelineLayout,
     layout: wgpu::BindGroupLayout,
     params: wgpu::Buffer,
     map: Option<ResidentMap>,
@@ -162,6 +168,9 @@ impl BrickTracer {
             width: width.max(1),
             height: height.max(1),
             pipeline,
+            depth_pipeline: None,
+            shader,
+            pipeline_layout,
             layout,
             params,
             map: None,
@@ -188,22 +197,7 @@ impl BrickTracer {
         target: &wgpu::TextureView,
         input: BrickFrameInput<'_>,
     ) -> Result<BrickDiagnostics, BrickTraceError> {
-        let started = Instant::now();
-        validates_pose(input)?;
-        validates_change(input)?;
-        let mut diagnostics = BrickDiagnostics {
-            resource_creations: std::mem::take(&mut self.pending_resource_creations),
-            ..Default::default()
-        };
-        self.ensure_map(input, &mut diagnostics);
-        let params = TraceParams::from_input(input);
-        if self.last_params != Some(params) {
-            self.queue
-                .write_buffer(&self.params, 0, bytemuck::bytes_of(&params));
-            diagnostics.uniform_upload_bytes = size_of::<TraceParams>() as u64;
-            self.last_params = Some(params);
-        }
-        diagnostics.cpu_prepare_us = started.elapsed().as_micros() as u64;
+        let mut diagnostics = self.prepare_frame(input)?;
         let bind = &self.map.as_ref().expect("map ensured").bind;
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("brick trace"),
@@ -224,9 +218,129 @@ impl BrickTracer {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, bind, &[]);
         pass.draw(0..3, 0..1);
+        drop(pass);
         diagnostics.trace_passes = 1;
         self.last_diagnostics = Some(diagnostics);
         Ok(diagnostics)
+    }
+
+    /// The depth join: trace into a raster tenant's colour target against
+    /// its stored `Depth32Float` depth, so the two occlude each other per
+    /// pixel.
+    ///
+    /// The caller renders its raster pass first with depth stored, then
+    /// this pass loads both attachments, writes `@builtin(frag_depth)` from
+    /// the frame's `clip_from_world`, and tests `LessEqual` with depth
+    /// write on. Standard-z is assumed, matching a depth cleared to 1.0
+    /// under a `Less` raster compare; `LessEqual` here lets the traced sky,
+    /// clamped to the far plane, replace the raster background while never
+    /// covering nearer geometry.
+    pub fn encode_with_depth(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        depth: &wgpu::TextureView,
+        input: BrickFrameInput<'_>,
+    ) -> Result<BrickDiagnostics, BrickTraceError> {
+        if input.clip_from_world.is_none() {
+            return Err(BrickTraceError::MissingClipFromWorld);
+        }
+        if self.depth_pipeline.is_none() {
+            self.depth_pipeline = Some(self.create_depth_pipeline());
+            self.pending_resource_creations += 1;
+        }
+        let mut diagnostics = self.prepare_frame(input)?;
+        let bind = &self.map.as_ref().expect("map ensured").bind;
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("brick trace depth join"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: target,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        pass.set_pipeline(self.depth_pipeline.as_ref().expect("depth pipeline built"));
+        pass.set_bind_group(0, bind, &[]);
+        pass.draw(0..3, 0..1);
+        drop(pass);
+        diagnostics.trace_passes = 1;
+        self.last_diagnostics = Some(diagnostics);
+        Ok(diagnostics)
+    }
+
+    /// Everything a trace pass needs before it begins: validation, resident
+    /// textures, and the uniform, shared by both encode paths.
+    fn prepare_frame(
+        &mut self,
+        input: BrickFrameInput<'_>,
+    ) -> Result<BrickDiagnostics, BrickTraceError> {
+        let started = Instant::now();
+        validates_pose(input)?;
+        validates_change(input)?;
+        let mut diagnostics = BrickDiagnostics {
+            resource_creations: std::mem::take(&mut self.pending_resource_creations),
+            ..Default::default()
+        };
+        self.ensure_map(input, &mut diagnostics);
+        let params = TraceParams::from_input(input);
+        if self.last_params != Some(params) {
+            self.queue
+                .write_buffer(&self.params, 0, bytemuck::bytes_of(&params));
+            diagnostics.uniform_upload_bytes = size_of::<TraceParams>() as u64;
+            self.last_params = Some(params);
+        }
+        diagnostics.cpu_prepare_us = started.elapsed().as_micros() as u64;
+        Ok(diagnostics)
+    }
+
+    fn create_depth_pipeline(&self) -> wgpu::RenderPipeline {
+        self.device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("brick tracer depth join"),
+                layout: Some(&self.pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &self.shader,
+                    entry_point: Some("vs"),
+                    buffers: &[],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &self.shader,
+                    entry_point: Some("fs_depth"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: self.format,
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
     }
 
     pub fn capture(&mut self, input: BrickFrameInput<'_>) -> Result<BrickCapture, BrickTraceError> {
