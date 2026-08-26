@@ -120,7 +120,9 @@ fn eating_changes_mass_balance_collision_and_geometry() {
 #[test]
 fn an_eaten_part_still_says_whose_it_was() {
     let source = source();
-    let mut world = World::new(4242, 40);
+    // Use the open-surface fixture above. Provenance is the subject here;
+    // whether anatomy fits a confined stance is covered in mesocosm-core.
+    let mut world = World::new(0x00A7_7AC4, 40);
     let target = reachable_organism(&mut world);
     let donor = world
         .organisms
@@ -129,17 +131,18 @@ fn an_eaten_part_still_says_whose_it_was() {
         .map(|m| m.species)
         .unwrap();
 
-    let Outcome::Incorporated { part } = world.apply(Intent::Metabolize {
+    let outcome = world.apply(Intent::Metabolize {
         organism: target,
         route: Route::Incorporate {
             placement: Placement::Explicit {
                 parent: PartId(0),
-                offset: [7, 0, 0],
+                offset: [9, 0, 0],
                 yaw: Yaw::Quarter,
             },
         },
-    }) else {
-        panic!("expected incorporation");
+    });
+    let Outcome::Incorporated { part } = outcome else {
+        panic!("expected incorporation, got {outcome:?}");
     };
 
     // The projection can place it...
