@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! Retained fragment-only DDA rendering of [`crate::BrickMap`].
+//! Retained fragment-only rendering over [`conatus_brick::BrickMap`].
 //!
 //! The tracer owns GPU copies, never voxel authority. A caller gives it a
 //! revision and the slots changed by a projection drain; it encodes into a
@@ -16,7 +16,9 @@ use web_time::Instant;
 
 mod types;
 
-use crate::{BrickMap, BrickProjectionRevision, FRAME_FORMAT};
+use conatus_brick::{BRICK_DDA_WGSL, BrickMap, BrickProjectionRevision};
+
+use crate::FRAME_FORMAT;
 use types::{TraceParams, validates_change, validates_pose};
 
 pub use types::{
@@ -112,9 +114,10 @@ impl BrickTracer {
             label: Some("brick tracer layout"),
             entries: &[texture(0), texture(1), uniform],
         });
+        let shader_source = format!("{BRICK_DDA_WGSL}\n{}", include_str!("tracer.wgsl"));
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("brick tracer"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("tracer.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(shader_source.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("brick tracer"),

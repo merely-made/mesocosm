@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use bytemuck::{Pod, Zeroable};
+use conatus_brick::{BrickMap, BrickProjectionRevision, BrickTraceSpace};
 
-use crate::{BrickMap, BrickProjectionRevision, CritterPose, Flight, Grade, MAX_CAPSULES};
+use crate::{CritterPose, Flight, Grade, MAX_CAPSULES};
 
 const PERSPECTIVE: u32 = 0;
 const ORTHOGRAPHIC: u32 = 1;
@@ -437,9 +438,7 @@ impl std::error::Error for BrickTraceError {}
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 pub(super) struct TraceParams {
     pub camera: TraceCamera,
-    pub world_min: [f32; 4],
-    pub pointer_extent: [u32; 4],
-    pub atlas_slots: [u32; 4],
+    pub space: BrickTraceSpace,
     pub fog: [f32; 4],
     pub look: [f32; 4],
     pub critter: CritterParams,
@@ -459,19 +458,7 @@ impl TraceParams {
         let map = input.map;
         Self {
             camera: input.camera,
-            world_min: [
-                map.origin()[0] as f32 * 8.0,
-                map.origin()[1] as f32 * 8.0,
-                map.origin()[2] as f32 * 8.0,
-                0.0,
-            ],
-            pointer_extent: [
-                map.pointer_extent()[0],
-                map.pointer_extent()[1],
-                map.pointer_extent()[2],
-                0,
-            ],
-            atlas_slots: [map.slots()[0], map.slots()[1], map.slots()[2], 0],
+            space: BrickTraceSpace::from_map(map),
             fog: [
                 input.grade.fog[0],
                 input.grade.fog[1],

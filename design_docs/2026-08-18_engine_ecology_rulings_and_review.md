@@ -69,9 +69,9 @@ fields. It is not the ownership rule for every voxel plane.
 
 ### 2.3 Hybrid rendering
 
-**Standing direction, incomplete product proof.** The engine should share the
-brick layout and DDA traversal core, then give each vessel its own camera,
-lighting, LOD, composition, picking, and readability policy.
+**Standing core, incomplete composition proof.** Mere's `conatus-brick` now
+owns the shared brick layout and DDA traversal core. Each vessel still owns its
+camera, lighting, LOD, composition, picking, and readability policy.
 
 - Mesocosm uses an orthographic terrarium section with a near/far slab and
   organism presentation composed over it.
@@ -228,10 +228,10 @@ revisioned projection with an explicit validity boundary.
 
 ## 5. Recommended build order
 
-R1, R2, R3, B1, and V1 moved the shared engine past feasibility. The next
-shared-engine work is bounded consolidation: projection-correct residency,
-then the proven brick ABI and camera-neutral DDA lift, then real raymarch depth
-composition, then a Mesocosm tactile consumer through Conatus. Product work,
+R1, R2, R3, B1, and V1 moved the shared engine past feasibility.
+Projection-correct residency and the brick ABI/DDA ownership lift are now
+complete. The next shared-engine work is real raymarch-depth composition,
+then a Mesocosm tactile consumer through Conatus. Product work,
 including the epoch slice, remains independently ordered by its own consumer
 gates rather than serving as a prerequisite for every reusable mechanism.
 
@@ -258,7 +258,7 @@ and 1.238 ms in netrender's reported frame total. The inspected capture and
 JSON receipt are `Code/testing/mesocosm/r1_terrarium.{png,json}`.
 
 Paredros's real S0 room host consumes the same `mesocosm_lens::BrickTracer`
-behind its opt-in `r1-proof` feature while retaining its own close-perspective
+behind its historical `r1-proof` receipt while retaining its own close-perspective
 eye and target. Its 64-frame 1280×720 headed run recorded 11.601–34.646 ms
 overall, 12.552 ms median, zero steady brick upload, 2,357 capture colours,
 and the unchanged position-log hash `0x27a905731c6bfc61`. Both receipts name
@@ -266,12 +266,25 @@ the same Rust `BrickMap` ABI: origin `[-9,0,-8]`, pointer extent `[18,3,17]`,
 atlas extent `[128,16,128]`, 3,672 pointer bytes, and 262,144 atlas bytes.
 
 This closes traversal reuse, not renderer unification. Mesocosm owns the
-slab; Paredros owns the perspective rig, torch, and later LOD. The Paredros
-dependency is disabled by default and proves that the current
-`mesocosm-lens` owner is now too low: the next permanent adoption must lift
-the traversal organ to an actual platform owner. R1 does not choose that
-owner, create a renderer-wide camera abstraction, or claim the later
+slab; Paredros owns the perspective rig, torch, and later LOD. R1 did not
+create a renderer-wide camera abstraction or claim the later
 raymarch-depth/renderling join.
+
+### R1a. Shared brick traversal owner: **COMPLETE 2026-08-26**
+
+Mere's `conatus-brick` at commit `28c07fab` now owns deterministic `BrickMap`
+layout, projection-stamp carriage, `BrickTraceSpace`, and the camera-neutral
+`BRICK_DDA_WGSL`. Mesocosm and Paredros each own their Ground source binding.
+Mesocosm's shader retains camera, fog, material, body, and composition policy;
+Paredros carries the shared organ in its default compile path while retaining
+its own camera and residency selection.
+
+The Mesocosm lens tests and Paredros V1 tests pass against that exact pushed
+revision. The 96-frame headed Paredros rerun passed on the RTX 4060 Laptop GPU,
+and its PNG remained byte-identical to the pre-extraction artifact. This
+promotes the proven mechanism only. Quint still owns `ResidentChunk`; product
+profiles still own source bindings; projection identity, frame cadence, and
+lease scheduling remain provisional.
 
 ### R2. GPU mesh bake into renderling: **COMPLETE 2026-08-21**
 
@@ -446,11 +459,11 @@ revision changes.
 view, so V1 does not justify building a clipmap yet. The permanent seam is a
 stable `ResidentChunk`-backed brick cache with explicit projection revision,
 per-brick publication, and allocator-observed bytes. Larger planning views or
-travel can then pull clipmap or mip work if they exceed the exact budget. The
-feature-gated sideways proof still does not choose the platform owner.
+travel can then pull clipmap or mip work if they exceed the exact budget.
+Traversal now has a platform owner; this receipt still does not promote the
+resident lease or frame contract.
 
-### V1a. Projection identity for equal-sized pages: **IMPLEMENTED 2026-08-26;
-HEADED TRAVEL RECEIPT OPEN**
+### V1a. Projection identity for equal-sized pages: **COMPLETE 2026-08-26**
 
 `BrickProjectionRevision` now identifies one selected key-to-slot projection,
 separately from Ground's authoritative `BrickRevision`. Dynamic working-set
@@ -466,14 +479,18 @@ that names an unknown slot is refused before uploads or cache-stamp advance.
 Paredros now detects key-set changes inside one zoom band and advances the
 projection revision, removing V1's travel refusal. The lens owns a headless
 equal-extent cache/lease receipt and Paredros owns a same-band policy test. Its
-headed V1 trace now moves the focus and asserts retained texture publication;
-the refreshed artifact is the remaining closing evidence.
+refreshed headed V1 trace moves the focus one brick inside the far band. Frame
+72 advances projection revision 4 to 5, retains the 795,144-byte texture extent,
+fully republishes it with zero texture or bind-group creation, and frame 73
+uploads zero bytes. The 96-frame RTX 4060 Laptop GPU run also preserves
+one-frame close/far recovery and produces a non-empty 62-colour capture.
 
 This implements cache coherence for equal-sized travel. It does not make the
 identity durable or cross-product. Lease `read_epoch` remains a host scheduling
 promise rather than tracer-validated identity, and incremental
-`ResidentChunk` publication, allocator-observed bytes, and platform ownership
-remain open.
+`ResidentChunk` publication and allocator-observed bytes remain open. Shared
+traversal ownership is closed, but no cross-product frame or lease contract is
+implied.
 
 ## 6. Open choices carried to proof
 
@@ -481,8 +498,9 @@ remain open.
   `Ground -> GroundVoxelProfile -> Conatus` while Rapier remains private;
 - the exact shared spatial contract for contemporaneous construction across
   vessels;
-- the platform owner that joins `ResidentChunk` residency to the shared DDA
-  after a permanent Paredros consumer exists.
+- the product-forced join between Quint-owned `ResidentChunk` residency and
+  `conatus-brick` traversal, including publication granularity and an expected
+  lease epoch or equivalent token.
 
 These remain consumer-forced contracts. They do not suspend unrelated product
 work, and none authorizes a generic engine umbrella in advance.

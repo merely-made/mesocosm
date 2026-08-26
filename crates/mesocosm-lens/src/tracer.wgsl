@@ -1,6 +1,4 @@
-// Fragment-only brick DDA. Pointer zero is air; nonzero values identify one
-// dense 8³ material slot in the atlas. It does not write, allocate, or derive
-// simulation facts.
+// Mesocosm presentation over conatus-brick's product-neutral DDA.
 
 struct TraceCamera {
     origin: vec3<f32>,
@@ -15,9 +13,7 @@ struct TraceCamera {
 
 struct TraceParams {
     camera: TraceCamera,
-    world_min: vec4<f32>,
-    pointer_extent: vec4<u32>,
-    atlas_slots: vec4<u32>,
+    space: BrickTraceSpace,
     fog: vec4<f32>,
     look: vec4<f32>,
     critter: CritterParams,
@@ -32,20 +28,11 @@ struct CritterParams {
     pairs: array<vec4<f32>, 192>,
 };
 
-@group(0) @binding(0) var pointers: texture_3d<u32>;
-@group(0) @binding(1) var atlas: texture_3d<u32>;
 @group(0) @binding(2) var<uniform> params: TraceParams;
 
 struct VsOut {
     @builtin(position) pos: vec4<f32>,
     @location(0) ndc: vec2<f32>,
-};
-
-struct Hit {
-    material: u32,
-    t: f32,
-    normal: vec3<f32>,
-    found: bool,
 };
 
 struct Ray {
@@ -62,119 +49,6 @@ fn vs(@builtin(vertex_index) index: u32) -> VsOut {
     out.pos = vec4(corners[index], 0.0, 1.0);
     out.ndc = corners[index];
     return out;
-}
-
-fn material_at(voxel: vec3<i32>) -> u32 {
-    let local = voxel - vec3<i32>(params.world_min.xyz);
-    if (any(local < vec3<i32>(0))) {
-        return 0u;
-    }
-    let cell = local / 8;
-    let limits = vec3<i32>(params.pointer_extent.xyz);
-    if (any(cell < vec3<i32>(0)) || any(cell >= limits)) {
-        return 0u;
-    }
-    let slot = textureLoad(pointers, cell, 0).x;
-    if (slot == 0u) {
-        return 0u;
-    }
-    let index = slot - 1u;
-    let sx = params.atlas_slots.x;
-    let sz = params.atlas_slots.z;
-    let slot_x = index % sx;
-    let slot_z = (index / sx) % sz;
-    let slot_y = index / (sx * sz);
-    let within = local - cell * 8;
-    let atlas_at = vec3<i32>(
-        i32(slot_x * 8u) + within.x,
-        i32(slot_y * 8u) + within.y,
-        i32(slot_z * 8u) + within.z,
-    );
-    return textureLoad(atlas, atlas_at, 0).x;
-}
-
-fn ray_box(eye: vec3<f32>, direction: vec3<f32>) -> vec2<f32> {
-    let low = params.world_min.xyz;
-    let high = low + vec3<f32>(params.pointer_extent.xyz) * 8.0;
-    var enter = 0.0;
-    var exit = params.camera.far;
-    for (var axis = 0; axis < 3; axis = axis + 1) {
-        let d = direction[axis];
-        if (abs(d) < 1e-6) {
-            if (eye[axis] < low[axis] || eye[axis] >= high[axis]) {
-                return vec2(1.0, -1.0);
-            }
-            continue;
-        }
-        let a = (low[axis] - eye[axis]) / d;
-        let b = (high[axis] - eye[axis]) / d;
-        enter = max(enter, min(a, b));
-        exit = min(exit, max(a, b));
-    }
-    return vec2(enter, exit);
-}
-
-fn initial_crossing(position: f32, direction: f32, voxel: i32, start_t: f32) -> f32 {
-    if (direction > 1e-6) {
-        return start_t + (f32(voxel + 1) - position) / direction;
-    }
-    if (direction < -1e-6) {
-        return start_t + (f32(voxel) - position) / direction;
-    }
-    return 1e30;
-}
-
-fn dda(eye: vec3<f32>, direction: vec3<f32>) -> Hit {
-    let interval = ray_box(eye, direction);
-    if (interval.x > interval.y || interval.y < 0.0) {
-        return Hit(0u, params.camera.far, vec3(0.0, 1.0, 0.0), false);
-    }
-    let start_t = max(interval.x, 0.0) + 0.0001;
-    let start = eye + direction * start_t;
-    var voxel = vec3<i32>(floor(start));
-    let step = vec3<i32>(
-        select(-1, 1, direction.x >= 0.0),
-        select(-1, 1, direction.y >= 0.0),
-        select(-1, 1, direction.z >= 0.0),
-    );
-    var crossing = vec3(
-        initial_crossing(start.x, direction.x, voxel.x, start_t),
-        initial_crossing(start.y, direction.y, voxel.y, start_t),
-        initial_crossing(start.z, direction.z, voxel.z, start_t),
-    );
-    let delta = vec3(
-        select(1e30, 1.0 / abs(direction.x), abs(direction.x) > 1e-6),
-        select(1e30, 1.0 / abs(direction.y), abs(direction.y) > 1e-6),
-        select(1e30, 1.0 / abs(direction.z), abs(direction.z) > 1e-6),
-    );
-    var t = start_t;
-    var normal = vec3(0.0, 1.0, 0.0);
-    for (var count = 0; count < 1024; count = count + 1) {
-        let material = material_at(voxel);
-        if (material != 0u) {
-            return Hit(material, t, normal, true);
-        }
-        if (crossing.x <= crossing.y && crossing.x <= crossing.z) {
-            t = crossing.x;
-            crossing.x = crossing.x + delta.x;
-            voxel.x = voxel.x + step.x;
-            normal = vec3(-f32(step.x), 0.0, 0.0);
-        } else if (crossing.y <= crossing.z) {
-            t = crossing.y;
-            crossing.y = crossing.y + delta.y;
-            voxel.y = voxel.y + step.y;
-            normal = vec3(0.0, -f32(step.y), 0.0);
-        } else {
-            t = crossing.z;
-            crossing.z = crossing.z + delta.z;
-            voxel.z = voxel.z + step.z;
-            normal = vec3(0.0, 0.0, -f32(step.z));
-        }
-        if (t > interval.y || t > params.camera.far) {
-            break;
-        }
-    }
-    return Hit(0u, params.camera.far, vec3(0.0, 1.0, 0.0), false);
 }
 
 fn material_colour(material: u32) -> vec3<f32> {
@@ -299,7 +173,7 @@ fn camera_ray(ndc: vec2<f32>) -> Ray {
 @fragment
 fn fs(in: VsOut) -> @location(0) vec4<f32> {
     let ray = camera_ray(in.ndc);
-    let hit = dda(ray.origin, ray.direction);
+    let hit = brick_dda(params.space, params.camera.far, ray.origin, ray.direction);
     let pixel = vec2<u32>(u32(in.pos.x), u32(in.pos.y));
     let body_t = trace_critter(ray.origin, ray.direction);
     if (body_t > 0.0 && (!hit.found || body_t < hit.t)) {

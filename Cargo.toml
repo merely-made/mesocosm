@@ -35,6 +35,9 @@ codicil = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # as a derived view over accepted ground revisions without acquiring a physics
 # backend.
 conatus-voxel = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+# Product-neutral sparse brick carriage and ray-in WGSL traversal. Product
+# lenses keep source binding, camera, material, and composition policy.
+conatus-brick = { git = "https://github.com/merely-made/mere.git", rev = "28c07fab5baea0b780972f088b43bf853ee856d5" }
 # The scenograph projection contract and its solvers: the adapter-first UI
 # posture. Mesocosm discloses facts as a score; scenomise places them; a host
 # realizes the scene. Views never hand-roll layout.

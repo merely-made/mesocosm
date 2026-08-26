@@ -4,7 +4,8 @@
 composition, retained-allocation mutation, and strided subregion carriage are
 landed in tracked code; Conatus voxel mechanics are adopted through
 `GroundVoxelProfile`; equal-sized projection cache coherence was implemented
-2026-08-26 with its refreshed headed travel receipt still open; field-plane
+and headed-verified 2026-08-26; Mere's `conatus-brick` now owns the shared
+brick ABI and camera-neutral DDA; field-plane
 visualization, incremental per-brick residency, and allocator-observed bytes
 remain open.** How the voxel world, Burn/CubeCL, the
 tracer, the mesher, collision, and persistence compose on one device.
@@ -673,16 +674,35 @@ is refused and falls back to the CPU atlas. Unknown changed slots are refused
 before any upload or resident cache-stamp advance.
 
 The lens has a headless equal-extent cache/lease test, and Paredros has policy
-coverage for same-band travel. The headed V1 trace now contains an explicit
-travel event and requires `projection_replaced` with zero texture or bind-group
-creation, but that artifact must be refreshed before this gate is called
-closed.
+coverage for same-band travel. The refreshed 96-frame headed V1 trace closes
+the gate on the RTX 4060 Laptop GPU: a one-brick far-page move advances
+projection revision 4 to 5 while preserving the 795,144-byte extent, exchanges
+66 loaded for 33 evicted bricks, fully republishes without texture or bind-group
+creation, and uploads zero bytes on the next frame. The original four-brick
+probe changed physical extent and was not evidence for this path.
+
+## Brick traversal ownership lift (2026-08-26)
+
+The reusable organ moved to Mere's `conatus-brick` at commit `28c07fab`.
+That crate owns deterministic pointer/atlas layout, projection-stamp carriage,
+`BrickTraceSpace`, and the camera-neutral `BRICK_DDA_WGSL`. Mesocosm's
+`bricks.rs` now only binds authoritative Ground bytes into that layout; its
+tracer shader retains camera, fog, material, body, look, and composition policy.
+Paredros owns a separate Ground binding and consumes the same platform types on
+its default compile path.
+
+The exact pushed revision passes the Mesocosm lens suite and the Paredros V1
+suite. The rerun headed Paredros artifact remained pixel-identical after the
+extraction (`C881B3CCAAED1690B174196719E595D2326ACB19FE4D9399EC8DA288E317E61A`).
+This lift does not merge the brick map with `ResidentChunk`: Quint still owns
+resident allocations, while products still own source selection, camera, and
+presentation.
 
 This remains evidence over the lens-local texture owner. It does not promote
 projection identity, frame cadence, or leases into a cross-product contract.
 `LeasedAtlas::read_epoch` is observed diagnostics; safe reuse remains a host
-scheduling promise until the eventual platform owner supplies an expected
-epoch or equivalent token. A `ResidentChunk`-backed per-brick cache and
+scheduling promise until the host supplies an expected epoch or equivalent
+token. A `ResidentChunk`-backed per-brick cache and
 allocator-observed resident plus transition bytes remain the next residency
 gate.
 

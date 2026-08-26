@@ -35,19 +35,21 @@ Adoption changes replay hashes; old fixtures are historical by ruling
 **Shared-engine consolidation:**
 
 ```text
-projection-correct equal-sized residency  [IMPLEMENTED 2026-08-26;
-                                             headed travel receipt open]
-  -> lift the proven brick ABI and camera-neutral DDA
+projection-correct equal-sized residency  [COMPLETE 2026-08-26]
+  -> brick ABI and camera-neutral DDA owner [COMPLETE 2026-08-26]
   -> raymarch depth / renderling occlusion receipt
   -> a real Mesocosm tactile consumer through
      Ground -> GroundVoxelProfile -> Conatus
 ```
 
-The first row has a headless lens cache receipt and Paredros policy coverage;
-the headed V1 trace now contains the travel gate but still needs a fresh
-receipt. Incremental
-`ResidentChunk` publication, allocator-observed bytes, platform ownership,
-and every cross-product frame or lease contract remain open.
+The first two rows are closed by the headless lens cache receipt, Paredros
+policy coverage, the refreshed headed V1 artifact, and Mere's
+`conatus-brick` commit `28c07fab`. The equal-extent travel frame
+advances projection identity, fully republishes 795,144 bytes with zero texture
+or bind-group creation, and is followed by an upload-silent frame. Incremental
+`ResidentChunk` publication, allocator-observed bytes, depth composition, and
+every cross-product frame or lease contract remain open. Traversal ownership
+does not promote those contracts.
 
 **Open acceptance gates riding those chains** (general model plan): E1 on
 PD1b; E2's epoch receipt; E3's sufficient statistics, authority move, and
@@ -64,8 +66,8 @@ the ecology's acceptance gates stop moving under it).
 The [execution plan](../../paredros/design_docs/2026-08-07_paredros_execution_plan.md)
 orders itself. S0-S3 are foundation receipts; F0-F2 are closed, F3 is active,
 and F3a is landed. Its opt-in traversal/residency code now handles equal-sized
-travel through product-owned projection revision; a fresh headed travel
-receipt remains the closing evidence. R4 already fired and was decided.
+travel through product-owned projection revision, with headless and headed
+receipts. R4 already fired and was decided.
 
 ## Isometry lane (audit order; work deferred while source-time is in flight)
 
@@ -88,9 +90,10 @@ versioned action/travel protocols -> Stickleback consumer rebase
 ## Progress
 
 - **2026-08-26:** corrected stale global ordering after R1/R2/R3/B1/V1 and
-  Conatus voxel adoption. Equal-sized projection cache coherence was
-  implemented first, with its refreshed headed receipt still open;
-  DDA ownership lift, depth composition, and the real Mesocosm Conatus tactile
-  consumer remain ordered shared-engine work.
+  Conatus voxel adoption. Equal-sized projection cache coherence closed with a
+  refreshed headed equal-extent travel receipt. The shared brick ABI and DDA
+  then moved to Mere's `conatus-brick` at `28c07fab`; exact consumer tests and
+  the headed Paredros image stayed green. Depth composition and the real
+  Mesocosm Conatus tactile consumer remain ordered shared-engine work.
 - **2026-08-07:** founded, replacing the waves plan as ordering
   authority.
