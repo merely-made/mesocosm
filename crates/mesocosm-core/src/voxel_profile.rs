@@ -94,6 +94,13 @@ impl GroundVoxelProfile {
         self.chunks.get(&key)
     }
 
+    /// Every resident chunk with its key, in key order, so a derived
+    /// consumer (the tactile projection) can lower the whole profile
+    /// without re-reading `Ground`.
+    pub fn chunks(&self) -> impl ExactSizeIterator<Item = (GroundChunkKey, &VoxelChunk<u8>)> {
+        self.chunks.iter().map(|(key, chunk)| (*key, chunk))
+    }
+
     /// Synchronize one already-accepted `Ground` revision into the disposable
     /// Conatus view.
     ///

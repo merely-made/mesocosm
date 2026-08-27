@@ -229,11 +229,12 @@ revisioned projection with an explicit validity boundary.
 ## 5. Recommended build order
 
 R1, R2, R3, B1, and V1 moved the shared engine past feasibility.
-Projection-correct residency, the brick ABI/DDA ownership lift, and
-raymarch-depth composition (D1, 2026-08-26) are now complete. The next
-shared-engine work is a real Mesocosm tactile consumer through Conatus;
-the separate residency lane remains incremental `ResidentChunk`-backed
-publication. Product work, including the epoch slice, remains
+Projection-correct residency, the brick ABI/DDA ownership lift,
+raymarch-depth composition (D1, 2026-08-26), and the first real Mesocosm
+tactile consumer through Conatus (T1, 2026-08-26) are now complete. The
+remaining ordered shared-engine lane is incremental
+`ResidentChunk`-backed residency with per-brick publication and measured
+allocator bytes. Product work, including the epoch slice, remains
 independently ordered by its own consumer gates rather than serving as a
 prerequisite for every reusable mechanism.
 
@@ -315,6 +316,68 @@ One durable caution: the stage *replaces* its depth texture on size or
 multisample changes, so a consumer fetches the depth view after each raster
 draw; a held view silently tests the join against zeroed memory and loses
 every pixel.
+
+### T1. Terrarium picking through Conatus: **COMPLETE 2026-08-26**
+
+The first real Mesocosm tactile consumer, chosen by Mark 2026-08-26:
+pointer picking in the terrarium section. A cursor position becomes an
+orthographic-slab ray, the ray asks Conatus, and the answer names the
+critter, the exact ground voxel face, or nothing. This completes
+`Ground -> GroundVoxelProfile -> Conatus` and, per R3's ruling, names the
+adapter's permanent host crate: **mesocosm-runtime** (also ruled by Mark
+2026-08-26). Rapier stays private inside `conatus`; Mesocosm holds Conatus
+ids and arrays only, and picking is advice — it writes nothing into the
+record.
+
+The adapter keeps a `conatus::BodyWorld` beside the profile: one fixed
+body whose `VoxelGrid` collider (cell size 1) holds the profile's occupied
+cells in world coordinates (`chunk key * 8 + local cell`), synchronized
+from `GroundVoxelUpdate` occupancy edits under the same
+stale/regressed-revision refusals the profile enforces, plus fixed capsule
+bodies for critters (a tapered pose capsule is carried at its mean radius;
+taper is a recorded approximation). The consumer is a headed lens example
+over the real G2 terrarium scene.
+
+**Done when:** the runtime adapter refuses stale and regressed source
+revisions atomically; a committed carve reaches the collider as exactly
+its occupancy edits; a headed RTX 4060 run sweeps a deterministic cursor
+trace across critter, terrain, and sky, and every ground answer matches an
+exact oracle over `Ground` occupancy (independent of Rapier)
+cell for cell, the critter position picks the critter, the sky position
+picks nothing; a mid-run carve moves the swept column's answer exactly as
+the oracle says; the pick log replays identically; and the capture plus
+JSON receipt land at `Code/testing/mesocosm/t1_picking.{json,png}`.
+
+**Receipt, 2026-08-26.** All hold. `mesocosm_runtime::tactile` owns
+`TactileWorld`; its eighteen-crate test run proves the exact surface cell
+under a vertical pick, the carve flowing through `sync` as occupancy
+edits, the atomic stale refusal, and — via a ray through a capsule's
+off-centre length — that capsule orientation is really applied. The
+headed example `t1_picking` swept 22 judged cursor stops over the real G2
+terrarium on the RTX 4060 Laptop GPU (Vulkan): 16 ground answers, every
+one cell-for-cell and distance-for-distance against the axis-aligned
+`Ground::solid` oracle (the terrarium slab's `-z` rays make the oracle an
+integer scan, sharing no arithmetic with Rapier); 4 critter answers
+through the capsule core; 2 nothing answers above the slab's tallest
+surface. The mid-sweep carve took the first swept cell `[-20, 3, 26]`,
+advanced Ground revision 0 to 1, reached the collider as exactly one
+synced cell, and moved that cursor's answer as the oracle said. The whole
+judgment ran twice from freshly grown worlds and agreed bit for bit
+(`fnv1a64:f66edcef9ac2d3ac`). One judged edge arrived free: the first
+stop's origin cell was itself solid at the slab's near face, and Rapier
+and the oracle agreed at distance exactly zero. Capture and receipt at
+`Code/testing/mesocosm/t1_picking.{json,png}`; the capture shows the
+cursor on the critter with its class chip and marker.
+
+Two boundaries worth keeping. Conatus queries answer through Rapier's
+broad phase, which only learns colliders during a step, so this
+never-simulating adapter settles it with a minimal zero-effect step after
+topology changes (everything fixed, gravity zero); if Conatus grows a
+query-refresh seam, that call is what it replaces. And a tapered pose
+capsule is carried at its mean radius — the T1 stops pass through the
+capsule core exactly so no radius model can disagree; a consumer needing
+taper-exact grazing answers must first widen Conatus's capsule
+vocabulary.
 
 ### R2. GPU mesh bake into renderling: **COMPLETE 2026-08-21**
 
@@ -524,8 +587,10 @@ implied.
 
 ## 6. Open choices carried to proof
 
-- which Mesocosm tactile consumer completes
-  `Ground -> GroundVoxelProfile -> Conatus` while Rapier remains private;
+- ~~which Mesocosm tactile consumer completes
+  `Ground -> GroundVoxelProfile -> Conatus` while Rapier remains private~~
+  — chosen 2026-08-26 (Mark): terrarium pointer picking, adapter hosted in
+  `mesocosm-runtime`; see T1;
 - the exact shared spatial contract for contemporaneous construction across
   vessels;
 - the product-forced join between Quint-owned `ResidentChunk` residency and

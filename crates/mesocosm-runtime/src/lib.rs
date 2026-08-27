@@ -31,6 +31,8 @@
 
 pub mod clock;
 pub mod runtime;
+pub mod tactile;
 
 pub use clock::{Advance, Clock};
 pub use runtime::{DEFAULT_MAX_STEPS_PER_ADVANCE, Receipt, Runtime};
+pub use tactile::{TactileCapsule, TactileError, TactileHit, TactilePick, TactileWorld};

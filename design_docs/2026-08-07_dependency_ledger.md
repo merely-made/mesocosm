@@ -37,17 +37,20 @@ Adoption changes replay hashes; old fixtures are historical by ruling
 ```text
 projection-correct equal-sized residency  [COMPLETE 2026-08-26]
   -> brick ABI and camera-neutral DDA owner [COMPLETE 2026-08-26]
-  -> raymarch depth / renderling occlusion receipt
+  -> raymarch depth / renderling occlusion receipt [COMPLETE 2026-08-26, D1]
   -> a real Mesocosm tactile consumer through
-     Ground -> GroundVoxelProfile -> Conatus
+     Ground -> GroundVoxelProfile -> Conatus [COMPLETE 2026-08-26, T1]
 ```
 
 The first two rows are closed by the headless lens cache receipt, Paredros
 policy coverage, the refreshed headed V1 artifact, and Mere's
 `conatus-brick` commit `28c07fab`. The equal-extent travel frame
 advances projection identity, fully republishes 795,144 bytes with zero texture
-or bind-group creation, and is followed by an upload-silent frame. Incremental
-`ResidentChunk` publication, allocator-observed bytes, depth composition, and
+or bind-group creation, and is followed by an upload-silent frame. D1's
+depth join and T1's terrarium picking receipts live in the engine review
+§5 (D1's headed half in
+`paredros/design_docs/2026-08-07_paredros_execution_plan.md`). Incremental
+`ResidentChunk` publication, allocator-observed bytes, and
 every cross-product frame or lease contract remain open. Traversal ownership
 does not promote those contracts.
 
@@ -89,6 +92,16 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
+- **2026-08-26 (later):** the shared-engine consolidation chain closed.
+  D1 joined brick raymarch and renderling on one stored depth surface
+  (Paredros's headed witness-pillar receipt). T1 then landed the first
+  real Mesocosm tactile consumer: terrarium pointer picking through
+  `Ground -> GroundVoxelProfile -> conatus::BodyWorld`, with
+  `mesocosm_runtime::tactile` ruled the adapter's permanent home and
+  Rapier still private inside Conatus. The headed sweep receipt matched
+  an exact occupancy oracle cell for cell and replayed bit for bit. The
+  remaining ordered shared-engine lane is incremental `ResidentChunk`
+  residency.
 - **2026-08-26:** corrected stale global ordering after R1/R2/R3/B1/V1 and
   Conatus voxel adoption. Equal-sized projection cache coherence closed with a
   refreshed headed equal-extent travel receipt. The shared brick ABI and DDA

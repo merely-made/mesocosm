@@ -35,6 +35,10 @@ codicil = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # as a derived view over accepted ground revisions without acquiring a physics
 # backend.
 conatus-voxel = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+# The shared tactile runtime: bodies, voxel collision, and spatial queries
+# with Rapier private inside it. Mesocosm consumes advice through Conatus ids
+# and arrays only; the T1 adapter in mesocosm-runtime is its product home.
+conatus = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # Product-neutral sparse brick carriage and ray-in WGSL traversal. Product
 # lenses keep source binding, camera, material, and composition policy.
 conatus-brick = { git = "https://github.com/merely-made/mere.git", rev = "28c07fab5baea0b780972f088b43bf853ee856d5" }
