@@ -40,6 +40,7 @@ projection-correct equal-sized residency  [COMPLETE 2026-08-26]
   -> raymarch depth / renderling occlusion receipt [COMPLETE 2026-08-26, D1]
   -> a real Mesocosm tactile consumer through
      Ground -> GroundVoxelProfile -> Conatus [COMPLETE 2026-08-26, T1]
+  -> stable ResidentChunk-backed brick cache [COMPLETE 2026-08-26, V1b]
 ```
 
 The first two rows are closed by the headless lens cache receipt, Paredros
@@ -49,10 +50,12 @@ advances projection identity, fully republishes 795,144 bytes with zero texture
 or bind-group creation, and is followed by an upload-silent frame. D1's
 depth join and T1's terrarium picking receipts live in the engine review
 §5 (D1's headed half in
-`paredros/design_docs/2026-08-07_paredros_execution_plan.md`). Incremental
-`ResidentChunk` publication, allocator-observed bytes, and
-every cross-product frame or lease contract remain open. Traversal ownership
-does not promote those contracts.
+`paredros/design_docs/2026-08-07_paredros_execution_plan.md`). V1b
+(2026-08-26) closed incremental `ResidentChunk` publication and
+allocator-observed bytes: one capacity-fixed cache with per-brick
+retargets and a tracer-validated lease epoch (engine review §5 V1b).
+Cross-product frame and lease contracts remain consumer-forced, and
+traversal ownership does not promote them.
 
 **Open acceptance gates riding those chains** (general model plan): E1 on
 PD1b; E2's epoch receipt; E3's sufficient statistics, authority move, and
@@ -92,6 +95,14 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
+- **2026-08-26 (latest):** V1b closed the residency lane, finishing the
+  consolidation chain. `conatus-brick` at `bd8f0044` owns the
+  capacity-fixed retargeting map; the tracer publishes retargets as full
+  pointers plus loaded slots (batched into contiguous box writes) and
+  validates the frame's expected lease epoch; Paredros's headed travel
+  receipt held the V1 trace with zero recreation and zero allocator
+  growth; the `resident_ground` join publishes a carve as one retained
+  4-byte patch with CubeCL accounting unchanged. Both consumers repinned.
 - **2026-08-26 (later):** the shared-engine consolidation chain closed.
   D1 joined brick raymarch and renderling on one stored depth surface
   (Paredros's headed witness-pillar receipt). T1 then landed the first

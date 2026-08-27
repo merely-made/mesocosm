@@ -5,9 +5,10 @@ composition, retained-allocation mutation, and strided subregion carriage are
 landed in tracked code; Conatus voxel mechanics are adopted through
 `GroundVoxelProfile`; equal-sized projection cache coherence was implemented
 and headed-verified 2026-08-26; Mere's `conatus-brick` now owns the shared
-brick ABI and camera-neutral DDA; field-plane
-visualization, incremental per-brick residency, and allocator-observed bytes
-remain open.** How the voxel world, Burn/CubeCL, the
+brick ABI and camera-neutral DDA; V1b closed incremental per-brick
+residency, allocator-observed bytes, and the tracer-validated lease epoch
+2026-08-26 (engine review §5 V1b); field-plane visualization remains
+open.** How the voxel world, Burn/CubeCL, the
 tracer, the mesher, collision, and persistence compose on one device.
 Ratified direction (Mark, 2026-08-14): the voxel world
 is Burn-addressable state while remaining voxel-authoritative state.

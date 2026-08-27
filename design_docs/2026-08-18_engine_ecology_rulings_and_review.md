@@ -230,13 +230,13 @@ revisioned projection with an explicit validity boundary.
 
 R1, R2, R3, B1, and V1 moved the shared engine past feasibility.
 Projection-correct residency, the brick ABI/DDA ownership lift,
-raymarch-depth composition (D1, 2026-08-26), and the first real Mesocosm
-tactile consumer through Conatus (T1, 2026-08-26) are now complete. The
-remaining ordered shared-engine lane is incremental
-`ResidentChunk`-backed residency with per-brick publication and measured
-allocator bytes. Product work, including the epoch slice, remains
-independently ordered by its own consumer gates rather than serving as a
-prerequisite for every reusable mechanism.
+raymarch-depth composition (D1, 2026-08-26), the first real Mesocosm
+tactile consumer through Conatus (T1, 2026-08-26), and the stable
+resident brick cache (V1b, 2026-08-26) are now complete: the ordered
+shared-engine consolidation chain is closed. What remains in §6 is
+consumer-forced, not ordered work. Product work, including the epoch
+slice, remains independently ordered by its own consumer gates rather
+than serving as a prerequisite for every reusable mechanism.
 
 ### R1. Shared traversal profile: **COMPLETE 2026-08-20**
 
@@ -378,6 +378,82 @@ capsule is carried at its mean radius — the T1 stops pass through the
 capsule core exactly so no radius model can disagree; a consumer needing
 taper-exact grazing answers must first widen Conatus's capsule
 vocabulary.
+
+### V1b. Stable resident brick cache: **COMPLETE 2026-08-26**
+
+The residency lane V1's ruling reserved and §6 carried: a stable
+`ResidentChunk`-backed brick cache with per-brick publication and measured
+allocator bytes, joining Quint-owned residency to `conatus-brick`
+traversal. Ruled by Mark 2026-08-26: the slot-retaining, capacity-fixed
+`BrickMap` variant lands in `conatus-brick` as new commits continuing
+`codex/conatus-brick-lift` from `28c07fab`, with both consumers repinned;
+the V1 1 MiB budget becomes the hard cap of the fixed allocation
+(capacity 1,984 atlas slots plus the fixed pointer box); and the gate
+closes with two receipts so quint's compute stack stays out of
+paredros-room.
+
+The mechanism: `BrickMap` gains a capacity mode whose atlas and pointer
+extents never change — retained keys keep their atlas slots, evicted
+slots recycle deterministically to loaded keys, and a retarget rewrites
+the (kilobyte-scale) pointer volume wholesale while touching only loaded
+bricks' 512-byte atlas slots. The tracer honours a changed-slot
+declaration across a projection advance — full pointers, loaded slots
+only — and validates an expected lease read epoch, closing "host promise"
+into refused mismatches. Fixed extents mean the tracer's existing
+equality check already yields zero texture recreation.
+
+**Done when:** conatus-brick proves slot stability, deterministic
+recycling, capacity and extent refusals, and pointer correctness across
+retargets; the tracer proves a projection advance with a slot declaration
+uploads exactly full pointers plus the loaded slots' atlas bytes while
+rendering identically to a full rebuild, and refuses a lease with a
+mismatched read epoch; Paredros's headed V1b travel run repeats the V1
+zoom-and-travel trace over the stable cache with zero texture or
+bind-group creation at every band transition, per-brick transition
+uploads, retained one-frame recovery, and `wgpu` allocator-report bytes
+recorded beside the logical count; the extended `resident_ground`
+receipt publishes a carve as per-brick `commit_plane_patches`, leases
+exactly the changed slots at a stated epoch, refuses a deliberately
+mismatched epoch, and records CubeCL `memory_usage` bytes; and no
+existing receipt changes behaviour.
+
+**Receipt, 2026-08-26.** All hold. `conatus-brick` at `bd8f0044` (the
+branch continuation Mark ruled) owns `BrickMap::with_capacity` and
+`retarget`; its tests prove kept-slot stability, deterministic recycling,
+pre-write refusals, and read parity with a rebuilt map; both consumers
+repinned. The tracer honours a changed-slot declaration across a
+projection advance — full pointers, loaded slots only — renders
+pixel-identically to a from-scratch rebuild over retained textures, and
+refuses a lease at any epoch other than the frame's stated one; all 35
+lens tests are green.
+
+The headed Paredros run holds the V1 trace over one cache of 1,791 slots:
+931,376 fixed bytes under the 1 MiB cap (whole atlas rows make the
+capacity 1,791 rather than the estimated 1,984 — the cap is the ruling,
+the count derives), pointer box `[34, 3, 34]`, atlas `[128, 56, 128]`,
+extents never moving. Six retargets each created zero textures and zero
+bind groups and uploaded exactly the 13,872-byte pointer volume plus
+their loaded slots: the close snap published pointers alone, and the
+travel frame moved 47,664 bytes against V1's 795,144 — sixteen times
+less. `wgpu`'s allocator report read 182,561,728 bytes after the first
+frame and after the last: growth zero. Both rapid zooms recovered in one
+frame. Receipt and capture at
+`Code/testing/paredros/v1b_residency.{json,png}`.
+
+The extended `resident_ground` receipt closes the Quint join: the carve
+reaches the retained `ResidentChunk` as one 4-byte
+`commit_plane_patch` with CubeCL's own accounting unchanged across the
+commit (262,144 bytes in use, one allocation, growth zero), the tracer
+takes a 512-byte one-brick lease at the stated epoch, and the same lease
+at any other expected epoch is refused with the CPU fallback drawing the
+committed picture pixel for pixel.
+
+One instrument finding worth keeping: per-slot `write_texture` costs
+about 0.37 ms per call on this machine, so a 1,290-slot reload took
+485 ms naively. Consecutive slots occupy contiguous atlas boxes, so the
+tracer batches a loaded set into a few strided box writes from the map's
+own atlas slice — same bytes, 13.5 ms. Publication granularity stays
+per-brick; only the submission count changed.
 
 ### R2. GPU mesh bake into renderling: **COMPLETE 2026-08-21**
 
@@ -579,10 +655,11 @@ uploads zero bytes. The 96-frame RTX 4060 Laptop GPU run also preserves
 one-frame close/far recovery and produces a non-empty 62-colour capture.
 
 This implements cache coherence for equal-sized travel. It does not make the
-identity durable or cross-product. Lease `read_epoch` remains a host scheduling
-promise rather than tracer-validated identity, and incremental
-`ResidentChunk` publication and allocator-observed bytes remain open. Shared
-traversal ownership is closed, but no cross-product frame or lease contract is
+identity durable or cross-product. Its open items closed in V1b on
+2026-08-26: lease `read_epoch` is now tracer-validated against the frame's
+stated epoch, and incremental `ResidentChunk` publication with
+allocator-observed bytes is proven on both the Paredros travel cache and
+the `resident_ground` join. No cross-product frame or lease contract is
 implied.
 
 ## 6. Open choices carried to proof
@@ -593,9 +670,10 @@ implied.
   `mesocosm-runtime`; see T1;
 - the exact shared spatial contract for contemporaneous construction across
   vessels;
-- the product-forced join between Quint-owned `ResidentChunk` residency and
+- ~~the product-forced join between Quint-owned `ResidentChunk` residency and
   `conatus-brick` traversal, including publication granularity and an expected
-  lease epoch or equivalent token.
+  lease epoch or equivalent token~~ — closed 2026-08-26 as V1b: per-brick
+  granularity, and the frame's expected read epoch validated by the tracer.
 
 These remain consumer-forced contracts. They do not suspend unrelated product
 work, and none authorizes a generic engine umbrella in advance.

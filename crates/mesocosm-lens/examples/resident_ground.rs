@@ -70,6 +70,12 @@ struct Receipt {
     committed_resident_voxel_bytes: u64,
     committed_read_epoch: u64,
     committed_cpu_projection_bytes: u64,
+    expected_read_epoch: u64,
+    epoch_mismatch_refusals: u32,
+    epoch_fallback_matches_committed: bool,
+    quint_bytes_in_use: u64,
+    quint_number_allocs: u64,
+    quint_commit_allocator_growth: u64,
     changed_pixels: usize,
     unchanged_atlas_bytes: u64,
     accepted_delta_bytes: usize,
@@ -353,9 +359,11 @@ fn main() {
                     [0; 3],
                     [0; 3],
                     initial_extent,
-                )),
+                ))
+                .with_expected_read_epoch(SOURCE_EPOCH),
         )
         .expect("initial resident Ground frame");
+    assert_eq!(initial.diagnostics.epoch_lease_rejections, 0);
     assert_eq!(
         initial.diagnostics.leased_atlas_bytes,
         map.atlas().len() as u64
@@ -405,6 +413,12 @@ fn main() {
         revision: ground.revision(),
         valid_read_epoch: ReadEpoch::new(COMMITTED_EPOCH),
     };
+    // The commit must not touch the allocator: same slices, same bytes,
+    // observed by CubeCL's own memory accounting rather than our word.
+    let memory_before_commit = client
+        .compute_client()
+        .memory_usage()
+        .expect("quint memory usage before commit");
     resident_atlas
         .commit_plane_patch(
             &setup.queue,
@@ -419,6 +433,18 @@ fn main() {
             }],
         )
         .expect("patch retained resident atlas");
+    let memory_after_commit = client
+        .compute_client()
+        .memory_usage()
+        .expect("quint memory usage after commit");
+    assert_eq!(
+        memory_before_commit.bytes_in_use, memory_after_commit.bytes_in_use,
+        "the committed patch changed the allocator's bytes in use"
+    );
+    assert_eq!(
+        memory_before_commit.number_allocs, memory_after_commit.number_allocs,
+        "the committed patch changed the allocator's active allocations"
+    );
     let committed_atlas = resident_atlas
         .raw_kernel_view(&atlas_plane)
         .expect("committed raw atlas view");
@@ -444,9 +470,11 @@ fn main() {
                     slot_origin,
                     slot_origin,
                     [8; 3],
-                )),
+                ))
+                .with_expected_read_epoch(COMMITTED_EPOCH),
         )
         .expect("committed resident Ground frame");
+    assert_eq!(committed.diagnostics.epoch_lease_rejections, 0);
     assert_eq!(
         committed.diagnostics.leased_atlas_bytes,
         8 * 8 * 8,
@@ -470,6 +498,46 @@ fn main() {
     assert!(
         changed_pixels > 0,
         "the accepted resident delta is not visible"
+    );
+
+    // The stated epoch is validated identity: the same committed lease at
+    // any other expected epoch is refused, and the CPU fallback draws the
+    // same committed picture.
+    let mut epoch_probe =
+        BrickTracer::with_device(setup.device.clone(), setup.queue.clone(), WIDTH, HEIGHT);
+    epoch_probe
+        .capture(BrickFrameInput::new(
+            &map,
+            BrickRevision(accepted.source_revision),
+            &view,
+            &grade,
+        ))
+        .expect("epoch probe baseline");
+    let refused = epoch_probe
+        .capture(
+            BrickFrameInput::new(&map, BrickRevision(ground.revision()), &view, &grade)
+                .changed(BrickChange::Slots(&slots))
+                .with_leased_atlas(tracer_lease(
+                    &committed_atlas,
+                    map.projection_revision(),
+                    initial_extent,
+                    slot_origin,
+                    slot_origin,
+                    [8; 3],
+                ))
+                .with_expected_read_epoch(COMMITTED_EPOCH + 1),
+        )
+        .expect("mismatched epoch frame");
+    assert_eq!(refused.diagnostics.epoch_lease_rejections, 1);
+    assert_eq!(refused.diagnostics.leased_atlas_bytes, 0);
+    assert_eq!(
+        refused.diagnostics.brick_upload_bytes,
+        size_of::<u32>() as u64 + 512,
+        "the refused lease falls back to one CPU slot"
+    );
+    assert_eq!(
+        refused.pixels, committed.pixels,
+        "the CPU fallback must draw the committed picture"
     );
 
     let steady = tracer
@@ -513,6 +581,14 @@ fn main() {
                 .observed_read_epoch
                 .expect("committed lease epoch"),
             committed_cpu_projection_bytes: committed.diagnostics.brick_upload_bytes,
+            expected_read_epoch: COMMITTED_EPOCH,
+            epoch_mismatch_refusals: refused.diagnostics.epoch_lease_rejections,
+            epoch_fallback_matches_committed: refused.pixels == committed.pixels,
+            quint_bytes_in_use: memory_after_commit.bytes_in_use,
+            quint_number_allocs: memory_after_commit.number_allocs,
+            quint_commit_allocator_growth: memory_after_commit
+                .bytes_in_use
+                .saturating_sub(memory_before_commit.bytes_in_use),
             changed_pixels,
             unchanged_atlas_bytes: steady.diagnostics.leased_atlas_bytes,
             accepted_delta_bytes: wire.len(),

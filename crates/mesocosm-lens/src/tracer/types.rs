@@ -187,6 +187,11 @@ pub struct BrickFrameInput<'a> {
     /// `@builtin(frag_depth)` from it so a raster tenant sharing the same
     /// matrix occludes and is occluded exactly. Ignored by plain `encode`.
     pub clip_from_world: Option<[[f32; 4]; 4]>,
+    /// The host schedule epoch this frame expects its leased atlas bytes
+    /// to have been made safe at. `Some` turns the lease's `read_epoch`
+    /// from a producer promise into a tracer-validated identity: a lease
+    /// at any other epoch is refused and the CPU path fills the frame.
+    pub expected_read_epoch: Option<u64>,
 }
 
 /// A GPU-resident atlas the tracer may fill its texture from without the
@@ -331,6 +336,7 @@ impl<'a> BrickFrameInput<'a> {
             pose: None,
             leased_atlas: None,
             clip_from_world: None,
+            expected_read_epoch: None,
         }
     }
 
@@ -350,6 +356,7 @@ impl<'a> BrickFrameInput<'a> {
             pose: None,
             leased_atlas: None,
             clip_from_world: None,
+            expected_read_epoch: None,
         }
     }
 
@@ -376,6 +383,12 @@ impl<'a> BrickFrameInput<'a> {
         self.clip_from_world = Some(clip_from_world);
         self
     }
+
+    /// State the host schedule epoch a leased atlas must carry this frame.
+    pub fn with_expected_read_epoch(mut self, epoch: u64) -> Self {
+        self.expected_read_epoch = Some(epoch);
+        self
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -392,6 +405,9 @@ pub struct BrickDiagnostics {
     pub stale_lease_rejections: u32,
     /// Leases refused because they materialized another selected projection.
     pub projection_lease_rejections: u32,
+    /// Leases refused because their read epoch was not the one the frame
+    /// expected.
+    pub epoch_lease_rejections: u32,
     /// Leases refused because their extent did not fit the leased range.
     pub misfit_lease_rejections: u32,
     /// Leases refused because they did not cover every atlas region named by

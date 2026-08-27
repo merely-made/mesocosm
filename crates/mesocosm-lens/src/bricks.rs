@@ -14,7 +14,7 @@ use std::ops::Deref;
 use conatus_brick::BrickMap as SharedBrickMap;
 use mesocosm_core::places::Ground;
 
-pub use conatus_brick::{BrickMapError, BrickProjectionRevision};
+pub use conatus_brick::{BrickMapError, BrickProjectionRevision, RetargetDelta};
 
 /// A Ground-backed adapter over the product-neutral brick map.
 #[derive(Clone, Debug)]
@@ -45,6 +45,29 @@ impl BrickMap {
         changed: impl IntoIterator<Item = [i16; 3]>,
     ) -> Result<Vec<u32>, BrickMapError> {
         self.0.refresh(changed, |key| {
+            ground.brick_materials(key).map(|(brick, _)| brick.raw())
+        })
+    }
+
+    /// An empty capacity-fixed map whose extents never change; see
+    /// [`conatus_brick::BrickMap::with_capacity`].
+    pub fn with_capacity(
+        projection_revision: BrickProjectionRevision,
+        capacity_rows: u32,
+        pointer_extent: [u32; 3],
+    ) -> Result<Self, BrickMapError> {
+        SharedBrickMap::with_capacity(projection_revision, capacity_rows, pointer_extent).map(Self)
+    }
+
+    /// Replaces the selection from Ground while retained bricks keep their
+    /// slots; see [`conatus_brick::BrickMap::retarget`].
+    pub fn retarget(
+        &mut self,
+        ground: &Ground,
+        projection_revision: BrickProjectionRevision,
+        keys: impl IntoIterator<Item = [i16; 3]>,
+    ) -> Result<RetargetDelta, BrickMapError> {
+        self.0.retarget(projection_revision, keys, |key| {
             ground.brick_materials(key).map(|(brick, _)| brick.raw())
         })
     }

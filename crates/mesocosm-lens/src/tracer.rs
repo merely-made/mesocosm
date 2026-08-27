@@ -435,6 +435,15 @@ impl BrickTracer {
             } else if leased.projection_revision != input.map.projection_revision() {
                 diagnostics.projection_lease_rejections += 1;
                 false
+            } else if input
+                .expected_read_epoch
+                .is_some_and(|expected| leased.read_epoch != expected)
+            {
+                // The frame stated the schedule epoch it trusts; a lease
+                // from any other epoch may hold bytes the producer has not
+                // yet made safe, or has already moved past.
+                diagnostics.epoch_lease_rejections += 1;
+                false
             } else if !leased.copyable_into(resident.atlas_extent) {
                 // An invalid strided range could copy a neighbouring
                 // allocation out of the producer's pool or cross the atlas.
@@ -444,7 +453,7 @@ impl BrickTracer {
                 leased,
                 input.map,
                 input.change,
-                recreate || projection_changed,
+                recreate || (projection_changed && matches!(input.change, BrickChange::Full)),
             ) {
                 // A valid partial lease must not suppress uploads for changed
                 // slots it does not actually contain.
@@ -464,7 +473,12 @@ impl BrickTracer {
         // a refused lease must not leave the
         // atlas unwritten, or the frame shows whatever was there before.
         let atlas_from_cpu = !atlas_from_lease;
-        if recreate || projection_changed || matches!(input.change, BrickChange::Full) {
+        // A projection advance that declares its changed slots is a
+        // retarget over retained textures: the whole (kilobyte-scale)
+        // pointer volume moves, but only the declared slots' atlas bytes
+        // do — every other slot's bytes are already resident.
+        let full = recreate || matches!(input.change, BrickChange::Full);
+        if full {
             write_texture_3d(
                 &self.queue,
                 &resident.pointer,
@@ -486,33 +500,43 @@ impl BrickTracer {
                 diagnostics.brick_upload_bytes += input.map.atlas().len() as u64;
             }
         } else if let BrickChange::Slots(slots) = input.change {
-            for slot in slots {
-                let Some(pointer_coord) = input.map.pointer_coord(*slot) else {
-                    continue;
-                };
-                let pointer = input.map.pointer_at(pointer_coord).expect("in bounds");
+            if projection_changed {
                 write_texture_3d(
                     &self.queue,
                     &resident.pointer,
-                    pointer_coord,
-                    [1, 1, 1],
+                    [0, 0, 0],
+                    input.map.pointer_extent(),
                     4,
-                    bytemuck::bytes_of(&pointer),
+                    bytemuck::cast_slice(input.map.pointers()),
                 );
-                diagnostics.brick_upload_bytes += size_of::<u32>() as u64;
-                if atlas_from_cpu {
-                    let atlas_origin = input.map.atlas_slot_origin(*slot).expect("assigned slot");
-                    let texels = input.map.slot_texels(*slot).expect("assigned slot");
+                diagnostics.brick_upload_bytes += size_of_val(input.map.pointers()) as u64;
+            }
+            if !projection_changed {
+                for slot in slots {
+                    let Some(pointer_coord) = input.map.pointer_coord(*slot) else {
+                        continue;
+                    };
+                    let pointer = input.map.pointer_at(pointer_coord).expect("in bounds");
                     write_texture_3d(
                         &self.queue,
-                        &resident.atlas,
-                        atlas_origin,
-                        [8, 8, 8],
-                        1,
-                        &texels,
+                        &resident.pointer,
+                        pointer_coord,
+                        [1, 1, 1],
+                        4,
+                        bytemuck::bytes_of(&pointer),
                     );
-                    diagnostics.brick_upload_bytes += texels.len() as u64;
+                    diagnostics.brick_upload_bytes += size_of::<u32>() as u64;
                 }
+            }
+            if atlas_from_cpu {
+                // Consecutive slots occupy contiguous boxes of the atlas,
+                // and a retarget's recycled slots run consecutively, so
+                // the loaded set uploads as a few strided box writes from
+                // the map's own atlas slice rather than one submission
+                // per brick. The bytes are exactly the slots' texels
+                // either way; only the submission count changes.
+                diagnostics.brick_upload_bytes +=
+                    write_atlas_slot_boxes(&self.queue, &resident.atlas, input.map, slots);
             }
         }
         resident.revision = input.revision;
@@ -707,6 +731,89 @@ fn copy_leased_atlas(
         },
     );
     queue.submit([encoder.finish()]);
+}
+
+/// Upload the named slots' atlas texels as contiguous box writes.
+///
+/// Slot index `i` sits at atlas cell `(i % sx, i / (sx*sz), (i/sx) % sz)`
+/// (index 0 is the reserved air slot, so texture slots start at 1). A run
+/// of consecutive slot indices inside one x-row is one box; a run of whole
+/// x-rows inside one y-layer is one wider box. The data comes straight
+/// from the map's atlas slice with the atlas's own row and image strides,
+/// so nothing is gathered on the CPU. Returns the texel bytes uploaded.
+fn write_atlas_slot_boxes(
+    queue: &wgpu::Queue,
+    atlas: &wgpu::Texture,
+    map: &BrickMap,
+    slots: &[u32],
+) -> u64 {
+    let [sx, _, sz] = map.slots();
+    let [width, height, _] = map.atlas_extent();
+    let data = map.atlas();
+    let mut sorted: Vec<u32> = slots.to_vec();
+    sorted.sort_unstable();
+    sorted.dedup();
+
+    let mut uploaded = 0u64;
+    let mut write_box = |origin_slots: [u32; 3], extent_slots: [u32; 3]| {
+        let origin = origin_slots.map(|axis| axis * 8);
+        let extent = extent_slots.map(|axis| axis * 8);
+        let offset = ((origin[2] * height + origin[1]) * width + origin[0]) as u64;
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: atlas,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: origin[0],
+                    y: origin[1],
+                    z: origin[2],
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            &data[offset as usize..],
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d {
+                width: extent[0],
+                height: extent[1],
+                depth_or_array_layers: extent[2],
+            },
+        );
+        uploaded += u64::from(extent[0]) * u64::from(extent[1]) * u64::from(extent[2]);
+    };
+
+    let mut runs = sorted.iter().peekable();
+    while let Some(&start) = runs.next() {
+        let mut end = start;
+        while runs.peek().is_some_and(|&&next| next == end + 1) {
+            end = *runs.next().expect("peeked");
+        }
+        // The run [start, end] of texture slot spots, split at row and
+        // layer boundaries into boxes.
+        let mut at = start - 1;
+        let last = end - 1;
+        while at <= last {
+            let x = at % sx;
+            let z = (at / sx) % sz;
+            let y = at / (sx * sz);
+            let remaining = last - at + 1;
+            if x == 0 && remaining >= sx {
+                // Whole x-rows within this y-layer become one box.
+                let rows_left_in_layer = sz - z;
+                let rows = (remaining / sx).min(rows_left_in_layer);
+                write_box([0, y, z], [sx, 1, rows]);
+                at += rows * sx;
+            } else {
+                let run = (sx - x).min(remaining);
+                write_box([x, y, z], [run, 1, 1]);
+                at += run;
+            }
+        }
+    }
+    uploaded
 }
 
 fn write_texture_3d(
