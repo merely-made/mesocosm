@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Mesocosm's product-owned adapter from authoritative [`Ground`] bricks to
-//! Nisus voxel mechanics (renamed from conatus-voxel 2026-08-27).
+//! Nisus voxel mechanics (renamed from conatus-voxel 2026-08-28).
 //!
 //! `Ground` remains the serialized authority. This profile keeps disposable
 //! Conatus chunks beside it so spatial consumers can share patch, dirty-region,

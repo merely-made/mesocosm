@@ -95,7 +95,7 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
-- **2026-08-27:** the platform components were renamed and claimed on
+- **2026-08-28:** the platform components were renamed and claimed on
   crates.io (ruled by Mark): `conatus-voxel` -> `nisus` 0.1.0 and
   `conatus-brick` -> `modulus` 0.1.0 (pin `33f9b6b6`). Imports and pins
   follow throughout; dated receipts keep the names they were taken under.

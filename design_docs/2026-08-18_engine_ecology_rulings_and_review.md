@@ -132,6 +132,18 @@ CPU-side Parry shapes, and the current append path is more restricted than the
 initial build. Nexus can become the dynamic rigid-body engine after an interop
 proof; it is not the terrain-collision answer today.
 
+**Sharpened 2026-08-28 (Mark): Nexus is decomposed, never adopted.** When
+the first vessel gate needs dynamic bodies — Paredros F5 material life and
+F7 danger are the expected pulls — Nexus's useful parts arrive as a Conatus
+backend behind the same `BodyWorld` vocabulary that already keeps Rapier
+private, on the one-device CubeCL/wgpu lane R2 proved. It never becomes a
+peer engine with its own vocabulary, which retires both standing hazards:
+the upstream shader-build blocker (only the kernels that serve this stack
+are taken) and the Parry-`Voxels` admission gap (its solver meets the world
+through Conatus's voxel colliders). The consolidation map this ruling
+belongs to lives once, in
+`mere/design_docs/mere_docs/implementation_strategy/2026-08-22_conatus_engine_plan.md`.
+
 ### 2.6 Evolved behavior
 
 **Working ruling.** The useful part of Job Talle's
