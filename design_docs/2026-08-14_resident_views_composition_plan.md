@@ -684,7 +684,9 @@ probe changed physical extent and was not evidence for this path.
 
 ## Brick traversal ownership lift (2026-08-26)
 
-The reusable organ moved to Mere's `conatus-brick` at commit `28c07fab`.
+The reusable organ moved to Mere's `conatus-brick` at commit `28c07fab`
+(the pin has since advanced to `bd8f0044`, which added V1b's capacity-fixed
+retargeting mode).
 That crate owns deterministic pointer/atlas layout, projection-stamp carriage,
 `BrickTraceSpace`, and the camera-neutral `BRICK_DDA_WGSL`. Mesocosm's
 `bricks.rs` now only binds authoritative Ground bytes into that layout; its
@@ -701,11 +703,11 @@ presentation.
 
 This remains evidence over the lens-local texture owner. It does not promote
 projection identity, frame cadence, or leases into a cross-product contract.
-`LeasedAtlas::read_epoch` is observed diagnostics; safe reuse remains a host
-scheduling promise until the host supplies an expected epoch or equivalent
-token. A `ResidentChunk`-backed per-brick cache and
-allocator-observed resident plus transition bytes remain the next residency
-gate.
+Both residency residues closed later the same day as V1b (engine review §5):
+`LeasedAtlas::read_epoch` is now tracer-validated against a frame-stated
+expected epoch, and the `ResidentChunk`-backed per-brick cache with
+allocator-observed resident and transition bytes is proven by the Paredros
+`v1b_residency` receipt and the extended `resident_ground` receipt.
 
 ## Stop rules
 

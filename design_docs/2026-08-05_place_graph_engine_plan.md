@@ -105,9 +105,10 @@ Presentation stays a family of projections of one truth (landscape §8):
 a brick-map DDA raymarch grows out of the landed march for the
 first-person lens; `mesocosm-mesh` pointed at world bricks is the raster
 projection; the grade is unchanged; bodies ride the landed
-`BodyLensProjection` (V2). Fields (numen) attach to places and bricks. The
-rapier adapter derives colliders from the same snapshot when it arrives
-(§8.4 unchanged).
+`BodyLensProjection` (V2). Fields (numen) attach to places and bricks. Tactile
+advice derives from the same snapshot through the landed T1 adapter
+(`mesocosm_runtime::tactile` over Conatus, Rapier private inside it;
+§8.4's advisor tier unchanged).
 
 ## 2. The slice: the burrow run
 
