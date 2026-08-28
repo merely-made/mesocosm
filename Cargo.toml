@@ -34,14 +34,14 @@ codicil = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # authority; its product adapter consumes revisioned chunk and patch machinery
 # as a derived view over accepted ground revisions without acquiring a physics
 # backend.
-conatus-voxel = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+nisus = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # The shared tactile runtime: bodies, voxel collision, and spatial queries
 # with Rapier private inside it. Mesocosm consumes advice through Conatus ids
 # and arrays only; the T1 adapter in mesocosm-runtime is its product home.
 conatus = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # Product-neutral sparse brick carriage and ray-in WGSL traversal. Product
 # lenses keep source binding, camera, material, and composition policy.
-conatus-brick = { git = "https://github.com/merely-made/mere.git", rev = "bd8f0044bb463bbf552e3070a7d9f6340b216bd4" }
+modulus = { git = "https://github.com/merely-made/mere.git", rev = "33f9b6b65530ee1cda4636c4077d88d91b4ba9f1" }
 # The scenograph projection contract and its solvers: the adapter-first UI
 # posture. Mesocosm discloses facts as a score; scenomise places them; a host
 # realizes the scene. Views never hand-roll layout.

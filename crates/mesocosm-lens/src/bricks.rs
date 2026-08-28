@@ -11,10 +11,10 @@
 
 use std::ops::Deref;
 
-use conatus_brick::BrickMap as SharedBrickMap;
+use modulus::BrickMap as SharedBrickMap;
 use mesocosm_core::places::Ground;
 
-pub use conatus_brick::{BrickMapError, BrickProjectionRevision, RetargetDelta};
+pub use modulus::{BrickMapError, BrickProjectionRevision, RetargetDelta};
 
 /// A Ground-backed adapter over the product-neutral brick map.
 #[derive(Clone, Debug)]
@@ -50,7 +50,7 @@ impl BrickMap {
     }
 
     /// An empty capacity-fixed map whose extents never change; see
-    /// [`conatus_brick::BrickMap::with_capacity`].
+    /// [`modulus::BrickMap::with_capacity`].
     pub fn with_capacity(
         projection_revision: BrickProjectionRevision,
         capacity_rows: u32,
@@ -60,7 +60,7 @@ impl BrickMap {
     }
 
     /// Replaces the selection from Ground while retained bricks keep their
-    /// slots; see [`conatus_brick::BrickMap::retarget`].
+    /// slots; see [`modulus::BrickMap::retarget`].
     pub fn retarget(
         &mut self,
         ground: &Ground,

@@ -95,6 +95,11 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
+- **2026-08-27:** the platform components were renamed and claimed on
+  crates.io (ruled by Mark): `conatus-voxel` -> `nisus` 0.1.0 and
+  `conatus-brick` -> `modulus` 0.1.0 (pin `33f9b6b6`). Imports and pins
+  follow throughout; dated receipts keep the names they were taken under.
+
 - **2026-08-26 (latest):** V1b closed the residency lane, finishing the
   consolidation chain. `conatus-brick` at `bd8f0044` owns the
   capacity-fixed retargeting map; the tracer publishes retargets as full

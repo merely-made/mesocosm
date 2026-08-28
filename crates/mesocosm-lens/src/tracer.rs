@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! Retained fragment-only rendering over [`conatus_brick::BrickMap`].
+//! Retained fragment-only rendering over [`modulus::BrickMap`].
 //!
 //! The tracer owns GPU copies, never voxel authority. A caller gives it a
 //! revision and the slots changed by a projection drain; it encodes into a
@@ -16,7 +16,7 @@ use web_time::Instant;
 
 mod types;
 
-use conatus_brick::{BRICK_DDA_WGSL, BrickMap, BrickProjectionRevision};
+use modulus::{BRICK_DDA_WGSL, BrickMap, BrickProjectionRevision};
 
 use crate::FRAME_FORMAT;
 use types::{TraceParams, validates_change, validates_pose};

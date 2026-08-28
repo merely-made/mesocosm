@@ -16,7 +16,7 @@ resident-ground-receipt = ["dep:burn", "dep:quint"]
 # If this earns its keep it dies into a netrender render-graph task; it never
 # grows into a second custom pipeline.
 [dependencies]
-conatus-brick = { workspace = true }
+modulus = { workspace = true }
 mesocosm-core = { workspace = true }
 wgpu = { workspace = true }
 bytemuck = { version = "1", features = ["derive"] }

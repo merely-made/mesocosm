@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use bytemuck::{Pod, Zeroable};
-use conatus_brick::{BrickMap, BrickProjectionRevision, BrickTraceSpace};
+use modulus::{BrickMap, BrickProjectionRevision, BrickTraceSpace};
 
 use crate::{CritterPose, Flight, Grade, MAX_CAPSULES};
 
