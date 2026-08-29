@@ -139,6 +139,49 @@ formerly-empty tick 20-1,400 span; the instrument shows a gain (more
 receipt; collapse control still collapses and escapees stay zero; fixtures
 re-record at the new genesis.
 
+## TD6 — the closed matter cycle and determinate growth (ruled 2026-08-29, Mark)
+
+The mass fixed point, answered structurally. Income, upkeep and the
+reproduction tax all scale as `m^0.75`, so the sign of net growth never
+depends on size and no body ever arrives at an adult mass; crowding, which
+counts bodies rather than mass, is the only regulator and it never bites
+(TD5: producer stands reaching 40 billion mg on ~150 bodies). Mark ruled
+**both** answers in one round, one hash break rather than two:
+
+**The matter cycle.** The enclosure gets a finite matter budget held in a
+per-voxel-column soil store. Producers draw matter from the soil; **light
+stays the one open input** (energy arrives from outside, matter does not);
+decay returns bodies to the soil where they fell; the player's `Deposit`
+enriches it. Conservation is then the fixed point — mass cannot run away
+because it has to be somewhere — and the same store is the **detritus
+pool** Mark chose for decomposer persistence, so one system answers both
+rulings.
+
+**Determinate growth.** The body plan caps mass: a recipe-derived ceiling
+per part, with income past the ceiling routed to budget or brood rather
+than to more substance. With matter conserved this stops being load-bearing
+stability machinery and becomes what it should be — an evolvable trait the
+adaptation phase can push, gigantism as a lineage strategy.
+
+**Granularity ruled per-voxel column, on measured evidence**
+(`Code/testing/mesocosm/soil_granularity_probe.md`, 96 configs). At the
+shipping enclosure per-voxel is *fastest* for point uptake (1.75us vs
+5.66us per place — a direct index into 4KB beats a nearest-site scan) and
+is the **only** grain that can express a forage radius at all: per-place
+r=3 reaches 12 of 16 sites at any size, and per-crowd-cell r=3 reads every
+cell that exists at today's 4x4 grid. Mark's reason for wanting the depth
+is roots hunting minerals through soil, which coarse grains cannot
+represent at any price. Cost is 0.015% of a tick at 10 t/s; minimum system
+requirements are untouched (GPU-bound, as before).
+
+**Done when:** total matter (soil + biomass + carrion) is conserved across
+a long headless run — the load-bearing invariant, asserted as a test with a
+deliberately-broken control proving it can fail; producer stands no longer
+reach runaway biomass and report a bounded end mass; the instrument shows
+more seeds breathing with founded kingdoms persisting, zero boils, the
+collapse control still collapsing; crowding is either retired as redundant
+or its remaining job is stated; fixtures re-record.
+
 ## Findings
 
 - **2026-08-29 (TD1):** the ecology at 61 founders is **bimodal, not
