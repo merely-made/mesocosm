@@ -91,6 +91,11 @@ const COLLAPSE_FRACTION: u64 = 50;
 /// crowding column is wrong and nothing else is, which is why it is stated
 /// here rather than inferred.
 const CROWD_CELL: i32 = 16;
+/// The enclosure's resident bound, mirrored from `world.rs`'s public
+/// `ENCLOSURE` (not re-exported from the crate root, so copied rather than
+/// imported). TD2b's `outside` column reads directly against this: a body
+/// past it stands where `Ground::grow` never laid terrain. (2026-08-29 TD2b)
+const ENCLOSURE: i32 = 16;
 
 #[derive(Clone, Copy)]
 struct Sample {
@@ -107,6 +112,10 @@ struct Sample {
     /// horizontal axis. `World::ENCLOSURE` is 16, so anything past that is a
     /// body standing where the ground the enclosure grew does not reach.
     span: i32,
+    /// Count of living organisms strictly past `ENCLOSURE` on either
+    /// horizontal axis: the escapee proof for TD2b's wall. Zero across a run
+    /// is what "the wall holds" means in receipt terms. (2026-08-29 TD2b)
+    outside: u32,
 }
 
 impl Sample {
@@ -158,6 +167,7 @@ fn sample_of(world: &World, tick: u32, cum_born: u64, cum_died: u64) -> Sample {
     let mut total_biomass_mg = 0u64;
     let mut density: BTreeMap<(i32, i32), u32> = BTreeMap::new();
     let mut span = 0i32;
+    let mut outside = 0u32;
     for organism in world.organisms.iter().filter(|o| o.is_alive()) {
         alive[kingdom_index(organism.kingdom())] += 1;
         total_biomass_mg += organism.biomass_mg();
@@ -170,6 +180,9 @@ fn sample_of(world: &World, tick: u32, cum_born: u64, cum_died: u64) -> Sample {
         span = span
             .max(organism.position[0].abs())
             .max(organism.position[2].abs());
+        if organism.position[0].abs() > ENCLOSURE || organism.position[2].abs() > ENCLOSURE {
+            outside += 1;
+        }
     }
     Sample {
         tick,
@@ -179,6 +192,7 @@ fn sample_of(world: &World, tick: u32, cum_born: u64, cum_died: u64) -> Sample {
         cum_died,
         max_cell: density.into_values().max().unwrap_or(0),
         span,
+        outside,
     }
 }
 
@@ -332,6 +346,15 @@ fn main() {
         tally(&baseline, Verdict::Collapse),
         baseline.len(),
     );
+    // TD2b's wall proof: any nonzero count here is a body standing where
+    // `Ground::grow` never laid terrain.
+    let max_outside = baseline
+        .iter()
+        .flat_map(|r| r.samples.iter())
+        .map(|s| s.outside)
+        .max()
+        .unwrap_or(0);
+    println!("max escapees observed across baseline (any sample, any seed): {max_outside}");
 
     let path = receipt_path();
     let json = render_json(&baseline, &control);
@@ -366,7 +389,7 @@ fn report(run: &RunResult) {
     // Kingdoms at both ends, because a total that "breathes" while one
     // kingdom is flat at zero is not the trophic balance TD2 is after.
     println!(
-        "            kingdoms P/C/D start {}/{}/{} -> end {}/{}/{}; fullest crowd cell {} -> {}; span {} -> {}; end biomass {} mg",
+        "            kingdoms P/C/D start {}/{}/{} -> end {}/{}/{}; fullest crowd cell {} -> {}; span {} -> {}; outside {} -> {}; end biomass {} mg",
         start.alive[0],
         start.alive[1],
         start.alive[2],
@@ -377,15 +400,19 @@ fn report(run: &RunResult) {
         end.max_cell,
         start.span,
         end.span,
+        start.outside,
+        end.outside,
         end.total_biomass_mg,
     );
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/td2_retune.json` by walking up from this
+/// Finds `Code/testing/mesocosm/td2b_walls.json` by walking up from this
 /// crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
-/// is not this example's business to hardcode.
+/// is not this example's business to hardcode. `td2_retune.json` beside it
+/// is TD2's receipt and is not overwritten; this round's filename moved to
+/// `td2b_walls.json` the same way TD1 -> TD2 did. (2026-08-29 TD2b)
 fn receipt_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repos_ancestor = manifest_dir
@@ -395,7 +422,7 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td2_retune.json")
+    workspace_root.join("testing/mesocosm/td2b_walls.json")
 }
 
 fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {
@@ -451,7 +478,7 @@ fn render_run(out: &mut String, run: &RunResult, indent: usize) {
     for (index, sample) in run.samples.iter().enumerate() {
         out.push_str(&sample_indent);
         out.push_str(&format!(
-            "{{\"tick\": {}, \"producer\": {}, \"consumer\": {}, \"decomposer\": {}, \"total_biomass_mg\": {}, \"cum_born\": {}, \"cum_died\": {}, \"max_cell\": {}, \"span\": {}}}",
+            "{{\"tick\": {}, \"producer\": {}, \"consumer\": {}, \"decomposer\": {}, \"total_biomass_mg\": {}, \"cum_born\": {}, \"cum_died\": {}, \"max_cell\": {}, \"span\": {}, \"outside\": {}}}",
             sample.tick,
             sample.alive[0],
             sample.alive[1],
@@ -461,6 +488,7 @@ fn render_run(out: &mut String, run: &RunResult, indent: usize) {
             sample.cum_died,
             sample.max_cell,
             sample.span,
+            sample.outside,
         ));
         if index + 1 < run.samples.len() {
             out.push(',');

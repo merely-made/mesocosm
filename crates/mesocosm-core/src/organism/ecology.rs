@@ -505,6 +505,19 @@ fn step_inner(
             parent.position[1],
             parent.position[2] + scatter[2],
         ];
+        // A birth cannot scatter through the wall either: a parent near the
+        // edge threw offspring past Ground's resident bound, the far tier's
+        // own escape route since it skips step_for's check entirely. (TD2b)
+        let position = if let Some(ground) = ground {
+            let bound = ground.extent();
+            [
+                position[0].clamp(-bound, bound),
+                position[1],
+                position[2].clamp(-bound, bound),
+            ]
+        } else {
+            position
+        };
         let walker_shape = crate::places::WalkerShape::from_aabb(body.aabb());
         let child = Organism {
             id: child_id,

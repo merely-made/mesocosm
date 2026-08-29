@@ -111,6 +111,27 @@ became diegetic.
 
 ## Progress
 
+- **2026-08-29 (later): TD2b's walls and founding floor landed.** The
+  enclosure edge refuses a step (wall, not cliff) for every walker — and
+  the fix needed three doors closed, not one: `step_for`'s candidates,
+  nest routes (burrow mouths and depth drifted up to 12 voxels past the
+  bound — a half-unreachable trap once walls exist), and **birth scatter**,
+  which threw offspring through the wall with no bound check and was the
+  instrument's actual escapee source. Proof across every sample of every
+  run: occupied span exactly 16, zero bodies outside; seed 1's end biomass
+  fell 4,375x (4.4e9 → 1.0e6 mg) with crowding finally engaged. Genesis
+  now founds all three kingdoms every seed (Fisher-Yates floor over the
+  three non-played species) and staggers `since_offspring` like `age`.
+  Verdicts: 6 breathes / 0 boil / 4 collapse; control still collapses.
+  Receipt: `td2b_walls.json`.
+- **2026-08-29 (TD2b finding, the next retune's target):** balanced
+  founding changed the problem the constants face. In every breathing run
+  consumers and decomposers now die to zero by tick 10,000 (pure producer
+  stands), and two formerly-breathing seeds collapse from healthy
+  ~20/20/18 starts within ~1,000 ticks: a balanced consumer cohort exerts
+  predation pressure the TD2 constants — tuned against mostly-producer or
+  mostly-empty draws — never saw. TD2c: retune against the new genesis,
+  targeting all-kingdom persistence.
 - **2026-08-29 (later): TD3's roster landed** — the section shows the
   ants. The tracer gains a second uniform (`@binding(3)`) of up to **40
   roster members at 10 capsules each** (352 B/member, 14,096 B — 86% of

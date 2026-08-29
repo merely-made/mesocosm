@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 
 use crate::body::SpeciesId;
 use crate::development::{DevelopmentError, PartPalette};
+use crate::organism::ecology;
 use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
 use crate::rng::Rng;
 use crate::species::Lineages;
@@ -27,6 +28,7 @@ struct Founder {
     position: [i32; 3],
     stage: Stage,
     age: u32,
+    since_offspring: u32,
     signal: Signal,
     venom_mg: u64,
     guise: Kingdom,
@@ -58,7 +60,24 @@ impl World {
         // placeholder organisms here would preserve the split authority this
         // migration is removing.
         let mut founders = Vec::with_capacity(organism_count as usize + 1);
-        let mut species_roles = BTreeMap::from([(SpeciesId(1), Kingdom::Consumer)]);
+        // Kingdom floor: guarantee the non-played species cover all three
+        // kingdoms before any founder draws a role, so a seed can no longer
+        // found with a missing rung (2 of 10 seeds drew zero producers under
+        // the old free draw -- guaranteed collapse). The 3 non-played species
+        // ids are fixed by the `rng.below(3)` draw below; a Fisher-Yates
+        // shuffle of the 3 kingdoms assigns one each, deterministic from the
+        // seeded stream. A species beyond the floor (none exist today) draws
+        // freely in the `or_insert_with` below, so variety survives if the
+        // roster ever grows past 3. (2026-08-29 TD2b)
+        let mut floor_kingdoms = [Kingdom::Producer, Kingdom::Consumer, Kingdom::Decomposer];
+        for i in (1..floor_kingdoms.len()).rev() {
+            floor_kingdoms.swap(i, rng.below(i as u64 + 1) as usize);
+        }
+        let mut species_roles: BTreeMap<SpeciesId, Kingdom> =
+            BTreeMap::from([(SpeciesId(1), Kingdom::Consumer)]);
+        for (offset, kingdom) in floor_kingdoms.into_iter().enumerate() {
+            species_roles.insert(SpeciesId(2 + offset as u32), kingdom);
+        }
         founders.push(Founder {
             id: OrganismId(0),
             species: SpeciesId(1),
@@ -67,6 +86,7 @@ impl World {
             position: [0, 0, 0],
             stage: Stage::Juvenile,
             age: 0,
+            since_offspring: 0,
             signal: Signal::Plain,
             venom_mg: 0,
             guise: Kingdom::Consumer,
@@ -80,18 +100,24 @@ impl World {
             let z = rng.range_i32(-ENCLOSURE, ENCLOSURE);
             let mass = 100 + rng.below(400);
             let species = SpeciesId(2 + (rng.below(3) as u32));
-            // A species has one inherited silhouette. Keep the original
-            // seeded role draw for the first founder, then inherit that role
-            // for later founders of the same species.
-            let sampled_kingdom = match rng.below(6) {
-                0 => Kingdom::Consumer,
-                1 => Kingdom::Decomposer,
-                _ => Kingdom::Producer,
-            };
-            let kingdom = *species_roles.entry(species).or_insert(sampled_kingdom);
+            // A species has one inherited silhouette: the kingdom floor above
+            // already set it for every species that exists today, so this
+            // only fires for a species the floor did not reach.
+            let kingdom = *species_roles
+                .entry(species)
+                .or_insert_with(|| match rng.below(6) {
+                    0 => Kingdom::Consumer,
+                    1 => Kingdom::Decomposer,
+                    _ => Kingdom::Producer,
+                });
             // Staggered ages, so the enclosure is mid-life rather than all
             // hatching on the same tick.
             let age = rng.below(200) as u32;
+            // Staggered the same way: an un-staggered founder pool all reads
+            // since_offspring 0, gating the world's whole first brood behind
+            // one full gestation. (2026-08-29 TD2b)
+            let since_offspring =
+                rng.below(u64::from(ecology::gestation_for_mass(mass).max(1))) as u32;
 
             // Most things are honest. A minority lie, in both directions: a
             // harmless thing wearing a warning, and a dangerous thing wearing
@@ -110,6 +136,7 @@ impl World {
                 position: [x, y, z],
                 stage: Stage::Mature,
                 age,
+                since_offspring,
                 signal,
                 venom_mg,
                 guise,
@@ -178,7 +205,7 @@ impl World {
                 energy_mg: mass_mg,
                 stage: founder.stage,
                 age: founder.age,
-                since_offspring: 0,
+                since_offspring: founder.since_offspring,
                 signal: founder.signal,
                 venom_mg: founder.venom_mg,
                 guise: founder.guise,
@@ -256,4 +283,55 @@ impl World {
 fn founder_seed(world_seed: u64, organism: OrganismId) -> u64 {
     let mut stream = Rng::from_seed(world_seed ^ DEVELOPMENT_SALT ^ u64::from(organism.0));
     stream.next_u64()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Before the kingdom floor (2026-08-29, TD2b), 2 of these 10 seeds
+    // founded zero producer species -- guaranteed collapse under any
+    // constants. Every seed must now found all three kingdoms among the
+    // non-played species.
+    #[test]
+    fn every_seed_founds_all_three_kingdoms() {
+        for seed in 1u64..=10 {
+            let world = World::new(seed, 60);
+            let mut kingdoms: BTreeMap<Kingdom, u32> = BTreeMap::new();
+            for organism in &world.organisms {
+                if organism.species != SpeciesId(1) {
+                    *kingdoms.entry(organism.kingdom()).or_default() += 1;
+                }
+            }
+            for kingdom in [Kingdom::Producer, Kingdom::Consumer, Kingdom::Decomposer] {
+                assert!(
+                    kingdoms.get(&kingdom).is_some_and(|&count| count > 0),
+                    "seed {seed} founded no {kingdom:?} among the non-played species: {kingdoms:?}"
+                );
+            }
+        }
+    }
+
+    // Before the stagger (2026-08-29, TD2b), every founder read
+    // since_offspring 0, gating a world's whole first brood behind one full
+    // gestation. Founders beyond the played critter must now spread across
+    // the range, the way `age` already does.
+    #[test]
+    fn since_offspring_is_staggered_like_age() {
+        let world = World::new(4_242, 60);
+        let distinct: std::collections::BTreeSet<u32> = world
+            .organisms
+            .iter()
+            .filter(|o| o.species != SpeciesId(1))
+            .map(|o| o.since_offspring)
+            .collect();
+        assert!(
+            distinct.len() > 1,
+            "every non-played founder read the same since_offspring: {distinct:?}"
+        );
+        assert!(
+            distinct.iter().any(|&v| v > 0),
+            "no founder started with a head start on gestation"
+        );
+    }
 }
