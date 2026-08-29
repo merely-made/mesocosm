@@ -1,0 +1,205 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// SPDX-License-Identifier: MPL-2.0
+
+//! Key-to-intent policy: what a keypress means, and whether it is let into
+//! the queue.
+//!
+//! **The backlog problem, and the two-part fix.** `Runtime::queue` is an
+//! unbounded `VecDeque` drained at exactly the ruled tempo (10/s), one intent
+//! per tick. Two distinct sources can fill it faster than it drains:
+//!
+//! - **Holding a key.** winit's `Pressed` event fires once for the keydown
+//!   and then again and again for as long as the key is held, at the OS's
+//!   auto-repeat rate (20-30/s) — much faster than 10 ticks/s. Every one of
+//!   those repeats used to queue its own intent, so holding W for a couple of
+//!   seconds could queue dozens of copies of the same move, executing tens of
+//!   seconds after the key was released. The fix is to drop repeats outright
+//!   (`event.repeat`): a held key now contributes exactly the one intent its
+//!   initial keydown asked for, and nothing while it is held. This does mean
+//!   holding a key no longer walks continuously — press-and-hold stops being
+//!   a locomotion mode — but that trade is the point: it is what stops a held
+//!   key from multiplying.
+//! - **Mashing a key.** Rapid *distinct* presses (real keydown/keyup pairs,
+//!   `repeat == false` on every one) are not auto-repeat and are not
+//!   filtered by the rule above, so a player who mashes E to eat, or W to
+//!   dodge, can still queue faster than the tempo drains. This is where the
+//!   queue cap in [`admits`] does its work: a new intent is only queued while
+//!   the backlog is still shallow, so the worst case is bounded ticks of lag,
+//!   not an ever-growing session-long debt.
+//!
+//! **Why the cap is per-[`Urgency`] rather than one number.** A movement
+//! intent that has to wait behind a backlog is stale by the time it runs — it
+//! names a direction from a moment that has passed, and the player has
+//! likely already pressed a different one. Queuing it anyway is worse than
+//! dropping it: it makes the character visibly walk somewhere the player
+//! didn't just ask for. So movement gets the tight cap ([`MOVEMENT_QUEUE_CAP`])
+//! and drops rather than queues once the backlog exceeds about a tick or two,
+//! which keeps the queue tracking the present. A deliberate press — E to eat,
+//! Q to deposit, C to dig — names a decision the player expects to land
+//! exactly once, not a direction to keep re-asserting; dropping it silently
+//! loses food or a dig. It gets the looser cap ([`DELIBERATE_QUEUE_CAP`]),
+//! which only protects against a truly pathological backlog rather than
+//! doing routine housekeeping on ordinary mashing.
+//!
+//! Both filters are host-side and never touch the trace: the trace records
+//! intents actually applied, and a replay drives the queue directly
+//! ([`Runtime::queue`] called straight from the recorded list), bypassing this
+//! module entirely. What was queued and dropped at the keyboard cannot move a
+//! replay's hash, only how quickly a played session answers a key.
+
+use mesocosm_core::{Intent, Placement, World};
+use mesocosm_mesh::VolumeMap;
+use winit::keyboard::{Key, NamedKey};
+
+use crate::fixture;
+
+/// How eagerly an intent should be let into an already-backlogged queue.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Urgency {
+    /// WASD. Coalesces: a new one is dropped once the queue already holds a
+    /// couple of ticks, so held-then-mashed movement tracks the present
+    /// rather than replaying stale directions later.
+    Movement,
+    /// E/Space (metabolize), Q (deposit), C (carve): a single keystroke
+    /// naming a decision, not a direction. Worth a longer queue before it is
+    /// dropped, and dropping it is a last resort against a runaway backlog
+    /// rather than routine housekeeping.
+    Deliberate,
+}
+
+/// Ticks of backlog a [`Urgency::Movement`] intent tolerates before a new one
+/// is dropped rather than queued. At the ruled 10 t/s, 2 ticks is 200ms: the
+/// queue stays within about two frames of the present.
+pub const MOVEMENT_QUEUE_CAP: usize = 2;
+
+/// Ticks of backlog a [`Urgency::Deliberate`] intent tolerates. Looser than
+/// movement's on purpose — see the module docs.
+pub const DELIBERATE_QUEUE_CAP: usize = 10;
+
+/// How urgently an intent should be treated once it exists. Everything but a
+/// direction is deliberate.
+pub fn urgency_of(intent: &Intent) -> Urgency {
+    match intent {
+        Intent::Move { .. } => Urgency::Movement,
+        _ => Urgency::Deliberate,
+    }
+}
+
+/// Whether a new intent of this urgency should be queued, given the current
+/// backlog. `queued_len` is a fresh read of [`mesocosm_runtime::Runtime::queued_len`],
+/// taken right before queuing.
+pub fn admits(urgency: Urgency, queued_len: usize) -> bool {
+    let cap = match urgency {
+        Urgency::Movement => MOVEMENT_QUEUE_CAP,
+        Urgency::Deliberate => DELIBERATE_QUEUE_CAP,
+    };
+    queued_len < cap
+}
+
+/// Turns a key into an intent. Pure, given the world state it needs to
+/// resolve a meal's target: the host does not decide whether the intent is
+/// legal, the core does, and reports a rejection through `Outcome`.
+pub fn intent_for(world: &World, volumes: &VolumeMap, key: &Key) -> Option<Intent> {
+    let step = 2;
+    match key {
+        Key::Character(c) => match c.as_str() {
+            "w" | "W" => Some(Intent::Move {
+                delta: [0, 0, -step],
+            }),
+            "s" | "S" => Some(Intent::Move {
+                delta: [0, 0, step],
+            }),
+            "a" | "A" => Some(Intent::Move {
+                delta: [-step, 0, 0],
+            }),
+            "d" | "D" => Some(Intent::Move {
+                delta: [step, 0, 0],
+            }),
+            // The one verb, one key. The second one (F, for burning) is gone:
+            // Mark ruled the hotkey pair unworkable as an interface and the
+            // destination diegetic, so there is nothing left for a second key
+            // to say.
+            "e" | "E" => meal(world, volumes),
+            "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
+            // Digging at your own feet. Legality is embodiment plus reach,
+            // and one voxel down is inside the shortest reach.
+            "c" | "C" => world.position().map(|at| Intent::Carve {
+                at: [at[0], at[1] - 1, at[2]],
+                radius: 1,
+            }),
+            _ => None,
+        },
+        Key::Named(NamedKey::Space) => meal(world, volumes),
+        _ => None,
+    }
+}
+
+/// The next meal in reach. `None` when nothing is close enough.
+///
+/// One meal, one key. Where it goes is the body's answer, not a second
+/// keystroke (TD4): a starved critter burns what it eats and a provisioned
+/// one builds with it, and the budget that decides is on the panel in the
+/// corner.
+fn meal(world: &World, volumes: &VolumeMap) -> Option<Intent> {
+    fixture::reachable(world).map(|m| fixture::metabolize(world, m, volumes, Placement::Planned))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn admits_up_to_the_cap_and_no_further() {
+        for len in 0..MOVEMENT_QUEUE_CAP {
+            assert!(admits(Urgency::Movement, len), "len {len} should admit");
+        }
+        assert!(!admits(Urgency::Movement, MOVEMENT_QUEUE_CAP));
+        assert!(!admits(Urgency::Movement, MOVEMENT_QUEUE_CAP + 5));
+
+        for len in 0..DELIBERATE_QUEUE_CAP {
+            assert!(admits(Urgency::Deliberate, len), "len {len} should admit");
+        }
+        assert!(!admits(Urgency::Deliberate, DELIBERATE_QUEUE_CAP));
+    }
+
+    #[test]
+    fn only_move_is_movement_urgency() {
+        assert_eq!(
+            urgency_of(&Intent::Move { delta: [1, 0, 0] }),
+            Urgency::Movement
+        );
+        assert_eq!(
+            urgency_of(&Intent::Deposit { mass_mg: 60 }),
+            Urgency::Deliberate
+        );
+        assert_eq!(
+            urgency_of(&Intent::Carve {
+                at: [0, 0, 0],
+                radius: 1
+            }),
+            Urgency::Deliberate
+        );
+    }
+
+    #[test]
+    fn wasd_and_space_resolve_to_intents_a_bare_world_admits() {
+        let world = World::new(0x1234, 40);
+        let volumes = fixture::volumes();
+        for key in ["w", "a", "s", "d"] {
+            let k = Key::Character(key.into());
+            assert!(matches!(
+                intent_for(&world, &volumes, &k),
+                Some(Intent::Move { .. })
+            ));
+        }
+        // Q always resolves; whether the world accepts a deposit is the
+        // core's call, not this function's.
+        let q = Key::Character("q".into());
+        assert!(matches!(
+            intent_for(&world, &volumes, &q),
+            Some(Intent::Deposit { .. })
+        ));
+    }
+}

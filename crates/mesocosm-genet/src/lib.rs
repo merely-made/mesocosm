@@ -26,6 +26,7 @@ pub mod app;
 pub mod chrome;
 pub mod fixture;
 pub mod hud;
+pub mod input;
 pub mod played;
 pub mod section;
 pub mod vitals;

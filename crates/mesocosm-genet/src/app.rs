@@ -21,6 +21,7 @@ use winit::window::{Window, WindowId};
 
 use crate::chrome::Chrome;
 use crate::fixture;
+use crate::input;
 use crate::played::PlayedTrace;
 use crate::section::{self, Pan, Section, SectionFrame};
 
@@ -226,55 +227,6 @@ impl Host {
             ));
         }
         Some((body, loose))
-    }
-
-    /// The next meal in reach. `None` when nothing is close enough.
-    ///
-    /// One meal, one key. Where it goes is the body's answer, not a second
-    /// keystroke (TD4): a starved critter burns what it eats and a provisioned
-    /// one builds with it, and the budget that decides is on the panel in the
-    /// corner.
-    fn meal(&self) -> Option<Intent> {
-        let world = self.runtime.world();
-        fixture::reachable(world)
-            .map(|m| fixture::metabolize(world, m, &self.volumes, Placement::Planned))
-    }
-
-    /// Turns a key into an intent. The host does not decide whether the intent
-    /// is legal; the core does, and reports a rejection.
-    fn intent_for(&self, key: &Key) -> Option<Intent> {
-        let step = 2;
-        match key {
-            Key::Character(c) => match c.as_str() {
-                "w" | "W" => Some(Intent::Move {
-                    delta: [0, 0, -step],
-                }),
-                "s" | "S" => Some(Intent::Move {
-                    delta: [0, 0, step],
-                }),
-                "a" | "A" => Some(Intent::Move {
-                    delta: [-step, 0, 0],
-                }),
-                "d" | "D" => Some(Intent::Move {
-                    delta: [step, 0, 0],
-                }),
-                // The one verb, one key. The second one (F, for burning) is
-                // gone: Mark ruled the hotkey pair unworkable as an interface
-                // and the destination diegetic, so there is nothing left for a
-                // second key to say.
-                "e" | "E" => self.meal(),
-                "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
-                // Digging at your own feet. Legality is embodiment plus
-                // reach, and one voxel down is inside the shortest reach.
-                "c" | "C" => self.runtime.world().position().map(|at| Intent::Carve {
-                    at: [at[0], at[1] - 1, at[2]],
-                    radius: 1,
-                }),
-                _ => None,
-            },
-            Key::Named(NamedKey::Space) => self.meal(),
-            _ => None,
-        }
     }
 
     fn resize(&mut self, width: u32, height: u32) {
@@ -567,9 +519,19 @@ impl ApplicationHandler for Host {
                     Key::Named(NamedKey::ArrowDown) => self.pan.y -= section::PAN_STEP,
                     // A replay drives itself. Accepting a key would put an
                     // intent in the trace that the recording never had.
-                    key if self.config.replay.is_none() => {
-                        if let Some(intent) = self.intent_for(key) {
-                            self.runtime.queue(intent);
+                    //
+                    // `event.repeat` filters OS auto-repeat (see `input`'s
+                    // module docs for the backlog it used to build): a held
+                    // key contributes its initial keydown and nothing more
+                    // while it stays down.
+                    key if self.config.replay.is_none() && !event.repeat => {
+                        if let Some(intent) =
+                            input::intent_for(self.runtime.world(), &self.volumes, key)
+                        {
+                            let urgency = input::urgency_of(&intent);
+                            if input::admits(urgency, self.runtime.queued_len()) {
+                                self.runtime.queue(intent);
+                            }
                         }
                     }
                     _ => {}
