@@ -491,6 +491,12 @@ sphere"), so water-worlds fluids stay on the grid/channel plane lane.
 Adoption-time gates, per the consumer-pull rule: khal's wgpu row
 membership, and nexus's feature requirements against the greedy tenant.
 
+**Superseded in shape, 2026-08-28:** the ruling sharpened (engine review
+§2.5; the consolidation map in mere's conatus engine plan) — Nexus's
+kernels arrive as a Conatus backend behind `BodyWorld`, never as a
+stack-level dependency with its own vocabulary; the buffer-contract
+meeting point above survives as the backend's internal seam.
+
 ### 4. Renderling: hands-on fork, not a frozen inheritance
 
 Adopting renderling into the core module upgrades the fork's posture:

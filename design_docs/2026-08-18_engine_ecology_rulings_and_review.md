@@ -129,8 +129,8 @@ Nexus remains gated on a real dynamic-body consumer. Its current GPU rigid
 body path accepts triangle, polyline, convex, and primitive forms, but it does
 not consume Parry `Voxels` directly. Complex body geometry is initialized from
 CPU-side Parry shapes, and the current append path is more restricted than the
-initial build. Nexus can become the dynamic rigid-body engine after an interop
-proof; it is not the terrain-collision answer today.
+initial build. Nexus's useful parts can be decomposed into a Conatus backend
+after an interop proof; it is not the terrain-collision answer today.
 
 **Sharpened 2026-08-28 (Mark): Nexus is decomposed, never adopted.** When
 the first vessel gate needs dynamic bodies — Paredros F5 material life and
@@ -213,7 +213,7 @@ GPU results remain derived fields or proposals.
 | One intent log solves three time models. | Overstated. | The grammar can be shared; scheduling and conflict semantics remain distinct. |
 | Every authoritative number is integer or fixed-point. | Good default, too absolute. | Require cross-host replay identity; integers, fixed point, exact forms, or recorded resolution may satisfy it. |
 | Burn to CubeCL to renderling needs only a few fork lines. | Direction valid, scope understated. | The allocation API is small, but lifetime, capacity, count, ABI, and draw submission form the actual proof. R2 also found that CubeCL 0.10 cannot import renderling's slab allocation: the live path is one device, two allocators, and one device-local publication copy. |
-| Parry or Nexus can collide with these forms. | Split answer. | R3 proves Parry ray, point, and contact-manifold queries over revision-gated committed occupancy. Nexus can later simulate baked dynamic shapes after an interop proof. |
+| Parry or Nexus can collide with these forms. | Split answer. | R3 proves Parry ray, point, and contact-manifold queries over revision-gated committed occupancy. Nexus can later simulate baked dynamic shapes after an interop proof — as a decomposed Conatus backend per the sharpened ruling in §2.5, never a peer engine. |
 | Squid-style neuroevolution supplies flora and fauna behavior. | Promising mechanism, wrong authority. | Evolve a bounded proposal policy behind existing deterministic ecology resolution; treat flora separately. |
 
 ## 4. Authority and projection flow
