@@ -257,6 +257,39 @@ collapses; matter is still conserved to the milligram; each ruling is shown
 to have moved what it was aimed at (recruitment, decomposer persistence, the
 free-lunch species) rather than only moving the total; fixtures re-record.
 
+## TD9 — income reads the body too (ruled 2026-08-29, Mark)
+
+TD8's fourth structural finding, answered: **TD7 made rent scale with mass
+*and* build and left income scaling with mass alone**, so a body that pays
+for moving earns no more for having moved. A limbed consumer's rent went
+from 1.5-1.8 to 2.3-6.4 mg/tick while its bite stayed where TD2c tuned it
+against the cheaper body — and consumers now clear TD2c's ~75% prey hit-rate
+bar and starve anyway, on mouthfuls of 5-11 mg. Confirmed structural, not a
+number: `GRAZES_BASE_MG` swept to 12 and every seed still ended a pure
+producer stand.
+
+- **The bite scales with build.** Feeding income reads the same anatomy that
+  rent reads — the machinery a body actually built to feed with. Symmetric
+  with TD7 by construction: the body that pays for its machinery is the body
+  that gets to use it, and limbs become a strategy rather than a tax.
+  Derive it from what the body plan already computes, as TD7 did; no new
+  authored constant if one can be avoided, and if one is needed, say why.
+- **Producers creep.** TD8's no-actuator ruling made producers sessile as a
+  side-effect (129,534 / 2,615 / 292,361 movement events to zero), because a
+  producer is unlimbed by construction. Mark ruled they should creep: a
+  small movement budget that is **not** actuator-derived — root creep,
+  runners — so a stand can still spread without growing legs. It must not
+  reopen TD8's free lunch: an unlimbed *consumer* stays sessile, so the
+  budget belongs to the producer's own way of living rather than to
+  bodies-without-limbs generally.
+
+**Done when:** the instrument reaches `breathes` in a majority of seeds with
+zero boils and founded kingdoms at the horizon; the collapse control still
+collapses; matter is still conserved to the milligram; the income change is
+shown to close the specific gap TD8 measured (consumers clearing the hit-rate
+bar and starving anyway) rather than only moving totals; producer creep is
+shown to restore spread without restoring the free lunch; fixtures re-record.
+
 ## Findings
 
 - **2026-08-29 (TD8, and it is the fourth structural thing in the way):
