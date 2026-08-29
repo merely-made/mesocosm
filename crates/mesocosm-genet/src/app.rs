@@ -19,6 +19,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
+use crate::chrome::Chrome;
 use crate::fixture;
 use crate::played::PlayedTrace;
 use crate::section::{self, Pan, Section};
@@ -137,9 +138,17 @@ struct Gpu {
     config: wgpu::SurfaceConfiguration,
     /// The main view: the ruled side-on section over the live Ground.
     section: Section,
-    /// The chrome lane. `None` when netrender declined the device; the game
-    /// runs chromeless rather than not at all.
-    hud: Option<crate::hud::Hud>,
+    /// Both chrome lanes and the device they share. `None` when netrender
+    /// declined the device; the game runs chromeless rather than not at all.
+    chrome: Option<Lanes>,
+}
+
+/// The two chrome lanes over one netrender instance and one blend pass: the
+/// painted minimap, and the cambium vitals panel.
+pub(crate) struct Lanes {
+    device: Chrome,
+    hud: crate::hud::Hud,
+    vitals: crate::vitals::VitalsChrome,
 }
 
 impl Host {
@@ -329,6 +338,10 @@ impl Host {
         let scene = self.scene();
         let dirty = self.runtime.drain_ground_dirty();
         let steps = self.steps;
+        // What the world said about the intents this frame fed it. Refusals
+        // were polite inside `World::apply` and silent outside it until the
+        // cambium lane landed; this is the whole of their route to a screen.
+        let outcomes = self.runtime.last_outcomes().to_vec();
 
         let world = self.runtime.world();
         let Some(gpu) = &mut self.gpu else { return };
@@ -361,23 +374,29 @@ impl Host {
         ) {
             eprintln!("section: {error}");
         }
-        if let (Some(hud), Some((body, loose))) = (&mut gpu.hud, &scene) {
-            let mut items = Vec::with_capacity(loose.len() + 1);
-            items.push(SceneItem::new(body, at));
-            for (mesh, place, tint, warns, colour, scale) in loose {
-                items.push(SceneItem::creature(
-                    mesh, *place, *tint, *warns, *colour, *scale,
-                ));
+        if let Some(lanes) = &mut gpu.chrome {
+            let frame = (gpu.config.width, gpu.config.height);
+            if let Some((body, loose)) = &scene {
+                let mut items = Vec::with_capacity(loose.len() + 1);
+                items.push(SceneItem::new(body, at));
+                for (mesh, place, tint, warns, colour, scale) in loose {
+                    items.push(SceneItem::creature(
+                        mesh, *place, *tint, *warns, *colour, *scale,
+                    ));
+                }
+                lanes.hud.render_backdrop(&items, steps);
             }
-            hud.render_backdrop(&items, steps);
-            hud.refresh(world);
-            hud.composite(
-                &gpu.device,
-                &gpu.queue,
-                &mut encoder,
-                &view,
-                (gpu.config.width, gpu.config.height),
-            );
+            lanes.hud.refresh(&lanes.device, world);
+            lanes
+                .hud
+                .composite(&lanes.device, &mut encoder, &view, frame);
+            // After the minimap, so a refusal reads over the section rather
+            // than under it. Presentation only: nothing it reads is written
+            // back, so the trace and the hash never learn it exists.
+            lanes.vitals.refresh(&lanes.device, world, &outcomes, steps);
+            lanes
+                .vitals
+                .composite(&lanes.device, &mut encoder, &view, frame);
         }
         gpu.queue.submit(Some(encoder.finish()));
         // wgpu 30 moved presentation from SurfaceTexture to Queue.
@@ -472,9 +491,10 @@ impl ApplicationHandler for Host {
             }
         };
 
-        // The HUD shares the game's device rather than creating a second one,
-        // which is the arrangement the workspace's wgpu pin exists for.
-        let hud = crate::hud::Hud::new(
+        // The chrome shares the game's device rather than creating a second
+        // one, which is the arrangement the workspace's wgpu pin exists for.
+        // One netrender instance carries both lanes.
+        let chrome = Chrome::new(
             netrender::WgpuHandles {
                 instance,
                 adapter,
@@ -482,8 +502,13 @@ impl ApplicationHandler for Host {
                 queue: queue.clone(),
             },
             format,
-            self.runtime.world(),
-        );
+            crate::hud::SIDE,
+        )
+        .map(|device| Lanes {
+            hud: crate::hud::Hud::new(&device, self.runtime.world()),
+            vitals: crate::vitals::VitalsChrome::new(&device),
+            device,
+        });
 
         self.gpu = Some(Gpu {
             device,
@@ -491,7 +516,7 @@ impl ApplicationHandler for Host {
             surface,
             config,
             section,
-            hud,
+            chrome,
         });
         self.window = Some(window);
     }

@@ -15,10 +15,19 @@
 //! per-vessel ruling: sceno carries geometry and source references; this crate
 //! decides that a region's tint is the lineage that dominates it.
 
+//! The second lane, added 2026-08-29: the cambium chrome that says things.
+//! [`vitals`] is Mesocosm's first consumer of it. Same posture as the paint
+//! leaves — the view fn and its sheet live here, host-agnostic, and the host
+//! decides only where the result lands.
+
 pub mod leaf;
 pub mod minimap;
+pub mod vitals;
 
 pub use leaf::MinimapLeaf;
 pub use minimap::{
     MINIMAP_ADAPTER, dominant_lineages, lineage_tint, minimap_leaf, minimap_scene, minimap_score,
+};
+pub use vitals::{
+    Vitals, VitalsChild, refusal_in, refusal_words, vitals_css, vitals_of, vitals_root,
 };

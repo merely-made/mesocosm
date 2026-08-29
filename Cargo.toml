@@ -49,6 +49,18 @@ sceno = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 scenomise = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # Custom-paint leaves, from genet's cambium family. Git-only, never crates.io.
 sprigging = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+# The cambium lane (ruled 2026-08-29): ordinary game GUI with words and
+# numbers. Same git source and same reference as sprigging — cargo keys git
+# sources by URL *plus* reference, so a rev here and a branch there would be
+# two crate identities of one commit. genet pins the netrender family at the
+# same rev this workspace does, which is what keeps one `PaintCmd`.
+cambium = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+genet-scripted-dom = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+# The CSS/layout/paint engine. `genet-layout` is gone: genet deleted the Stylo
+# compatibility cone on 2026-08-21 and Livery over Buckram is what lays out a
+# ScriptedDom now. Isometry's host still names the old crate, so read that one
+# for the shape and this for the calls.
+genet-livery = { git = "https://github.com/merely-made/genet.git", branch = "main" }
 # The HUD lane (route A, ruled 2026-08-02): leaves paint PaintCmds,
 # paint_list_render lowers them, netrender rasterizes on the game's own
 # device. The wgpu-29 pin below exists for exactly this sharing.
@@ -102,3 +114,9 @@ wgpu = { version = "30", default-features = false, features = [
 # by deletion when upstream ships a wgpu-30 vello.
 [patch.crates-io]
 vello = { git = "https://github.com/mark-ik/vello.git", branch = "mark-ik/wgpu-30" }
+# Genet's vendored parley. `[patch]` does not inherit through a git dep, so a
+# consumer of genet-livery must restate this: published parley 0.10 lacks the
+# `AlignmentOptions::last_line_alignment` field and the `StyleProperty::TabSize`
+# variant that Livery's text system is written against, and the mismatch reads
+# as three baffling compile errors inside a crate you did not write.
+parley = { git = "https://github.com/merely-made/genet.git", branch = "main" }

@@ -177,6 +177,14 @@ Route A stays what it is: painted in-scene marks, one realization
 option, not a text firewall. The guard survives in its true form —
 text still never enters the painted lane as a hack; it enters through
 cambium, which no longer waits for a consumer pull to exist here.
-`mesocosm-genet/src/hud.rs` carries a "textless by decree" comment
-reflecting the drifted reading; correct it when the first cambium
-chrome lands.
+
+**Landed the same day.** `mesocosm-views::vitals` is the first cambium
+chrome: energy, refusals and death in words over the traced section
+(played slice plan, 2026-08-29 progress). The "textless by decree"
+comment in `mesocosm-genet/src/hud.rs` is corrected accordingly. The
+cambium lane arrived **without** the host inversion route B named: the
+runner's `ScriptedDom` is styled and laid out by Livery, and its paint
+list rasterizes into a texture composited over the game's own frame,
+the same path the minimap takes. Genet owning the window with the game
+view embedded stays available and unspent, and is still a scope
+decision rather than a technical requirement.

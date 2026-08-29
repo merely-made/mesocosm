@@ -61,8 +61,9 @@ traversal ownership does not promote them.
 PD1b; E2's epoch receipt; E3's sufficient statistics, authority move, and
 capacity proof; E4's one-selector-many-behaviours receipt.
 
-**Independent of both chains:** Views route B (cambium lane, waits on the
-epoch-boundary screen); epoch boundary's live-boundary residue; phenotype
+**Independent of both chains:** the epoch-boundary screen (route B's own
+consumer; the cambium lane itself is no longer waiting on it, see the
+2026-08-29 progress entry); epoch boundary's live-boundary residue; phenotype
 P3-P6; wing contract W1-W6; D0 (headed WebGL); the relief lab
 (instrument, any time); F0's vertical slice (impossible ecology, after
 the ecology's acceptance gates stop moving under it).
@@ -94,6 +95,24 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-08-29:** the cambium lane opened in-epoch (vitals surface, played
+  slice plan). Three dependency facts came with it, all of the same family
+  as the trap that cost PS0 a session:
+  - `cambium`, `genet-scripted-dom` and `genet-livery` ride `genet.git`
+    **branch = "main"**, matching sprigging. genet pins the netrender family
+    at the same rev `6f1a4fe7` this workspace does, so one `PaintCmd`
+    survives. `cargo tree -d` reports nothing.
+  - **`genet-layout` no longer exists.** Genet deleted the Stylo
+    compatibility cone on 2026-08-21; Livery over Buckram is what lays out a
+    `ScriptedDom` now. Isometry's host still names the old crate, so read it
+    for the shape and not for the calls.
+  - `[patch.crates-io] parley` is mandatory for any consumer of
+    genet-livery: published parley 0.10 lacks
+    `AlignmentOptions::last_line_alignment` and `StyleProperty::TabSize`, and
+    the mismatch surfaces as three compile errors inside a crate you did not
+    write. `[patch]` does not inherit through a git dep, so every workspace
+    restates it — the same reason the vello entry is here.
 
 - **2026-08-28:** the platform components were renamed and claimed on
   crates.io (ruled by Mark): `conatus-voxel` -> `nisus` 0.1.0 and

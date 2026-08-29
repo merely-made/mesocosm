@@ -156,6 +156,35 @@ The trait-board review screen stays with Views route B.
 
 ## Progress
 
+- **2026-08-29 (later): the vitals surface landed** — Mesocosm's first
+  cambium consumer, and the first words on the screen. Energy as a number
+  and a bar, refusals as short plain words for a presentation-timed window,
+  a persistent `dead` state when control is lost. Read entirely off
+  `Runtime::last_outcomes`, `World::energy_mg` and `World::controlled`; no
+  core or runtime change was needed.
+
+  **Genet does not own the window.** The runner diffs the view fn into a
+  `ScriptedDom`, Livery styles and lays it out, its paint list lowers
+  through `paint_list_render`, and the raster composites over the frame
+  exactly as the minimap does. The full host inversion was not reached for
+  and is still Mark's to rule. The two lanes now share one netrender
+  instance and one blend pass (`mesocosm-genet::chrome`) rather than
+  carrying two copies of the texture-and-twin dance.
+
+  Receipts: workspace tests green (463); clippy `-D warnings` clean; Mark's
+  own playtest trace replayed headed to its recorded hash
+  `49c7a47f03895bda` over 732 frames with the chrome live, exit 0. Captures
+  in `Code/testing/mesocosm/`: `ps1_vitals_alive.png` (energy 897 mg, bar
+  near full), `ps1_vitals_refused.png` (0 mg, empty bar, "not enough
+  energy"), `ps1_vitals_dead.png` (the end of Mark's session: the panel
+  reads `state dead` and is otherwise empty).
+
+  Two residues. The bar's denominator is the session's own high-water
+  energy, because the world has no capacity to measure against; if a
+  capacity ever becomes a real quantity the bar should read it instead. And
+  the three remaining seams from the findings below are untouched: the
+  movement economy, reproduction's brake, and succession (PS2).
+
 - **2026-08-29:** Mark ruled the next seam from the playtest findings:
   surface the state (energy, refusals, death). Re-scoped the same day
   during the wing GUI conversation: the surface is cambium chrome with

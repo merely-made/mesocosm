@@ -34,8 +34,13 @@ impl Host {
         };
         let frame = (gpu.config.width, gpu.config.height);
         let shot = gpu.section.capture(|encoder, target, format| {
-            if let Some(hud) = &gpu.hud {
-                hud.capture_composite(&gpu.device, &gpu.queue, format, encoder, target, frame);
+            if let Some(lanes) = &gpu.chrome {
+                lanes
+                    .hud
+                    .capture_composite(&lanes.device, format, encoder, target, frame);
+                lanes
+                    .vitals
+                    .capture_composite(&lanes.device, format, encoder, target, frame);
             }
         });
         let Some((width, height, pixels)) = shot else {
