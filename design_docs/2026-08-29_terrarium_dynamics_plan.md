@@ -111,6 +111,25 @@ became diegetic.
 
 ## Progress
 
+- **2026-08-29 (later): TD2d's scavenger sight landed.** Scavengers seek
+  carrion out to sight range and bite at `DECOMPOSE_RANGE`, mirroring the
+  grazer split; hunger wanders below eight upkeep-ticks of budget instead
+  of at literal zero. The death-cause probe proves the mechanism:
+  starvations beside in-range carrion fell to ~0. The verdict tally did
+  not move (9 thins / 1 collapse) — decomposers now die traveling, or
+  waiting for anything nearby to die: the binding constraint is corpse
+  throughput, not search. Receipt: `td2d_scavengers.json`.
+- **2026-08-29 (TD2d finding): NPC energy never refills.** `energy_mg` is
+  endowed at birth and topped up only for the controlled critter (the
+  metabolize gain in `world/act.rs`); every other organism's feeding
+  builds biomass only, so all NPCs cross any hunger threshold early and
+  live off their bodies thereafter. The NPC economy runs on biomass;
+  energy is effectively a played-only ledger. Whether that is the design
+  (and decomposer persistence instead wants, e.g., continuous detritus
+  income or carrion-timing constants) or NPCs should earn energy like the
+  player does is a Mark-level fork, recorded here unruled. Related loose
+  end: `dispersal_for`'s bonus still gates on literal zero energy,
+  inconsistent with the new hunger threshold.
 - **2026-08-29 (later): TD2c's persistence retune landed.** The verdict
   gained `thins` — count held but a founded kingdom is gone at the
   horizon — which honestly re-read TD2b's six "breathes" as producer-only

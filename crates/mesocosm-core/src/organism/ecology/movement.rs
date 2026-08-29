@@ -40,6 +40,17 @@ pub(super) const DECOMPOSE_RANGE: i32 = 6;
 const MEMORY_ROUTE_BUDGET: i32 = 8;
 /// Direct observation is fresh for this many failed perception ticks.
 const MEMORY_TICKS: u8 = 8;
+/// Ticks of upkeep still held in the budget below which a body without a
+/// target starts wandering instead of standing still. TD2d: waiting for the
+/// literal last milligram (`energy_mg == 0`) left every kingdom motionless
+/// until half dead; this trades a few ticks of margin for a chance to find
+/// something before the body starts eating itself.
+const HUNGRY_UPKEEP_TICKS: u64 = 8;
+
+/// Whether a body's reserve has fallen low enough to search rather than wait.
+fn is_hungry(organism: &Organism) -> bool {
+    organism.energy_mg < organism.upkeep_mg().saturating_mul(HUNGRY_UPKEEP_TICKS)
+}
 
 /// Chooses a food source within the body's actual reach. This is local for
 /// both tiers, so it never needs a global scan.
@@ -227,6 +238,7 @@ fn preferred_carrion<'a>(
     organism: &Organism,
     candidates: impl Iterator<Item = (usize, &'a CarrionTarget)>,
     ground: Option<&Ground>,
+    sight: i32,
 ) -> Option<[i32; 3]> {
     let observer_shape = organism.walker_shape();
     let mut ranked: Vec<(i32, usize, &'a CarrionTarget)> = candidates
@@ -239,7 +251,7 @@ fn preferred_carrion<'a>(
             observer_shape,
             target.position,
             target.shape,
-            DECOMPOSE_RANGE,
+            sight,
             ground,
         )
         .then_some(target.position)
@@ -274,16 +286,23 @@ fn preferred_target(
         }
         FeedingMode::Scavenger => {
             organism.last_fauna_decision = None;
+            // Mirrors the grazer/predator split just above: seeking reaches
+            // out to sight_range (TD2d — a decomposer used to be unable to
+            // sense carrion it could not already reach, so it stood still
+            // until starvation's own wander kicked in), while the bite stays
+            // capped at the flat DECOMPOSE_RANGE below.
+            let sight = sight_range(organism, DECOMPOSE_RANGE + organism.body.reach(), ground);
             if organism.tier == Tier::Near && ground.is_some() {
                 preferred_carrion(
                     organism,
-                    nearby_indexes(carrion_cells, organism.position, DECOMPOSE_RANGE)
+                    nearby_indexes(carrion_cells, organism.position, sight)
                         .filter_map(|order| carrion.get(order).map(|target| (order, target))),
                     ground,
+                    sight,
                 )
                 .map(MovementTarget::Other)
             } else {
-                preferred_carrion(organism, carrion.iter().enumerate(), ground)
+                preferred_carrion(organism, carrion.iter().enumerate(), ground, sight)
                     .map(MovementTarget::Other)
             }
         }
@@ -410,7 +429,7 @@ pub(super) fn disperse(
             }
             at
         }
-    } else if organism.energy_mg == 0 {
+    } else if is_hungry(organism) {
         if organism.tier == Tier::Far {
             let next = diffuse(places, organism.position, rng);
             ground
