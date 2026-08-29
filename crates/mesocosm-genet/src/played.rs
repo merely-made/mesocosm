@@ -56,6 +56,9 @@ pub struct PlayedReceipt {
     /// receipt shows whether the section had anything to re-upload.
     pub ground_revision: u64,
     pub body_parts: usize,
+    /// Bodies the last traced frame drew beside the played one: every alive
+    /// organism the slab window held, capped by the lens's roster limit.
+    pub section_roster: u32,
     pub trace: Option<String>,
     pub capture: Option<String>,
 }

@@ -42,6 +42,43 @@ pub use tracer::{
 /// Hard admission limit imposed by the baseline uniform layout.
 pub const MAX_CAPSULES: usize = 96;
 
+/// Bodies the brick tracer's pose roster admits beside the single
+/// [`BrickFrameInput::pose`](crate::BrickFrameInput). Members past this are
+/// dropped; the caller culls to what its camera shows first.
+///
+/// **The arithmetic.** The tracer is fragment-only for downlevel reach —
+/// WebGL2 has neither compute nor storage buffers — so the roster has to be a
+/// uniform, and the binding it has to fit is the *downlevel* one:
+/// `Limits::downlevel_webgl2_defaults().max_uniform_buffer_binding_size` is
+/// **16 384 bytes**, a quarter of the 65 536 desktop default. `g2_glprobe`
+/// requests exactly those limits, so this is a live ceiling, not a hypothesis.
+///
+/// A pose costs `bounds 16 + tint_count 16 + 32 · capsules` bytes:
+///
+/// - at [`MAX_CAPSULES`] a pose is 3 136 B (eyes included), so a
+///   full-fidelity roster would admit `(16384 − 16) / 3136 = 5` members. Five
+///   is not an ecology.
+/// - roster members are background silhouettes rather than the played body,
+///   so they drop the eyes and carry [`MAX_ROSTER_CAPSULES`]: 352 B each.
+/// - the binding is then `16 + 40 · 352 = 14 096` B, 86.0% of the downlevel
+///   limit (21.5% of the desktop one).
+///
+/// Why 40 and 10 rather than some other split of the same bytes: a genesis
+/// enclosure of 60 organisms puts 26–34 of them inside the section's slab
+/// (measured across seeds), and a developed body carries a median of 8–19
+/// living parts. So the member cap clears observed occupancy with margin, and
+/// the capsule budget covers a median body. A slab that ever holds more than
+/// 40 truncates, and says so through `BrickDiagnostics::roster_dropped`.
+///
+/// The played critter is not a roster member. It keeps the single pose and
+/// its full [`MAX_CAPSULES`], which is why the split exists at all.
+pub const MAX_ROSTER: usize = 40;
+
+/// Capsules — living parts — a roster member carries. Extra ones are dropped;
+/// the member's bounds sphere still covers the whole pose, so a truncated
+/// body is smaller than its bounds and never larger.
+pub const MAX_ROSTER_CAPSULES: usize = 10;
+
 /// A look, as data. Worldgen can emit one of these per world or per biome
 /// the way it emits a heightmap.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]

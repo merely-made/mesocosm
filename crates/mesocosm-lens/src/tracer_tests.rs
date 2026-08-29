@@ -10,6 +10,8 @@ use crate::{
     BrickTraceError, BrickTracer, CritterPose, Flight, Grade, LeasedAtlas, critter::Capsule,
 };
 
+mod roster;
+
 fn ground() -> Ground {
     let grown = Places::grown(4_242, 4, 64);
     Ground::grow(&grown, 64)

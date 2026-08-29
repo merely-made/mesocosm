@@ -111,6 +111,25 @@ became diegetic.
 
 ## Progress
 
+- **2026-08-29 (later): TD3's roster landed** — the section shows the
+  ants. The tracer gains a second uniform (`@binding(3)`) of up to **40
+  roster members at 10 capsules each** (352 B/member, 14,096 B — 86% of
+  the 16 KiB downlevel-WebGL2 binding limit the lens's own GL probe holds
+  it to; a storage buffer or the 64 KiB desktop limit buys ~4x if that
+  reach is ever dropped). Members are silhouettes — no eyes; the
+  controlled critter keeps the full single-pose path, which is additive-
+  compatible and pixel-identical when the roster is empty (asserted in a
+  test). Host feeds every alive organism in the slab window through the
+  shared projection. Capture `td3_roster.png`: ~22 visible bodies plus
+  the controlled critter (37 submitted; the rest behind terrain). Replay
+  hash proven at the pre-retune commit in an isolated worktree
+  (`49c7a47f`, exit 0); the live fixture is stale from TD2 by design.
+  Measured occupancy that sized the cap: 26-34 of 60 genesis organisms
+  in-slab; median body 8-19 living parts. Residues: cap headroom is thin
+  (37 of 40 at genesis — resize when TD2b changes occupancy);
+  `BodyLensProjection::project` hashes more than a pose needs
+  (`project_pose` variant would trim it); `tracer_tests.rs` sits over the
+  600-line ceiling from before this work.
 - **2026-08-29 (later): TD2's constants landed** — ten seeds go from 0
   breathes / 7 boils to **7 breathes / 0 boils** (remaining 3 collapses are
   founder draws, see the structural findings). Lifespan base 600 → 1800 (a

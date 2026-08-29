@@ -1,4 +1,7 @@
 // Mesocosm presentation over conatus-brick's product-neutral DDA.
+//
+// ROSTER_MEMBERS and ROSTER_PAIRS are injected ahead of this source from the
+// Rust caps, so the two layouts cannot drift.
 
 struct TraceCamera {
     origin: vec3<f32>,
@@ -30,7 +33,22 @@ struct CritterParams {
     pairs: array<vec4<f32>, 192>,
 };
 
+// Every other body in frame: a background silhouette, so no eyes and the
+// reduced capsule budget the roster cap buys. `count.x` members are live;
+// the rest of the array is unread.
+struct RosterPose {
+    bounds: vec4<f32>,
+    tint_count: vec4<f32>,
+    pairs: array<vec4<f32>, ROSTER_PAIRS>,
+};
+
+struct RosterParams {
+    count: vec4<u32>,
+    poses: array<RosterPose, ROSTER_MEMBERS>,
+};
+
 @group(0) @binding(2) var<uniform> params: TraceParams;
+@group(0) @binding(3) var<uniform> roster: RosterParams;
 
 struct VsOut {
     @builtin(position) pos: vec4<f32>,
@@ -70,6 +88,13 @@ fn capsule_distance(p: vec3<f32>, a: vec3<f32>, b: vec3<f32>, r: f32) -> f32 {
     return length(pa - ba * h) - r;
 }
 
+// Smooth union of a running distance and the next capsule's.
+fn blend_capsule(distance: f32, next: f32) -> f32 {
+    let blend = 0.4;
+    let amount = clamp(0.5 + 0.5 * (distance - next) / blend, 0.0, 1.0);
+    return mix(distance, next, amount) - blend * amount * (1.0 - amount);
+}
+
 fn one_capsule(p: vec3<f32>, index: u32) -> f32 {
     let a = params.critter.pairs[index * 2u];
     let b = params.critter.pairs[index * 2u + 1u];
@@ -79,11 +104,8 @@ fn one_capsule(p: vec3<f32>, index: u32) -> f32 {
 fn critter_distance(p: vec3<f32>) -> f32 {
     let count = u32(params.critter.tint_count.w);
     var distance = one_capsule(p, 0u);
-    let blend = 0.4;
     for (var index = 1u; index < count; index = index + 1u) {
-        let next = one_capsule(p, index);
-        let amount = clamp(0.5 + 0.5 * (distance - next) / blend, 0.0, 1.0);
-        distance = mix(distance, next, amount) - blend * amount * (1.0 - amount);
+        distance = blend_capsule(distance, one_capsule(p, index));
     }
     return distance;
 }
@@ -103,36 +125,112 @@ fn critter_normal(p: vec3<f32>) -> vec3<f32> {
     ));
 }
 
+fn roster_capsule(member: u32, index: u32, p: vec3<f32>) -> f32 {
+    let a = roster.poses[member].pairs[index * 2u];
+    let b = roster.poses[member].pairs[index * 2u + 1u];
+    return capsule_distance(p, a.xyz, b.xyz, (a.w + b.w) * 0.5);
+}
+
+fn roster_distance(member: u32, p: vec3<f32>) -> f32 {
+    let count = u32(roster.poses[member].tint_count.w);
+    var distance = roster_capsule(member, 0u, p);
+    for (var index = 1u; index < count; index = index + 1u) {
+        distance = blend_capsule(distance, roster_capsule(member, index, p));
+    }
+    return distance;
+}
+
+fn roster_normal(member: u32, p: vec3<f32>) -> vec3<f32> {
+    let e = 0.08;
+    return normalize(vec3(
+        roster_distance(member, p + vec3(e, 0.0, 0.0)) - roster_distance(member, p - vec3(e, 0.0, 0.0)),
+        roster_distance(member, p + vec3(0.0, e, 0.0)) - roster_distance(member, p - vec3(0.0, e, 0.0)),
+        roster_distance(member, p + vec3(0.0, 0.0, e)) - roster_distance(member, p - vec3(0.0, 0.0, e)),
+    ));
+}
+
+// Where a ray overlaps a pose's bounds sphere, as a [near, far] travel span.
+// A span whose near exceeds its far is a miss.
+fn bounds_span(eye: vec3<f32>, direction: vec3<f32>, bounds: vec4<f32>) -> vec2<f32> {
+    let offset = eye - bounds.xyz;
+    let projection = dot(offset, direction);
+    let radius = dot(offset, offset) - bounds.w * bounds.w;
+    if (projection > 0.0 && radius > 0.0) {
+        return vec2(1.0, -1.0);
+    }
+    let discriminant = projection * projection - radius;
+    if (discriminant < 0.0) {
+        return vec2(1.0, -1.0);
+    }
+    let root = sqrt(discriminant);
+    return vec2(
+        max(-projection - root, 0.05),
+        min(-projection + root, params.camera.far),
+    );
+}
+
 fn trace_critter(eye: vec3<f32>, direction: vec3<f32>) -> f32 {
     if (params.critter.tint_count.w < 0.5) {
         return -1.0;
     }
-    let offset = eye - params.critter.bounds.xyz;
-    let projection = dot(offset, direction);
-    let radius = dot(offset, offset) - params.critter.bounds.w * params.critter.bounds.w;
-    if (projection > 0.0 && radius > 0.0) {
+    let span = bounds_span(eye, direction, params.critter.bounds);
+    if (span.x > span.y) {
         return -1.0;
     }
-    let discriminant = projection * projection - radius;
-    if (discriminant < 0.0) {
-        return -1.0;
-    }
-    var travel = max(-projection - sqrt(discriminant), 0.05);
-    let exit = min(-projection + sqrt(discriminant), params.camera.far);
-    if (travel > exit) {
-        return -1.0;
-    }
+    var travel = span.x;
     for (var step = 0; step < 48; step = step + 1) {
         let distance = critter_distance(eye + direction * travel);
         if (distance < 0.02) {
             return travel;
         }
         travel = travel + max(distance, 0.015);
-        if (travel > exit) {
+        if (travel > span.y) {
             break;
         }
     }
     return -1.0;
+}
+
+struct RosterHit {
+    t: f32,
+    member: u32,
+};
+
+// The nearest roster body along the ray. Members are unordered, so a body
+// whose bounds begin past the best hit so far is skipped without marching:
+// the cost is one sphere test per member and a march only for contenders.
+fn trace_roster(eye: vec3<f32>, direction: vec3<f32>) -> RosterHit {
+    var best = RosterHit(-1.0, 0u);
+    let members = min(roster.count.x, u32(ROSTER_MEMBERS));
+    for (var member = 0u; member < members; member = member + 1u) {
+        if (roster.poses[member].tint_count.w < 0.5) {
+            continue;
+        }
+        let span = bounds_span(eye, direction, roster.poses[member].bounds);
+        if (span.x > span.y) {
+            continue;
+        }
+        if (best.t > 0.0 && span.x > best.t) {
+            continue;
+        }
+        var travel = span.x;
+        var found = false;
+        for (var step = 0; step < 48; step = step + 1) {
+            let distance = roster_distance(member, eye + direction * travel);
+            if (distance < 0.02) {
+                found = true;
+                break;
+            }
+            travel = travel + max(distance, 0.015);
+            if (travel > span.y) {
+                break;
+            }
+        }
+        if (found && (best.t < 0.0 || travel < best.t)) {
+            best = RosterHit(travel, member);
+        }
+    }
+    return best;
 }
 
 fn bayer(pixel: vec2<u32>) -> f32 {
@@ -179,24 +277,51 @@ struct TraceSample {
     world: vec3<f32>,
 };
 
+fn shade_body(normal: vec3<f32>, tint: vec3<f32>, direction: vec3<f32>) -> vec3<f32> {
+    let sun = normalize(vec3(0.4, 0.8, 0.3));
+    let light = clamp(dot(normal, sun), 0.0, 1.0);
+    let rim = pow(1.0 - clamp(dot(normal, -direction), 0.0, 1.0), 2.0) * 0.35;
+    return tint * (0.4 + 0.6 * light) + vec3(rim * 0.6);
+}
+
 fn trace_sample(in: VsOut) -> TraceSample {
     let ray = camera_ray(in.ndc);
     let hit = brick_dda(params.space, params.camera.far, ray.origin, ray.direction);
     let pixel = vec2<u32>(u32(in.pos.x), u32(in.pos.y));
-    let body_t = trace_critter(ray.origin, ray.direction);
-    if (body_t > 0.0 && (!hit.found || body_t < hit.t)) {
+    // Terrain owns the pixel from here on; a miss cuts off nothing.
+    let terrain = select(1e30, hit.t, hit.found);
+
+    var body_t = -1.0;
+    var normal = vec3(0.0, 1.0, 0.0);
+    var tint = vec3(0.0);
+    var on_eye = false;
+
+    let own = trace_critter(ray.origin, ray.direction);
+    if (own > 0.0 && own < terrain) {
+        let point = ray.origin + ray.direction * own;
+        body_t = own;
+        normal = critter_normal(point);
+        tint = params.critter.tint_count.xyz;
+        on_eye = eye_distance(point) < 0.05;
+    }
+    let other = trace_roster(ray.origin, ray.direction);
+    if (other.t > 0.0 && other.t < terrain && (body_t < 0.0 || other.t < body_t)) {
+        let point = ray.origin + ray.direction * other.t;
+        body_t = other.t;
+        normal = roster_normal(other.member, point);
+        tint = roster.poses[other.member].tint_count.xyz;
+        on_eye = false;
+    }
+    if (body_t > 0.0) {
         let point = ray.origin + ray.direction * body_t;
-        let normal = critter_normal(point);
-        let sun = normalize(vec3(0.4, 0.8, 0.3));
-        let light = clamp(dot(normal, sun), 0.0, 1.0);
-        let rim = pow(1.0 - clamp(dot(normal, -ray.direction), 0.0, 1.0), 2.0) * 0.35;
-        var base = params.critter.tint_count.xyz;
-        if (eye_distance(point) < 0.05) {
+        var base = tint;
+        if (on_eye) {
             base = base * 0.12;
         }
-        let lit = base * (0.4 + 0.6 * light) + vec3(rim * 0.6);
+        let lit = shade_body(normal, base, ray.direction);
         return TraceSample(vec4(grade(lit, body_t, pixel), 1.0), point);
     }
+
     if (!hit.found) {
         let sky = mix(vec3(0.65, 0.72, 0.80), vec3(0.35, 0.45, 0.62), clamp(ray.direction.y * 3.0 + 0.3, 0.0, 1.0));
         return TraceSample(

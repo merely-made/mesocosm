@@ -3,10 +3,14 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use bytemuck::{Pod, Zeroable};
-use modulus::{BrickMap, BrickProjectionRevision, BrickTraceSpace};
+//! What a caller hands the tracer and what it gets back: camera, frame
+//! input, diagnostics, capture, errors.
 
-use crate::{CritterPose, Flight, Grade, MAX_CAPSULES};
+use bytemuck::{Pod, Zeroable};
+use modulus::BrickMap;
+
+use super::LeasedAtlas;
+use crate::{CritterPose, Flight, Grade};
 
 const PERSPECTIVE: u32 = 0;
 const ORTHOGRAPHIC: u32 = 1;
@@ -178,6 +182,12 @@ pub struct BrickFrameInput<'a> {
     /// Presentation-only SDF bodies. Their source remains the caller's
     /// projection, never the brick map or world state.
     pub pose: Option<&'a CritterPose>,
+    /// Every other body in frame, at the roster's reduced capsule budget.
+    ///
+    /// Additive: a frame that names none traces exactly what it always did.
+    /// The caller culls to what its camera shows; the tracer keeps the first
+    /// [`crate::MAX_ROSTER`] and drops the rest.
+    pub roster: &'a [CritterPose],
     /// Where the atlas texture's voxels come from this frame. `None`
     /// keeps the CPU upload from [`BrickMap`], which is also the
     /// downlevel path. See [`LeasedAtlas`].
@@ -194,132 +204,6 @@ pub struct BrickFrameInput<'a> {
     pub expected_read_epoch: Option<u64>,
 }
 
-/// A GPU-resident atlas the tracer may fill its texture from without the
-/// CPU seeing a voxel.
-///
-/// The tracer samples `texture_3d` and holds no storage buffer, because
-/// it is fragment-only for downlevel reach (WebGL2 has neither compute
-/// nor storage buffers). So a resident producer does not change the
-/// tracer's bindings; it changes where the atlas texture's bytes come
-/// from. This is deliberately a plain wgpu triple rather than a
-/// producer's own view type: the buffer contract is the meeting point,
-/// so the lens depends on no compute stack.
-///
-/// The producer owns the allocation and its lifetime. `revision` must
-/// be the world revision those bytes were materialized at, so a stale
-/// lease cannot be presented as current.
-#[derive(Clone, Copy, Debug)]
-pub struct LeasedAtlas<'a> {
-    pub buffer: &'a wgpu::Buffer,
-    /// Start and length of the producer allocation. Source coordinates below
-    /// are relative to this range rather than forged into the buffer offset.
-    pub offset: u64,
-    pub size: u64,
-    /// Source voxel coordinate and row/image strides inside the producer's
-    /// R8 allocation. These permit one brick to be leased from a larger atlas.
-    pub source_origin: [u32; 3],
-    pub source_bytes_per_row: u32,
-    pub source_rows_per_image: u32,
-    /// Where in the atlas these voxels belong, and how many.
-    pub slot_origin: [u32; 3],
-    pub extent: [u32; 3],
-    pub revision: BrickRevision,
-    /// Selected brick projection these resident bytes materialize.
-    pub projection_revision: BrickProjectionRevision,
-    /// Host-issued schedule epoch at which the producer made these bytes
-    /// safe for reader tenants.
-    pub read_epoch: u64,
-}
-
-impl LeasedAtlas<'_> {
-    /// The bytes `extent` describes, at one byte per voxel (the atlas is
-    /// `R8Uint`).
-    pub fn byte_len(&self) -> u64 {
-        self.extent
-            .into_iter()
-            .try_fold(1u64, |total, axis| total.checked_mul(u64::from(axis)))
-            .unwrap_or(u64::MAX)
-    }
-
-    /// Whether the strided source extent fits inside the leased range.
-    ///
-    /// Load-bearing rather than defensive: a producer's allocator pools
-    /// many planes into one buffer, so copying an extent larger than the
-    /// lease does not fault, it reads whatever plane happens to sit
-    /// next in the pool and paints it into the world. Silent corruption
-    /// is worse than a refusal, so an ill-fitting lease is refused.
-    pub fn fits(&self) -> bool {
-        if self.extent.contains(&0)
-            || self.source_bytes_per_row == 0
-            || self.source_rows_per_image == 0
-        {
-            return false;
-        }
-        let Some(source_x_end) = self.source_origin[0].checked_add(self.extent[0]) else {
-            return false;
-        };
-        let Some(source_y_end) = self.source_origin[1].checked_add(self.extent[1]) else {
-            return false;
-        };
-        if source_x_end > self.source_bytes_per_row || source_y_end > self.source_rows_per_image {
-            return false;
-        }
-        self.source_end().is_some_and(|end| end <= self.size)
-    }
-
-    /// Whether wgpu can copy this source into the destination atlas without
-    /// crossing either range or violating buffer-copy alignment.
-    pub fn copyable_into(&self, atlas_extent: [u32; 3]) -> bool {
-        let destination_fits = (0..3).all(|axis| {
-            self.slot_origin[axis]
-                .checked_add(self.extent[axis])
-                .is_some_and(|end| end <= atlas_extent[axis])
-        });
-        let alignment = wgpu::COPY_BUFFER_ALIGNMENT;
-        self.fits()
-            && destination_fits
-            && self.extent[0].is_multiple_of(alignment as u32)
-            && self.source_bytes_per_row.is_multiple_of(alignment as u32)
-            && self
-                .source_start()
-                .and_then(|start| self.offset.checked_add(start))
-                .is_some_and(|start| start.is_multiple_of(alignment))
-    }
-
-    /// Whether this destination lease contains another atlas box completely.
-    pub fn covers(&self, origin: [u32; 3], extent: [u32; 3]) -> bool {
-        (0..3).all(|axis| {
-            let Some(required_end) = origin[axis].checked_add(extent[axis]) else {
-                return false;
-            };
-            let Some(leased_end) = self.slot_origin[axis].checked_add(self.extent[axis]) else {
-                return false;
-            };
-            origin[axis] >= self.slot_origin[axis] && required_end <= leased_end
-        })
-    }
-
-    fn source_start(&self) -> Option<u64> {
-        let bytes_per_row = u64::from(self.source_bytes_per_row);
-        let rows_per_image = u64::from(self.source_rows_per_image);
-        let image_stride = bytes_per_row.checked_mul(rows_per_image)?;
-        u64::from(self.source_origin[2])
-            .checked_mul(image_stride)?
-            .checked_add(u64::from(self.source_origin[1]).checked_mul(bytes_per_row)?)?
-            .checked_add(u64::from(self.source_origin[0]))
-    }
-
-    fn source_end(&self) -> Option<u64> {
-        let bytes_per_row = u64::from(self.source_bytes_per_row);
-        let rows_per_image = u64::from(self.source_rows_per_image);
-        let image_stride = bytes_per_row.checked_mul(rows_per_image)?;
-        self.source_start()?
-            .checked_add(u64::from(self.extent[2] - 1).checked_mul(image_stride)?)?
-            .checked_add(u64::from(self.extent[1] - 1).checked_mul(bytes_per_row)?)?
-            .checked_add(u64::from(self.extent[0]))
-    }
-}
-
 impl<'a> BrickFrameInput<'a> {
     pub fn new(
         map: &'a BrickMap,
@@ -327,17 +211,7 @@ impl<'a> BrickFrameInput<'a> {
         flight: &'a Flight,
         grade: &'a Grade,
     ) -> Self {
-        Self {
-            map,
-            revision,
-            change: BrickChange::Full,
-            camera: TraceCamera::from_flight(flight),
-            grade,
-            pose: None,
-            leased_atlas: None,
-            clip_from_world: None,
-            expected_read_epoch: None,
-        }
+        Self::for_camera(map, revision, TraceCamera::from_flight(flight), grade)
     }
 
     /// Construct a frame from a vessel-owned camera policy.
@@ -354,6 +228,7 @@ impl<'a> BrickFrameInput<'a> {
             camera,
             grade,
             pose: None,
+            roster: &[],
             leased_atlas: None,
             clip_from_world: None,
             expected_read_epoch: None,
@@ -374,6 +249,12 @@ impl<'a> BrickFrameInput<'a> {
 
     pub fn with_pose(mut self, pose: &'a CritterPose) -> Self {
         self.pose = Some(pose);
+        self
+    }
+
+    /// Draw every other body in frame beside [`Self::with_pose`]'s.
+    pub fn with_roster(mut self, roster: &'a [CritterPose]) -> Self {
+        self.roster = roster;
         self
     }
 
@@ -414,6 +295,10 @@ pub struct BrickDiagnostics {
     /// the frame's change declaration.
     pub incomplete_lease_rejections: u32,
     pub uniform_upload_bytes: u64,
+    /// Roster members this frame drew, beside the single pose.
+    pub roster_members: u32,
+    /// Roster members the frame named past [`crate::MAX_ROSTER`].
+    pub roster_dropped: u32,
     pub resource_creations: u32,
     pub bind_group_rebuilds: u32,
     pub map_recreated: bool,
@@ -475,109 +360,6 @@ impl std::fmt::Display for BrickTraceError {
 }
 
 impl std::error::Error for BrickTraceError {}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
-pub(super) struct TraceParams {
-    pub camera: TraceCamera,
-    pub space: BrickTraceSpace,
-    pub fog: [f32; 4],
-    pub look: [f32; 4],
-    /// Column-major, identity when the frame carries no depth join.
-    pub clip_from_world: [[f32; 4]; 4],
-    pub critter: CritterParams,
-}
-
-pub(super) const IDENTITY: [[f32; 4]; 4] = [
-    [1.0, 0.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0, 0.0],
-    [0.0, 0.0, 1.0, 0.0],
-    [0.0, 0.0, 0.0, 1.0],
-];
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
-pub(super) struct CritterParams {
-    pub bounds: [f32; 4],
-    pub tint_count: [f32; 4],
-    pub eyes: [[f32; 4]; 2],
-    pub pairs: [[f32; 4]; 192],
-}
-
-impl TraceParams {
-    pub(super) fn from_input(input: BrickFrameInput<'_>) -> Self {
-        let map = input.map;
-        Self {
-            camera: input.camera,
-            space: BrickTraceSpace::from_map(map),
-            fog: [
-                input.grade.fog[0],
-                input.grade.fog[1],
-                input.grade.fog[2],
-                input.grade.fog_start,
-            ],
-            look: [
-                input.grade.dither,
-                input.grade.fog_bands,
-                input.grade.palette_len as f32,
-                0.0,
-            ],
-            clip_from_world: input.clip_from_world.unwrap_or(IDENTITY),
-            critter: CritterParams::from_pose(input.pose),
-        }
-    }
-}
-
-impl CritterParams {
-    fn from_pose(pose: Option<&CritterPose>) -> Self {
-        let Some(pose) = pose else {
-            return Self::zeroed();
-        };
-        let mut pairs = [[0.0; 4]; 192];
-        for (index, capsule) in pose.capsules.iter().enumerate() {
-            pairs[index * 2] = [capsule.a[0], capsule.a[1], capsule.a[2], capsule.ra];
-            pairs[index * 2 + 1] = [capsule.b[0], capsule.b[1], capsule.b[2], capsule.rb];
-        }
-        Self {
-            bounds: [
-                pose.bounds_centre[0],
-                pose.bounds_centre[1],
-                pose.bounds_centre[2],
-                pose.bounds_radius,
-            ],
-            tint_count: [
-                pose.tint[0],
-                pose.tint[1],
-                pose.tint[2],
-                pose.capsules.len() as f32,
-            ],
-            eyes: pose.eyes,
-            pairs,
-        }
-    }
-}
-
-pub(super) fn validates_pose(input: BrickFrameInput<'_>) -> Result<(), BrickTraceError> {
-    let actual = input.pose.map_or(0, |pose| pose.capsules.len());
-    if actual > MAX_CAPSULES {
-        return Err(BrickTraceError::TooManyCapsules {
-            actual,
-            maximum: MAX_CAPSULES,
-        });
-    }
-    Ok(())
-}
-
-pub(super) fn validates_change(input: BrickFrameInput<'_>) -> Result<(), BrickTraceError> {
-    if let BrickChange::Slots(slots) = input.change {
-        for slot in slots {
-            if input.map.pointer_coord(*slot).is_none() {
-                return Err(BrickTraceError::UnknownBrickSlot(*slot));
-            }
-        }
-    }
-    Ok(())
-}
 
 #[cfg(test)]
 mod camera_tests {

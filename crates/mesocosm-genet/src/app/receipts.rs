@@ -126,6 +126,10 @@ impl Host {
             trace_len: self.runtime.trace().len(),
             ground_revision: world.ground().revision(),
             body_parts: world.body().map(|body| body.len()).unwrap_or(0),
+            section_roster: self
+                .gpu
+                .as_ref()
+                .map_or(0, |gpu| gpu.section.last_roster_members()),
             trace: self
                 .config
                 .trace

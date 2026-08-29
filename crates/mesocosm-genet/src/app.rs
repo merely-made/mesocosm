@@ -22,7 +22,7 @@ use winit::window::{Window, WindowId};
 use crate::chrome::Chrome;
 use crate::fixture;
 use crate::played::PlayedTrace;
-use crate::section::{self, Pan, Section};
+use crate::section::{self, Pan, Section, SectionFrame};
 
 mod receipts;
 
@@ -335,6 +335,17 @@ impl Host {
             .controlled()
             .map_or([0.42, 0.62, 0.46], |organism| look_of(organism).0);
         let pose = section::pose_of(self.runtime.world(), tint);
+        // An ant farm needs the ants: everything else alive in the slab the
+        // camera already cuts, posed the same way and coloured by its own
+        // guise. Nothing here reaches an intent.
+        let roster = self
+            .gpu
+            .as_ref()
+            .map(|gpu| gpu.section.slab_window(centre))
+            .map(|window| {
+                section::roster_of(self.runtime.world(), window, |organism| look_of(organism).0)
+            })
+            .unwrap_or_default();
         let scene = self.scene();
         let dirty = self.runtime.drain_ground_dirty();
         let steps = self.steps;
@@ -367,10 +378,13 @@ impl Host {
         if let Err(error) = gpu.section.draw(
             &mut encoder,
             &view,
-            world.ground(),
-            &dirty,
-            centre,
-            pose.as_ref(),
+            SectionFrame {
+                ground: world.ground(),
+                dirty: &dirty,
+                centre,
+                pose: pose.as_ref(),
+                roster: &roster,
+            },
         ) {
             eprintln!("section: {error}");
         }

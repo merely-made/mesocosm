@@ -10,11 +10,11 @@
 //! and how the traced texture reaches the surface the HUD then composites on.
 //! No world state lives here and no rule is decided here.
 
-use mesocosm_core::World;
 use mesocosm_core::places::Ground;
+use mesocosm_core::{BodyDocument, Organism, World};
 use mesocosm_lens::{
     BodyLensProjection, BodyPlacement, BrickChange, BrickFrameInput, BrickMap, BrickRevision,
-    BrickTracer, CritterPose, FRAME_FORMAT, Grade, TraceCamera,
+    BrickTracer, CritterPose, FRAME_FORMAT, Grade, MAX_ROSTER, TraceCamera,
 };
 use mesocosm_render::composite::Composite;
 
@@ -42,6 +42,22 @@ const CAPTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 pub struct Pan {
     pub x: f32,
     pub y: f32,
+}
+
+/// The host's presentation reads for one frame, taken off the stepped world
+/// before the device is borrowed. None of it is world state.
+#[derive(Clone, Copy)]
+pub struct SectionFrame<'a> {
+    pub ground: &'a Ground,
+    /// The host's drain of the world's changed bricks. The slots they map to
+    /// are the only region the tracer re-uploads, so a carve costs its own
+    /// bricks and not the enclosure.
+    pub dirty: &'a [[i16; 3]],
+    pub centre: [f32; 3],
+    /// The controlled critter, at full capsule fidelity.
+    pub pose: Option<&'a CritterPose>,
+    /// Everything else alive in the slab.
+    pub roster: &'a [CritterPose],
 }
 
 pub struct Section {
@@ -126,48 +142,71 @@ impl Section {
     }
 
     /// Aspect comes from the window rather than a fixed 16:9, so a resized
-    /// section stretches nothing. Half-height and depth stay the G2 numbers.
+    /// section stretches nothing.
+    fn aspect(&self) -> f32 {
+        self.width as f32 / self.height.max(1) as f32
+    }
+
+    /// Half-height and depth stay the G2 numbers.
     fn camera(&self, centre: [f32; 3]) -> Option<TraceCamera> {
         TraceCamera::orthographic_slab(
             centre,
             FORWARD,
             UP,
             SLAB_HALF_HEIGHT,
-            self.width as f32 / self.height.max(1) as f32,
+            self.aspect(),
             SLAB_DEPTH,
         )
     }
 
-    /// Traces one frame and composites it into `target`.
-    ///
-    /// `dirty` is the host's drain of the world's changed bricks; the slots
-    /// they map to are the only region the tracer re-uploads, so a carve
-    /// costs its own bricks and not the enclosure.
+    /// The world box this camera actually shows, from the camera's own
+    /// numbers. What falls outside cannot reach a pixel, so it is what the
+    /// roster culls against.
+    pub fn slab_window(&self, centre: [f32; 3]) -> SlabWindow {
+        SlabWindow {
+            centre,
+            half: [
+                SLAB_HALF_HEIGHT * self.aspect(),
+                SLAB_HALF_HEIGHT,
+                SLAB_DEPTH * 0.5,
+            ],
+        }
+    }
+
+    /// Roster members the last traced frame drew. The receipt's evidence that
+    /// the section shows the ecology rather than one body.
+    pub fn last_roster_members(&self) -> u32 {
+        self.tracer
+            .last_diagnostics()
+            .map_or(0, |diagnostics| diagnostics.roster_members)
+    }
+
+    /// Traces one frame and composites it into `surface`.
     pub fn draw(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         surface: &wgpu::TextureView,
-        ground: &Ground,
-        dirty: &[[i16; 3]],
-        centre: [f32; 3],
-        pose: Option<&CritterPose>,
+        frame: SectionFrame<'_>,
     ) -> Result<(), String> {
-        let slots = if dirty.is_empty() {
+        let slots = if frame.dirty.is_empty() {
             Vec::new()
         } else {
             self.map
-                .refresh(ground, dirty.iter().copied())
+                .refresh(frame.ground, frame.dirty.iter().copied())
                 .map_err(|error| error.to_string())?
         };
-        let camera = self.camera(centre).ok_or("invalid terrarium camera")?;
+        let camera = self
+            .camera(frame.centre)
+            .ok_or("invalid terrarium camera")?;
         let mut input = BrickFrameInput::for_camera(
             &self.map,
-            BrickRevision(ground.revision()),
+            BrickRevision(frame.ground.revision()),
             camera,
             &self.grade,
         )
-        .changed(BrickChange::Slots(&slots));
-        if let Some(pose) = pose {
+        .changed(BrickChange::Slots(&slots))
+        .with_roster(frame.roster);
+        if let Some(pose) = frame.pose {
             input = input.with_pose(pose);
         }
         self.tracer
@@ -324,21 +363,65 @@ pub fn centre_on(at: [i32; 3], pan: Pan) -> [f32; 3] {
     [at[0] as f32 + pan.x, at[1] as f32 + pan.y, at[2] as f32]
 }
 
+/// The world box the section's slab shows, in voxels around its centre.
+#[derive(Clone, Copy, Debug)]
+pub struct SlabWindow {
+    pub centre: [f32; 3],
+    /// Half extents in x, y and z.
+    pub half: [f32; 3],
+}
+
+impl SlabWindow {
+    /// Whether a voxel position falls inside the window. Position alone, not
+    /// the body's extent: a body straddling the cut plane is drawn whole and
+    /// the tracer's own ray interval does the trimming.
+    pub fn holds(&self, at: [i32; 3]) -> bool {
+        (0..3).all(|axis| (at[axis] as f32 - self.centre[axis]).abs() <= self.half[axis])
+    }
+}
+
 /// The controlled critter's pose, through the landed V2 projection.
 ///
-/// **One pose per frame is the tracer's entire vocabulary**: the uniform
-/// carries a single capsule set, one tint, one bounds sphere, and two eyes.
-/// The other organisms are therefore not in the section; they read on the
-/// minimap until the tracer carries a roster.
+/// It stays the tracer's single pose rather than a roster member, because a
+/// member's capsule budget is smaller than the played body's: see
+/// [`mesocosm_lens::MAX_ROSTER`].
+pub fn pose_of(world: &World, tint: [f32; 3]) -> Option<CritterPose> {
+    pose_at(world.body()?, world.position()?, tint)
+}
+
+/// Every other living organism the window holds, posed and tinted.
+///
+/// The scan is a bounds test per organism and a projection only for those
+/// inside, so the frame's cost tracks organisms in the slab rather than
+/// organisms in the world. The lens truncates whatever exceeds its own cap;
+/// the take here just stops projecting once the cap is met.
+pub fn roster_of(
+    world: &World,
+    window: SlabWindow,
+    tint: impl Fn(&Organism) -> [f32; 3],
+) -> Vec<CritterPose> {
+    let controlled = world.controlled_id();
+    world
+        .organisms
+        .iter()
+        .filter(|organism| {
+            organism.is_alive()
+                && Some(organism.id) != controlled
+                && window.holds(organism.position)
+        })
+        .filter_map(|organism| pose_at(&organism.body, organism.position, tint(organism)))
+        .take(MAX_ROSTER)
+        .collect()
+}
+
+/// One body placed where it stands.
 ///
 /// Body space is world voxels — the raster lane draws a part's voxels at
 /// `position + v` — so the scale is 1 and the projection's floor subtraction
 /// is undone, or the two views would disagree about where the same voxel is.
 /// A body past the lens's capsule limit yields `None` and the section traces
-/// terrain alone rather than refusing the frame.
-pub fn pose_of(world: &World, tint: [f32; 3]) -> Option<CritterPose> {
-    let body = world.body()?;
-    let at = world.position()?;
+/// without it rather than refusing the frame.
+fn pose_at(body: &BodyDocument, at: [i32; 3], tint: [f32; 3]) -> Option<CritterPose> {
     let floor = body.aabb().min[1] as f32;
     let placement = BodyPlacement {
         ground: [at[0] as f32, at[1] as f32 + floor, at[2] as f32],
