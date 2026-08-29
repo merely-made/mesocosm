@@ -67,6 +67,22 @@ pub(super) const CROWD_COMFORT: u32 = 1;
 pub(crate) const OFFSPRING_COST: u64 = 4;
 /// Mass below which an organism cannot sustain itself.
 pub(crate) const STARVATION_MG: u64 = 20;
+/// Ticks of upkeep still held in the budget below which a body without a
+/// target starts wandering instead of standing still. TD2d: waiting for the
+/// literal last milligram (`energy_mg == 0`) left every kingdom motionless
+/// until half dead; this trades a few ticks of margin for a chance to find
+/// something before the body starts eating itself. TD5 moved it here from
+/// `movement` so the tick's one hunger horizon sits with the tick's numbers.
+const HUNGRY_UPKEEP_TICKS: u64 = 8;
+
+/// Whether a body's reserve has fallen low enough to search rather than wait.
+/// The shared predicate lives on [`Organism`]; the horizon is this file's, and
+/// **both** the wander and the dispersal bonus ask through it — TD2d moved the
+/// wander off literal `energy_mg == 0` and left the bonus behind, which TD5
+/// closes.
+pub(crate) fn is_hungry(organism: &Organism) -> bool {
+    organism.budget_below(HUNGRY_UPKEEP_TICKS)
+}
 
 /// Integer approximation of `mass^0.75`. It is monotonic, deterministic, and
 /// uses no floating point in the authority boundary.
@@ -135,5 +151,5 @@ pub(crate) fn upkeep_for_mass(mass_mg: u64) -> u64 {
 /// One graph step's dispersal budget. Contractile geometry gives larger bodies
 /// more options, while hunger makes leaving an exhausted place worthwhile.
 pub(crate) fn dispersal_for(organism: &Organism) -> u32 {
-    (organism.locomotion() / 4).max(1) + u32::from(organism.energy_mg == 0)
+    (organism.locomotion() / 4).max(1) + u32::from(is_hungry(organism))
 }

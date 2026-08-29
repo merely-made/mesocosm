@@ -23,6 +23,9 @@ use crate::rng::Rng;
 use crate::species::Lineages;
 
 use crate::history::Event;
+// The routing threshold lives with the played meal's rule in `world`, which is
+// the point: TD5 makes it one rule rather than two that agree.
+use crate::world::STARVED_UPKEEP_TICKS;
 
 use super::{Organism, OrganismId, Stage, Tally};
 
@@ -36,6 +39,27 @@ use movement::{
 
 pub(crate) use rates::*;
 use rates::{CROWD_CELL, CROWD_COMFORT, UPKEEP_BASE_MG};
+
+/// Feeding income, routed by the body — **the same rule for every kingdom**.
+///
+/// TD4 gave the played meal one question: is this body inside
+/// [`STARVED_UPKEEP_TICKS`] of empty? If so the meal burns, refilling the
+/// budget; if not it builds. TD5 asks it of every organism instead, because
+/// before this every non-played gain built biomass only and `energy_mg` was a
+/// birth endowment that never refilled — so an NPC crossed every hunger
+/// threshold within its first few hundred ticks and lived off its own body
+/// thereafter, and a decomposer could never bank a corpse against the gap to
+/// the next one.
+///
+/// Called after [`Organism::pay_upkeep`], so the reserve it reads is this
+/// tick's, post-rent.
+fn earn(organism: &mut Organism, mg: u64) {
+    if organism.budget_below(STARVED_UPKEEP_TICKS) {
+        organism.energy_mg = organism.energy_mg.saturating_add(mg);
+    } else {
+        organism.gain_mass(mg);
+    }
+}
 
 /// Which crowding cell a position falls in.
 fn cell_of(position: [i32; 3]) -> (i32, i32) {
@@ -246,7 +270,7 @@ fn step_inner(
                             UPKEEP_BASE_MG,
                             producer_income_for_mass(organism.biomass_mg()),
                         );
-                        organism.gain_mass(share);
+                        earn(organism, share);
                     }
                     FeedingMode::Grazer | FeedingMode::Predator => {
                         if let Some(prey) =
@@ -258,7 +282,7 @@ fn step_inner(
                             } else {
                                 crate::history::MealKind::Grazing
                             };
-                            organism.gain_mass(amount);
+                            earn(organism, amount);
                             drained.push((prey, amount));
                             fed.push((organism.id, prey, amount, kind));
                         }
@@ -269,7 +293,7 @@ fn step_inner(
                             choose_carrion_target(organism, &carrion, &carrion_cells, ground)
                         {
                             let amount = decay_rate_for_mass(organism.biomass_mg());
-                            organism.gain_mass(amount);
+                            earn(organism, amount);
                             drained.push((source, amount));
                             fed.push((
                                 organism.id,

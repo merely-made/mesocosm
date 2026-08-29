@@ -29,10 +29,22 @@ fn refused() -> Intent {
     }
 }
 
-/// A world whose played critter has every reason to wander: an empty budget,
-/// which is what makes a body without a target search instead of stand.
+/// A populated world whose played critter starts on an empty budget.
 fn restless() -> World {
-    let mut world = World::new(4_242, 60);
+    emptied(World::new(4_242, 60))
+}
+
+/// The same empty budget with nothing in the enclosure to fill it.
+///
+/// TD5 retired the plain [`restless`] fixture for the wander claim: an NPC's
+/// feeding now credits its reserve, so a critter with prey in reach eats its
+/// way out of hunger on the first tick and then stands still — correctly.
+/// Wandering needs a body that is hungry *and* has nothing to eat.
+fn stranded() -> World {
+    emptied(World::new(4_242, 0))
+}
+
+fn emptied(mut world: World) -> World {
     let me = world.controlled_id().expect("the fixture starts embodied");
     world
         .organisms
@@ -118,7 +130,7 @@ fn the_enclosure_keeps_moving_while_the_hand_is_on_one_body() {
 fn walking_away_gives_the_body_back_to_the_ecology() {
     // The done-condition in a sentence: hold the keys and nothing fights you;
     // put them down and the critter is an animal again.
-    let mut held = restless();
+    let mut held = stranded();
     let mut let_alone = held.clone();
     let start = played_position(&held).unwrap();
 

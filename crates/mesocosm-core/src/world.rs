@@ -81,17 +81,16 @@ pub enum Placement {
 pub const INSTINCT_IDLE_TICKS: u32 = 30;
 
 /// Ticks of upkeep left in the budget below which a meal burns instead of
-/// building.
+/// building — **for every organism in the enclosure**, not just the played one
+/// (TD5, ruled 2026-08-29; the ecology's `earn` reads it too).
 ///
 /// A hundred: ten seconds of standing still at the canonical tempo, and about
 /// a third of a 1,000 mg starter's 333-tick budget. **Wide on purpose.** The
-/// ecology's own hunger horizon is eight ticks ([`movement::HUNGRY_UPKEEP_TICKS`]),
+/// ecology's own hunger horizon is eight ticks (`rates::HUNGRY_UPKEEP_TICKS`),
 /// which is the point a body starts eating itself; routing a meal there would
 /// mean every meal grew you until the tick before you died, and the burn half
 /// of the verb would never be seen. This is instead the width of a state you
 /// can notice, play out of, and be caught by.
-///
-/// [`movement::HUNGRY_UPKEEP_TICKS`]: crate::organism::ecology
 pub const STARVED_UPKEEP_TICKS: u64 = 100;
 
 /// Where a meal goes.

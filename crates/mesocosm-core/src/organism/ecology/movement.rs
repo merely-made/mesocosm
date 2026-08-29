@@ -24,7 +24,7 @@ use crate::organism::{
     FaunaDecisionTrace, FaunaDrive, FaunaSenses, FaunaTraits, LastSeen, Organism, OrganismId,
 };
 
-use super::dispersal_for;
+use super::{dispersal_for, is_hungry};
 
 mod perception;
 
@@ -40,18 +40,6 @@ pub(super) const DECOMPOSE_RANGE: i32 = 6;
 const MEMORY_ROUTE_BUDGET: i32 = 8;
 /// Direct observation is fresh for this many failed perception ticks.
 const MEMORY_TICKS: u8 = 8;
-/// Ticks of upkeep still held in the budget below which a body without a
-/// target starts wandering instead of standing still. TD2d: waiting for the
-/// literal last milligram (`energy_mg == 0`) left every kingdom motionless
-/// until half dead; this trades a few ticks of margin for a chance to find
-/// something before the body starts eating itself.
-const HUNGRY_UPKEEP_TICKS: u64 = 8;
-
-/// Whether a body's reserve has fallen low enough to search rather than wait.
-/// The shared predicate lives on [`Organism`]; the horizon is this module's.
-fn is_hungry(organism: &Organism) -> bool {
-    organism.budget_below(HUNGRY_UPKEEP_TICKS)
-}
 
 /// Chooses a food source within the body's actual reach. This is local for
 /// both tiers, so it never needs a global scan.

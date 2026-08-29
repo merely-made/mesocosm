@@ -143,6 +143,74 @@ documented constant by constant; fixtures re-record at the new economy.
 
 ## Progress
 
+- **2026-08-29 (later): TD5's mechanics landed; its done-condition did not,
+  and the reason is structural.** The economy is one rule now, and the
+  instrument says so without saying `breathes`.
+
+  **The routing.** `ecology::step` gained one private `earn(organism, mg)`,
+  and all four NPC income paths call it instead of `gain_mass`: producer
+  fixing (the crowd-divided, rent-floored share), grazing and predation (the
+  meal's biomass, one shared call), and decay. Inside it is TD4's question
+  verbatim — `budget_below(STARVED_UPKEEP_TICKS)` credits `energy_mg`,
+  otherwise the body grows as before. The played critter's path in
+  `world::act` is untouched and unchanged in behavior; it was already this
+  rule, which is the point. `dispersal_for`'s extra step moved off literal
+  `energy_mg == 0` onto `is_hungry`, and `HUNGRY_UPKEEP_TICKS` plus the
+  predicate moved from `movement` into `rates` so the tick's one hunger
+  horizon sits with the tick's numbers. **Tick order is unchanged and had to
+  be**: rent is paid before income, so `earn` reads this tick's post-rent
+  reserve — a body is asked whether it is starving *after* the day has cost
+  it something, which is the only reading that means anything.
+
+  **Verdicts (mechanics only, no constant touched).** 0 breathes / 9 thins /
+  0 boil / 1 collapse, control all collapse, escapees 0 — the TD2d tally to
+  the seed. The tally is unmoved; underneath it is not. Consumers alive at
+  the horizon went from 3 seeds to 5, and far larger where they survive
+  (seed 7: 39 → 108, seed 8: 35 → 42, seed 9: 12 → 35); births and deaths
+  roughly doubled across the board (seed 1: 205/138 → 899/542), which is a
+  chain turning over rather than a stand sitting still. Seed 2's lone
+  collapse is the same founder draw that survived three constant regimes.
+  Receipt: `td5_economy.json`. **Decomposers are still zero at the horizon
+  in every seed**, so `thins` is honest and `breathes` is unreached.
+
+  **The probe (seeds 1, 7, 9).** Decomposers do bank now — 1,320-2,908
+  organism-ticks holding a reserve — and mean life rose where it could
+  (seed 7: 215 → 257 ticks). But the last decomposer in every seed dies by
+  tick 365-430, and the probe's carrion curve says why: **the enclosure holds
+  no corpses at all between roughly tick 20 and tick 1,400.** Founders are
+  age-staggered over `rng.below(200)` against a 2,000-3,000-tick lifespan, so
+  nothing dies of old age until ~1,800; early starvation corpses are ≤ 20 mg
+  (`STARVATION_MG`) and decay at 1 mg/tick, so they are gone in twenty ticks.
+  After 1,400 carrion is abundant — 20+ bodies, tens of millions of mg — and
+  there is no decomposer left to eat it. That is locked matter, and it is a
+  *timing* failure, not a yield or a search one.
+
+  **The bounded constants pass found nothing worth shipping, and that is the
+  finding.** `UPKEEP_SCALE` 62 → 186 (rent to a third, stretching the birth
+  endowment) moved last-decomposer-death 365/385/430 → 487/705/646 and made
+  the producer stand's biomass ~5x worse; `STARVATION_MG` 20 → 100 (bigger
+  corpses from starvation deaths) put real bodies in the early enclosure and
+  moved the deaths to 656/534/719. Neither comes within 1,000 ticks of the
+  drought's far edge, because no rates.rs constant sets when the founders
+  die. Both were reverted; **no constant changed and no
+  `td5_economy_tuned.json` was written**, so the mechanics-only picture is
+  the whole picture.
+
+  **Fixtures.** Demo re-recorded: 120 intents, hash **`02b072a5cfe7b10b`**
+  (was `18615c6b8309f821`), `--replay` headed landing it exactly, exit 0,
+  30 frames on the RTX 4060 (Vulkan) — 61 body parts, 17 roster members,
+  ground revision 2. Instrument proven: one bit flipped in the recorded hash
+  exits 1 with `MISMATCH`. Default paths (`ps1_played.trace.json` / `.json` /
+  `.png`). The capture reads roster silhouettes across the section, the
+  minimap, and vitals at `energy 586 mg` with no burn notice — the last meal
+  was more than the 25-tick notice window before the final frame.
+
+  One test was retired by the change and says so: `instinct.rs`'s
+  `walking_away_gives_the_body_back_to_the_ecology` set the played critter's
+  budget to zero and watched it wander, but an NPC now eats its way out of
+  hunger on the first tick and correctly stands still, so the wander claim
+  moved to a `stranded()` fixture — empty budget, empty enclosure.
+
 - **2026-08-29 (later): TD4 landed, with the tempo and fresh fixtures.**
   Both core rules, the canonical 10 t/s host, and a re-recorded receipt set.
 
@@ -326,6 +394,27 @@ documented constant by constant; fixtures re-record at the new economy.
   Founders also all start `since_offspring: 0`, gating the first brood in
   any world behind a full gestation; staggering it as `age` already is
   converts at least one collapse seed. (TD2b)
+- **The enclosure has a corpse drought, and it is set at founding.** (TD5)
+  Founders are staggered over `rng.below(200)` ticks of age against a
+  2,000-3,000-tick lifespan, so no founder dies of old age until ~1,800;
+  starvation corpses before then hold ≤ `STARVATION_MG` (20 mg) and decay at
+  1 mg/tick, so they last twenty ticks. The measured result is an enclosure
+  holding **zero carrion from about tick 20 to tick 1,400** and then
+  20+ bodies and tens of millions of milligrams forever after — a larder
+  that opens long after its only customers are dead (last decomposer: tick
+  365-430 across probed seeds). Decomposers cannot be rescued from the
+  income side, whatever the routing or the yield, because there is nothing
+  to route: `DECAYS_BASE_MG` was swept in TD2c, search was fixed in TD2d,
+  and TD5's banking is real but has nothing to bank. Confirmed by
+  diagnostic, in a throwaway worktree, deliberately not shipped: widening
+  the founding stagger to `rng.below(2000)` puts **42 decomposers alive at
+  the 10,000-tick horizon** in seed 7 and multiplies mean decomposer life
+  by ~5 in the other two probed seeds. Whether the fix is the stagger, a
+  slower carrion decay, a detritus pool that exists before anything dies,
+  or a founding cohort that arrives already mid-life is Mark's — it is a
+  genesis and matter-cycle question, not a rates.rs one, and against the
+  RimWorld bar it is the loop that currently fails to compose: decomposers
+  are a kingdom nobody ever sees do their job.
 - **Individual mass has no fixed point.** Income, upkeep, and the
   reproduction tax all scale as m^0.75, so net growth's sign is
   mass-independent: bodies either grow without bound or shrink to stall;
