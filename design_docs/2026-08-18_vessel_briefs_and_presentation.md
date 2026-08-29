@@ -115,6 +115,31 @@ Initiative-by-biomass makes Mesocosm's epoch review a table scene,
 Isometry's register one level up. When a feature blurs this symmetry,
 that is the signal to stop and check.
 
+### The shared chrome stack (ruled 2026-08-29, Mark)
+
+The three vessels share one GUI stack: cambium view-fns in the genet
+host for chrome that says things (menus, status bars, panels, sheets),
+and painted overlays (sprigging leaves and vello scenes through
+paint_list and netrender) for in-scene marks. The games are designed
+differently, but they draw on the same stack — let them strengthen
+each other and the stack. Isometry is the working proof of the text
+half; Mesocosm's minimap and Paredros's chrome bar are the painted
+half. Chrome surfaces are projections in mere's sense — a status bar
+is a reading plus an encoding plus a realization — so the projection
+grammar catalog (mere, 2026-08-15) supplies the vocabulary and no new
+theory is needed.
+
+Two clarifications this ruling settles:
+
+- **Perspective governs the scene, not the chrome.** First, second, or
+  third person is about the world view and what is diegetic inside it.
+  It does not prohibit a title menu, a status bar, or a number.
+- **No vessel is textless.** Mesocosm's "textless HUD" (views founding
+  plan, 2026-08-02) was lane discipline — no ad-hoc lettering in the
+  painted lane — that drifted into a de-facto text ban while the
+  cambium lane waited for a consumer. Superseded; the amendment is in
+  the views founding plan §6.
+
 ## 3. The shared-world fidelity contract
 
 Mesocosm happens **before the world is formed** enough for all but a

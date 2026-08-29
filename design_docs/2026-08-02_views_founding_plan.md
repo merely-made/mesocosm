@@ -2,6 +2,7 @@
 
 **Date:** 2026-08-02
 **Status:** First slice landed (adapter + leaf, tested). Host embedding open.
+Amended 2026-08-29 (§6): the textless guard was lane discipline, not a text ban.
 **Companions:** mere's projection proofs plan (arrangement register; P4),
 isometry's `2026-08-02_overmap_presentation_plan.md` (the second Hulls
 consumer), the epoch boundary plan (places, §12).
@@ -159,3 +160,23 @@ Two colour-space facts the capture chain forced into the open:
 - Dominance shifts on screen when the ecology shifts (verifiable with a
   scenario run: two captures, different holders).
 - ~~A `testing/mesocosm/` capture showing it~~ **done**: `14_minimap.png`.
+
+## 6. Amendment: the guard was lane discipline (2026-08-29, Mark)
+
+The route A guard — never teach the HUD lane lettering — was about
+which lane renders text, not whether the game has text. With route B
+deferred on consumer pull and no consumer ever scheduled, it operated
+in practice as a text ban: the first real playtest (played slice plan,
+2026-08-28 findings) ran with energy, refusals, and death all
+unsurfaced, partly because the only live lane had no words.
+
+Ruled 2026-08-29: the cambium lane is ordinary game GUI for the whole
+wing — title menus, status bars, floating panels, text — per the
+shared-chrome ruling in the vessel briefs and presentation record §2.
+Route A stays what it is: painted in-scene marks, one realization
+option, not a text firewall. The guard survives in its true form —
+text still never enters the painted lane as a hack; it enters through
+cambium, which no longer waits for a consumer pull to exist here.
+`mesocosm-genet/src/hud.rs` carries a "textless by decree" comment
+reflecting the drifted reading; correct it when the first cambium
+chrome lands.

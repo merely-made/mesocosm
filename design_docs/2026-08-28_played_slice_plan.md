@@ -116,6 +116,32 @@ The trait-board review screen stays with Views route B.
 
 ## Findings
 
+- **2026-08-28 (first real playtest, Mark):** "no information was
+  communicated, i don't think i changed my position? it is hard to tell
+  what I was." A step-by-step replay of the session's trace (2,926 steps,
+  hash `49c7a47f03895bda`, replay-verified) says he is right, and why:
+  - The ecology drives the controlled critter like any other organism,
+    spending its energy as it wanders. The starting 1,000mg was gone in
+    the first ~166 ticks (~3 seconds); Mark's **first** movement keypress,
+    at step 166, was already refused `InsufficientMass`, and no keypress
+    ever displaced the critter. He was watching an animal, not driving one.
+  - All ten metabolize presses landed (body 52 → 61 parts) — the one verb
+    that worked.
+  - At tick 999 the critter died, on the same tick its tenth meal landed
+    (cause not yet chased). The camera fell back to the world origin and
+    the remaining two-thirds of the session every input was refused
+    `Disembodied`. This is the PS2 seam, hit in the first minute of the
+    first real session.
+  - The population ran 61 → 8,155 in 49 seconds, unchecked.
+  - None of the above reaches the screen: no energy reading, no refusal
+    feedback, no death signal. Every refusal is polite inside `World::apply`
+    and silent outside it.
+  Four seams, then, all small and all load-bearing: surface refusals and
+  vital signs; rule the movement economy (player vs. autopilot over one
+  energy pool); handle death (PS2); brake reproduction. The receipts held —
+  the hash replayed exactly — but a receipt can be green while the
+  experience is empty.
+
 - **2026-08-28:** the long-flagged "mesocosm-genet does not compile
   against current genet" was neither genet drift nor an API break: it was
   a duplicate-source split (rev-pin vs stale branch fetch of the same
@@ -130,6 +156,13 @@ The trait-board review screen stays with Views route B.
 
 ## Progress
 
+- **2026-08-29:** Mark ruled the next seam from the playtest findings:
+  surface the state (energy, refusals, death). Re-scoped the same day
+  during the wing GUI conversation: the surface is cambium chrome with
+  words and numbers, not a painted-lane workaround — which makes it
+  Mesocosm's first cambium consumer (views founding plan §6, vessel
+  briefs and presentation record §2 "The shared chrome stack").
+  Implementation deliberately held; not yet dispatched.
 - **2026-08-28 (later):** PS0 landed: the host builds, tests and clippy
   are green workspace-wide, and it launches and runs. Netrender-family
   pins aligned to `6f1a4fe7`; netrender's registry-published stack noted
