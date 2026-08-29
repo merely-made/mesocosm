@@ -16,7 +16,7 @@
 //! the difference, and that the pointer moves only through a recorded intent.
 
 use mesocosm_core::{
-    Intent, OrganismId, Outcome, Placement, Rejection, Route, World, restore, snapshot, state_hash,
+    Intent, OrganismId, Outcome, Placement, Rejection, World, restore, snapshot, state_hash,
 };
 
 /// The nearest organism that is not the player and that the frontier lets
@@ -281,16 +281,14 @@ fn a_critter_cannot_eat_itself() {
     assert_eq!(
         world.apply(Intent::Metabolize {
             organism: me,
-            route: Route::Burn
+            placement: Placement::Planned
         }),
         Outcome::Rejected(Rejection::Itself)
     );
     assert_eq!(
         world.apply(Intent::Metabolize {
             organism: me,
-            route: Route::Incorporate {
-                placement: Placement::Planned
-            },
+            placement: Placement::Planned,
         }),
         Outcome::Rejected(Rejection::Itself)
     );

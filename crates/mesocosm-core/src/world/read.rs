@@ -38,6 +38,39 @@ impl World {
         self.organisms.iter().find(|o| o.id == id && o.is_alive())
     }
 
+    /// How many ticks running the player has done nothing.
+    pub fn idle_run(&self) -> u32 {
+        self.idle_run
+    }
+
+    /// The critter a hand is currently on, if any hand is.
+    ///
+    /// **Control and holding are not the same thing.** `controlled` says whose
+    /// body a key would move; this says whether anybody has moved it lately.
+    /// Past [`INSTINCT_IDLE_TICKS`] of unbroken idling the answer is `None`
+    /// while control stays exactly where it was: the critter goes back to its
+    /// own drives, the next keypress takes it back mid-stride, and nothing had
+    /// to be handed over or reclaimed.
+    ///
+    /// [`INSTINCT_IDLE_TICKS`]: super::INSTINCT_IDLE_TICKS
+    pub fn held(&self) -> Option<OrganismId> {
+        if self.idle_run >= super::INSTINCT_IDLE_TICKS {
+            return None;
+        }
+        self.controlled().map(|organism| organism.id)
+    }
+
+    /// Whether the played critter's budget has fallen far enough that a meal
+    /// burns rather than builds. `false` with nobody embodied: a world with no
+    /// hand in it is not hungry, it is empty.
+    ///
+    /// Public because the surface that shows the state should read the same
+    /// predicate the rule uses, rather than re-deriving it from the number.
+    pub fn is_starved(&self) -> bool {
+        self.controlled()
+            .is_some_and(|organism| organism.budget_below(super::STARVED_UPKEEP_TICKS))
+    }
+
     pub(super) fn controlled_mut(&mut self) -> Option<&mut Organism> {
         let id = self.controlled?;
         self.organisms

@@ -189,7 +189,7 @@ pub struct Receipt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mesocosm_core::{PartId, Placement, Route, Yaw};
+    use mesocosm_core::{PartId, Placement, Yaw};
 
     fn scripted() -> Vec<Intent> {
         vec![
@@ -199,12 +199,10 @@ mod tests {
             Intent::Deposit { mass_mg: 25 },
             Intent::Metabolize {
                 organism: mesocosm_core::OrganismId(0),
-                route: Route::Incorporate {
-                    placement: Placement::Explicit {
-                        parent: PartId(0),
-                        offset: [4, 0, 0],
-                        yaw: Yaw::Zero,
-                    },
+                placement: Placement::Explicit {
+                    parent: PartId(0),
+                    offset: [4, 0, 0],
+                    yaw: Yaw::Zero,
                 },
             },
             Intent::Move { delta: [-1, 0, -1] },

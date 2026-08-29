@@ -3,18 +3,23 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! P0: where a meal goes.
+//! P0: where a meal goes, and TD4: who decides.
 //!
-//! Before this, eating granted a part **and** half the mass as energy, so the
-//! game's central verb asked the player nothing. These tests pin the tradeoff
-//! that replaces it: the same meal, two destinations, and no way to have both.
+//! Before P0, eating granted a part **and** half the mass as energy, so the
+//! game's central verb asked the player nothing. P0 split the destination:
+//! live now, or grow later. These tests still pin that tradeoff — mutually
+//! exclusive receipts, consistent venom, identical replay.
 //!
-//! The done-condition from the phenotype plan is three things — mutually
-//! exclusive receipts, consistent venom, and identical replay — and the fourth
-//! is Mark's judgment about whether the choice is tense or clerical, which no
-//! test can supply.
+//! What changed on 2026-08-29 is who answers. Mark rejected the hotkey pair as
+//! an interface, and TD4 ruled the answer diegetic: **the body routes the
+//! meal.** A critter inside `STARVED_UPKEEP_TICKS` of an empty budget burns;
+//! one with room to spare builds. So these tests no longer choose a route,
+//! they choose a *state*, which is the same choice moved to where it is
+//! played from.
 
-use mesocosm_core::{Intent, Outcome, Placement, Rejection, Route, World, snapshot, state_hash};
+use mesocosm_core::{
+    Intent, Outcome, Placement, Rejection, STARVED_UPKEEP_TICKS, World, snapshot, state_hash,
+};
 
 /// Sets the played critter's budget. Energy lives on the organism now, so a
 /// test that wants a starving critter has to say which one.
@@ -26,6 +31,20 @@ fn set_energy(world: &mut World, energy_mg: u64) {
         .find(|o| o.id == id)
         .unwrap()
         .energy_mg = energy_mg;
+}
+
+/// The budget at which the body stops building and starts burning.
+fn starving_below(world: &World) -> u64 {
+    world.controlled().unwrap().upkeep_mg() * STARVED_UPKEEP_TICKS
+}
+
+/// Eating, said the only way it can be said now: what becomes of it is not
+/// part of the sentence.
+fn eat(organism: mesocosm_core::OrganismId) -> Intent {
+    Intent::Metabolize {
+        organism,
+        placement: Placement::Planned,
+    }
 }
 
 /// A world with something in reach, and the id of what to eat. The meal tests
@@ -56,36 +75,36 @@ fn fed() -> (World, mesocosm_core::OrganismId) {
     (world, prey)
 }
 
-#[test]
-fn burning_gives_energy_and_no_body() {
+/// The same fixture, emptied out. A starved critter is a state you arrive at
+/// by playing badly; a test arrives at it by saying so.
+fn starving() -> (World, mesocosm_core::OrganismId) {
     let (mut world, prey) = fed();
-    let parts = world.body().unwrap().len();
-    let energy = world.energy_mg().unwrap();
-
-    let outcome = world.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Burn,
-    });
-
-    assert!(matches!(outcome, Outcome::Burned { .. }), "got {outcome:?}");
-    assert_eq!(world.body().unwrap().len(), parts, "burning grows nothing");
-    assert!(world.energy_mg().unwrap() > energy, "and it pays now");
+    set_energy(&mut world, 0);
+    (world, prey)
 }
 
 #[test]
-fn incorporating_gives_body_and_no_energy() {
+fn a_starved_body_burns_its_meal() {
+    let (mut world, prey) = starving();
+    let parts = world.body().unwrap().len();
+
+    let outcome = world.apply(eat(prey));
+
+    assert!(matches!(outcome, Outcome::Burned { .. }), "got {outcome:?}");
+    assert_eq!(world.body().unwrap().len(), parts, "burning grows nothing");
+    assert!(world.energy_mg().unwrap() > 0, "and it pays now");
+}
+
+#[test]
+fn a_provisioned_body_builds_with_it() {
     // The half of the tradeoff that used to be free. Growth is the slow
     // answer, and a meal cannot be both meals.
     let (mut world, prey) = fed();
     let parts = world.body().unwrap().len();
     let energy = world.energy_mg().unwrap();
+    assert!(!world.is_starved(), "the fixture starts with room to spare");
 
-    let outcome = world.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Incorporate {
-            placement: Placement::Planned,
-        },
-    });
+    let outcome = world.apply(eat(prey));
 
     assert!(
         matches!(
@@ -102,29 +121,41 @@ fn incorporating_gives_body_and_no_energy() {
 }
 
 #[test]
+fn the_budget_decides_and_the_threshold_is_where_it_says_it_is() {
+    // The whole of TD4's income ruling, in one reading. Nothing about the
+    // intent differs between these two worlds; only the ledger does.
+    let (base, prey) = fed();
+    let line = starving_below(&base);
+
+    let mut just_under = base.clone();
+    set_energy(&mut just_under, line - 1);
+    assert!(just_under.is_starved());
+    assert!(matches!(
+        just_under.apply(eat(prey)),
+        Outcome::Burned { .. }
+    ));
+
+    let mut just_over = base;
+    set_energy(&mut just_over, line);
+    assert!(!just_over.is_starved());
+    assert!(matches!(
+        just_over.apply(eat(prey)),
+        Outcome::Incorporated { .. } | Outcome::IncorporatedPair { .. }
+    ));
+}
+
+#[test]
 fn the_same_meal_cannot_be_spent_twice() {
     // Mutually exclusive receipts, which is the done-condition's exact words.
-    // Whichever route is taken, the organism is consumed and the other route
-    // is no longer available.
-    for route in [
-        Route::Burn,
-        Route::Incorporate {
-            placement: Placement::Planned,
-        },
-    ] {
-        let (mut world, prey) = fed();
+    // Whichever way the body routes it, the organism is consumed and the other
+    // route is no longer available.
+    for (mut world, prey) in [fed(), starving()] {
         let before = world.organisms.len();
 
-        world.apply(Intent::Metabolize {
-            organism: prey,
-            route,
-        });
+        world.apply(eat(prey));
         assert_eq!(world.organisms.len(), before - 1, "the meal is gone");
 
-        let again = world.apply(Intent::Metabolize {
-            organism: prey,
-            route: Route::Burn,
-        });
+        let again = world.apply(eat(prey));
         assert_eq!(again, Outcome::Rejected(Rejection::NoSuchOrganism(prey)));
     }
 }
@@ -133,21 +164,15 @@ fn the_same_meal_cannot_be_spent_twice() {
 fn burning_and_growing_diverge_from_one_world() {
     // The choice has to *matter*, not merely exist. Two worlds identical up to
     // the meal end up in different states, and the difference is exactly the
-    // one the design claims: mass or budget.
-    let (burned_world, prey) = fed();
-    let mut burned = burned_world;
-    let mut grown = burned.clone();
+    // one the design claims: mass or budget. What separates them now is the
+    // budget they ate on, which is the point.
+    let (grown_world, prey) = fed();
+    let mut grown = grown_world;
+    let mut burned = grown.clone();
+    set_energy(&mut burned, 0);
 
-    burned.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Burn,
-    });
-    grown.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Incorporate {
-            placement: Placement::Planned,
-        },
-    });
+    burned.apply(eat(prey));
+    grown.apply(eat(prey));
 
     assert_ne!(
         state_hash(&burned),
@@ -155,12 +180,12 @@ fn burning_and_growing_diverge_from_one_world() {
         "the routes are not the same act"
     );
     assert!(
-        burned.energy_mg().unwrap() > grown.energy_mg().unwrap(),
-        "one lives now"
+        grown.body().unwrap().len() > burned.body().unwrap().len(),
+        "one grows later"
     );
     assert!(
-        grown.body().unwrap().len() > burned.body().unwrap().len(),
-        "the other grows later"
+        burned.energy_mg().unwrap() > 0,
+        "and the other lives now, from nothing"
     );
 }
 
@@ -169,50 +194,40 @@ fn venom_is_charged_whatever_the_meal_becomes() {
     // The defect this replaces: the explicit editor path subtracted venom and
     // the automatic path did not, so the safe-looking verb was the dangerous
     // one. A warning signal is only worth reading if believing it changes what
-    // happens, on every route.
-    let (mut world, prey) = fed();
-    let venom = 40;
-    {
-        let o = world.organisms.iter_mut().find(|o| o.id == prey).unwrap();
-        o.venom_mg = venom;
+    // happens, on **every** route — and now the route is not the player's, so
+    // there is no route they could pick to dodge it.
+    const VENOM: u64 = 40;
+
+    for starved in [false, true] {
+        let (mut poisoned, prey) = fed();
+        let mut clean = poisoned.clone();
+        poisoned
+            .organisms
+            .iter_mut()
+            .find(|o| o.id == prey)
+            .unwrap()
+            .venom_mg = VENOM;
+        if starved {
+            // Half the line: inside it, but with enough left that the zero
+            // floor cannot forgive part of the toxin.
+            let budget = starving_below(&poisoned) / 2;
+            set_energy(&mut poisoned, budget);
+            set_energy(&mut clean, budget);
+        }
+
+        poisoned.apply(eat(prey));
+        let outcome = clean.apply(eat(prey));
+        assert_eq!(
+            matches!(outcome, Outcome::Burned { .. }),
+            starved,
+            "the budget picked the route: {outcome:?}"
+        );
+        assert_eq!(
+            clean.energy_mg().unwrap() - poisoned.energy_mg().unwrap(),
+            VENOM,
+            "the toxin cost exactly itself, starved: {starved}"
+        );
     }
-
-    let mass = world
-        .organisms
-        .iter()
-        .find(|o| o.id == prey)
-        .map(|o| o.biomass_mg())
-        .unwrap();
-    let before = world.energy_mg().unwrap();
-    // Upkeep comes out of the same budget in the same tick, and it scales with
-    // the body, so the grown critter pays more of it than the burnt one.
-    let upkeep = world.controlled().unwrap().upkeep_mg();
-    let mut grown = world.clone();
-
-    world.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Burn,
-    });
-    // Gains before costs. The earlier version subtracted venom first, which
-    // this assertion enshrined; with low energy the floor erased part of the
-    // toxin before the meal paid out.
-    assert_eq!(
-        world.energy_mg().unwrap(),
-        (before + mass).saturating_sub(venom).saturating_sub(upkeep)
-    );
-
-    grown.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Incorporate {
-            placement: Placement::Planned,
-        },
-    });
-    let grown_upkeep = grown.controlled().unwrap().upkeep_mg();
-    assert!(grown_upkeep >= upkeep, "growing raised the rent");
-    assert!(
-        world.energy_mg().unwrap() > grown.energy_mg().unwrap(),
-        "burning banked more"
-    );
 }
 
 #[test]
@@ -234,10 +249,7 @@ fn being_nearly_starved_does_not_make_venom_safer() {
         "the toxin outweighs the meal"
     );
 
-    world.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Burn,
-    });
+    world.apply(eat(prey));
 
     assert_eq!(
         world.energy_mg().unwrap(),
@@ -247,14 +259,17 @@ fn being_nearly_starved_does_not_make_venom_safer() {
 }
 
 #[test]
-fn a_full_critter_pays_the_same_toxin_as_a_starving_one() {
-    // The same claim from the other side: the cost of a venomous meal is a
-    // property of the meal, not of how desperate you were when you ate it.
+fn two_starving_critters_pay_the_same_toxin() {
+    // The same claim from the other side: within a route, the cost of a
+    // venomous meal is a property of the meal, not of how desperate you were
+    // when you ate it. Desperation changes where the meal *goes*; it never
+    // discounts what it costs.
     let (base, prey) = fed();
+    let line = starving_below(&base);
 
-    let mut rich = base.clone();
-    let mut poor = base;
-    for world in [&mut rich, &mut poor] {
+    let mut nearly = base.clone();
+    let mut barely = base;
+    for world in [&mut nearly, &mut barely] {
         world
             .organisms
             .iter_mut()
@@ -262,23 +277,17 @@ fn a_full_critter_pays_the_same_toxin_as_a_starving_one() {
             .unwrap()
             .venom_mg = 60;
     }
-    set_energy(&mut rich, 5_000);
-    set_energy(&mut poor, 1_000);
+    set_energy(&mut nearly, line / 8);
+    set_energy(&mut barely, line - 1);
 
-    let (rich_before, poor_before) = (rich.energy_mg().unwrap(), poor.energy_mg().unwrap());
-    rich.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Burn,
-    });
-    poor.apply(Intent::Metabolize {
-        organism: prey,
-        route: Route::Burn,
-    });
+    let (nearly_before, barely_before) = (nearly.energy_mg().unwrap(), barely.energy_mg().unwrap());
+    nearly.apply(eat(prey));
+    barely.apply(eat(prey));
 
     assert_eq!(
-        rich.energy_mg().unwrap() - rich_before,
-        poor.energy_mg().unwrap() - poor_before,
-        "the same meal nets the same amount at any starting energy"
+        nearly.energy_mg().unwrap() - nearly_before,
+        barely.energy_mg().unwrap() - barely_before,
+        "the same meal nets the same amount at any starving budget"
     );
 }
 
@@ -302,12 +311,10 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
 
     let outcome = world.apply(Intent::Metabolize {
         organism: prey,
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: mesocosm_core::PartId(9_999),
-                offset: [2, 0, 0],
-                yaw: mesocosm_core::Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: mesocosm_core::PartId(9_999),
+            offset: [2, 0, 0],
+            yaw: mesocosm_core::Yaw::Zero,
         },
     });
 
@@ -339,12 +346,7 @@ fn a_refused_meal_leaves_the_world_untouched() {
     let energy = world.energy_mg().unwrap();
 
     let upkeep = world.controlled().unwrap().upkeep_mg();
-    let outcome = world.apply(Intent::Metabolize {
-        organism: absent,
-        route: Route::Incorporate {
-            placement: Placement::Planned,
-        },
-    });
+    let outcome = world.apply(eat(absent));
 
     assert_eq!(
         outcome,
@@ -364,29 +366,17 @@ fn a_refused_meal_leaves_the_world_untouched() {
 
 #[test]
 fn both_routes_replay_identically() {
-    // The determinism boundary the wing rests on. Routing is part of the
-    // recorded intent, so a trace that chooses differently replays differently
-    // and a trace that chooses the same replays the same.
-    for route in [
-        Route::Burn,
-        Route::Incorporate {
-            placement: Placement::Planned,
-        },
-    ] {
-        let (world, prey) = fed();
-
+    // The determinism boundary the wing rests on, and the reason routing could
+    // leave the intent at all: the budget that decides is world state, so it
+    // snapshots, restores, and replays with everything else. A trace does not
+    // have to carry the decision to reproduce it.
+    for (world, prey) in [fed(), starving()] {
         let mut straight = world.clone();
-        straight.apply(Intent::Metabolize {
-            organism: prey,
-            route,
-        });
+        straight.apply(eat(prey));
         straight.apply(Intent::Move { delta: [1, 0, 0] });
 
-        let mut forked = world.clone();
-        forked.apply(Intent::Metabolize {
-            organism: prey,
-            route,
-        });
+        let mut forked = world;
+        forked.apply(eat(prey));
         let bytes = snapshot(&forked).unwrap();
         let mut resumed = mesocosm_core::restore(&bytes).unwrap();
         resumed.apply(Intent::Move { delta: [1, 0, 0] });
@@ -394,7 +384,7 @@ fn both_routes_replay_identically() {
         assert_eq!(
             state_hash(&straight),
             state_hash(&resumed),
-            "route {route:?} replays"
+            "the run replays"
         );
     }
 }

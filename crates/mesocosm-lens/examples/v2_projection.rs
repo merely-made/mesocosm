@@ -24,8 +24,8 @@ mod native {
     use std::{collections::BTreeSet, fs, path::PathBuf};
 
     use mesocosm_core::{
-        BodyDocument, Intent, OrganismId, Outcome, PartId, PartOrigin, Placement, Route, VolumeRef,
-        World, snapshot, world::organism_extent,
+        BodyDocument, Intent, OrganismId, Outcome, PartId, PartOrigin, Placement, VolumeRef, World,
+        snapshot, world::organism_extent,
     };
     use mesocosm_lens::{
         BodyLensProjection, BodyPlacement, Flight, FrameInput, Grade, Lens, MapRevision, maps,
@@ -222,9 +222,7 @@ mod native {
             let outcome = if world.in_reach(at) {
                 world.apply(Intent::Metabolize {
                     organism: prey,
-                    route: Route::Incorporate {
-                        placement: Placement::Planned,
-                    },
+                    placement: Placement::Planned,
                 })
             } else {
                 world.apply(Intent::Move {

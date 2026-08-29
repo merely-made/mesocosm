@@ -65,7 +65,7 @@ mod tests {
     use super::*;
     use crate::body::Yaw;
     use crate::organism::OrganismId;
-    use crate::world::{Intent, Placement, Route, World};
+    use crate::world::{Intent, Placement, World};
 
     #[test]
     fn snapshot_round_trips() {
@@ -115,17 +115,25 @@ mod tests {
         let mut b = World::new(13, 6);
         a.apply(Intent::Metabolize {
             organism: OrganismId(9999),
-            route: Route::Incorporate {
-                placement: Placement::Explicit {
-                    parent: a.body().unwrap().root,
-                    offset: [0, 0, 0],
-                    yaw: Yaw::Zero,
-                },
+            placement: Placement::Explicit {
+                parent: a.body().unwrap().root,
+                offset: [0, 0, 0],
+                yaw: Yaw::Zero,
             },
         });
-        b.apply(Intent::Idle);
-        // Both were rejected-or-idle and advanced one tick, but the worlds are
-        // still equal because neither changed anything else.
+        // A different refusal, and the same nothing: both advanced one tick and
+        // neither changed anything else.
+        b.apply(Intent::Metabolize {
+            organism: OrganismId(8888),
+            placement: Placement::Planned,
+        });
         assert_eq!(state_hash(&a), state_hash(&b));
+
+        // Doing nothing, however, is now something: TD4's idle run is world
+        // state, so a tick spent idling and a tick spent being refused are no
+        // longer the same tick.
+        let mut idled = World::new(13, 6);
+        idled.apply(Intent::Idle);
+        assert_ne!(state_hash(&a), state_hash(&idled));
     }
 }

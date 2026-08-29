@@ -40,7 +40,10 @@ pub const MARGIN: f32 = 12.0;
 /// has no such thing yet. When the world grows props and fields, their
 /// projection enters as an interactive backdrop through the scene lane,
 /// not by enriching this one.
-const BACKDROP_CADENCE: u64 = 10;
+/// Retimed with the tempo (TD2): ten world steps was a redraw every ~6 frames
+/// at 60 ticks a second, and at the canonical 10 it would have become one a
+/// second. Two steps restores both the wall cadence and the frame cost.
+const BACKDROP_CADENCE: u64 = 2;
 
 pub struct Hud {
     leaf: MinimapLeaf,

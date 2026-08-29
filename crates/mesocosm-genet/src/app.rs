@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use mesocosm_core::{Intent, Kingdom, Organism, Placement, Route, Signal, Stage};
+use mesocosm_core::{Intent, Kingdom, Organism, Placement, Signal, Stage};
 use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
 use mesocosm_render::{SceneItem, deadened, kingdom_colour};
 use mesocosm_runtime::Runtime;
@@ -57,7 +57,13 @@ impl Default for HostConfig {
         Self {
             seed: 0x00A7_7AC4,
             organisms: 60,
-            ticks_per_second: 60,
+            // The canonical played tempo (TD2, ruled 2026-08-29). Sixty was
+            // never chosen; it was the frame rate, and driving the ecology's
+            // tick-tuned life history at it mapped a whole lifetime onto
+            // seventeen seconds. Ten gives 100ms input granularity and puts a
+            // starter's life at about five minutes. Headless labs and the
+            // population instrument keep their own rates.
+            ticks_per_second: 10,
             width: 960,
             height: 540,
             frames: None,
@@ -210,10 +216,16 @@ impl Host {
         Some((body, loose))
     }
 
-    /// The next meal in reach, routed. `None` when nothing is close enough.
-    fn meal(&self, route: Route) -> Option<Intent> {
+    /// The next meal in reach. `None` when nothing is close enough.
+    ///
+    /// One meal, one key. Where it goes is the body's answer, not a second
+    /// keystroke (TD4): a starved critter burns what it eats and a provisioned
+    /// one builds with it, and the budget that decides is on the panel in the
+    /// corner.
+    fn meal(&self) -> Option<Intent> {
         let world = self.runtime.world();
-        fixture::reachable(world).map(|m| fixture::metabolize(world, m, &self.volumes, route))
+        fixture::reachable(world)
+            .map(|m| fixture::metabolize(world, m, &self.volumes, Placement::Planned))
     }
 
     /// Turns a key into an intent. The host does not decide whether the intent
@@ -234,13 +246,11 @@ impl Host {
                 "d" | "D" => Some(Intent::Move {
                     delta: [step, 0, 0],
                 }),
-                // The one verb, two destinations. Growing is the default
-                // because automatic symmetric growth is the resting state;
-                // burning is the deliberate one you reach for when hungry.
-                "e" | "E" => self.meal(Route::Incorporate {
-                    placement: Placement::Planned,
-                }),
-                "f" | "F" => self.meal(Route::Burn),
+                // The one verb, one key. The second one (F, for burning) is
+                // gone: Mark ruled the hotkey pair unworkable as an interface
+                // and the destination diegetic, so there is nothing left for a
+                // second key to say.
+                "e" | "E" => self.meal(),
                 "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
                 // Digging at your own feet. Legality is embodiment plus
                 // reach, and one voxel down is inside the shortest reach.
@@ -250,9 +260,7 @@ impl Host {
                 }),
                 _ => None,
             },
-            Key::Named(NamedKey::Space) => self.meal(Route::Incorporate {
-                placement: Placement::Planned,
-            }),
+            Key::Named(NamedKey::Space) => self.meal(),
             _ => None,
         }
     }
@@ -298,16 +306,9 @@ impl Host {
         {
             let world = self.runtime.world();
             if let Some(target) = fixture::reachable(world) {
-                // A capture run grows rather than burns, so an unattended
-                // run still produces a body to look at.
-                let intent = fixture::metabolize(
-                    world,
-                    target,
-                    &self.volumes,
-                    Route::Incorporate {
-                        placement: Placement::Planned,
-                    },
-                );
+                // An unattended run eats what it can reach; whether that grows
+                // a body or refills a budget is the body's to decide.
+                let intent = fixture::metabolize(world, target, &self.volumes, Placement::Planned);
                 self.runtime.queue(intent);
             } else if let Some(step) = fixture::toward_prey(world) {
                 // **Hunt, do not wait.** Reach became anatomy in P2, so a

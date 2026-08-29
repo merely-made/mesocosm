@@ -360,6 +360,19 @@ impl Organism {
         ecology::upkeep_for_mass(self.biomass_mg())
     }
 
+    /// Whether the budget holds fewer than `ticks` ticks of upkeep.
+    ///
+    /// **The one shape every hunger question in the game takes.** Hunger is
+    /// never a milligram count — a large body burns through the same number
+    /// faster — so it is asked in the only unit that means the same thing to
+    /// every body: how long this one could go on doing nothing. The callers
+    /// pick their own horizon and say why: the ecology wanders at
+    /// `HUNGRY_UPKEEP_TICKS` (nearly out), and a meal routes at
+    /// `STARVED_UPKEEP_TICKS` (out soon enough to matter).
+    pub fn budget_below(&self, ticks: u64) -> bool {
+        self.energy_mg < self.upkeep_mg().saturating_mul(ticks)
+    }
+
     /// Pays one tick of upkeep: from the budget first, then from the body.
     ///
     /// Eating to burn buys survival directly; when there is nothing left to

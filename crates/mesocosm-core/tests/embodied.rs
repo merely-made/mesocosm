@@ -16,9 +16,21 @@
 //! because there is no capability number to edit.
 
 use mesocosm_core::{
-    Attachment, Capability, Intent, OrganismId, Outcome, Process, Provenance, Rejection, Route,
+    Attachment, Capability, Intent, OrganismId, Outcome, Placement, Process, Provenance, Rejection,
     Unmet, VolumeRef, World, Yaw,
 };
+
+/// Empties the played critter's budget. Since TD4 the body routes its own
+/// meals, so this is how a test asks for the burning half of the verb.
+fn starve(world: &mut World) {
+    let me = world.controlled_id().expect("embodied");
+    world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == me)
+        .expect("still in the roster")
+        .energy_mg = 0;
+}
 
 /// Gives the played critter a long limb along `+x`, and returns its id.
 fn grow_a_limb(world: &mut World) -> mesocosm_core::PartId {
@@ -103,17 +115,22 @@ fn a_limb_makes_something_edible_that_was_not() {
     assert!(!bare.in_reach(at), "out of reach for a stubby body");
     assert!(limbed.in_reach(at), "and in reach once it grew an arm");
 
+    // Both empty, so the meal that lands lands the same way for both and the
+    // only difference between them stays the one under test: the arm.
+    starve(&mut bare);
+    starve(&mut limbed);
+
     assert!(matches!(
         bare.apply(Intent::Metabolize {
             organism: id,
-            route: Route::Burn
+            placement: Placement::Planned,
         }),
         Outcome::Rejected(Rejection::OutOfReach(_))
     ));
     assert!(matches!(
         limbed.apply(Intent::Metabolize {
             organism: id,
-            route: Route::Burn
+            placement: Placement::Planned,
         }),
         Outcome::Burned { .. }
     ));
@@ -165,7 +182,7 @@ fn a_refusal_says_which_embodied_requirement_failed() {
     // No actuator at all: the body is a bulk root.
     let outcome = world.apply(Intent::Metabolize {
         organism: id,
-        route: Route::Burn,
+        placement: Placement::Planned,
     });
     assert_eq!(
         outcome,
@@ -181,7 +198,7 @@ fn a_refusal_says_which_embodied_requirement_failed() {
     let reach = world.reach();
     let outcome = world.apply(Intent::Metabolize {
         organism: id,
-        route: Route::Burn,
+        placement: Placement::Planned,
     });
     assert!(
         matches!(outcome, Outcome::Rejected(Rejection::OutOfReach(Unmet::TooFar { reach: r, .. })) if r == reach),

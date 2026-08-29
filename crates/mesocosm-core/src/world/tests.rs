@@ -7,6 +7,14 @@ use crate::places::{
 };
 
 /// Walks the critter to its nearest neighbour and returns it.
+/// Lets the hand go, so the next tick's ecology drives the controlled body
+/// like any other. TD4 spares a *held* critter its instincts, and the tests
+/// below are about an uncommanded one; this is how they say so without
+/// spending thirty ticks idling to get there.
+fn let_go(world: &mut World) {
+    world.idle_run = INSTINCT_IDLE_TICKS;
+}
+
 fn near_organism(world: &mut World) -> OrganismId {
     for _ in 0..400 {
         let here = world.position().expect("embodied");
@@ -277,12 +285,10 @@ fn metabolize_grows_mass_and_collision() {
 
     let outcome = world.apply(Intent::Metabolize {
         organism: target,
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: world.body().unwrap().root,
-                offset: [5, 0, 0],
-                yaw: Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: world.body().unwrap().root,
+            offset: [5, 0, 0],
+            yaw: Yaw::Zero,
         },
     });
 
@@ -304,12 +310,10 @@ fn metabolize_records_where_the_part_came_from() {
 
     let Outcome::Incorporated { part } = world.apply(Intent::Metabolize {
         organism: target,
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: world.body().unwrap().root,
-                offset: [4, 0, 0],
-                yaw: Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: world.body().unwrap().root,
+            offset: [4, 0, 0],
+            yaw: Yaw::Zero,
         },
     }) else {
         panic!("expected incorporation");
@@ -341,12 +345,10 @@ fn out_of_reach_organisms_are_refused() {
     });
     let outcome = world.apply(Intent::Metabolize {
         organism: OrganismId(900),
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: world.body().unwrap().root,
-                offset: [1, 0, 0],
-                yaw: Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: world.body().unwrap().root,
+            offset: [1, 0, 0],
+            yaw: Yaw::Zero,
         },
     });
     assert!(
@@ -367,12 +369,10 @@ fn rejected_intents_still_advance_the_tick() {
     let before = world.tick;
     let outcome = world.apply(Intent::Metabolize {
         organism: OrganismId(4242),
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: world.body().unwrap().root,
-                offset: [0, 0, 0],
-                yaw: Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: world.body().unwrap().root,
+            offset: [0, 0, 0],
+            yaw: Yaw::Zero,
         },
     });
     assert_eq!(
@@ -709,12 +709,10 @@ fn incorporation_fits_on_the_surface_and_refuses_inside_the_same_burrow() {
     };
     let meal = Intent::Metabolize {
         organism: PREY,
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: PartId(0),
-                offset: [0, 2, 0],
-                yaw: Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: PartId(0),
+            offset: [0, 2, 0],
+            yaw: Yaw::Zero,
         },
     };
 
@@ -816,6 +814,7 @@ fn a_near_consumer_routes_to_a_recently_seen_target_around_a_turn() {
         300,
     );
     world.organisms = vec![predator, prey];
+    let_go(&mut world);
     let mut twin = world.clone();
 
     assert!(matches!(world.apply(Intent::Idle), Outcome::Idled));
@@ -1109,6 +1108,7 @@ fn autonomous_near_bodies_need_sight_and_take_grounded_steps() {
         300,
     );
     world.organisms = vec![predator, prey];
+    let_go(&mut world);
 
     assert!(matches!(world.apply(Intent::Idle), Outcome::Idled));
     assert_eq!(
@@ -1127,8 +1127,21 @@ fn autonomous_near_bodies_need_sight_and_take_grounded_steps() {
         at: opening,
         radius: 1,
     });
-
     assert!(matches!(outcome, Outcome::Carved { removed, .. } if removed > 0));
+
+    // The carve was the hand's, so that tick belongs to the hand and this body
+    // holds still through it (TD4). Let go again and the ecology takes the
+    // opening on the next tick, which is the claim under test.
+    assert_eq!(
+        world.controlled().map(|organism| organism.position),
+        Some(from),
+        "the tick a player acts on is the player's"
+    );
+    for world in [&mut world, &mut twin] {
+        let_go(world);
+        world.apply(Intent::Idle);
+    }
+
     assert_eq!(
         world.controlled().map(|organism| organism.position),
         Some(doorway),

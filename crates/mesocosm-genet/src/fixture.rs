@@ -10,7 +10,7 @@
 //! carries content addresses and knows nothing about what a volume looks like.
 
 use mesocosm_core::{
-    Intent, OrganismId, PartPalette, Role, Route, VolumeRef, World, world::organism_extent,
+    Intent, OrganismId, PartPalette, Placement, Role, VolumeRef, World, world::organism_extent,
 };
 use mesocosm_mesh::{Volume, VolumeMap};
 
@@ -48,15 +48,20 @@ pub fn volumes() -> VolumeMap {
 
 /// Eating, the default way: the body plan decides where the part goes.
 ///
-/// Explicit placement still exists as `Route::Place` for an editor, but
-/// automatic and symmetric is the resting state.
+/// `Placement::Explicit` still exists for an editor, but automatic and
+/// symmetric is the resting state — and since TD4 the host has nothing else to
+/// say about a meal at all. Whether it burns or builds is the body's, read off
+/// a budget the player can see.
 pub fn metabolize(
     _world: &World,
     organism: OrganismId,
     _volumes: &VolumeMap,
-    route: Route,
+    placement: Placement,
 ) -> Intent {
-    Intent::Metabolize { organism, route }
+    Intent::Metabolize {
+        organism,
+        placement,
+    }
 }
 
 /// One step toward the nearest thing worth eating, or `None` when there is
@@ -92,7 +97,6 @@ pub fn reachable(world: &World) -> Option<OrganismId> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mesocosm_core::Placement;
     use mesocosm_mesh::{VolumeSource, flatten};
 
     #[test]
@@ -115,21 +119,21 @@ mod tests {
 
         // Walk to prey rather than assuming it is adjacent: reach is anatomy
         // now, and a starting critter touches very little.
-        let mut meals = 0;
+        //
+        // Stop the moment the body is past one face cycle, which is the whole
+        // of the claim. Since TD4 a held critter goes where it is steered and
+        // nowhere else, so this fixture's one-voxel steering can strand it —
+        // and a fixed meal quota would then be a starvation test wearing a
+        // placement test's name.
+        let mut grown = None;
         for _ in 0..800 {
-            if meals >= 14 {
+            let Some(body) = world.body() else { break };
+            if body.len() > 6 {
+                grown = Some(body.clone());
                 break;
             }
             if let Some(target) = reachable(&world) {
-                world.apply(metabolize(
-                    &world,
-                    target,
-                    &volumes,
-                    Route::Incorporate {
-                        placement: Placement::Planned,
-                    },
-                ));
-                meals += 1;
+                world.apply(metabolize(&world, target, &volumes, Placement::Planned));
                 continue;
             }
             let Some(here) = world.position() else { break };
@@ -149,16 +153,11 @@ mod tests {
             });
         }
 
-        assert!(
-            world.body().unwrap().len() > 6,
-            "the fixture must out-eat one face cycle"
-        );
+        let body = grown.expect("the fixture must out-eat one face cycle");
 
         // Every solid voxel is accounted for exactly once: nothing overlaps.
-        let flat = flatten(world.body().unwrap(), &volumes).unwrap();
-        let expected: usize = world
-            .body()
-            .unwrap()
+        let flat = flatten(&body, &volumes).unwrap();
+        let expected: usize = body
             .parts
             .iter()
             .filter_map(|p| volumes.volume(p.volume))
@@ -180,14 +179,7 @@ mod tests {
                 let Some(target) = reachable(&world) else {
                     break;
                 };
-                world.apply(metabolize(
-                    &world,
-                    target,
-                    &volumes,
-                    Route::Incorporate {
-                        placement: Placement::Planned,
-                    },
-                ));
+                world.apply(metabolize(&world, target, &volumes, Placement::Planned));
             }
             world.body().unwrap().clone()
         };

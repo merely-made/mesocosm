@@ -48,8 +48,9 @@ const MEMORY_TICKS: u8 = 8;
 const HUNGRY_UPKEEP_TICKS: u64 = 8;
 
 /// Whether a body's reserve has fallen low enough to search rather than wait.
+/// The shared predicate lives on [`Organism`]; the horizon is this module's.
 fn is_hungry(organism: &Organism) -> bool {
-    organism.energy_mg < organism.upkeep_mg().saturating_mul(HUNGRY_UPKEEP_TICKS)
+    organism.budget_below(HUNGRY_UPKEEP_TICKS)
 }
 
 /// Chooses a food source within the body's actual reach. This is local for

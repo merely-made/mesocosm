@@ -111,6 +111,71 @@ became diegetic.
 
 ## Progress
 
+- **2026-08-29 (later): TD4 landed, with the tempo and fresh fixtures.**
+  Both core rules, the canonical 10 t/s host, and a re-recorded receipt set.
+
+  **The hand.** `World` counts consecutive `Intent::Idle` applications in a
+  plain hashed field; any other intent resets it. Below
+  `INSTINCT_IDLE_TICKS = 30` (three seconds at the tempo) `World::held()`
+  names the controlled critter and the ecology skips **only its dispersal** —
+  it still ages, pays rent, feeds, breeds and dies. Past the threshold `held`
+  is `None` and its own drives resume, with control itself never moving: the
+  next keypress lands mid-stride, nothing is handed over or reclaimed. The
+  count is a function of the trace, so every host and every replay reaches the
+  same answer at every frame rate; a host-side wall clock would have made the
+  ecology depend on how fast the machine drew.
+
+  **The meal.** `Intent::Metabolize` dropped its `Route` and carries only
+  `Placement` — which was always the other question (*where a kept part goes*,
+  a growth policy an editor needs) rather than the one D5 asked. Burn-or-build
+  is now the body's, decided in `World::apply` at
+  `STARVED_UPKEEP_TICKS = 100`: ten seconds of standing still, about a third of
+  a 1,000 mg starter's 333-tick budget. Wide on purpose — the ecology's own
+  hunger horizon is eight ticks, the point a body starts eating itself, and
+  routing there would have meant every meal grew you until the tick before you
+  died. Both thresholds ask the same question through one predicate,
+  `Organism::budget_below(ticks)`: hunger is never a milligram count, because
+  a large body burns through the same number faster. `Route` survives as what
+  the body concluded. The F key is gone; E/Space is the whole verb.
+
+  **Tempo.** Host `ticks_per_second` 60 → 10. Two presentation constants were
+  ticks-at-60 and were retimed with it: the vitals notice window (150 → 25,
+  the same 2.5 s) and the minimap backdrop cadence (10 → 2, restoring both the
+  wall cadence and the per-frame cost). Nothing else in the host counts ticks.
+
+  **Receipts.** Demo re-recorded at the new world and tempo: 120 intents, hash
+  **`18615c6b8309f821`**, `--replay` headed landing it exactly, exit 0, over 30
+  frames on the RTX 4060 (Vulkan) — 61 body parts, 16 roster members, ground
+  revision 2. Instrument proven once: a trace with one bit flipped in its
+  recorded hash exits 1 with `MISMATCH`. Written to the default paths
+  (`ps1_played.trace.json` / `.json` / `.png`), superseding the 2026-08-28
+  fixtures. The capture shows the section with a dozen-plus bodies in it, the
+  minimap, and the vitals panel reading `energy 793 mg` with a live **burned**
+  notice — the meal's destination, said on screen, which is the whole of the
+  feedback now that the player is not the one choosing it. The trace's own
+  verbs now include a forty-tick hands-off stretch, so the fixture covers both
+  halves of TD4.
+
+  **The idle run, by hand (109 steps, no keys touched).** Every recorded
+  intent was `Idle`. The played critter held station for exactly the
+  documented window and **first moved on step 29** — the apply at which the
+  count reaches 30 — then wandered [0,21,0] → [3,21,1] on its own drives. By
+  the end 27 of the surviving founders had moved, the population had run
+  61 → 41, the section roster was 24, and the budget had fallen 941 → 488 mg
+  paying rent with nobody earning it. The trace replays to its hash exactly.
+
+  Three residues. **A held critter cannot flee, and a fat one is the best meal
+  in the enclosure**: the 200-step demo died every time around tick 134 with
+  up to six predators feeding on it at once, which is why `DEMO_STEPS` is 120.
+  That is the movement-economy seam from the playtest findings, flipped —
+  before TD4 the ecology fled for you. Second, growth raises rent, so a critter
+  that grows fast crosses `STARVED_UPKEEP_TICKS` on its own success and its
+  next meals burn; whether that negative feedback is the design or an accident
+  of the m^0.75 scaling is Mark's (it touches the "individual mass has no fixed
+  point" finding below). Third, `population_instrument.rs` drives worlds with
+  `Intent::Idle`, so its controlled critter is now held for the first 30 of
+  ~10,000 ticks — negligible, and the TD1-TD2d receipts were not re-run.
+
 - **2026-08-29 (later): TD2d's scavenger sight landed.** Scavengers seek
   carrion out to sight range and bite at `DECOMPOSE_RANGE`, mirroring the
   grazer split; hunger wanders below eight upkeep-ticks of budget instead

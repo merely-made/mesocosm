@@ -40,13 +40,17 @@ const HEIGHT: u32 = 132;
 /// surfaces sit on one margin.
 const MARGIN: f32 = 12.0;
 
-/// How many steps a refusal stays up.
+/// How many steps a notice stays up.
 ///
-/// Presentation-timed, in the world's own ticks: at the host's 60 ticks a
-/// second this is about two and a half seconds, and it stays put across a
-/// replay because it counts what the world counted rather than wall time.
-/// Nothing about it reaches the world, the trace, or the hash.
-const REFUSAL_STEPS: u64 = 150;
+/// Presentation-timed, in the world's own ticks: at the host's canonical ten
+/// ticks a second this is about two and a half seconds, and it stays put
+/// across a replay because it counts what the world counted rather than wall
+/// time. Nothing about it reaches the world, the trace, or the hash.
+///
+/// Retimed with the tempo (TD2: 150 steps at 60 t/s was the same 2.5s). A
+/// constant counted in ticks is only a duration relative to a tick rate, so it
+/// moves whenever the rate does.
+const NOTICE_STEPS: u64 = 25;
 
 type Runner = GenetAppRunner<Vitals, fn(&Vitals) -> VitalsChild, VitalsChild>;
 
@@ -64,8 +68,9 @@ pub struct VitalsChrome {
     /// The reading the raster currently holds. A frame whose vitals are
     /// unchanged pays a read and no raster.
     shown: Option<Vitals>,
-    /// The refusal on screen, and the step it stops being shown at.
-    refusal: Option<(&'static str, u64)>,
+    /// The notice on screen — a refusal, or what the body did with a meal —
+    /// and the step it stops being shown at.
+    notice: Option<(&'static str, u64)>,
     /// The most energy the played critter has held this session — the bar's
     /// denominator. The world has no capacity, so there is no other honest
     /// one; a new body resets it.
@@ -88,15 +93,15 @@ impl VitalsChrome {
             device: Device::screen(WIDTH as f32, HEIGHT as f32),
             generation: 0,
             shown: None,
-            refusal: None,
+            notice: None,
             high_water: 0,
         }
     }
 
     /// Takes the frame's reading and rasterizes it if it changed.
     ///
-    /// `outcomes` are the results of the steps this frame ran; a rejection
-    /// among them starts (or restarts) the refusal's window.
+    /// `outcomes` are the results of the steps this frame ran; a rejection or
+    /// a landed meal among them starts (or restarts) the notice's window.
     pub fn refresh(
         &mut self,
         chrome: &Chrome,
@@ -110,15 +115,15 @@ impl VitalsChrome {
             // will set its own.
             None => self.high_water = 0,
         }
-        if let Some(words) = mesocosm_views::refusal_in(outcomes) {
-            self.refusal = Some((words, steps + REFUSAL_STEPS));
+        if let Some(words) = mesocosm_views::notice_in(outcomes) {
+            self.notice = Some((words, steps + NOTICE_STEPS));
         }
-        if self.refusal.is_some_and(|(_, until)| steps >= until) {
-            self.refusal = None;
+        if self.notice.is_some_and(|(_, until)| steps >= until) {
+            self.notice = None;
         }
 
         let reading =
-            mesocosm_views::vitals_of(world, self.high_water, self.refusal.map(|(words, _)| words));
+            mesocosm_views::vitals_of(world, self.high_water, self.notice.map(|(words, _)| words));
         if self.shown.as_ref() == Some(&reading) {
             return;
         }

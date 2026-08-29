@@ -15,8 +15,8 @@
 use mesocosm_core::body::Attachment;
 use mesocosm_core::snapshot::{decode, encode, restore};
 use mesocosm_core::{
-    BodyDocument, Intent, Origin, Outcome, PartId, Placement, Provenance, Route, SpeciesId,
-    VolumeRef, World, Yaw, snapshot, state_hash,
+    BodyDocument, Intent, Origin, Outcome, PartId, Placement, Provenance, SpeciesId, VolumeRef,
+    World, Yaw, snapshot, state_hash,
 };
 
 const SEED: u64 = 0x5E5E_1234;
@@ -58,9 +58,7 @@ fn fixture_trace(_world: &World) -> Vec<Intent> {
             meals += 1;
             Intent::Metabolize {
                 organism: id,
-                route: Route::Incorporate {
-                    placement: Placement::Planned,
-                },
+                placement: Placement::Planned,
             }
         } else {
             Intent::Move {

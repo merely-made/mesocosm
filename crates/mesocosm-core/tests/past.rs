@@ -10,7 +10,7 @@
 //! that what comes out is a causal graph rather than a list of things that
 //! happened to occur in that order.
 
-use mesocosm_core::{Event, History, Intent, Route, World, snapshot, state_hash};
+use mesocosm_core::{Event, History, Intent, Placement, World, snapshot, state_hash};
 
 /// Runs an enclosure for a while, recording everything.
 fn lived(ticks: usize) -> (World, History) {
@@ -164,9 +164,17 @@ fn the_player_act_is_recorded_before_the_tick_it_happened_in() {
             break;
         };
         if world.in_reach(at) {
+            // Empty the budget first: since TD4 the body routes its own meal,
+            // and a burn is what a starved one does with it.
+            world
+                .organisms
+                .iter_mut()
+                .find(|o| o.id == me)
+                .expect("still embodied")
+                .energy_mg = 0;
             world.apply(Intent::Metabolize {
                 organism: prey,
-                route: Route::Burn,
+                placement: Placement::Planned,
             });
             burned = Some(world.drain_events());
             break;

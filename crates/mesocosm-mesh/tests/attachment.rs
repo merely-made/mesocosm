@@ -14,7 +14,7 @@
 //! stays a judgment for the windowed host. What they do establish is that
 //! everything the screen would need is derivable, deterministic, and cheap.
 
-use mesocosm_core::{Intent, Origin, Outcome, PartId, Placement, Route, VolumeRef, World, Yaw};
+use mesocosm_core::{Intent, Origin, Outcome, PartId, Placement, VolumeRef, World, Yaw};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 
 /// Volumes for the fixture: a body, and one for every primitive tag the world
@@ -72,12 +72,10 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     let target = reachable_organism(&mut world);
     let outcome = world.apply(Intent::Metabolize {
         organism: target,
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: PartId(0),
-                offset: [9, 0, 0],
-                yaw: Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: PartId(0),
+            offset: [9, 0, 0],
+            yaw: Yaw::Zero,
         },
     });
     assert!(
@@ -133,12 +131,10 @@ fn an_eaten_part_still_says_whose_it_was() {
 
     let outcome = world.apply(Intent::Metabolize {
         organism: target,
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: PartId(0),
-                offset: [9, 0, 0],
-                yaw: Yaw::Quarter,
-            },
+        placement: Placement::Explicit {
+            parent: PartId(0),
+            offset: [9, 0, 0],
+            yaw: Yaw::Quarter,
         },
     });
     let Outcome::Incorporated { part } = outcome else {
@@ -172,12 +168,10 @@ fn attaching_remeshes_only_what_is_new() {
     let target = reachable_organism(&mut world);
     world.apply(Intent::Metabolize {
         organism: target,
-        route: Route::Incorporate {
-            placement: Placement::Explicit {
-                parent: PartId(0),
-                offset: [6, 0, 0],
-                yaw: Yaw::Zero,
-            },
+        placement: Placement::Explicit {
+            parent: PartId(0),
+            offset: [6, 0, 0],
+            yaw: Yaw::Zero,
         },
     });
 
@@ -201,12 +195,10 @@ fn a_body_grown_over_many_meals_stays_deterministic() {
             let target = reachable_organism(&mut world);
             world.apply(Intent::Metabolize {
                 organism: target,
-                route: Route::Incorporate {
-                    placement: Placement::Explicit {
-                        parent: PartId(0),
-                        offset: [5, 0, 0],
-                        yaw: Yaw::Zero,
-                    },
+                placement: Placement::Explicit {
+                    parent: PartId(0),
+                    offset: [5, 0, 0],
+                    yaw: Yaw::Zero,
                 },
             });
         }

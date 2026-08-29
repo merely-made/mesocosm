@@ -15,12 +15,21 @@ intent over `World.controlled` (`2026-07-31_phenotype_plan.md`, P1 and the
 verb (founding plan). The slice depends on no open gate: PD1b/PD2 upgrade
 feeding's authority, not playability, and E1's interim feeding is landed.
 
-**D5 (burn vs incorporate) is deliberately not in the slice.** Its doc
-still names it the recommended first playable proof, but Mark rejected the
-hotkey-pair interface (2026-08-28: "framing it as a hotkey is a bit odd…
-not a workable ui"). D5 waits on an interaction design consistent with
-"experienced directly, never through a menu" — likely diegetic (how or
-where the meal happens), designed with Mark before implementation.
+**D5 (burn vs incorporate) was deliberately not in the slice, and is now
+closed.** Its doc named it the recommended first playable proof, but Mark
+rejected the hotkey-pair interface (2026-08-28: "framing it as a hotkey is a
+bit odd… not a workable ui"), and it waited on an interaction design
+consistent with "experienced directly, never through a menu".
+
+**Resolved diegetically, ruled 2026-08-29 and landed the same day:** hunger
+routes the meal. A critter inside a documented threshold of an empty budget
+burns what it eats; a provisioned one builds with it. There is no second key
+and no menu, because there is no question being asked — the answer is the
+state you are already in, and the vitals panel is already showing it. The
+intent dropped its route accordingly, which also means a replay cannot
+disagree about a decision it never carried. See
+`2026-08-29_terrarium_dynamics_plan.md` §TD4 and its ruling "Income: the body
+routes it".
 
 ## PS0 — revive the hand
 

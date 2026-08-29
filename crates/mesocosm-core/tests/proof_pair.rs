@@ -22,7 +22,7 @@
 //! rests on: **additive facts, opaque preservation, deferred interpretation**.
 
 use mesocosm_core::{
-    BodyDocument, Chronicle, Consequence, Deed, Intent, PartPalette, Placement, Route, World,
+    BodyDocument, Chronicle, Consequence, Deed, Intent, PartPalette, Placement, World,
     axis::catalogue, chronicle::LOST_PART, generate,
 };
 
@@ -59,9 +59,7 @@ fn played() -> Chronicle {
     // and explicit placement being the editor path.
     world.apply(Intent::Metabolize {
         organism: prey.0,
-        route: Route::Incorporate {
-            placement: Placement::Planned,
-        },
+        placement: Placement::Planned,
     });
 
     assert!(

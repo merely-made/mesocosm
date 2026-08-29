@@ -136,7 +136,10 @@ impl World {
                 Outcome::Inhabited { organism }
             }
 
-            Intent::Metabolize { organism, route } => self.metabolize(organism, route),
+            Intent::Metabolize {
+                organism,
+                placement,
+            } => self.metabolize(organism, placement),
 
             Intent::Deposit { mass_mg } => {
                 let (species, position) = {
@@ -174,16 +177,31 @@ impl World {
         }
     }
 
-    /// Eats a organism and grows it where the plan says.
-    /// Eat something and route it. The one verb, in one place, so every meal
-    /// pays the same costs whatever it becomes.
+    /// Eat something. The one verb, in one place, so every meal pays the same
+    /// costs whatever it becomes.
+    ///
+    /// **The body routes it.** Burn-or-build is not carried by the intent and
+    /// not asked of the player: a critter whose budget is inside
+    /// [`STARVED_UPKEEP_TICKS`] of empty burns the meal, and one with room to
+    /// spare builds with it at `placement`. The state that decides is the one
+    /// the vitals panel is already showing, which is what makes the choice
+    /// diegetic rather than a second hotkey (ruled 2026-08-29, TD4). Recorded
+    /// traces are unaffected: the budget is world state, so a replay reaches
+    /// the same decision on the same tick.
     ///
     /// **One transaction.** Everything that can refuse is checked before the
     /// organism leaves the roster, a failed attachment puts it back, and the
     /// energy ledger moves only once the meal has actually landed. An earlier
     /// cut consumed the meal and charged its venom before the attachment was
     /// known to succeed.
-    fn metabolize(&mut self, organism: OrganismId, route: Route) -> Outcome {
+    ///
+    /// [`STARVED_UPKEEP_TICKS`]: super::STARVED_UPKEEP_TICKS
+    fn metabolize(&mut self, organism: OrganismId, placement: Placement) -> Outcome {
+        let route = if self.is_starved() {
+            Route::Burn
+        } else {
+            Route::Incorporate { placement }
+        };
         if Some(organism) == self.controlled {
             return Outcome::Rejected(Rejection::Itself);
         }

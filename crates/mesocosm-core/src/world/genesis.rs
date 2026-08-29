@@ -246,6 +246,9 @@ impl World {
             rng,
             controlled: Some(OrganismId(0)),
             control_lost: None,
+            // A world opens under the hand. Nobody has idled yet, so the
+            // first tick's instincts leave the played critter alone.
+            idle_run: 0,
             unlocked: std::collections::BTreeSet::from([SpeciesId(1)]),
             // The starting body already counts: the player is holding it, so
             // the frontier begins where they begin rather than at nothing.

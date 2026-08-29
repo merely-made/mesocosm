@@ -55,6 +55,9 @@ fn bounded_fauna_policy_names_its_decision_and_replays() {
         300,
     );
     world.organisms = vec![predator, prey];
+    // An uncommanded predator: TD4 spares a *held* critter its instincts, and
+    // this one is being watched, not driven.
+    world.idle_run = INSTINCT_IDLE_TICKS;
     let mut twin = world.clone();
 
     assert!(matches!(world.apply(Intent::Idle), Outcome::Idled));

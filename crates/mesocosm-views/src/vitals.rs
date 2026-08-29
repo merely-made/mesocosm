@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! The in-epoch vitals surface: what the played critter has, and what the
-//! world just refused it.
+//! world just said back — a refusal, or what the body did with a meal.
 //!
 //! The cambium lane (ruled 2026-08-29), and Mesocosm's first consumer of it.
 //! Words and numbers are expected here; the painted lane keeps its own
@@ -28,7 +28,7 @@ const BAR_WIDTH: f32 = 168.0;
 
 /// What the panel shows. A **reading**, taken fresh from the world each time:
 /// nothing here is stored in the world, enters the trace, or reaches the state
-/// hash. The host owns how long a refusal stays up, because that is a clock,
+/// hash. The host owns how long a notice stays up, because that is a clock,
 /// not a fact.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Vitals {
@@ -39,9 +39,11 @@ pub struct Vitals {
     /// clamped to `0..=1`. Presentation only — the world has no capacity, so
     /// there is no other honest denominator.
     pub fullness: f32,
-    /// The most recent refusal, in plain words, while the host is still
-    /// showing it.
-    pub refusal: Option<&'static str>,
+    /// The most recent thing the world said back, in plain words, while the
+    /// host is still showing it: a refusal, or — since TD4 took the meal's
+    /// destination out of the player's hands — what the body did with a meal.
+    /// The state that decided is the number right above it.
+    pub notice: Option<&'static str>,
 }
 
 impl Vitals {
@@ -53,18 +55,18 @@ impl Vitals {
 /// Reads the vitals out of a world. `high_water` is the host's running
 /// maximum, passed in because the bar's scale is a session fact rather than a
 /// world one.
-pub fn vitals_of(world: &World, high_water: u64, refusal: Option<&'static str>) -> Vitals {
+pub fn vitals_of(world: &World, high_water: u64, notice: Option<&'static str>) -> Vitals {
     reading(
         world.controlled().map(|critter| critter.energy_mg),
         high_water,
-        refusal,
+        notice,
     )
 }
 
 /// The reading itself, off the world. Separated so the disembodied case is
 /// testable: nothing public drops control, and the world it happens in is a
 /// thousand ticks away.
-fn reading(energy_mg: Option<u64>, high_water: u64, refusal: Option<&'static str>) -> Vitals {
+fn reading(energy_mg: Option<u64>, high_water: u64, notice: Option<&'static str>) -> Vitals {
     let fullness = match (energy_mg, high_water) {
         (Some(energy), top) if top > 0 => (energy as f32 / top as f32).clamp(0.0, 1.0),
         _ => 0.0,
@@ -72,8 +74,9 @@ fn reading(energy_mg: Option<u64>, high_water: u64, refusal: Option<&'static str
     Vitals {
         energy_mg,
         fullness,
-        // A dead critter refuses nothing; the death state stands alone.
-        refusal: refusal.filter(|_| energy_mg.is_some()),
+        // A dead critter refuses nothing and eats nothing; the death state
+        // stands alone.
+        notice: notice.filter(|_| energy_mg.is_some()),
     }
 }
 
@@ -94,13 +97,21 @@ pub fn refusal_words(rejection: &Rejection) -> &'static str {
     }
 }
 
-/// The first refusal in a batch of outcomes, in plain words.
+/// The first thing worth saying in a batch of outcomes, in plain words.
 ///
 /// First rather than last: a frame's worth of steps can refuse the same intent
 /// several times, and the one that arrived is the one worth saying.
-pub fn refusal_in(outcomes: &[Outcome]) -> Option<&'static str> {
+///
+/// A landed meal counts. Since TD4 the body decides what a meal becomes, so
+/// the player is reading a decision rather than confirming one — which makes
+/// the difference between "burned" and "grew" the whole feedback for the verb.
+/// Nothing new is built for it: the outcome is already here, and these are the
+/// same three words the refusals are.
+pub fn notice_in(outcomes: &[Outcome]) -> Option<&'static str> {
     outcomes.iter().find_map(|outcome| match outcome {
         Outcome::Rejected(rejection) => Some(refusal_words(rejection)),
+        Outcome::Burned { .. } => Some("burned"),
+        Outcome::Incorporated { .. } | Outcome::IncorporatedPair { .. } => Some("grew"),
         _ => None,
     })
 }
@@ -133,9 +144,9 @@ pub fn vitals_root(vitals: &Vitals) -> VitalsChild {
         ));
     }
 
-    if let Some(words) = vitals.refusal {
+    if let Some(words) = vitals.notice {
         children.push(Box::new(
-            el::<_, Vitals, ()>("div", text(words)).attr("class", "vital-refusal"),
+            el::<_, Vitals, ()>("div", text(words)).attr("class", "vital-notice"),
         ));
     }
 
@@ -172,7 +183,7 @@ pub fn vitals_css() -> &'static str {
     height: 8px;
     background-color: #7fc46a;
 }
-.vital-refusal {
+.vital-notice {
     margin-top: 8px;
     color: #e2a06a;
     font-size: 13px;
@@ -189,9 +200,9 @@ mod tests {
         let vitals = reading(None, 1_000, Some("not enough energy"));
         assert!(vitals.is_dead());
         assert_eq!(vitals.fullness, 0.0);
-        // The death state stands alone: a refusal from the same batch is not
+        // The death state stands alone: a notice from the same batch is not
         // shown beside "dead", because a dead critter refused nothing.
-        assert_eq!(vitals.refusal, None);
+        assert_eq!(vitals.notice, None);
     }
 
     #[test]
@@ -209,13 +220,32 @@ mod tests {
     #[test]
     fn the_refusals_the_playtest_hit_have_plain_words() {
         assert_eq!(
-            refusal_in(&[Outcome::Rejected(Rejection::InsufficientMass)]),
+            notice_in(&[Outcome::Rejected(Rejection::InsufficientMass)]),
             Some("not enough energy")
         );
         assert_eq!(
-            refusal_in(&[Outcome::Rejected(Rejection::Disembodied)]),
+            notice_in(&[Outcome::Rejected(Rejection::Disembodied)]),
             Some("no body")
         );
-        assert_eq!(refusal_in(&[Outcome::Moved, Outcome::Idled]), None);
+        assert_eq!(notice_in(&[Outcome::Moved, Outcome::Idled]), None);
+    }
+
+    /// TD4's half of the feedback: the player no longer chooses what a meal
+    /// becomes, so the panel has to say what it became.
+    #[test]
+    fn a_landed_meal_says_which_way_the_body_took_it() {
+        assert_eq!(
+            notice_in(&[Outcome::Burned {
+                organism: mesocosm_core::OrganismId(3),
+                energy_mg: 120,
+            }]),
+            Some("burned")
+        );
+        assert_eq!(
+            notice_in(&[Outcome::Incorporated {
+                part: mesocosm_core::PartId(1),
+            }]),
+            Some("grew")
+        );
     }
 }

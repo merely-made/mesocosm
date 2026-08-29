@@ -89,4 +89,7 @@ pub use score::{Reading, readings};
 pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use species::{Lineages, Species};
 pub use wire::{WireError, frame, unframe};
-pub use world::{Ineligible, Intent, Outcome, Placement, Rejection, Route, World};
+pub use world::{
+    INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement, Rejection, Route,
+    STARVED_UPKEEP_TICKS, World,
+};

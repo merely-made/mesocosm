@@ -69,12 +69,45 @@ pub enum Placement {
     },
 }
 
+/// How long a hand may be still before its critter goes back to its instincts,
+/// in ticks.
+///
+/// Three seconds at the canonical ten ticks a second — long enough that a
+/// pause to look at something is not read as walking away, short enough that
+/// walking away is answered while you are still watching. **The idle terrarium
+/// is the feature**: an ant farm nobody is touching is the way its dynamics
+/// are seen, so the resting state of a controlled critter is its own drives,
+/// not a statue. (TD4, ruled 2026-08-29.)
+pub const INSTINCT_IDLE_TICKS: u32 = 30;
+
+/// Ticks of upkeep left in the budget below which a meal burns instead of
+/// building.
+///
+/// A hundred: ten seconds of standing still at the canonical tempo, and about
+/// a third of a 1,000 mg starter's 333-tick budget. **Wide on purpose.** The
+/// ecology's own hunger horizon is eight ticks ([`movement::HUNGRY_UPKEEP_TICKS`]),
+/// which is the point a body starts eating itself; routing a meal there would
+/// mean every meal grew you until the tick before you died, and the burn half
+/// of the verb would never be seen. This is instead the width of a state you
+/// can notice, play out of, and be caught by.
+///
+/// [`movement::HUNGRY_UPKEEP_TICKS`]: crate::organism::ecology
+pub const STARVED_UPKEEP_TICKS: u64 = 100;
+
 /// Where a meal goes.
 ///
 /// **This is the game's central question, and before it existed there was no
 /// question.** Eating used to grant a part *and* half the mass as energy, so
 /// the most important verb asked the player nothing. Splitting the destination
 /// is what makes every meal ask: live now, or grow later?
+///
+/// **The question is no longer put to the player's fingers.** Mark rejected
+/// the hotkey pair (2026-08-28: "not a workable ui") and ruled the answer
+/// diegetic on 2026-08-29: a starved body burns its meal, a provisioned one
+/// builds with it, and the state that decides is already on the vitals panel.
+/// So this survives as what the body *concluded*, resolved inside
+/// [`World::apply`] — never as something an intent carries, which is why
+/// replays cannot disagree about it.
 ///
 /// Later destinations arrive when the systems that receive them do:
 /// provisioning reproduction, depositing or building a niche, and cultivating
@@ -101,11 +134,19 @@ pub enum Intent {
     /// requested offset supplies the heading and vertical preference; it is
     /// never a licence to cross solid voxels or teleport across a slope.
     Move { delta: [i32; 3] },
-    /// Eat something, and decide what it becomes. **The one verb.**
+    /// Eat something. **The one verb.**
     ///
     /// Metabolize means routing matter through the organism rather than
-    /// swallowing it: the meal is the same, the destination is the choice.
-    Metabolize { organism: OrganismId, route: Route },
+    /// swallowing it. What the meal *becomes* is not carried here: the body
+    /// decides, burning when its budget is starved and building when it is
+    /// provisioned (see [`Route`] and [`STARVED_UPKEEP_TICKS`]). What is
+    /// carried is the other question entirely — *where a kept part goes* —
+    /// which is a growth policy rather than a destination, and stays with the
+    /// intent because an editor has to be able to say it.
+    Metabolize {
+        organism: OrganismId,
+        placement: Placement,
+    },
     /// Return mass to the enclosure as carrion.
     Deposit { mass_mg: u64 },
     /// Split the line you are in, and name it.
@@ -230,6 +271,17 @@ pub struct World {
     controlled: Option<OrganismId>,
     /// Who the world stopped being able to play on the most recent tick.
     control_lost: Option<OrganismId>,
+    /// Consecutive [`Intent::Idle`] applications. Any other intent resets it.
+    ///
+    /// **World state, and hashed like the rest of it.** It is a pure function
+    /// of the trace — count the idles at the end — so putting it here costs a
+    /// replay nothing and buys the rule that reads it (`INSTINCT_IDLE_TICKS`)
+    /// the one thing a host-side timer could never have: the same answer in
+    /// every host, at every frame rate, on every replay. A wall clock in the
+    /// host would have made the ecology's behaviour depend on how fast the
+    /// machine drew.
+    #[serde(default)]
+    idle_run: u32,
     /// Lineages the player has inhabited.
     ///
     /// What "unlocked" means for the complexity frontier. Ordered, so the
@@ -353,6 +405,13 @@ impl World {
     /// state changes.
     pub fn apply(&mut self, intent: Intent) -> Outcome {
         let actor = self.controlled;
+        // Counted before the act, so a hand that is acting right now is
+        // already holding at zero when the ecology below reads it.
+        self.idle_run = if matches!(intent, Intent::Idle) {
+            self.idle_run.saturating_add(1)
+        } else {
+            0
+        };
         // Where the act's own consequences begin. Resolving can record
         // events of its own (learning a word from a meal), and those follow
         // from the act rather than preceding it, so the act is inserted at
@@ -372,6 +431,7 @@ impl World {
         // separates an ecology from a field of pickups: things grow, breed,
         // starve, and rot on their own schedule.
         let focus = self.position();
+        let held = self.held();
         self.last_tally = crate::organism::ecology::step_with_ground(
             &mut self.organisms,
             &mut self.next_organism,
@@ -382,6 +442,7 @@ impl World {
             &self.places,
             &self.ground,
             focus,
+            held,
         );
 
         // What you reach, you keep. The frontier rises with the body you are

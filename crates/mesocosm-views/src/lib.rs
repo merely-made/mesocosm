@@ -29,5 +29,5 @@ pub use minimap::{
     MINIMAP_ADAPTER, dominant_lineages, lineage_tint, minimap_leaf, minimap_scene, minimap_score,
 };
 pub use vitals::{
-    Vitals, VitalsChild, refusal_in, refusal_words, vitals_css, vitals_of, vitals_root,
+    Vitals, VitalsChild, notice_in, refusal_words, vitals_css, vitals_of, vitals_root,
 };
