@@ -39,43 +39,49 @@ const REFERENCE_MASS_MG: u64 = 100;
 /// power life-history rates.
 const REFERENCE_MASS_QRT: u64 = 3;
 /// Reference rates at 100 mg. These are model parameters, not organism facts.
-/// The 2026-08-29 numbers are the TD2 retune, swept against
-/// `examples/population_instrument.rs` over seeds 1-10 at 61 founders; the
-/// receipt is `Code/testing/mesocosm/td2_retune.json`.
+/// TD2 set the tempo (life-history times, 3-4x); TD2c reset the trophic rates
+/// against TD2b's walled enclosure and balanced founding, which is a different
+/// world from the one TD2 was swept in. Receipt:
+/// `Code/testing/mesocosm/td2c_persistence.json`.
 ///
-/// 2026-08-29 retune: 3x, stretched with lifespan so the juvenile share of a
-/// life is unchanged at the slower tempo.
+/// TD2: 3x, stretched with lifespan so the juvenile share of a life is
+/// unchanged at the slower tempo.
 const MATURITY_BASE: u32 = 270;
-/// 2026-08-29 retune: 3x, putting a 1,000 mg starter's life at 3,000 ticks —
-/// five minutes at the canonical 10 ticks/second rather than 100 seconds.
+/// TD2: 3x, putting a 1,000 mg starter's life at 3,000 ticks — five minutes
+/// at the canonical 10 ticks/second rather than 100 seconds.
 const LIFESPAN_BASE: u32 = 1800;
-/// 2026-08-29 retune: 4x against lifespan's 3x, one brood fewer per life. This
-/// is the knob that decides boil against breathe: 360 boils twice over the ten
-/// seeds and 420 once, 480 none.
+/// TD2: 4x against lifespan's 3x, one brood fewer per life. Still the knob
+/// that decides boil against breathe — 360 boils, 480 does not.
 const GESTATION_BASE: u32 = 480;
-/// 2026-08-29 retune: producer income cut a third, the bloom's own throttle.
-const FIXES_BASE_MG: u64 = 2;
-/// 2026-08-29 retune: halved, so a grazer crops its pasture instead of
-/// stripping it and starving behind it. Consumers persist at 2 and die out at
-/// 4.
-const GRAZES_BASE_MG: u64 = 2;
-/// 2026-08-29 retune: scavenger income raised against the stretched tempo. It
-/// does not rescue decomposers on its own — carrion is too sparse to find.
+/// TD2c: 2 -> 5. Balanced founding puts ~22 consumers on ~20 producers, and
+/// at 2 the base fixed less than the grazers drew (80 mg/tick against 88), so
+/// the whole chain starved. The base has to out-produce its grazing pressure.
+const FIXES_BASE_MG: u64 = 5;
+/// TD2c: 2 -> 3. A grazer paying upkeep plus movement netted +1 on a fed tick
+/// at 2, so it starved below a ~75% prey hit rate; 3 halves the rate it needs.
+const GRAZES_BASE_MG: u64 = 3;
+/// Scavenger income. Raising this does not rescue decomposers: they starve
+/// with carrion in the enclosure but outside the radius they can search
+/// (see the TD2c structural finding), so the yield per corpse is not the
+/// binding constraint.
 const DECAYS_BASE_MG: u64 = 4;
 /// The basal cost of being alive.
 const UPKEEP_BASE_MG: u64 = 1;
 /// The allometric share of the body's mass paid as upkeep.
-/// 2026-08-29 retune: halved rent, taking a 1,000 mg starter's energy budget
-/// from 166 ticks of upkeep to 333.
+/// TD2: halved rent, taking a 1,000 mg starter's energy budget from 166 ticks
+/// of upkeep to 333.
 const UPKEEP_SCALE: u64 = 62;
 /// Edge of a crowding cell, in voxel units.
-/// 2026-08-29 retune: doubled, so shading still registers once bodies spread
-/// past the ground the enclosure grew. `population_instrument.rs` mirrors this.
-const CROWD_CELL: i32 = 16;
+/// TD2c: 16 -> 8, undoing TD2's doubling. That doubling only ever compensated
+/// for bodies escaping onto an unbounded plain; behind TD2b's walls a 16-voxel
+/// cell leaves ~9 cells over the whole enclosure and reads genesis as a crush.
+/// `population_instrument.rs` mirrors this.
+const CROWD_CELL: i32 = 8;
 /// Neighbours a cell supports before its occupants start shading each other
 /// out. Beyond this a producer's income falls away and self-thinning begins.
-/// 2026-08-29 retune: halved, which halves the enclosure's producer capacity.
-const CROWD_COMFORT: u32 = 2;
+/// TD2c: 2 -> 1, holding the stand's ceiling near 250 while `FIXES_BASE_MG`
+/// buys headroom — capacity is `FIXES x COMFORT x UPKEEP_SCALE / 31` per cell.
+const CROWD_COMFORT: u32 = 1;
 /// Fraction of a parent's mass an offspring costs, as a divisor.
 pub(crate) const OFFSPRING_COST: u64 = 4;
 /// Mass below which an organism cannot sustain itself.

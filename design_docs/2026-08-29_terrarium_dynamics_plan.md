@@ -111,6 +111,32 @@ became diegetic.
 
 ## Progress
 
+- **2026-08-29 (later): TD2c's persistence retune landed.** The verdict
+  gained `thins` — count held but a founded kingdom is gone at the
+  horizon — which honestly re-read TD2b's six "breathes" as producer-only
+  stands. Producer supply got headroom over grazing demand (FIXES 2 → 5,
+  GRAZES 2 → 3), crowding re-sized for the walled enclosure (CELL back to
+  8, COMFORT 1: TD2's doubling only ever compensated for escapees on an
+  unbounded plain). Verdicts: 0 breathes / 6 thins / 4 collapse → 0
+  breathes / **9 thins / 1 collapse**, zero boils throughout, consumers
+  alive at the horizon in 3 seeds (10-23 individuals) where before none.
+  Control still collapses; escapees still zero. Receipt:
+  `td2c_persistence.json`. The lone collapse (seed 2, consumer-heavy
+  draw stripping its base before the first brood) survived every variant
+  under three constant regimes — likely legitimate founder variance
+  rather than a tuning failure.
+- **2026-08-29 (TD2c finding, proven by death-cause probe): decomposers
+  cannot search.** Across probed seeds, most decomposer starvations
+  happened with carrion lying in the enclosure but outside
+  `DECOMPOSE_RANGE 6` — the only radius a scavenger can act on, because
+  `preferred_target` caps scavenger *seeking* at bite range while grazers
+  and predators seek out to `sight_range`, and `disperse` only wanders at
+  exactly zero energy, so a scavenger stands still until half dead.
+  `DECAYS_BASE_MG` swept to 6 with no effect — yield is not the binding
+  constraint. Fix (TD2d): mirror the grazer's seek/reach split for
+  carrion, and let a hungry-but-not-empty body wander. No decomposer
+  survives to the horizon in any seed until then, so `breathes` stays
+  unreachable by constants.
 - **2026-08-29 (later): TD2b's walls and founding floor landed.** The
   enclosure edge refuses a step (wall, not cliff) for every walker — and
   the fix needed three doors closed, not one: `step_for`'s candidates,

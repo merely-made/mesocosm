@@ -3,8 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! TD1's headless population instrument, carried into TD2 as the retune's
-//! measuring stick.
+//! TD1's headless population instrument, carried through TD2, TD2b and TD2c
+//! as each round's measuring stick.
 //!
 //! Founds real worlds and drives them with nothing but `Intent::Idle` for
 //! several starter lifespans, sampling per-kingdom alive counts, total
@@ -12,13 +12,15 @@
 //! verdict is read off the curve by simple, stated arithmetic: no fitted
 //! models, no significance tests. See `design_docs/2026-08-29_terrarium_dynamics_plan.md`, TD1.
 //!
-//! Two batches run: a **baseline** at today's constants (before the TD2
-//! retune this read 7 boils and 3 collapses over these ten seeds, and no
-//! breathing run at all), and a
-//! **control** founded with a single organism and no producer to feed it
-//! (expected to collapse). The control is what proves the verdict logic can
-//! say something other than "boil" — an instrument that only ever reads one
+//! Two batches run: a **baseline** at today's constants, and a **control**
+//! founded with a single organism and no producer to feed it (expected to
+//! collapse). The control is what proves the verdict logic can say something
+//! other than the baseline's answer — an instrument that only ever reads one
 //! way has not shown anything.
+//!
+//! A count inside its band is not enough to pass. [`Verdict::Thins`] catches
+//! the world that holds its numbers by becoming a producer stand; TD2b's
+//! receipt called six such runs "breathes" before this verdict existed.
 //!
 //! Boil and collapse both exit a run early once decided (see [`run`]) — a
 //! fixed 10,000-tick horizon is not practical to *run* to the end on a
@@ -29,9 +31,9 @@
 //! cargo run -p mesocosm-core --example population_instrument --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td2_retune.json` (curves + verdicts per
-//! seed) and prints a terminal summary; `td1_population.json` beside it is
-//! the pre-retune history and is not overwritten. `Code/testing/<repo>/` is this
+//! Writes `Code/testing/mesocosm/td2c_persistence.json` (curves + verdicts
+//! per seed) and prints a terminal summary; each earlier round's receipt
+//! keeps its own filename and none is overwritten. `Code/testing/<repo>/` is this
 //! workspace's standing receipts convention; the path is found by walking up
 //! from this crate to the `repos` ancestor rather than a fixed `../` count,
 //! so it survives the crate moving depth within the repo.
@@ -90,7 +92,7 @@ const COLLAPSE_FRACTION: u64 = 50;
 /// income rule actually sees. A copy, not a coupling: if the two drift the
 /// crowding column is wrong and nothing else is, which is why it is stated
 /// here rather than inferred.
-const CROWD_CELL: i32 = 16;
+const CROWD_CELL: i32 = 8;
 /// The enclosure's resident bound, mirrored from `world.rs`'s public
 /// `ENCLOSURE` (not re-exported from the crate root, so copied rather than
 /// imported). TD2b's `outside` column reads directly against this: a body
@@ -128,6 +130,11 @@ impl Sample {
 enum Verdict {
     Collapse,
     Boil,
+    /// The count held its band, but a kingdom the world was founded with is
+    /// gone at the horizon. A pure producer stand is not a terrarium
+    /// breathing, and before this verdict existed it read as one — TD2b's
+    /// receipt called six such runs "breathes". (2026-08-29 TD2c)
+    Thins,
     Breathes,
 }
 
@@ -136,10 +143,13 @@ impl Verdict {
         match self {
             Verdict::Collapse => "collapse",
             Verdict::Boil => "boil",
+            Verdict::Thins => "thins",
             Verdict::Breathes => "breathes",
         }
     }
 }
+
+const KINGDOM_NAMES: [&str; 3] = ["producers", "consumers", "decomposers"];
 
 struct RunResult {
     seed: u64,
@@ -308,10 +318,37 @@ fn verdict_for(samples: &[Sample]) -> (Verdict, String) {
         );
     }
 
+    // A count inside its band is necessary but not sufficient. A world that
+    // founded three kingdoms and ends holding one is a producer stand, not a
+    // food web, so it must not be able to spend the word "breathes". Only
+    // kingdoms actually present at tick 0 are required to survive: the
+    // collapse control founds a lone consumer and would otherwise be failed
+    // for missing producers it never had.
+    let lost: Vec<&str> = (0..3)
+        .filter(|&k| start.alive[k] > 0 && end.alive[k] == 0)
+        .map(|k| KINGDOM_NAMES[k])
+        .collect();
+    if !lost.is_empty() {
+        return (
+            Verdict::Thins,
+            format!(
+                "end population {end_total} held its band, but the world founded {}/{}/{} P/C/D and ends {}/{}/{}: {} died out",
+                start.alive[0],
+                start.alive[1],
+                start.alive[2],
+                end.alive[0],
+                end.alive[1],
+                end.alive[2],
+                lost.join(" and "),
+            ),
+        );
+    }
+
     (
         Verdict::Breathes,
         format!(
-            "end population {end_total} stayed above the collapse floor ({collapse_floor}) and below or falling from the boil bound ({boil_bound})"
+            "end population {end_total} stayed above the collapse floor ({collapse_floor}) and below or falling from the boil bound ({boil_bound}), all {} founded kingdoms still alive",
+            start.alive.iter().filter(|&&n| n > 0).count(),
         ),
     )
 }
@@ -319,7 +356,7 @@ fn verdict_for(samples: &[Sample]) -> (Verdict, String) {
 fn main() {
     println!("TD1 population instrument: {TICKS} ticks, sampling every {SAMPLE_INTERVAL}");
     println!(
-        "verdict arithmetic: collapse when end < start and end <= start/{COLLAPSE_FRACTION}; boil >= {BOIL_MULTIPLE}x start and still rising; else breathes\n"
+        "verdict arithmetic: collapse when end < start and end <= start/{COLLAPSE_FRACTION}; boil >= {BOIL_MULTIPLE}x start and still rising; thins when the band held but a founded kingdom died out; else breathes\n"
     );
 
     println!("== baseline (current constants, {BASELINE_ORGANISM_COUNT} extra founders) ==");
@@ -340,8 +377,9 @@ fn main() {
         |runs: &[RunResult], verdict: Verdict| runs.iter().filter(|r| r.verdict == verdict).count();
     let control_all_collapse = control.iter().all(|r| r.verdict == Verdict::Collapse);
     println!(
-        "\nbaseline: {} breathes, {} boil, {} collapse (of {})   control all collapse: {control_all_collapse}",
+        "\nbaseline: {} breathes, {} thins, {} boil, {} collapse (of {})   control all collapse: {control_all_collapse}",
         tally(&baseline, Verdict::Breathes),
+        tally(&baseline, Verdict::Thins),
         tally(&baseline, Verdict::Boil),
         tally(&baseline, Verdict::Collapse),
         baseline.len(),
@@ -407,12 +445,12 @@ fn report(run: &RunResult) {
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/td2b_walls.json` by walking up from this
-/// crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
+/// Finds `Code/testing/mesocosm/td2c_persistence.json` by walking up from
+/// this crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
-/// is not this example's business to hardcode. `td2_retune.json` beside it
-/// is TD2's receipt and is not overwritten; this round's filename moved to
-/// `td2b_walls.json` the same way TD1 -> TD2 did. (2026-08-29 TD2b)
+/// is not this example's business to hardcode. Each round's receipt keeps its
+/// own filename and none is overwritten: `td1_population.json`,
+/// `td2_retune.json`, `td2b_walls.json`, and now this. (2026-08-29 TD2c)
 fn receipt_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repos_ancestor = manifest_dir
@@ -422,7 +460,7 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td2b_walls.json")
+    workspace_root.join("testing/mesocosm/td2c_persistence.json")
 }
 
 fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {
