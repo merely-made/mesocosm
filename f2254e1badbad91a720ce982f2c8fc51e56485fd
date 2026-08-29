@@ -1,0 +1,1 @@
+Scope note: this commit also carried a staged pure rename (td8_attribution.rs -> td8_attribution/main.rs) belonging to the in-flight TD9 agent, which had staged it. Content-identical rename, nothing lost; TD9s remaining files land with its own commit.
