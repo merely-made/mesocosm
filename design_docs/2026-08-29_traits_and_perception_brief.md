@@ -148,7 +148,7 @@ Verified against HEAD. TD7-dirty files flagged.
 | The learned bank | `axis.rs:170` `Recipe.lexicon: BTreeSet<Appendage>` | **Runs.** Private, `BTree`-ordered "so iteration and serialization are deterministic". 6 possible values |
 | Expression (the learn→grow half) | `axis.rs:242` `Recipe::assign` | **Dead.** Tests only. `develop_body` never consults the lexicon |
 | The payoff | `axis.rs:298` → `read.rs:93` → `world.rs:460` → `read.rs:113` | **Runs.** Vocabulary at weight 4 raises the complexity frontier, which gates `TakeControl` |
-| Lineage proximity | `species.rs:227` `distance`, `read.rs:165` `kinship` | **Dead.** Correct, tested, zero production callers. Returns `None` for unrelated founders |
+| Lineage proximity | `species.rs:227` `distance`, `read.rs:165` `kinship` | **Runs since TD10 (2026-08-29):** `ecology/kinship.rs` spends it as a prey-score discount — predation's first production caller. `None` (unrelated founders) reads as full appetite there; note the sign flips for incorporation cost, where the unrelated donor is naturally the expensive one — that half stays open (register §15) |
 | Donor identity, per part | `body.rs:87-102` `Origin::Incorporated { from_species, from_part }`, stamped `act.rs:451-459` | **Runs**, coarsely: `from_part` is hardcoded `PartId(0)` |
 | Donor identity, per learned word | `history.rs:125-129` `Event::Learned { organism, species, appendage }` | **Absent.** Records the learner, never the donor |
 | The graft itself | `act.rs:340-436` `land` | **Runs.** Creates *one* part (two mirrored) from the meal's **root** volume and half-extent carrying the meal's **whole** `biomass_mg`. A 40-part centipede grafts as one box |

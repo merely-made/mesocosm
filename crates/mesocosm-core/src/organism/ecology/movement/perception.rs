@@ -10,6 +10,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::body::SpeciesId;
 use crate::organism::{Kingdom, Organism, OrganismId, Signal};
 use crate::places::{Ground, Tier, WalkerShape, spot_for};
 
@@ -26,6 +27,9 @@ pub(in crate::organism::ecology) struct LivingTarget {
     pub(in crate::organism::ecology) position: [i32; 3],
     pub(in crate::organism::ecology) organism_index: usize,
     pub(in crate::organism::ecology) kingdom: Kingdom,
+    /// Which line it belongs to, so an eater can tell kin from a stranger.
+    /// (TD10)
+    pub(in crate::organism::ecology) species: SpeciesId,
     pub(in crate::organism::ecology) mass_mg: u64,
     pub(in crate::organism::ecology) signal: Signal,
     pub(in crate::organism::ecology) shape: WalkerShape,

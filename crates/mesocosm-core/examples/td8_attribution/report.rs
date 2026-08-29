@@ -112,6 +112,28 @@ pub struct Reading {
     /// kingdom at the horizon. Occupancy rather than headcount: a stand that
     /// doubles in place has not spread.
     pub cells_end: [u64; 3],
+    // Ruling 6 (TD10): the cohort eating itself.
+    /// The first tick the consumer kingdom read zero living bodies, if it ever
+    /// did. TD9's finding is a *crossing*: extinct by ~300 ticks against a
+    /// ~580-tick first brood interval, so no income change could reach it.
+    pub consumer_extinct_tick: Option<u32>,
+    /// The lowest living consumer count of the run and the tick it happened,
+    /// so a kingdom that dips and recovers can be told from one that does not.
+    pub consumer_trough: (u32, u64),
+    /// Consumers the world founded, so the trough reads as a share.
+    pub consumer_founders: u64,
+    /// The brood interval each kingdom's *founders* ask for, read at genesis.
+    /// TD9 took this off the bodies that died, which a seed where nothing dies
+    /// cannot report at all.
+    pub founding_brood_ticks: [u64; 3],
+    /// Per curve sample: the tick, plain non-consumer bodies inside the tick's
+    /// own scan window per thousand living consumers, living consumers with at
+    /// least one such body per thousand, and tenths of a voxel to the nearest
+    /// one whether or not the window reaches it. A kinship discount can only
+    /// prefer what is standing there, so this is what says whether an unmoved
+    /// cannibalism number is the rule failing or the pasture being gone — and
+    /// the last column says whether the pasture is gone or merely out of sight.
+    pub pool: Vec<(u32, u64, u64, u64)>,
 }
 
 /// Edge of the occupancy bucket, mirroring the population instrument's own
@@ -199,6 +221,40 @@ pub fn report(r: &Reading) {
         "       occupied cells at horizon P/C/D: {}/{}/{}; producer Moved {}; unlimbed consumer/decomposer Moved {}",
         r.cells_end[0], r.cells_end[1], r.cells_end[2], r.moves[0], r.unlimbed_moves,
     );
+    println!("    6. the cohort eating itself (kinship's target)");
+    println!(
+        "       same-species share of consumer-on-consumer predation: {}% ({} of {} mg)",
+        r.cannibal_mg * 100 / r.consumer_on_consumer_mg.max(1),
+        r.cannibal_mg,
+        r.consumer_on_consumer_mg,
+    );
+    println!(
+        "       consumers founded {}, trough {} at tick {}, first zero {}, against a founding brood interval of {} ticks",
+        r.consumer_founders,
+        r.consumer_trough.1,
+        r.consumer_trough.0,
+        r.consumer_extinct_tick
+            .map_or("never".to_string(), |tick| tick.to_string()),
+        r.founding_brood_ticks[1],
+    );
+    let pool: Vec<String> = r
+        .pool
+        .iter()
+        .map(|(tick, per_body, share, nearest)| {
+            format!(
+                "{tick}:{}.{:03}@{}%/{}.{}v",
+                per_body / 1_000,
+                per_body % 1_000,
+                share / 10,
+                nearest / 10,
+                nearest % 10,
+            )
+        })
+        .collect();
+    println!(
+        "       prey pool  tick:alternatives-per-consumer@share-with-any/voxels-to-nearest  {}",
+        pool.join("  "),
+    );
     println!("       total alive at horizon {}\n", r.alive_total_end);
 }
 
@@ -213,7 +269,7 @@ pub fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td9_attribution.json")
+    workspace_root.join("testing/mesocosm/td10_attribution.json")
 }
 
 pub fn render_json(ticks: u32, readings: &[Reading], census: &[(u64, u64, u64)]) -> String {
@@ -242,7 +298,7 @@ fn render_run(r: &Reading) -> String {
         .iter()
         .map(|(tick, alive, biomass)| format!("[{tick}, {alive:?}, {biomass:?}]"))
         .collect();
-    let fields: [(&str, String); 29] = [
+    let fields: [(&str, String); 34] = [
         ("seed", r.seed.to_string()),
         ("born", format!("{:?}", r.born)),
         ("died", format!("{:?}", r.died)),
@@ -277,6 +333,33 @@ fn render_run(r: &Reading) -> String {
             r.consumer_on_consumer_mg.to_string(),
         ),
         ("cannibal_mg", r.cannibal_mg.to_string()),
+        ("consumer_founders", r.consumer_founders.to_string()),
+        (
+            "consumer_extinct_tick",
+            r.consumer_extinct_tick
+                .map_or("null".to_string(), |tick| tick.to_string()),
+        ),
+        (
+            "consumer_trough",
+            format!("[{}, {}]", r.consumer_trough.0, r.consumer_trough.1),
+        ),
+        (
+            "founding_brood_ticks",
+            format!("{:?}", r.founding_brood_ticks),
+        ),
+        (
+            "prey_pool",
+            format!(
+                "[{}]",
+                r.pool
+                    .iter()
+                    .map(|(tick, per_body, share, nearest)| format!(
+                        "[{tick}, {per_body}, {share}, {nearest}]"
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        ),
         ("curve", format!("[{}]", curve.join(", "))),
     ];
     let body: Vec<String> = fields

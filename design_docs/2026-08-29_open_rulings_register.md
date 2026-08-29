@@ -505,10 +505,17 @@ against".
 
 ### 27. Decide whether to take the kinship first-caller slice
 
-**Ask.** `Lineages::distance` and `World::kinship` are built, correct, tested,
-and have zero production callers, and "migration following kinship rather than
-distance" is already on F0's sanctioned candidate list. Take it as the next
-fantastical slice?
+**ANSWERED 2026-08-29, differently than asked:** the first caller arrived as
+**TD10's predation discount** (kinship tempers the appetite, ruled by Mark),
+not as F0's migration framing. `ecology/kinship.rs` now spends
+`Lineages::distance` in prey scoring. The migration slice itself remains
+untaken; whether it still wants doing after TD10 is a smaller question than
+this entry posed.
+
+**Original ask.** `Lineages::distance` and `World::kinship` are built, correct,
+tested, and have zero production callers, and "migration following kinship
+rather than distance" is already on F0's sanctioned candidate list. Take it as
+the next fantastical slice?
 
 **Options.** The memo offers it as the cheapest such slice in the repo — a
 function waiting for its first caller — and names no alternative.

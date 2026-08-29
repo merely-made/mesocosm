@@ -290,7 +290,106 @@ shown to close the specific gap TD8 measured (consumers clearing the hit-rate
 bar and starving anyway) rather than only moving totals; producer creep is
 shown to restore spread without restoring the free lunch; fixtures re-record.
 
+## TD10 — kinship tempers the appetite (ruled 2026-08-29, Mark)
+
+TD9's fifth structural finding, answered: the consumer kingdom is eaten by
+itself, 90-94% of it by the eater's own species, and it is extinct before its
+first possible birth. Of the four candidates TD9 put to Mark — a size ratio, a
+species wall, `axis::seed` founding a tier as one interbreeding species, or a
+thinner founding cohort — **kinship alone** was ruled.
+
+- **Prey scoring discounts by relatedness.** The closer the target's lineage to
+  the eater's, the less appetizing. Derived from `Lineages::distance`, which is
+  built, tested and had zero production callers; integer-exact and
+  deterministic. Cannibalism becomes **rare, not impossible**: a starving
+  predator may still take kin, distant kin more readily than siblings.
+- **What an undefined distance costs, decided.** Genesis founds unparented
+  roots, so most cross-species pairs have no common ancestor and `distance` is
+  `None`. For **predation** that reads as no relation, therefore full appetite.
+  The incorporation half of the traits brief's Q1 is untouched and stays open.
+- **Hunger still overrides**, through TD2d's existing `is_hungry` horizon.
+- **No size gate and no species wall.** Kinship alone.
+
+This is the kinship machinery's first production caller, arriving under a
+concept already on the general model plan's F0 sanctioned list ("migration
+following kinship rather than distance").
+
+**Done when:** the instrument reaches `breathes` in a majority of seeds with
+zero boils and founded kingdoms at the horizon; the collapse control still
+collapses; matter is still conserved to the milligram; the same-species share
+of consumer predation falls and the consumer kingdom's extinction crosses its
+own first-brood interval; seed 2's unlimbed grazers — the natural control,
+which never cannibalized — do not move; fixtures re-record.
+
 ## Findings
+
+- **2026-08-29 (TD10, and it is the sixth structural thing in the way, measured
+  rather than guessed): a body forages at eight voxels and bites at fifty, so
+  the stand walks out of its sight inside fifty ticks and the only thing left to
+  eat is its own line.** Kinship is obeyed exactly (Progress §2 above: `chose
+  kin` equals, to the decision, the count of decisions with no non-kin candidate
+  at all). It nevertheless barely moves the cannibalism number, and the probe's
+  new **prey pool** reading says why. Per living consumer, plain non-consumer
+  bodies standing inside the window the tick actually scans, and the share of
+  consumers with **any**:
+
+  | seed | tick 0 | 50 | 100 | 200 |
+  | --- | --- | --- | --- | --- |
+  | 1 | **7.85 @ 100%**, 2.6v | 0.55 @ 44%, 7.8v | 0.46 @ 38%, 8.4v | 0.25 @ 25%, 13.3v |
+  | 2 | **7.92 @ 100%**, 2.6v | **4.76 @ 95%**, 4.4v | **2.28 @ 71%**, 6.6v | 0.48 @ 31%, 11.3v |
+  | 5 | **7.50 @ 99%**, 2.6v | 0.12 @ **6%**, 14.4v | 0.06 @ 4%, 15.6v | 0.04 @ 2%, 17.7v |
+
+  The third figure is voxels to the nearest such body **whether or not the window
+  reaches it**, and it is the one that names the cause. At genesis every consumer
+  in every seed has something else in sight — the alternative is 2.6 voxels away
+  — and the discount works. Fifty ticks later, in the two seeds whose consumers
+  go extinct, **94% and 56% of them have no alternative in the window at all**,
+  and the nearest one has receded to 7.8 and 14.4 voxels. It has not gone: it is
+  **inside the bite and outside the sight**. Seed 2 is the only seed that keeps a
+  populated window through the founding transient (4.76 at tick 50, 2.28 at tick
+  100, against 0.55 and 0.12), and it is the only seed whose consumers survive.
+  Its pool empties too, by tick 200 — by which point its cohort is through the
+  transient TD9 named as the fatal part, and is made of grazers that could not
+  have eaten each other anyway.
+
+  The mechanism is a **rule, not a number**, and it is the same asymmetry TD9
+  closed on the income side, one layer up. `movement::choose_living_target`
+  computes `reach = GRAZE_RANGE + body.reach()` — 15 to 62 voxels across the
+  founding cohort, and the thing TD7 charges rent for and TD9 pays income on.
+  It then scans `sight_range`, which for a near body is
+  `reach.min(NEAR_SIGHT_RANGE)` and `NEAR_SIGHT_RANGE` is **8**. Nearly every
+  body is near. **So `body.reach()` buys a bigger bite and no wider search
+  whatever a body grows**: rent reads the body, income reads the body, and the
+  horizon a body looks for that income across does not.
+
+  What the body does instead of searching is TD2d's hungry wander: one random
+  grounded voxel per tick, no gradient, no memory beyond eight ticks of a target
+  it has already lost. That is how a founding cohort eats its own neighbourhood
+  clean and then stands in it.
+
+  **Mark's call**, and it is the same *kind* of decision TD7, TD8 and TD9's were
+  — what a body plan is allowed to do — not a rate: whether sight should scale
+  with the body the way reach and rent do, whether `NEAR_SIGHT_RANGE` is a
+  terrain bound that should stop capping the *affordance* search, whether a
+  hungry body should get a gradient rather than a coin flip, or whether the
+  founding stand should simply be dense enough that eight voxels is enough. No
+  `rates.rs` constant reaches it; `NEAR_SIGHT_RANGE` is not in `rates.rs` and
+  raising it alone would be a retune wearing a ruling's clothes.
+
+- **2026-08-29 (TD10): `None` lineage distance means the opposite thing on the
+  two sides of the traits brief's Q1, which is why answering it for predation
+  does not answer it at all.** The brief asks what an undefined distance costs
+  and offers "max cost? outright refusal? a separate unrelated tier?"
+  ([traits and perception brief](2026-08-29_traits_and_perception_brief.md) §8
+  Q1) — every option phrased as a *penalty*, because the brief was written
+  around **incorporation**, where a graft from an unrelated line is the
+  expensive one. Predation reads the same `None` the other way round: an
+  unrelated body is the *ordinary* meal, and the discount belongs to kin. So
+  TD10's answer is "`None` costs nothing", and it is not transferable. The
+  standing ruling both readings obey is the one `species.rs:224-226` and the
+  epoch boundary plan already made: `None` is the honest answer and no shared
+  ancestor may be invented to make the arithmetic work. **Q1 stays open for
+  incorporation**, and whoever closes it should expect the opposite sign.
 
 - **2026-08-29 (TD9, and it is the fifth structural thing in the way, measured
   rather than guessed): the consumer kingdom is eaten by itself, and the seed
@@ -513,7 +612,156 @@ shown to restore spread without restoring the free lunch; fixtures re-record.
 
 ## Progress
 
-- **2026-08-29 (last today): TD9 landed — income reads the body, producers
+- **2026-08-29 (last today): TD10 landed — kinship is spent, it is obeyed
+  exactly, and the cohort still eats itself, because after fifty ticks there is
+  nothing else in sight.** Conservation is milligram-exact and identical
+  seed-for-seed to TD9's ten totals, the control still collapses, escapees are
+  zero, and the verdict tally is unmoved for the sixth round at **0 breathes /
+  10 thins / 0 boil / 0 collapse**. The ruled change is in, it does at the
+  decision level precisely what it was ruled to do, and the cannibalism number
+  it was aimed at barely moves. **What this round bought is the sixth cause, and
+  it is a rule rather than a rate** — see the first Finding below. Receipts:
+  `td10_chain.json` (the instrument) and `td10_attribution.json` (the probe,
+  extended with TD10's target and a prey-pool reading).
+
+  **1. The discount rule, in one line of arithmetic.** `Lineages::distance` gets
+  its first production caller, in a new `organism/ecology/kinship.rs`. It is
+  spent as a **remove** — how much further away a body reads for being kin, in
+  the same voxels the score already measures distance in:
+
+  ```text
+  remove = (span + 1) >> (forks + hungry)      relation known
+  remove = 0                                   no common ancestor
+  ```
+
+  `span` is the far edge of whatever the eater is choosing among: bite reach in
+  `choose_living_target`, sight in the two paths that decide where to walk. A
+  body of the eater's own line therefore reads as though it stood one voxel past
+  that edge and **ranks behind everything the eater could actually get to**,
+  while each fork of divergence halves the remove, so a cousin is taken more
+  readily than a sibling and a distant cousin is barely noticed. **No new
+  authored constant**: the base is the score's own distance span and the gate is
+  TD5's existing hunger horizon. Nothing is ever forbidden — a discounted body
+  is still a candidate — which is what "rare, not impossible" means in code.
+
+  **The undefined distance costs nothing, and only for predation.** Genesis
+  founds unparented roots, so `distance` is `None` for every cross-founder pair.
+  For predation the natural reading of "not related" is full appetite, so `None`
+  is zero remove and a producer or a stranger's line is eaten exactly as before
+  this round. That is the traits brief's Q1 answered **for predation only**; the
+  incorporation half stays open and has a Finding of its own below, because the
+  same `None` reads with the opposite sign there.
+
+  **Hunger reads as one more fork.** A body inside `is_hungry` (TD2d's horizon,
+  `energy_mg` under eight ticks of rent) shifts one place further and halves its
+  remove: a starving predator takes a sibling as readily as a fed one takes a
+  cousin. No size gate and no species wall, as ruled.
+
+  **2. It is obeyed exactly — the decision-level receipt.** Instrumented
+  temporarily inside `choose_living_target` (counters removed before landing),
+  every predator decision was classified. **`chose kin` equalled, to the
+  decision, the number of non-empty decisions with no non-kin candidate at all**
+  — seed 1 to tick 50: 9,201 decisions, 392 with nothing in range at all, 4,879
+  with a non-kin option, **3,930 chose kin = 9,201 − 392 − 4,879**. It held to
+  the unit at every sample of both seeds (seed 1 to tick 200: 13,668 − 3,611 −
+  5,053 = 5,004; seed 5 to tick 200: 27,411 − 9,419 − 9,921 = 8,071). A predator
+  now takes its own line **only** when there is nothing else it can see. There is
+  no headroom left in the rule.
+
+  **3. And the number it was aimed at barely moves,** because the pool it
+  chooses from empties. Probe at 3,000 ticks, seeds 1 / 2 / 5:
+
+  | | consumer-on-consumer (TD9 → TD10) | same-species of that | taken out of consumers | consumers at 3,000 |
+  | --- | --- | ---: | --- | ---: |
+  | seed 1 | 80,996 → **73,635 mg** | 78,522 → **71,143 (96%)** | 83,211 → 75,796 | 0 |
+  | seed 2 | 3,250 → **3,250 mg** | 0 → **0 (0%)** | 21,563 → 21,563 | **23** |
+  | seed 5 | 73,244 → **99,780 mg** | 71,618 → **98,154 (98%)** | 79,910 → 103,299 | 0 |
+
+  Seed 5 goes *up*, and honestly so: its consumers now live to tick 1,139
+  instead of ~700, and a longer-lived cohort with no alternative eats more of
+  itself. **Seed 2, the control the world supplied, is bit-identical** — every
+  number in its whole run, not only the cannibalism ones. That is not luck: its
+  consumers draw unlimbed recipes, so they are `Grazer`s, so their only legal
+  targets are `Kingdom::Producer`, so `distance` is `None` for every candidate
+  and the remove is zero by construction. The control could not have moved and
+  did not.
+
+  **Extinction against the brood interval, now measured rather than inferred.**
+  The probe reads the first tick the kingdom is empty and the interval the
+  *founders'* own plans ask for (TD9 read the interval off bodies that died,
+  which a seed where nothing dies cannot report):
+
+  | seed | first zero | founding brood interval | trough |
+  | ---: | ---: | ---: | --- |
+  | 1 | 2,153 | 575 | 0 at 2,153 |
+  | 2 | **never** | 573 | 18 at 2,805 |
+  | 5 | 1,139 | 582 | 0 at 1,139 |
+
+  The crossing TD9 named is gone as an *arithmetic* fact — survivors do outlive
+  a first brood interval now — and it bought nothing, because recruitment is 17
+  and 6 births over three thousand ticks. Extinction moved from a transient to a
+  slow bleed; it did not stop.
+
+  **Verdicts.** Baseline is TD9's own ten seeds at the same horizon.
+
+  | seed | verdict | start | end | P/C/D end (TD9) | P/C/D end (TD10) | end biomass | soil end | total matter |
+  | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: |
+  | 1 | thins | 917 | 1,530 | 1,506/0/51 | 1,471/0/**59** | 1,266,757 mg | 393,320 | 2,206,906 |
+  | 2 | thins | 917 | 887 | 878/55/0 | 813/**74**/0 | 508,276 mg | 867,447 | 2,220,206 |
+  | 3 | thins | 917 | 1,425 | 1,435/0/38 | 1,425/0/0 | 842,267 mg | 94,069 | 2,217,028 |
+  | 4 | thins | 917 | 1,415 | 1,430/0/0 | 1,415/0/0 | 849,879 mg | 77,238 | 2,202,302 |
+  | 5 | thins | 917 | 1,605 | 1,458/0/0 | 1,560/0/**45** | 1,286,169 mg | 410,024 | 2,214,890 |
+  | 6 | thins | 917 | 1,445 | 1,484/0/0 | 1,445/0/0 | 771,126 mg | 313,017 | 2,214,018 |
+  | 7 | thins | 917 | 1,410 | 1,503/0/47 | 1,410/0/0 | 886,436 mg | 54,682 | 2,222,946 |
+  | 8 | thins | 917 | 1,339 | 1,311/0/0 | 1,339/0/0 | 370,023 mg | 1,370,162 | 2,212,850 |
+  | 9 | thins | 917 | 1,199 | 1,197/0/0 | 1,199/0/0 | 349,465 mg | 1,377,597 | 2,209,340 |
+  | 10 | thins | 917 | 1,159 | 1,184/0/0 | 1,159/0/0 | 362,011 mg | 1,364,477 | 2,204,656 |
+
+  Three seeds hold a second kingdom to the horizon against TD9's four — seed 5
+  gains a decomposer tail and seed 2's consumers go 55 → 74, while seeds 3 and 7
+  lose theirs. `total_matter_mg` is flat across every sample of every run and
+  **identical seed-for-seed to TD9's ten totals, to the milligram**. Control all
+  collapse, max escapees 0. **A lateral move in the verdict, and the round says
+  so.** No `rates.rs` sweep was run, deliberately and for the sixth round
+  running.
+
+  **Fixtures.** Demo re-recorded: 120 intents, hash **`8f6df49c63923be6`** (was
+  `a892c9cf398f08a3`), headed `--replay` landing it exactly, exit 0, 30 frames on
+  the RTX 4060 (Vulkan), ground revision 2, `slab_half_height` 28, 35 roster
+  members. Instrument proven twice, as TD9 did it: one bit flipped in the
+  recorded hash exits **1** with `MISMATCH`, and the *pre-TD10* core — this
+  round's `src/` stashed, nothing else touched — re-records TD9's own
+  `a892c9cf398f08a3` exactly, which is what makes the played critter's survival
+  below an attribution rather than a guess. Default paths
+  (`ps1_played.trace.json` / `.json` / `.png`), plus `td10_kinship.png`, which is
+  byte-identical to `ps1_played.png`.
+
+  **TD9's residue is answered, and the answer is the calmer cohort rather than
+  kinship.** TD9 recorded the played critter dying in its own demo —
+  `state dead`, `body_parts` 0. It now reads **`body_parts` 60** and a vitals
+  panel showing `energy 2934 mg` on a nearly full bar with the ordinary `burn`
+  notice. It is *not* the discount protecting it: the played critter is its own
+  `SpeciesId`, so every founding line is unrelated to it and its own appetite and
+  its attackers' appetite for it are both untouched by TD10. What changed is the
+  world around it — the founding cohort spends fewer of its early ticks eating
+  and more of them walking, and the body that was being stripped at the demo's
+  scale is no longer standing in the middle of that. The capture reads a stepped
+  dark-red soil section under a flat grey sky, with roughly twenty-five bodies
+  strung along the surface — orange-red capsules, green hemispheres, four or
+  five lavender ones — and the minimap top right. Four black notches sit in the
+  soil surface where the section shows no voxel; the demo script does press dig,
+  so that is the likely reading, but it was not verified and is recorded as seen
+  rather than explained.
+
+  **Tests.** Two new files rather than two new blocks: `ecology/kinship.rs`
+  carries the rule's own tests (the undefined-distance decision, each fork
+  halving the remove, hunger reading as one more fork, and that the memo changes
+  no answer), and `movement.rs` was split at 585 lines into `movement/tests.rs`,
+  which carries the behaviour — a predator passing over a *nearer and fatter*
+  body of its own line for a stranger, then taking the sibling when the stranger
+  is removed. No existing test was retuned.
+
+- **2026-08-29: TD9 landed — income reads the body, producers
   creep, and `breathes` is still out of reach. What this round bought is not a
   verdict, it is the cause: the consumer kingdom is eaten by itself.**
   Conservation is milligram-exact and identical seed-for-seed to the pre-round

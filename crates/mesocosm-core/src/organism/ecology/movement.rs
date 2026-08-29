@@ -24,6 +24,7 @@ use crate::organism::{
     FaunaDecisionTrace, FaunaDrive, FaunaSenses, FaunaTraits, LastSeen, Organism, OrganismId,
 };
 
+use super::kinship::Kin;
 use super::{dispersal_for, is_hungry, travels};
 
 mod perception;
@@ -48,11 +49,13 @@ pub(super) fn choose_living_target(
     living: &[LivingTarget],
     cells: &Cells,
     ground: Option<&Ground>,
+    kin: &Kin,
 ) -> Option<usize> {
     let mode = organism.feeding_mode();
     let reach = GRAZE_RANGE + organism.body.reach();
     let sight = sight_range(organism, reach, ground);
     let observer_shape = organism.walker_shape();
+    let hungry = is_hungry(organism);
     let mut candidates: Vec<(u64, usize, usize)> = Vec::new();
     for order in nearby_indexes(cells, organism.position, sight) {
         let Some(target) = living.get(order) else {
@@ -66,7 +69,12 @@ pub(super) fn choose_living_target(
         {
             continue;
         }
-        let distance = chebyshev(organism.position, target.position) as u64;
+        // **Kinship tempers the appetite** (TD10). The remove is in the same
+        // voxels the distance term is, so kin read as further off rather than
+        // as forbidden: a body of the eater's own line ranks behind everything
+        // else in reach, and is still taken when it is the only thing there.
+        let remove = kin.remove(organism.species, target.species, reach, hungry);
+        let distance = (chebyshev(organism.position, target.position) + remove) as u64;
         let danger = u64::from(target.signal == Signal::Warning) * 4;
         let score =
             (distance.saturating_mul(16) + danger).saturating_sub(target.mass_mg.min(256) / 64);
@@ -131,8 +139,10 @@ fn preferred_living<'a>(
     candidates: impl Iterator<Item = (usize, &'a LivingTarget)>,
     ground: Option<&Ground>,
     sight: i32,
+    kin: &Kin,
 ) -> Option<(OrganismId, [i32; 3])> {
     let observer_shape = organism.walker_shape();
+    let hungry = is_hungry(organism);
     let mut ranked: Vec<(i32, u64, usize, &'a LivingTarget)> = candidates
         .filter(|(_, target)| {
             target.id != organism.id
@@ -140,8 +150,11 @@ fn preferred_living<'a>(
                     || target.kingdom == Kingdom::Producer)
         })
         .map(|(order, target)| {
+            // The same remove the bite applies (TD10), against sight rather
+            // than reach: a hunter should not walk toward its own line either.
             (
-                chebyshev(organism.position, target.position),
+                chebyshev(organism.position, target.position)
+                    + kin.remove(organism.species, target.species, sight, hungry),
                 target.mass_mg,
                 order,
                 target,
@@ -160,11 +173,13 @@ fn policy_living<'a>(
     candidates: impl Iterator<Item = (usize, &'a LivingTarget)>,
     ground: &Ground,
     sight: i32,
+    kin: &Kin,
 ) -> Option<MovementTarget> {
     let traits = FaunaTraits::read(organism);
     let own_mass = organism.biomass_mg();
     let policy = organism.fauna_policy;
     let observer_shape = organism.walker_shape();
+    let hungry = is_hungry(organism);
     let candidate = candidates
         .filter(|(_, target)| {
             target.id != organism.id
@@ -172,7 +187,14 @@ fn policy_living<'a>(
                     || target.kingdom == Kingdom::Producer)
         })
         .filter_map(|(order, target)| {
-            let distance = chebyshev(organism.position, target.position);
+            // Kin read as further away here too (TD10), and it is the same one
+            // remove. The bite alone was measured not to reach: a hunter that
+            // still *walked* toward its own line arrived where its own line was
+            // the only thing it could see, and then had to eat it. The decision
+            // trace below therefore records the discounted distance rather than
+            // the geometric one, because that is the reading the body acted on.
+            let distance = chebyshev(organism.position, target.position)
+                + kin.remove(organism.species, target.species, sight, hungry);
             if !can_perceive(organism, observer_shape, target, sight, Some(ground)) {
                 return None;
             }
@@ -247,6 +269,7 @@ fn preferred_carrion<'a>(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn preferred_target(
     organism: &mut Organism,
     living: &[LivingTarget],
@@ -254,6 +277,7 @@ fn preferred_target(
     carrion: &[CarrionTarget],
     carrion_cells: &Cells,
     ground: Option<&Ground>,
+    kin: &Kin,
 ) -> Option<MovementTarget> {
     match organism.feeding_mode() {
         FeedingMode::Grazer | FeedingMode::Predator => {
@@ -266,10 +290,11 @@ fn preferred_target(
                         .filter_map(|order| living.get(order).map(|target| (order, target))),
                     ground,
                     sight,
+                    kin,
                 )
             } else {
                 organism.last_fauna_decision = None;
-                preferred_living(organism, living.iter().enumerate(), ground, sight)
+                preferred_living(organism, living.iter().enumerate(), ground, sight, kin)
                     .map(|(id, at)| MovementTarget::Seen(id, at))
             }
         }
@@ -339,6 +364,7 @@ pub(super) fn disperse(
     carrion: &[CarrionTarget],
     carrion_cells: &Cells,
     events: &mut Vec<Event>,
+    kin: &Kin,
 ) -> bool {
     let target = preferred_target(
         organism,
@@ -347,6 +373,7 @@ pub(super) fn disperse(
         carrion,
         carrion_cells,
         ground,
+        kin,
     );
     let (target, pursuing_memory) = match target {
         Some(MovementTarget::Seen(id, at)) => {
@@ -532,54 +559,4 @@ fn diffuse(places: &Places, position: [i32; 3], rng: &mut Rng) -> [i32; 3] {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::body::{SpeciesId, VolumeRef};
-    use crate::organism::{Kingdom, Signal};
-
-    #[test]
-    fn lost_sight_memory_expires_and_cannot_cross_the_tier_line() {
-        let mut hunter = Organism::founding(
-            OrganismId(0),
-            SpeciesId(2),
-            Kingdom::Consumer,
-            VolumeRef::from_tag(16),
-            [3, 1, 1],
-            [0, 1, 0],
-            300,
-        );
-        let target = OrganismId(900);
-        let living = vec![LivingTarget {
-            id: target,
-            position: [4, 1, 0],
-            organism_index: 0,
-            kingdom: Kingdom::Producer,
-            mass_mg: 300,
-            signal: Signal::Plain,
-            shape: WalkerShape::STANDARD,
-        }];
-        let ground = Ground::default();
-        hunter.last_seen = Some(LastSeen {
-            target,
-            position: [4, 1, 0],
-            ticks_left: 1,
-        });
-
-        assert_eq!(
-            remembered_target(&mut hunter, &living, Some(&ground)),
-            Some([4, 1, 0])
-        );
-        assert_eq!(hunter.last_seen.unwrap().ticks_left, 0);
-        assert_eq!(remembered_target(&mut hunter, &living, Some(&ground)), None);
-        assert_eq!(hunter.last_seen, None);
-
-        hunter.last_seen = Some(LastSeen {
-            target,
-            position: [4, 1, 0],
-            ticks_left: MEMORY_TICKS,
-        });
-        hunter.tier = Tier::Far;
-        assert_eq!(remembered_target(&mut hunter, &living, Some(&ground)), None);
-        assert_eq!(hunter.last_seen, None);
-    }
-}
+mod tests;

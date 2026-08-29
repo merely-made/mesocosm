@@ -28,6 +28,7 @@ use crate::world::STARVED_UPKEEP_TICKS;
 use super::{Organism, OrganismId, Stage, Tally};
 
 mod breeding;
+mod kinship;
 mod movement;
 mod rates;
 
@@ -277,12 +278,17 @@ fn step_inner(
             position: o.position,
             organism_index: index,
             kingdom: o.kingdom(),
+            species: o.species,
             mass_mg: o.biomass_mg(),
             signal: o.signal,
             shape: o.walker_shape(),
         })
         .collect();
     let living_cells = living_cells(&living);
+
+    // **Kinship tempers the appetite** (TD10). Built once per tick and read by
+    // both the bite and the walk toward one; see `kinship.rs` for the rule.
+    let kin = kinship::Kin::new(lineages);
 
     let mut meals: Vec<Meal> = Vec::new();
     let mut newborns: Vec<Organism> = Vec::new();
@@ -352,7 +358,7 @@ fn step_inner(
                 .min(room);
                 if amount > 0
                     && let Some(prey) =
-                        choose_living_target(organism, &living, &living_cells, ground)
+                        choose_living_target(organism, &living, &living_cells, ground, &kin)
                 {
                     let kind = if organism.feeding_mode() == FeedingMode::Predator {
                         MealKind::Predation
@@ -454,6 +460,7 @@ fn step_inner(
                         &carrion,
                         &carrion_cells,
                         events,
+                        &kin,
                     )
                 {
                     tally.moved += 1;

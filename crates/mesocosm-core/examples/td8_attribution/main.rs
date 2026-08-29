@@ -38,12 +38,22 @@
 //!    Reported as producer `Moved` events and the count of distinct occupancy
 //!    cells each kingdom stands in, against the unlimbed consumers and
 //!    decomposers of target 3, who must stay at zero movements.
+//! 6. **Kinship tempers the appetite** (TD10) was aimed at the **cohort eating
+//!    itself**. Reported as the same-species share of consumer-on-consumer
+//!    predation (TD9 read 90-94%), and as the tick the consumer kingdom first
+//!    reads zero against the brood interval its founders' own plans ask for —
+//!    the crossing TD9 named, extinct by ~300 ticks against ~580. Seed 2 is the
+//!    control the world supplied: its consumers are unlimbed `Grazer`s that
+//!    never cannibalised, so nothing here may move for it. The **prey pool** is
+//!    reported beside it, because a discount can only prefer what is there:
+//!    per thousand consumers, how many plain non-consumer bodies stand inside
+//!    the window the tick actually scans, and how many consumers have any.
 //!
 //! ```text
 //! cargo run -p mesocosm-core --example td8_attribution --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td9_attribution.json` and prints the same
+//! Writes `Code/testing/mesocosm/td10_attribution.json` and prints the same
 //! numbers. Seeds and horizon are arguments so a before/after pair is one
 //! command each; the defaults are TD7's own probe window (3,000 ticks) over the
 //! seeds its finding table quoted plus seed 2, whose consumer species is the
@@ -52,7 +62,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 
-use mesocosm_core::{Event, Intent, Kingdom, MealKind, OrganismId, Stage, World};
+use mesocosm_core::{Event, Intent, Kingdom, MealKind, OrganismId, Signal, Stage, World};
 
 /// TD7's probe window, kept so the two rounds' tables compare directly.
 const TICKS: u32 = 3_000;
@@ -145,6 +155,20 @@ fn founding_census() -> Vec<(u64, u64, u64)> {
 fn run(seed: u64, ticks: u32) -> Reading {
     let mut world = World::new(seed, mesocosm_core::world::FOUNDERS);
 
+    // The brood interval the founding cohort's own plans ask for, per kingdom,
+    // read before anything happens. TD9 took this off the bodies that *died*,
+    // which cannot be read at all in a seed where nothing does. (TD10)
+    let mut brood_total = [0u64; 3];
+    let mut brood_count = [0u64; 3];
+    for organism in world.living() {
+        let k = kingdom_index(organism.kingdom());
+        brood_total[k] += gestation_for_mass(organism.life_history_mass_mg);
+        brood_count[k] += 1;
+    }
+    let founding_brood_ticks: [u64; 3] =
+        std::array::from_fn(|k| brood_total[k].checked_div(brood_count[k]).unwrap_or(0));
+    let consumer_founders = brood_count[1];
+
     // The founding free-lunch draw, read before anything moves: a consumer or
     // decomposer whose recipe grew no contractile part at all.
     let unlimbed: Vec<OrganismId> = world
@@ -182,6 +206,14 @@ fn run(seed: u64, ticks: u32) -> Reading {
     let mut age_total = [0u64; 3];
     let mut gestation_total = [0u64; 3];
     let mut age_samples = [0u64; 3];
+    // TD10: the crossing TD9 named. Read every tick rather than off the curve,
+    // because a kingdom that empties between two curve samples has still gone
+    // extinct at a tick and the whole question is which tick.
+    let mut consumer_extinct_tick: Option<u32> = None;
+    let mut consumer_trough = (0u32, u64::MAX);
+    // Sampled at genesis too: the whole question is whether the discount had
+    // anything to prefer, and at tick 0 it does. (TD10)
+    let mut pool: Vec<(u32, u64, u64, u64)> = vec![prey_pool(&world, 0)];
 
     // Kingdom by id, so an event about a body that has since been retained out
     // of the world can still be attributed. Filled at genesis and at birth.
@@ -282,8 +314,17 @@ fn run(seed: u64, ticks: u32) -> Reading {
             }
         }
 
+        let mut consumers_now = 0u64;
         for organism in world.living() {
-            alive_ticks[kingdom_index(organism.kingdom())] += 1;
+            let k = kingdom_index(organism.kingdom());
+            alive_ticks[k] += 1;
+            consumers_now += u64::from(k == 1);
+        }
+        if consumers_now < consumer_trough.1 {
+            consumer_trough = (tick, consumers_now);
+        }
+        if consumers_now == 0 && consumer_extinct_tick.is_none() {
+            consumer_extinct_tick = Some(tick);
         }
 
         // Sampled every hundred ticks, the instrument's own cadence.
@@ -316,6 +357,7 @@ fn run(seed: u64, ticks: u32) -> Reading {
                 biomass[k] += organism.biomass_mg();
             }
             curve.push((tick, alive, biomass));
+            pool.push(prey_pool(&world, tick));
         }
     }
 
@@ -391,7 +433,60 @@ fn run(seed: u64, ticks: u32) -> Reading {
         consumer_on_consumer_mg,
         cannibal_mg,
         cells_end: std::array::from_fn(|k| cells[k].len() as u64),
+        consumer_extinct_tick,
+        consumer_trough,
+        consumer_founders,
+        founding_brood_ticks,
+        pool,
     }
+}
+
+/// What a living consumer can actually choose among, at one tick: per thousand
+/// consumers, how many plain non-consumer bodies stand inside the window the
+/// ecology scans, how many consumers have at least one, and how far the nearest
+/// one is whether or not the window reaches it.
+///
+/// **The window is the tick's own, and it is not the bite reach.** A near body
+/// scans `sight_range`, which is `min(GRAZE_RANGE + body.reach(), 8)` — so a
+/// body that can bite at fifty voxels still forages at eight. Mirrored here the
+/// way `STARVATION_MG` and `CELL` are: a receipt reads the rule.
+fn prey_pool(world: &World, tick: u32) -> (u32, u64, u64, u64) {
+    let bodies: Vec<_> = world
+        .living()
+        .map(|o| (o.id, o.kingdom(), o.position, o.signal, o.body.reach()))
+        .collect();
+    let (mut consumers, mut alternatives, mut with_one, mut nearest) = (0u64, 0u64, 0u64, 0u64);
+    for (id, kingdom, at, _, reach) in &bodies {
+        if *kingdom != Kingdom::Consumer {
+            continue;
+        }
+        let window = (5 + reach).min(8);
+        consumers += 1;
+        let mut seen = 0u64;
+        let mut closest = i32::MAX;
+        for (other, other_kingdom, other_at, signal, _) in &bodies {
+            if other == id || *signal != Signal::Plain || *other_kingdom == Kingdom::Consumer {
+                continue;
+            }
+            let gap = (0..3)
+                .map(|a| (at[a] - other_at[a]).abs())
+                .max()
+                .unwrap_or(0);
+            closest = closest.min(gap);
+            seen += u64::from(gap <= window);
+        }
+        alternatives += seen;
+        with_one += u64::from(seen > 0);
+        // Tenths of a voxel, so the mean survives integer arithmetic. Clamped
+        // at the enclosure's own width for a tick with nothing left to find.
+        nearest += u64::from(closest.clamp(0, 128).unsigned_abs()) * 10;
+    }
+    (
+        tick,
+        alternatives * 1_000 / consumers.max(1),
+        with_one * 1_000 / consumers.max(1),
+        nearest / consumers.max(1),
+    )
 }
 
 /// Sum of `biomass_mg * 100 / mass_ceiling_mg` over one kingdom's living, and
