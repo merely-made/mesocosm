@@ -29,6 +29,18 @@ broken; played wall-time mapped 60:1 onto it.
   no second key. D5's burn-or-incorporate choice becomes a state you play.
 - **Priority: world and ecosystem dynamics first.** Succession/epoch wiring
   (PS2) deliberately waits.
+- **The bar (Mark, 2026-08-29): the RimWorld standard.** "We're trying to
+  reach that rimworld bar: a composition of loops so compelling it could be
+  called a story generator." Earlier the same day: "rimworld wouldn't make
+  sense without the confluence of many loops and mechanics... it's hard to
+  be surprised when there's nothing to learn." No single loop is the game;
+  the game is loops interacting until the world produces events worth
+  retelling. This bar judges every slice here: a mechanic earns its place
+  by composing with the others into legible surprise, and a dynamic nobody
+  can witness or remember generates nothing. The witnessing half — history
+  surfaced, death seen, succession felt, the epoch retold — is where the
+  loops become stories, which is why PS2 and the record-reading surfaces
+  are story machinery, not plumbing.
 
 ## TD1 — the population instrument
 
@@ -88,6 +100,26 @@ the hand; walking away returns it to the ecology (visible in an idle run);
 a starved critter's meal refills the budget on screen; replay receipts
 land their hashes; the played slice plan's D5 note records that the choice
 became diegetic.
+
+## TD5 — one economy for all life (ruled 2026-08-29, Mark)
+
+NPCs earn energy the way the player does. Today every non-played gain —
+producer fixing, grazing, predation, decay — builds biomass only, and
+`energy_mg` is a birth endowment that never refills (the TD2d finding), so
+every hunger threshold trips early and decomposers cannot bank a corpse
+against the gap to the next one. TD5 routes every organism's feeding
+income through the body rule TD4 landed for the played meal: starved
+(`budget_below(STARVED_UPKEEP_TICKS)`) → the gain credits the budget;
+provisioned → it builds the body, as today. One predicate, one economy,
+every kingdom. The `dispersal_for` zero-energy gate aligns to the same
+hunger predicate while its ledger becomes real.
+
+**Done when:** the instrument shows founded kingdoms persisting to the
+horizon in a majority of seeds — `breathes` reached, zero boils, the
+collapse control still collapsing; a death-cause probe shows decomposers
+banking corpses and surviving the gaps; a mechanics-only receipt is
+recorded before any constants follow-up, and any follow-up nudge is
+documented constant by constant; fixtures re-record at the new economy.
 
 ## Findings
 
