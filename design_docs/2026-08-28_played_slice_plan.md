@@ -81,6 +81,30 @@ section visibly follows the controlled organism with the ruled framing;
 the HUD minimap rides Route A unchanged; and clippy stays clean across the
 workspace.
 
+**Receipt, 2026-08-28.** All hold mechanically; the human half — Mark's
+hand — remains, as with PS0. The host's main view is the brick tracer
+over the live `World`: `BrickMap` bound at genesis, dirty bricks drained
+per tick through a new documented `&mut`-but-not-a-world-change accessor
+(`World::drain_ground_dirty`, invariant proven at runtime: a draining
+headed replay and a never-draining headless recording land the same
+hash), slab camera following the controlled organism with arrows as
+presentation-only pan, the body posed through the landed V2
+`BodyLensProjection` path, and the minimap composited unchanged. Traces
+and receipts write on exit; `--replay` self-drives headed and asserts
+the state hash — and the instrument is proven, since a falsified hash
+exits 1. A 200-intent demo trace replayed to `8a101763143e5012` on the
+RTX 4060 (ground revision 4 — the carves exercised the refresh path),
+and a 369-intent auto-driven session replayed identically. Capture at
+`Code/testing/mesocosm/ps1_played.png` (1920×1080, 153 colours): strata,
+carve scars, the critter, the minimap.
+
+Two residues. The tracer takes exactly one pose, so only the controlled
+organism appears in the section — the other organisms read on the
+minimap; a lens roster is the named follow-up. And the G2 slab
+(half-height 20) over-frames this 32-voxel enclosure to about half the
+frame — the right half-height is nearer 9-11, but the section framing is
+a presentation ruling and waits for Mark.
+
 ## PS2 — extracted, not scheduled
 
 The loop's two unwired seams, deliberately out of v1: handling

@@ -150,6 +150,17 @@ impl World {
         &self.ground
     }
 
+    /// Takes the bricks changed since the last drain, for a projection's
+    /// region-upload discipline.
+    ///
+    /// `&mut` and yet not a world change: `Ground::dirty` is `serde(skip)`
+    /// and outside `Ground`'s `PartialEq`, so draining alters neither the
+    /// snapshot nor the replay hash. Hosts drain at their own frame rate;
+    /// the revision and the brick bytes carry the authoritative change.
+    pub fn drain_ground_dirty(&mut self) -> Vec<[i16; 3]> {
+        self.ground.drain_dirty()
+    }
+
     pub fn places(&self) -> &Places {
         &self.places
     }

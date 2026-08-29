@@ -5,12 +5,13 @@
 
 //! The window, the surface, and the loop.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
 use mesocosm_core::{Intent, Kingdom, Organism, Placement, Route, Signal, Stage};
 use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
-use mesocosm_render::{Camera, Renderer, SceneItem, deadened, kingdom_colour};
+use mesocosm_render::{SceneItem, deadened, kingdom_colour};
 use mesocosm_runtime::Runtime;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, WindowEvent};
@@ -19,6 +20,10 @@ use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
 use crate::fixture;
+use crate::played::PlayedTrace;
+use crate::section::{self, Pan, Section};
+
+mod receipts;
 
 #[derive(Clone, Debug)]
 pub struct HostConfig {
@@ -31,7 +36,16 @@ pub struct HostConfig {
     /// without a person sitting in front of it.
     pub frames: Option<u32>,
     /// Write the last frame here before exiting.
-    pub capture: Option<std::path::PathBuf>,
+    pub capture: Option<PathBuf>,
+    /// Write the session's intent trace here before exiting. Skipped on a
+    /// replay, whose trace is an input rather than a result.
+    pub trace: Option<PathBuf>,
+    /// Write the run's receipt here before exiting.
+    pub receipt: Option<PathBuf>,
+    /// Drive the run from this trace instead of the keyboard. The self-driving
+    /// receipt: exactly one recorded intent per fixed step, then a hash
+    /// assertion against what the trace recorded.
+    pub replay: Option<PlayedTrace>,
     /// Metabolize automatically every N steps, so a capture run has something
     /// to show without keyboard input.
     pub auto_eat_every: Option<u64>,
@@ -43,18 +57,22 @@ impl Default for HostConfig {
             seed: 0x00A7_7AC4,
             organisms: 60,
             ticks_per_second: 60,
-            width: 720,
-            height: 720,
+            width: 960,
+            height: 540,
             frames: None,
             capture: None,
+            trace: None,
+            receipt: None,
+            replay: None,
             auto_eat_every: None,
         }
     }
 }
 
-/// Half-height of the visible world region, in voxel units. Fixed, so the
-/// critter moves across the view rather than the view rescaling around it.
-const WORLD_EXTENT: f32 = 26.0;
+/// Recorded steps a replay frame drives. Exact, not throttled: the queue is
+/// topped up with precisely this many intents and precisely this many steps
+/// run, so a replay's trace is the recording's trace and nothing else.
+const REPLAY_STEPS_PER_FRAME: usize = 4;
 
 /// One drawable thing in the world: its geometry, where it sits, and how
 /// brightly it reads.
@@ -91,39 +109,34 @@ fn look_of(organism: &Organism) -> ([f32; 3], f32) {
     }
 }
 
-/// Camera orbit state. Presentation only; never reaches the core.
-struct View {
-    yaw: f32,
-    pitch: f32,
-    zoom: f32,
-}
-
-impl Default for View {
-    fn default() -> Self {
-        Self {
-            yaw: std::f32::consts::FRAC_PI_4,
-            pitch: 0.6154797,
-            zoom: 1.0,
-        }
-    }
-}
-
 pub struct Host {
     config: HostConfig,
     runtime: Runtime,
     volumes: VolumeMap,
-    view: View,
+    /// Where the section sits relative to the critter it follows. Presentation
+    /// only; it never reaches an intent, so it cannot reach the trace.
+    pan: Pan,
     window: Option<Arc<Window>>,
     gpu: Option<Gpu>,
+    adapter: Option<wgpu::AdapterInfo>,
     last: Option<Instant>,
     frames: u32,
     steps: u64,
+    /// How much of a replay's trace has been fed in.
+    cursor: usize,
+    finished: bool,
+    /// Process exit code. Nonzero only when a replay landed on a different
+    /// hash than the one its trace recorded.
+    code: i32,
 }
 
 struct Gpu {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
-    renderer: Renderer,
+    /// The main view: the ruled side-on section over the live Ground.
+    section: Section,
     /// The chrome lane. `None` when netrender declined the device; the game
     /// runs chromeless rather than not at all.
     hud: Option<crate::hud::Hud>,
@@ -136,41 +149,31 @@ impl Host {
             config,
             runtime,
             volumes: fixture::volumes(),
-            view: View::default(),
+            pan: Pan::default(),
             window: None,
             gpu: None,
+            adapter: None,
             last: None,
             frames: 0,
             steps: 0,
+            cursor: 0,
+            finished: false,
+            code: 0,
         }
     }
 
-    pub fn run(config: HostConfig) -> Result<(), winit::error::EventLoopError> {
+    /// Runs the host to completion. The `i32` is the process exit code.
+    pub fn run(config: HostConfig) -> Result<i32, winit::error::EventLoopError> {
         let event_loop = EventLoop::new()?;
         event_loop.set_control_flow(ControlFlow::Poll);
         let mut host = Self::new(config);
-        event_loop.run_app(&mut host)
+        event_loop.run_app(&mut host)?;
+        Ok(host.code)
     }
 
-    /// Frames the world around the critter at a fixed scale, so moving reads
-    /// as travelling rather than as the camera zooming.
-    fn camera(&self) -> Camera {
-        let aspect = self.config.width as f32 / self.config.height.max(1) as f32;
-        // A world nobody is in still gets a camera: the origin is as good a
-        // vantage as any, and disembodiment is a state rather than an error.
-        let mut camera = Camera::following(
-            self.runtime.world().position().unwrap_or([0, 0, 0]),
-            WORLD_EXTENT * self.view.zoom,
-            aspect,
-        );
-        camera.yaw = self.view.yaw;
-        camera.pitch = self.view.pitch;
-        camera
-    }
-
-    /// Builds the drawable scene: the critter where it stands, plus every
-    /// organism where it lies. Organisms out of reach are dimmed, so what can be
-    /// eaten reads without a UI element.
+    /// Builds the scene the HUD's backdrop draws: the critter where it stands,
+    /// plus every organism where it lies. Organisms out of reach are dimmed, so
+    /// what can be eaten reads without a UI element.
     fn scene(&self) -> Option<(BodyMesh, Vec<Placed>)> {
         let world = self.runtime.world();
         let body = mesh_body(world.body()?, &self.volumes).ok()?;
@@ -184,9 +187,6 @@ impl Host {
             // keep its own copy of the reach rule, which was wrong the moment
             // reach became anatomy.
             let in_reach = world.in_reach(organism.position);
-            // Dim what cannot be reached; that is information the player is
-            // entitled to. Whether the thing is telling the truth about itself
-            // is not, and the renderer does not leak it.
             let reach_tint = if in_reach { 1.0 } else { 0.45 };
             let (colour, scale) = look_of(organism);
             loose.push((
@@ -201,14 +201,14 @@ impl Host {
         Some((body, loose))
     }
 
-    /// Turns a key into an intent. The host does not decide whether the intent
-    /// is legal; the core does, and reports a rejection.
     /// The next meal in reach, routed. `None` when nothing is close enough.
     fn meal(&self, route: Route) -> Option<Intent> {
         let world = self.runtime.world();
         fixture::reachable(world).map(|m| fixture::metabolize(world, m, &self.volumes, route))
     }
 
+    /// Turns a key into an intent. The host does not decide whether the intent
+    /// is legal; the core does, and reports a rejection.
     fn intent_for(&self, key: &Key) -> Option<Intent> {
         let step = 2;
         match key {
@@ -233,6 +233,12 @@ impl Host {
                 }),
                 "f" | "F" => self.meal(Route::Burn),
                 "q" | "Q" => Some(Intent::Deposit { mass_mg: 60 }),
+                // Digging at your own feet. Legality is embodiment plus
+                // reach, and one voxel down is inside the shortest reach.
+                "c" | "C" => self.runtime.world().position().map(|at| Intent::Carve {
+                    at: [at[0], at[1] - 1, at[2]],
+                    radius: 1,
+                }),
                 _ => None,
             },
             Key::Named(NamedKey::Space) => self.meal(Route::Incorporate {
@@ -248,12 +254,27 @@ impl Host {
         if let Some(gpu) = &mut self.gpu {
             gpu.config.width = self.config.width;
             gpu.config.height = self.config.height;
-            gpu.surface.configure(gpu.renderer.device(), &gpu.config);
-            gpu.renderer.resize(self.config.width, self.config.height);
+            gpu.surface.configure(&gpu.device, &gpu.config);
+            gpu.section.resize(self.config.width, self.config.height);
         }
     }
 
-    fn frame(&mut self, event_loop: &ActiveEventLoop) {
+    /// Steps the world. A replay feeds recorded intents and ignores the clock;
+    /// a played session converts elapsed wall time into whole fixed steps.
+    /// Returns true when a replay has reached the end of its trace.
+    fn advance(&mut self) -> bool {
+        if let Some(replay) = &self.config.replay {
+            let end = (self.cursor + REPLAY_STEPS_PER_FRAME).min(replay.intents.len());
+            let batch = end - self.cursor;
+            for intent in &replay.intents[self.cursor..end] {
+                self.runtime.queue(intent.clone());
+            }
+            self.cursor = end;
+            self.runtime.step(batch as u64);
+            self.steps += batch as u64;
+            return self.cursor >= replay.intents.len();
+        }
+
         let now = Instant::now();
         let elapsed_us = self
             .last
@@ -288,13 +309,28 @@ impl Host {
         }
 
         self.steps += self.runtime.advance(elapsed_us);
+        false
+    }
 
-        let camera = self.camera();
-        let Some((body, loose)) = self.scene() else {
-            return;
-        };
-        let critter_at = self.runtime.world().position().unwrap_or([0, 0, 0]);
+    fn frame(&mut self, event_loop: &ActiveEventLoop) {
+        let replay_done = self.advance();
 
+        // Presentation reads of the stepped world, taken before the device is
+        // borrowed: the section follows the critter, the HUD backdrop wants
+        // the meshed scene, and neither is world state.
+        let at = self.runtime.world().position().unwrap_or([0, 0, 0]);
+        let centre = section::centre_on(at, self.pan);
+        let tint = self
+            .runtime
+            .world()
+            .controlled()
+            .map_or([0.42, 0.62, 0.46], |organism| look_of(organism).0);
+        let pose = section::pose_of(self.runtime.world(), tint);
+        let scene = self.scene();
+        let dirty = self.runtime.drain_ground_dirty();
+        let steps = self.steps;
+
+        let world = self.runtime.world();
         let Some(gpu) = &mut self.gpu else { return };
         // wgpu 29 returns an enum rather than a Result here: a suboptimal
         // texture is still drawable, and a lost or outdated surface wants
@@ -303,125 +339,55 @@ impl Host {
             wgpu::CurrentSurfaceTexture::Success(texture)
             | wgpu::CurrentSurfaceTexture::Suboptimal(texture) => texture,
             wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
-                gpu.surface.configure(gpu.renderer.device(), &gpu.config);
+                gpu.surface.configure(&gpu.device, &gpu.config);
                 return;
             }
             _ => return,
         };
 
         let view = surface_texture.texture.create_view(&Default::default());
-        let mut encoder =
-            gpu.renderer
-                .device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("frame"),
-                });
-        let mut items = Vec::with_capacity(loose.len() + 1);
-        items.push(SceneItem::new(&body, critter_at));
-        for (mesh, at, tint, warns, colour, scale) in &loose {
-            items.push(SceneItem::creature(
-                mesh, *at, *tint, *warns, *colour, *scale,
-            ));
+        let mut encoder = gpu
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("frame"),
+            });
+        if let Err(error) = gpu.section.draw(
+            &mut encoder,
+            &view,
+            world.ground(),
+            &dirty,
+            centre,
+            pose.as_ref(),
+        ) {
+            eprintln!("section: {error}");
         }
-        gpu.renderer
-            .draw_scene(&mut encoder, &view, &items, &camera);
-        if let Some(hud) = &mut gpu.hud {
-            hud.render_backdrop(&items, self.steps);
-            hud.refresh(self.runtime.world());
+        if let (Some(hud), Some((body, loose))) = (&mut gpu.hud, &scene) {
+            let mut items = Vec::with_capacity(loose.len() + 1);
+            items.push(SceneItem::new(body, at));
+            for (mesh, place, tint, warns, colour, scale) in loose {
+                items.push(SceneItem::creature(
+                    mesh, *place, *tint, *warns, *colour, *scale,
+                ));
+            }
+            hud.render_backdrop(&items, steps);
+            hud.refresh(world);
             hud.composite(
-                gpu.renderer.device(),
-                gpu.renderer.queue(),
+                &gpu.device,
+                &gpu.queue,
                 &mut encoder,
                 &view,
                 (gpu.config.width, gpu.config.height),
             );
         }
-        gpu.renderer.queue().submit(Some(encoder.finish()));
+        gpu.queue.submit(Some(encoder.finish()));
         // wgpu 30 moved presentation from SurfaceTexture to Queue.
-        gpu.renderer.queue().present(surface_texture);
+        gpu.queue.present(surface_texture);
 
         self.frames += 1;
-        if let Some(limit) = self.config.frames
-            && self.frames >= limit
-        {
-            self.capture();
-            event_loop.exit();
+        let hit_limit = self.config.frames.is_some_and(|limit| self.frames >= limit);
+        if replay_done || hit_limit {
+            self.finish(event_loop);
         }
-    }
-
-    /// Renders one offscreen frame and writes it, so a windowed run leaves
-    /// evidence a person can look at later.
-    fn capture(&self) {
-        let Some(path) = &self.config.capture else {
-            return;
-        };
-        let Some(gpu) = &self.gpu else { return };
-        let Some((body, loose)) = self.scene() else {
-            return;
-        };
-        let critter_at = self.runtime.world().position().unwrap_or([0, 0, 0]);
-
-        // The offscreen path wants our own colour format, not the surface's.
-        let shot = Renderer::with_device(
-            gpu.renderer.device().clone(),
-            gpu.renderer.queue().clone(),
-            self.config.width,
-            self.config.height,
-        );
-        let mut items = Vec::with_capacity(loose.len() + 1);
-        items.push(SceneItem::new(&body, critter_at));
-        for (mesh, at, tint, warns, colour, scale) in &loose {
-            items.push(SceneItem::creature(
-                mesh, *at, *tint, *warns, *colour, *scale,
-            ));
-        }
-        let camera = self.camera();
-        let rendered = shot.render_scene_with(&items, &camera, |encoder, view| {
-            // The capture shows what the window shows, chrome included.
-            if let Some(hud) = &gpu.hud {
-                hud.capture_composite(
-                    shot.device(),
-                    shot.queue(),
-                    shot.format(),
-                    encoder,
-                    view,
-                    (self.config.width, self.config.height),
-                );
-            }
-        });
-        let Ok(frame) = rendered else {
-            return;
-        };
-
-        if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        let Ok(file) = std::fs::File::create(path) else {
-            return;
-        };
-        let mut encoder = png::Encoder::new(file, frame.width, frame.height);
-        encoder.set_color(png::ColorType::Rgba);
-        encoder.set_depth(png::BitDepth::Eight);
-        if let Ok(mut writer) = encoder.write_header() {
-            let _ = writer.write_image_data(&frame.pixels);
-        }
-        // Reported rather than merely rendered: places, history, and scoring
-        // are all invisible on screen, so a capture run that quietly stopped
-        // recording would look exactly like one that did not.
-        let world = self.runtime.world();
-        println!(
-            "captured {} after {} frames, {} steps, {} body parts, in place {:?} of {}, \
-             {} lineages, {} events, {} readings",
-            path.display(),
-            self.frames,
-            self.steps,
-            world.body().map(|b| b.len()).unwrap_or(0),
-            world.place(),
-            world.places().len(),
-            world.lineages().len(),
-            self.runtime.history().len(),
-            self.runtime.readings().len(),
-        );
     }
 }
 
@@ -459,6 +425,7 @@ impl ApplicationHandler for Host {
             ..Default::default()
         }))
         .expect("a device");
+        self.adapter = Some(adapter.get_info());
 
         let size = window.inner_size();
         self.config.width = size.width.max(1);
@@ -486,15 +453,24 @@ impl ApplicationHandler for Host {
         };
         surface.configure(&device, &config);
 
-        // The renderer targets the surface's format, which is usually BGRA
-        // rather than the offscreen RGBA the tests use.
-        let renderer = Renderer::with_format(
+        // The section binds the live Ground at genesis and refreshes from the
+        // world's own dirty drain thereafter.
+        let section = match Section::new(
             device.clone(),
             queue.clone(),
             self.config.width,
             self.config.height,
             format,
-        );
+            self.runtime.world().ground(),
+        ) {
+            Ok(section) => section,
+            Err(error) => {
+                eprintln!("section: {error}");
+                self.code = 1;
+                event_loop.exit();
+                return;
+            }
+        };
 
         // The HUD shares the game's device rather than creating a second one,
         // which is the arrangement the workspace's wgpu pin exists for.
@@ -502,17 +478,19 @@ impl ApplicationHandler for Host {
             netrender::WgpuHandles {
                 instance,
                 adapter,
-                device,
-                queue,
+                device: device.clone(),
+                queue: queue.clone(),
             },
             format,
             self.runtime.world(),
         );
 
         self.gpu = Some(Gpu {
+            device,
+            queue,
             surface,
             config,
-            renderer,
+            section,
             hud,
         });
         self.window = Some(window);
@@ -520,29 +498,27 @@ impl ApplicationHandler for Host {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => self.finish(event_loop),
 
             WindowEvent::Resized(size) => self.resize(size.width, size.height),
 
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 match &event.logical_key {
-                    Key::Named(NamedKey::Escape) => {
-                        self.capture();
-                        event_loop.exit();
-                    }
-                    Key::Named(NamedKey::ArrowLeft) => self.view.yaw -= 0.12,
-                    Key::Named(NamedKey::ArrowRight) => self.view.yaw += 0.12,
-                    Key::Named(NamedKey::ArrowUp) => {
-                        self.view.pitch = (self.view.pitch + 0.08).min(1.5)
-                    }
-                    Key::Named(NamedKey::ArrowDown) => {
-                        self.view.pitch = (self.view.pitch - 0.08).max(-1.5)
-                    }
-                    key => {
+                    Key::Named(NamedKey::Escape) => self.finish(event_loop),
+                    // The section pans; it does not orbit. A ruled side-on
+                    // view that could be rotated would stop being one.
+                    Key::Named(NamedKey::ArrowLeft) => self.pan.x -= section::PAN_STEP,
+                    Key::Named(NamedKey::ArrowRight) => self.pan.x += section::PAN_STEP,
+                    Key::Named(NamedKey::ArrowUp) => self.pan.y += section::PAN_STEP,
+                    Key::Named(NamedKey::ArrowDown) => self.pan.y -= section::PAN_STEP,
+                    // A replay drives itself. Accepting a key would put an
+                    // intent in the trace that the recording never had.
+                    key if self.config.replay.is_none() => {
                         if let Some(intent) = self.intent_for(key) {
                             self.runtime.queue(intent);
                         }
                     }
+                    _ => {}
                 }
             }
 

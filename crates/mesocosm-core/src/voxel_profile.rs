@@ -16,9 +16,7 @@ use std::{
     fmt,
 };
 
-use nisus::{
-    VoxelCellEdit, VoxelChunk, VoxelChunkError, VoxelEdit, VoxelPatch, VoxelRegion,
-};
+use nisus::{VoxelCellEdit, VoxelChunk, VoxelChunkError, VoxelEdit, VoxelPatch, VoxelRegion};
 
 use crate::places::{AIR, BRICK, Ground};
 

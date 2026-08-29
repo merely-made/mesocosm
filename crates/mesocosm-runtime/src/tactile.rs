@@ -54,7 +54,10 @@ pub struct TactileHit {
 #[derive(Debug)]
 pub enum TactileError {
     /// The update was lowered from a profile revision this world is not at.
-    StaleSource { expected: u64, actual: u64 },
+    StaleSource {
+        expected: u64,
+        actual: u64,
+    },
     /// The ground held no occupied cell to project.
     EmptyGround,
     Body(BodyError),
@@ -112,14 +115,12 @@ impl TactileWorld {
         // Gravity is irrelevant: everything here is fixed and stepped never,
         // queried always.
         let mut world = BodyWorld::try_new([0.0, 0.0, 0.0])?;
-        let terrain_body = world.spawn(
-            BodyDesc::new(BodyKind::Fixed).with_collider(ColliderDesc::new(
-                ColliderShape::VoxelGrid {
-                    cell_size: [1.0, 1.0, 1.0],
-                    occupied,
-                },
-            )),
-        )?;
+        let terrain_body = world.spawn(BodyDesc::new(BodyKind::Fixed).with_collider(
+            ColliderDesc::new(ColliderShape::VoxelGrid {
+                cell_size: [1.0, 1.0, 1.0],
+                occupied,
+            }),
+        ))?;
         let terrain_collider = world
             .collider_ids(terrain_body)?
             .into_iter()
@@ -192,7 +193,9 @@ impl TactileWorld {
         let changed = if edits.is_empty() {
             0
         } else {
-            self.world.edit_voxels(self.terrain_collider, edits)?.changed
+            self.world
+                .edit_voxels(self.terrain_collider, edits)?
+                .changed
         };
         if changed > 0 {
             self.settle()?;
@@ -203,7 +206,11 @@ impl TactileWorld {
 
     /// Present one critter's capsules under a caller-owned key, replacing
     /// whatever that key presented before.
-    pub fn set_critter(&mut self, key: u64, capsules: &[TactileCapsule]) -> Result<(), TactileError> {
+    pub fn set_critter(
+        &mut self,
+        key: u64,
+        capsules: &[TactileCapsule],
+    ) -> Result<(), TactileError> {
         self.clear_critter(key)?;
         if capsules.is_empty() {
             return Ok(());
@@ -396,7 +403,12 @@ mod tests {
         let hit = down_pick(&world, 4, 4);
         let after = ground.surface(4, 4).expect("carving one voxel leaves rock");
         assert!(after < top);
-        assert_eq!(hit.pick, TactilePick::Ground { cell: [4, after, 4] });
+        assert_eq!(
+            hit.pick,
+            TactilePick::Ground {
+                cell: [4, after, 4]
+            }
+        );
     }
 
     #[test]

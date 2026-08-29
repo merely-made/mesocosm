@@ -104,6 +104,16 @@ impl Runtime {
         &self.world
     }
 
+    /// Takes the ground bricks changed since the last drain, so a host's
+    /// projection can upload regions rather than the whole map.
+    ///
+    /// The only `&mut World` route a host gets, and it is not a world change:
+    /// the dirty set is outside the snapshot and outside equality, so a host
+    /// that drains and a headless replay that never does still agree.
+    pub fn drain_ground_dirty(&mut self) -> Vec<[i16; 3]> {
+        self.world.drain_ground_dirty()
+    }
+
     /// What this run has seen happen.
     pub fn history(&self) -> &History {
         &self.history

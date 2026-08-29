@@ -13,9 +13,16 @@
 //! The loop is the standard one, and the reason it is safe is elsewhere:
 //! `mesocosm-runtime` converts however much wall time actually elapsed into
 //! whole fixed steps, so a stuttering window cannot change what happens.
+//!
+//! The main view is the lens brick tracer's side-on terrarium section over the
+//! live world (PS1). Camera motion is presentation only and never enters the
+//! trace, which is what lets a recorded session replay to the same hash.
 
 pub mod app;
 pub mod fixture;
 pub mod hud;
+pub mod played;
+pub mod section;
 
 pub use app::{Host, HostConfig};
+pub use played::{PlayedReceipt, PlayedTrace};
