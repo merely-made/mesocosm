@@ -125,6 +125,39 @@ The trait-board review screen stays with Views route B.
 
 ## Findings
 
+- **2026-08-29 (second real playtest, Mark):** 1,819 steps over 5,003
+  frames, hash `faea34e116b2e243`, trace preserved as
+  `mark_playtest2.*`. Four findings, in his words where they matter:
+  - **The loop is "button mashing e to avoid starving to death."** The
+    single-loop diagnosis confirmed from the chair, with the standing
+    correction restated: "it's the loops that make a game. asking someone
+    to playtest a particular loop doesn't make much sense absent the
+    context of the rest of them to tune the loops against... the
+    pathfinding means nothing without a map/doors/etc., what's the food,
+    what's the colonist." Playtests of isolated loops are not a receipt;
+    loop composition (PS2 first) is the work.
+  - **Input lag, diagnosed in code:** every winit `Pressed` event —
+    including OS key auto-repeat, which `intent_for` never filters
+    (`event.repeat` unchecked) — queues an intent into an unbounded
+    `VecDeque` drained at exactly 10 per second. Holding or mashing keys
+    builds a backlog that executes tens of seconds late and grows for the
+    whole session. Fix: filter repeats and coalesce/cap the pending
+    queue; host-side, cannot touch the trace (the trace records what was
+    applied, not what was pressed).
+  - **The followed critter disappeared while he was not dead.** Cause
+    unknown; his preserved trace is the reproduction fixture. Candidate
+    hypotheses to test, not assume: pose lost while `controlled()` still
+    live, slab-depth z drift, a severed-parts pose collapse, a lens
+    residency seam.
+  - **Bodies read as "abstract voxel shapes", not organisms.** His
+    direction: "shrink those down and put a few together in the shape of
+    a body plan, maybe you have something that looks more like a critter
+    or flora then." A real round, not a cosmetic pass — part scale prices
+    mass ceilings (`part_ceiling_mg` is voxel volume), so shrinking parts
+    while multiplying them per plan touches the economy the way S1's
+    analysis warned, and wants its own plan with that arithmetic done
+    first.
+
 - **2026-08-28 (first real playtest, Mark):** "no information was
   communicated, i don't think i changed my position? it is hard to tell
   what I was." A step-by-step replay of the session's trace (2,926 steps,
