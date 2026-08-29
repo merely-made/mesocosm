@@ -192,8 +192,15 @@ precedent.
 **predator** a warning is a hard **veto** (`choose_living_target` skips any
 non-`Plain` target outright), while for a **grazer** it is a +4 danger weight
 against a ×16 distance term — a quarter of one Chebyshev step, exactly
-cancelling the maximum mass bonus. It is sensed only at `Tier::Near`, with
-ground, and only by a body with at least one `Sense` part. `venom_mg` is
+cancelling the maximum mass bonus. **Erratum (2026-08-29, found by the
+traits-and-perception grounding pass):** the sentence that stood here said a
+warning is sensed only at `Tier::Near`, with ground, and only by a body with
+a `Sense` part. That gate is real but it is on the **movement/drive** path
+only (`behavior.rs:98`). The **feeding** path (`movement.rs:65`, `:70`) has
+no tier, ground, or anatomy gate at all. The live consequence is worth
+stating, because it is the kind of thing this brief exists to find: **an
+eyeless grazer walks toward a warning-coloured target and then declines to
+bite it** — its drives cannot see the warning, its jaws can. `venom_mg` is
 charged in `world/act.rs:284` and **only on the player path** (the charge also
 saturates at zero). `guise` **is** read — `breeding.rs:122` and
 `genesis.rs:237`, so it is heritable and flows through birth — but no
