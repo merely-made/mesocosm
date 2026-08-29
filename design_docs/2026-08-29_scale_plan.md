@@ -102,7 +102,29 @@ shows the monolithic hash is the binding constraint, not before.
 
 ## Findings
 
-*(none yet)*
+- **2026-08-29: the creatures are too big for the world, and S1 is the fix**
+  (Mark, from the captures: "don't the creatures in the game seem super big
+  to you?"). The measured ratio, from `PartPalette::primitive` against
+  `ENCLOSURE = 16` (a 33-voxel span): a mass segment is `[2,2,2]` = 5 voxels
+  (15% of the world's width), a limb `[4,1,1]` = 9 voxels long (**27%**), a
+  plate `[4,4,1]` = 9x9. A played body carries ~61 parts, and 60 organisms
+  at that size share a 33-voxel box — hence the overlapping pile in
+  `td3_roster.png`. A creature is also larger than a terrain brick
+  (`BRICK = 8`), so body features resolve finer than the world does, which
+  is backwards.
+  **Fix the world, not the bodies.** `part_ceiling_mg` prices voxel volume
+  at 0.8 mg/voxel, so shrinking half-extents would cut mass ceilings by
+  roughly eightfold and drag the economy TD6/TD7 just tuned; it would also
+  spend shape legibility a 5-voxel body cannot spare. S1 costs neither. At
+  `ENCLOSURE = 64` (129 voxels) a limb falls from 27% to 7%.
+  Two consequences that argue the same way:
+  - **Per-voxel soil granularity is currently moot.** The grain was chosen
+    (2026-08-29, on measured evidence) so roots could hunt across
+    neighbouring columns — but a 9-voxel producer already straddles nine.
+    Its forage radius sits inside its own footprint until the world grows.
+  - **The world is crossable in about two seconds** (1-2 voxel moves, 33
+    voxels, 10 t/s ≈ twenty ticks). Scale is a felt property, not only a
+    systems-test one.
 
 ## Progress
 
