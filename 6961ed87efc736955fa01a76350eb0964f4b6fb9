@@ -1,0 +1,11 @@
+Scope note: this commit accidentally swept in
+design_docs/2026-08-29_traits_and_perception_brief.md, which belongs to
+a concurrently running workflow (the traits-and-perception grounding
+pass), not to TD7. It was caught by a `git add -A` that should have been
+path-scoped, the same failure the workspace git conventions warn about.
+
+The file was complete-looking at 820 lines when swept, but the drafting
+agent had not reported, so the committed state may predate its final
+edits. Nothing was lost -- any later revision lands as a forward commit.
+TD7 itself is unaffected: its changes are the mesocosm-core files and
+the terrarium dynamics plan.
