@@ -472,9 +472,23 @@ impl Organism {
     }
 
     /// Whether this organism is ready to produce an offspring.
+    ///
+    /// **Adult mass, not an absolute floor** (TD8, and the missing half of
+    /// TD6). The mass clause used to be a flat `STARVATION_MG * OFFSPRING_COST`
+    /// — 80 mg, a number that knows nothing about the body asking. TD6 derived
+    /// an adult mass from the body plan and made growth determinate; this makes
+    /// breeding ask about it, so a big-plan body has to grow up first and a body
+    /// stalled at a fifth of its ceiling stops shedding broods it cannot afford.
+    ///
+    /// The gestation clock is unchanged, and the 80 mg clause stays underneath
+    /// as what it always really was: the guarantee that a brood costing a
+    /// quarter of the parent is born above [`ecology::STARVATION_MG`] rather
+    /// than already starving. The two do not conflict — a small plan's share of
+    /// its ceiling can fall under 80 mg, and then the floor is the binding one.
     pub fn can_reproduce(&self) -> bool {
         self.stage == Stage::Mature
             && self.since_offspring >= ecology::gestation_for_mass(self.life_history_mass_mg())
+            && self.biomass_mg() >= ecology::breeding_mass_mg(self.mass_ceiling_mg())
             && self.biomass_mg() > STARVATION_MG * OFFSPRING_COST
     }
 }

@@ -53,12 +53,10 @@ pub struct HostConfig {
     /// Half the height of the section's orthographic slab, in voxels — how much
     /// world the terrarium view frames.
     ///
-    /// **A knob rather than a constant because the number is unruled.** S1
-    /// widened the world to 129 voxels and proposed a value with the
-    /// arithmetic; until Mark rules, the default stays what shipped and the
-    /// proposal is one `--slab` away, so a capture of either is reproducible
-    /// from the tree. Presentation only: it never reaches an intent, so it
-    /// cannot move a replay hash. (2026-08-29 S1.)
+    /// The default is ruled ([`section::SLAB_HALF_HEIGHT`], 28 since
+    /// 2026-08-29); the knob stays so every framing remains reproducible from
+    /// the tree. Presentation only: it never reaches an intent, so it cannot
+    /// move a replay hash.
     pub slab_half_height: f32,
 }
 
@@ -343,7 +341,8 @@ impl Host {
         // borrowed: the section follows the critter, the HUD backdrop wants
         // the meshed scene, and neither is world state.
         let at = self.runtime.world().position().unwrap_or([0, 0, 0]);
-        let centre = section::centre_on(at, self.pan);
+        let half = section::half_height_or_default(self.config.slab_half_height);
+        let centre = section::centre_on(at, self.pan, half);
         let tint = self
             .runtime
             .world()

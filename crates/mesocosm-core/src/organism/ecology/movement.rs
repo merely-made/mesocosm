@@ -385,7 +385,17 @@ pub(super) fn disperse(
     };
     let old = organism.position;
     let shape = organism.walker_shape();
-    let next = if let Some(target) = target {
+    // **No actuator, no travel** (TD8). Zeroing `dispersal_for` is necessary
+    // and not sufficient: the hungry wander and the far tier's graph hop never
+    // asked for a budget, so a body with nothing that contracts still walked —
+    // and it walked at a plant's rent, which is the free lunch the ruling
+    // withdraws. It reads its drives and its memory above, exactly as before;
+    // what it cannot do is act on them by going somewhere. Producers read zero
+    // too, which is the same rule rather than a special case: TD7 already
+    // prices them as sessile, and this is what being sessile means.
+    let next = if organism.actuator_span() == 0 {
+        organism.position
+    } else if let Some(target) = target {
         if organism.tier == Tier::Far {
             let next = graph_step(places, organism.position, target);
             ground

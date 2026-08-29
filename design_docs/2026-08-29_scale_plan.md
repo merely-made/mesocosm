@@ -165,6 +165,8 @@ That was measured on a 32-voxel enclosure S1 has since grown to 129.
   measure a body against. At ±64 the ground runs off both edges at the shipped
   framing, so there is no whole world in view to be a third of. A framing
   proposal with the arithmetic is in the Progress entry; the number is Mark's.
+  **Ruled the same day at 28, with a clamp on the follow centre** — see "The
+  framing, ruled 2026-08-29" above and the Progress entry that landed it.
 
 - **2026-08-29 (S1): a generated nest entry almost never crosses a region
   boundary any more.** An entry route is 5 to 8 voxels long and a region is now
@@ -200,6 +202,41 @@ That was measured on a 32-voxel enclosure S1 has since grown to 129.
     systems-test one.
 
 ## Progress
+
+- **2026-08-29 (last today): the framing landed — half-height 28 is the
+  default, and the follow centre is clamped to it.** Two lines of behaviour,
+  both presentation. `section::SLAB_HALF_HEIGHT` is 28.0 (was 20.0), and
+  `--slab H` still varies it; `section::centre_on` now takes the half-height and
+  clamps the followed y to at least that, so the frame's floor is never below
+  the world's lowest brick at y = 0. `section::half_height_or_default` is the
+  one reading both the camera and the clamp ask, so they cannot disagree about
+  how tall the frame is. Three tests state the rule (the clamp holds at every
+  half-height tried, it is a floor rather than a lock — a body above it is still
+  followed and the pan still pans, and an unset half-height falls back to the
+  ruled default).
+
+  **The clamp is measured, not asserted.** `td8_framed.png` against S1's
+  unclamped `s1_slab_28.png`, same trace, same 1,920 x 1,080 capture: the
+  unclamped frame's bottom **154 px — 14% of the frame — read background grey
+  (191, 191, 191)**, which is the void under bedrock; the clamped frame reads
+  ground (64, 64, 64) on every row to y = 1,079. Terrain and bodies occupy the
+  bottom 41% of the clamped frame with sky above, so the band is held whole with
+  headroom, which is what the ruling asked for. **The trade the clamp makes is
+  worth stating:** because it is a floor on the centre rather than a re-framing,
+  a critter standing at y ≈ 20 is followed from a centre of 28, so the content
+  sits low in frame rather than filling the 62% the S1 proposal's arithmetic
+  described for an unclamped 28. Void or a low horizon was the choice, and the
+  ruling took the low horizon; a frame that centres the content *and* stays on
+  the world would need the half-height and the centre ruled together, which is
+  not this ruling.
+
+  **It cannot reach a trace, and the receipt says so.** `ps1_played.json`
+  records `slab_half_height: 28.0` and `state_hash_matches: true` against a demo
+  recorded headlessly, where no camera exists at all. (The hash itself moved
+  this round — `3b86d0ef9ebd7d33` — but for TD8's ecology rulings, not for the
+  framing.) Re-proved with the clamp in: the same trace replayed at `--slab` 20,
+  28, 36.3 and 48 lands that hash every time, exit 0, and none of the four shows
+  a background-grey row at the bottom of the frame.
 
 - **2026-08-29 (later): S1 landed — the enclosure is 129 voxels across, the
   stack held at 15x the area, and the one collapse in the receipt is gone.**

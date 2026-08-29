@@ -74,8 +74,22 @@ const REFERENCE_SEGMENT_VOXELS: u64 = 125;
 const REFERENCE_SEGMENT_MG: u64 = REFERENCE_MASS_MG;
 /// Fraction of a parent's mass an offspring costs, as a divisor.
 pub(crate) const OFFSPRING_COST: u64 = 4;
+/// Share of the body plan's own adult mass a body must carry before it may
+/// breed, in percent. **TD8's reproduction gate**, and the missing half of
+/// TD6: growth became determinate but breeding still asked an absolute
+/// milligram question that knew nothing about the ceiling the plan implies.
+/// Picked against the instrument — see the plan's TD8 Progress entry for the
+/// sweep — at the share where a body has to grow up without a big-plan body
+/// having to spend a whole life doing it.
+const BREEDING_SHARE_PCT: u64 = 33;
 /// Mass below which an organism cannot sustain itself.
 pub(crate) const STARVATION_MG: u64 = 20;
+/// Ticks a corpse takes to return one milligram to the ground it lies on.
+/// **TD8: duration, not yield.** Quadrupling `DECAYS_BASE_MG` was measured not
+/// to rescue decomposers, so the lever is how long a corpse stands rather than
+/// how much a scavenger gets per bite; this is the only number in the carrion
+/// arm that is a *rate* rather than a *share*.
+pub(crate) const CARRION_DECAY_TICKS: u32 = 4;
 /// Ticks of upkeep still held in the budget below which a body without a
 /// target starts wandering instead of standing still. TD2d: waiting for the
 /// literal last milligram (`energy_mg == 0`) left every kingdom motionless
@@ -107,6 +121,18 @@ pub(crate) fn part_ceiling_mg(half_extent: [i32; 3]) -> u64 {
         .map(|h| 2 * u64::from(h.unsigned_abs()) + 1)
         .product();
     (voxels * REFERENCE_MASS_MG / REFERENCE_SEGMENT_VOXELS).max(1)
+}
+
+/// The mass a body must carry before it may breed: a share of the adult mass
+/// its own body plan implies. (TD8)
+///
+/// **Life history's own answer, and no new kind of number** — the ceiling is
+/// TD6's `Organism::mass_ceiling_mg`, derived per part from the plan's voxel
+/// volume, so a big-plan body has to grow up and a small-plan body does not
+/// wait on a stranger's yardstick. It replaces an absolute 80 mg floor that a
+/// 3,500 mg plan cleared at 2% of adult size.
+pub(crate) fn breeding_mass_mg(ceiling_mg: u64) -> u64 {
+    ceiling_mg * BREEDING_SHARE_PCT / 100
 }
 
 /// Integer approximation of `mass^0.75`. It is monotonic, deterministic, and
@@ -211,8 +237,18 @@ pub(crate) fn upkeep_for_body(mass_mg: u64, actuator_span: u32, ceiling_mg: u64)
 
 /// One graph step's dispersal budget. Contractile geometry gives larger bodies
 /// more options, while hunger makes leaving an exhausted place worthwhile.
+///
+/// **No actuator, no travel** (TD8). This read `locomotion()`, which floors the
+/// span at one for the drive selector's arithmetic, so a body that drew no
+/// `Limb` tagma at all still got a step — a grazer moving at a plant's rent.
+/// It reads `actuator_span` now: zero parts that contract, zero budget. Every
+/// limbed body's budget is unchanged, because `locomotion` and `actuator_span`
+/// differ only at zero.
 pub(crate) fn dispersal_for(organism: &Organism) -> u32 {
-    (organism.locomotion() / 4).max(1) + u32::from(is_hungry(organism))
+    match organism.actuator_span() {
+        0 => 0,
+        span => (span / 4).max(1) + u32::from(is_hungry(organism)),
+    }
 }
 
 #[cfg(test)]
@@ -259,6 +295,51 @@ mod tests {
             "the surcharge outran the bound the body plan puts on it: \
              {all_limbs} against {sessile}"
         );
+    }
+
+    #[test]
+    fn breeding_asks_the_body_plans_own_adult_mass() {
+        // TD8's gate is a share of the ceiling, so two bodies of the same mass
+        // and different plans get different answers — which is the whole point
+        // of replacing an absolute floor.
+        let small = breeding_mass_mg(400);
+        let large = breeding_mass_mg(3_200);
+        assert!(
+            large > small,
+            "a bigger plan must have to grow further: {large} against {small}"
+        );
+        assert_eq!(breeding_mass_mg(0), 0, "a bodiless plan asks for nothing");
+        // And it is a share, not a step: doubling the plan doubles the bar.
+        assert_eq!(breeding_mass_mg(800), 2 * small);
+    }
+
+    #[test]
+    fn a_body_with_no_actuator_has_no_dispersal_budget() {
+        // TD8: `locomotion` still floors at one for the drive selector, and
+        // dispersal no longer reads it. A body that carries nothing contractile
+        // gets no steps, hungry or not; anything limbed is unchanged.
+        let world = crate::world::World::new(3, 60);
+        let (mut sessile, mut motile) = (0, 0);
+        for organism in world.organisms.iter().filter(|o| o.is_alive()) {
+            if organism.actuator_span() == 0 {
+                assert_eq!(
+                    organism.locomotion(),
+                    1,
+                    "the drive selector lost its floor"
+                );
+                assert_eq!(
+                    dispersal_for(organism),
+                    0,
+                    "a body with no actuator kept a step: {:?}",
+                    organism.id
+                );
+                sessile += 1;
+            } else {
+                assert!(dispersal_for(organism) >= 1);
+                motile += 1;
+            }
+        }
+        assert!(sessile > 0 && motile > 0, "the seed founds both kinds");
     }
 
     #[test]

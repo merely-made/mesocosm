@@ -18,15 +18,17 @@ use mesocosm_lens::{
 };
 use mesocosm_render::composite::Composite;
 
-/// The G2 slab, ratified 2026-08-21: half-height, section depth, and the
-/// palette depth of the retro grade. Kept as defaults, not as constants a
-/// camera policy may not vary.
+/// The G2 slab: section depth and the palette depth of the retro grade, plus
+/// the half-height Mark ruled on 2026-08-29. Kept as defaults, not as constants
+/// a camera policy may not vary.
 ///
-/// The half-height is the **default**, and a host may carry another
-/// ([`HostConfig::slab_half_height`](crate::HostConfig)): it was calibrated for
-/// a 128-voxel G2 fixture, it over-framed the 33-voxel enclosure, and S1's
-/// 129-voxel enclosure reopened the arithmetic rather than settling it.
-pub const SLAB_HALF_HEIGHT: f32 = 20.0;
+/// **28, framing the content's height and letting the width follow.** The world
+/// is 5.2:1 (129 voxels against a 25-voxel band) inside a 1.78:1 window, so no
+/// half-height both frames the width and fills the height; 28 shows 77% of the
+/// world and reads a 9-voxel limb at 9% of frame. A host may still carry
+/// another ([`HostConfig::slab_half_height`](crate::HostConfig)), and every
+/// framing replays to one hash. See the scale plan, "The framing".
+pub const SLAB_HALF_HEIGHT: f32 = 28.0;
 /// **Slice thickness, and deliberately not scaled with the enclosure.** A
 /// section shows a cut of fixed depth; widening it to keep the same fraction of
 /// a bigger world would only stack more bodies into the same pixels, which is
@@ -126,11 +128,7 @@ impl Section {
             grade: Grade::retro(PALETTE),
             width,
             height,
-            half_height: if half_height > 0.0 {
-                half_height
-            } else {
-                SLAB_HALF_HEIGHT
-            },
+            half_height: half_height_or_default(half_height),
             traced,
             traced_view,
             display,
@@ -378,12 +376,35 @@ fn target(
     (texture, view)
 }
 
-/// Where the slab sits: on the controlled critter, plus the pan.
+/// The half-height a host actually frames with: its own, or the default when
+/// it named none. One reading, so the camera and the follow centre's clamp
+/// cannot disagree about how tall the frame is.
+pub fn half_height_or_default(configured: f32) -> f32 {
+    if configured > 0.0 {
+        configured
+    } else {
+        SLAB_HALF_HEIGHT
+    }
+}
+
+/// Where the slab sits: on the controlled critter, plus the pan, **clamped so
+/// the frame never dips below bedrock**.
 ///
 /// The z component takes no pan, because the section's whole claim is that it
 /// cuts through whoever is being played.
-pub fn centre_on(at: [i32; 3], pan: Pan) -> [f32; 3] {
-    [at[0] as f32 + pan.x, at[1] as f32 + pan.y, at[2] as f32]
+///
+/// The clamp is the companion ruled with the half-height (2026-08-29): the
+/// world's lowest brick is y = 0, so a frame centred below `half_height` shows
+/// void along the bottom, which reads as a slab floating rather than a
+/// terrarium. Past roughly 24 the shipped follow centre does exactly that.
+/// It is presentation, like the framing — it moves no intent, so it cannot
+/// reach the trace.
+pub fn centre_on(at: [i32; 3], pan: Pan, half_height: f32) -> [f32; 3] {
+    [
+        at[0] as f32 + pan.x,
+        (at[1] as f32 + pan.y).max(half_height),
+        at[2] as f32,
+    ]
 }
 
 /// The world box the section's slab shows, in voxels around its centre.
@@ -454,4 +475,51 @@ fn pose_at(body: &BodyDocument, at: [i32; 3], tint: [f32; 3]) -> Option<CritterP
     BodyLensProjection::project(body, placement)
         .ok()
         .map(|projected| projected.pose)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The companion rule ruled with the half-height: the frame's floor is the
+    /// world's floor, whatever the body it is following is standing on.
+    #[test]
+    fn the_follow_centre_never_frames_below_bedrock() {
+        let pan = Pan::default();
+        for half in [20.0, SLAB_HALF_HEIGHT, 36.3, 48.0] {
+            for y in [0, 3, 12, 24, 40] {
+                let centre = centre_on([7, y, -5], pan, half);
+                assert!(
+                    centre[1] - half >= 0.0,
+                    "half {half} at y {y} framed {} below bedrock",
+                    half - centre[1]
+                );
+                assert_eq!(
+                    [centre[0], centre[2]],
+                    [7.0, -5.0],
+                    "the clamp moved x or z"
+                );
+            }
+        }
+    }
+
+    /// It is a floor, not a lock: a body standing above it is still followed,
+    /// and the pan still pans.
+    #[test]
+    fn a_body_above_the_floor_is_followed_and_panned() {
+        let high = centre_on([0, 60, 0], Pan { x: 2.0, y: 3.0 }, SLAB_HALF_HEIGHT);
+        assert_eq!(high, [2.0, 63.0, 0.0]);
+        // Panning down into the void stops at the floor rather than showing it.
+        let low = centre_on([0, 30, 0], Pan { x: 0.0, y: -20.0 }, SLAB_HALF_HEIGHT);
+        assert_eq!(low[1], SLAB_HALF_HEIGHT);
+    }
+
+    /// A host that names no half-height frames with the ruled default, and the
+    /// clamp reads the same number the camera does.
+    #[test]
+    fn an_unset_half_height_falls_back_to_the_ruled_default() {
+        assert_eq!(half_height_or_default(0.0), SLAB_HALF_HEIGHT);
+        assert_eq!(half_height_or_default(-1.0), SLAB_HALF_HEIGHT);
+        assert_eq!(half_height_or_default(36.3), 36.3);
+    }
 }

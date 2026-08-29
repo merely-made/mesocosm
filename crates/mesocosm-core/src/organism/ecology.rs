@@ -486,8 +486,18 @@ fn step_inner(
                 // far more slowly. Locked matter is a real failure mode — and
                 // since TD6 "return" is literal: the milligram goes into the
                 // column the body is lying on.
-                let unreturned = organism.spend_mass(1);
-                soil.deposit(column, 1 - unreturned);
+                //
+                // **TD8 slows this arm, and only this arm.** A corpse was
+                // returning a milligram every tick, so it was an event a
+                // decomposer had to be standing next to; one milligram every
+                // `CARRION_DECAY_TICKS` makes it a standing resource. `age`
+                // keeps counting after death, so each corpse carries its own
+                // phase and the enclosure does not decay in lockstep. The
+                // scavenger's own draw (`decay_rate_for_mass`) is untouched:
+                // the yield lever was measured and ruled out, this is duration.
+                let returning = u64::from(organism.age.is_multiple_of(CARRION_DECAY_TICKS));
+                let unreturned = organism.spend_mass(returning);
+                soil.deposit(column, returning - unreturned);
                 if organism.biomass_mg() == 0 {
                     organism.stage = Stage::Spent;
                     events.push(Event::Returned {

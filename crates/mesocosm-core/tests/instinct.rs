@@ -30,8 +30,13 @@ fn refused() -> Intent {
 }
 
 /// A populated world whose played critter starts on an empty budget.
+///
+/// The seed moved from 4,242 on 2026-08-29: TD8 made travel conditional on
+/// carrying an actuator, and that seed founds its played critter from an
+/// unlimbed recipe — twenty-two parts and nothing that contracts — so every
+/// claim here about who is walking the body would have been vacuously true.
 fn restless() -> World {
-    emptied(World::new(4_242, 60))
+    emptied(World::new(4_244, 60))
 }
 
 /// The same empty budget with nothing in the enclosure to fill it.
@@ -41,7 +46,7 @@ fn restless() -> World {
 /// way out of hunger on the first tick and then stands still — correctly.
 /// Wandering needs a body that is hungry *and* has nothing to eat.
 fn stranded() -> World {
-    emptied(World::new(4_242, 0))
+    emptied(World::new(4_244, 0))
 }
 
 fn emptied(mut world: World) -> World {

@@ -1,7 +1,14 @@
-use super::*;
+// The child modules read these fixtures through `use super::*`, so the
+// ecology's own items have to arrive here as a re-export rather than a private
+// import. (2026-08-29 TD8, splitting this file.)
+pub use super::*;
+
 use crate::body::{SpeciesId, VolumeRef};
 use crate::history::Event;
 use crate::organism::{Kingdom, Signal};
+
+mod carrion;
+mod signals;
 
 /// A fixture body big enough to be the mass it is given.
 ///
@@ -171,7 +178,17 @@ fn a_contractile_consumer_can_take_live_consumer_prey() {
 fn an_exhausted_body_disperses_through_the_place_graph() {
     let mut place_rng = Rng::from_seed(99);
     let places = Places::scatter(&mut place_rng, 3, 16);
-    let mut world = vec![organism(Kingdom::Consumer, 300)];
+    // A limbed consumer, because TD8 made travel conditional on carrying
+    // something that contracts and the fixture body is bulk.
+    let mut world = vec![Organism::founding(
+        OrganismId(0),
+        SpeciesId(2),
+        Kingdom::Consumer,
+        VolumeRef::from_tag(16),
+        [8, 1, 1],
+        [0, 0, 0],
+        300,
+    )];
     world[0].energy_mg = 0;
     let before = world[0].position;
     let mut events = Vec::new();
@@ -224,12 +241,14 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
         [0, 0, 0],
         300,
     );
+    // Short-limbed rather than a single sensor voxel: TD8 made "slow" and
+    // "cannot move at all" different things, and this test is about the first.
     let slow = Organism::founding(
         OrganismId(0),
         SpeciesId(2),
         Kingdom::Consumer,
         VolumeRef::from_tag(20),
-        [1, 1, 1],
+        [3, 1, 1],
         [0, 0, 0],
         300,
     );
@@ -443,59 +462,20 @@ fn an_underprovisioned_body_waits_without_spending_or_drawing() {
 }
 
 #[test]
-fn the_dead_become_carrion_then_return() {
-    let mut world = vec![organism(Kingdom::Consumer, 30)];
-    assert!(
-        until(&mut world, |w| w
-            .first()
-            .is_some_and(|o| o.stage == Stage::Carrion)),
-        "starving leaves a body"
-    );
-    assert!(
-        until(&mut world, |w| w.is_empty()),
-        "carrion returns to the world"
-    );
-}
-
-#[test]
-fn a_decomposer_feeds_on_the_dead_beside_it() {
-    let mut world = vec![
-        organism(Kingdom::Decomposer, 200),
-        Organism {
-            id: OrganismId(1),
-            stage: Stage::Carrion,
-            ..organism(Kingdom::Consumer, 300)
-        },
-    ];
-    let before = world[0].biomass_mg();
-    run(&mut world, 10);
-    assert!(
-        world[0].biomass_mg() > before,
-        "a decomposer earns beside a corpse"
-    );
-}
-
-#[test]
-fn a_decomposer_alone_declines() {
-    let mut world = vec![organism(Kingdom::Decomposer, 200)];
-    let (body, budget) = (world[0].biomass_mg(), world[0].energy_mg);
-    run(&mut world, 10);
-    assert!(
-        world[0].energy_mg < budget || world[0].biomass_mg() < body,
-        "no dead, no living: something has to be draining"
-    );
-    assert!(
-        until(&mut world, |w| w.first().is_none_or(|o| !o.is_alive())),
-        "an unfed decomposer does not last forever"
-    );
-}
-
-#[test]
 fn producers_alone_spread_until_something_eats_them() {
+    // One plant per crowding cell. They used to start heaped in a four-voxel
+    // square and spread anyway, because breeding asked only for 80 mg; under
+    // TD8 a body has to reach a share of its own adult mass first, and a stand
+    // shading itself down to the income floor never gets there. That is the
+    // ruling working, so the fixture gives the pasture the room the claim needs.
     let mut world: Vec<Organism> = (0..40)
         .map(|i| Organism {
             id: OrganismId(i),
-            position: [(i as i32) % 4, 0, (i as i32) / 4 % 4],
+            position: [
+                ((i as i32) % 8) * CROWD_CELL,
+                0,
+                ((i as i32) / 8) * CROWD_CELL,
+            ],
             ..organism(Kingdom::Producer, 300)
         })
         .collect();
@@ -595,90 +575,6 @@ fn a_world_without_producers_runs_down() {
     assert!(
         world.iter().all(|o| !o.is_alive()),
         "consumers alone cannot sustain a world"
-    );
-}
-
-#[test]
-fn an_honest_organism_does_not_lie() {
-    let plain = organism(Kingdom::Producer, 100);
-    assert!(!plain.is_mimic());
-    assert!(!plain.signals_falsely());
-
-    let honestly_armed = Organism {
-        signal: Signal::Warning,
-        venom_mg: 80,
-        ..organism(Kingdom::Producer, 100)
-    };
-    assert!(
-        !honestly_armed.signals_falsely(),
-        "a real warning is not a lie"
-    );
-}
-
-#[test]
-fn a_bluffer_warns_without_a_bite() {
-    let bluffer = Organism {
-        signal: Signal::Warning,
-        venom_mg: 0,
-        ..organism(Kingdom::Producer, 100)
-    };
-    assert!(bluffer.signals_falsely());
-    assert!(bluffer.is_mimic());
-}
-
-#[test]
-fn a_trap_looks_plain_and_bites() {
-    let trap = Organism {
-        signal: Signal::Plain,
-        venom_mg: 120,
-        guise: Kingdom::Producer,
-        ..organism(Kingdom::Consumer, 100)
-    };
-    assert!(trap.is_mimic());
-    assert!(trap.signals_falsely());
-    assert!(
-        trap.betrays_itself(),
-        "unfair is fine, unknowable is not: a trap must leave a tell"
-    );
-}
-
-#[test]
-fn the_tell_is_that_a_trap_does_not_grow() {
-    let mut honest = vec![organism(Kingdom::Producer, 200)];
-    let mut trap = vec![Organism {
-        guise: Kingdom::Producer,
-        signal: Signal::Plain,
-        venom_mg: 120,
-        ..organism(Kingdom::Consumer, 200)
-    }];
-
-    run(&mut honest, 30);
-    run(&mut trap, 30);
-    assert!(honest[0].biomass_mg() > 200, "a real plant fixes energy");
-    assert!(
-        trap[0].biomass_mg() <= 200,
-        "a plant that does not photosynthesise does not put on weight"
-    );
-    assert!(
-        honest[0].biomass_mg() > trap[0].biomass_mg(),
-        "and the gap between them is the tell"
-    );
-}
-
-#[test]
-fn a_lie_is_heritable() {
-    let mut world = vec![Organism {
-        signal: Signal::Warning,
-        venom_mg: 0,
-        ..organism(Kingdom::Producer, 400)
-    }];
-    run(&mut world, gestation_for_mass(400) + 10);
-    let child = world.iter().find(|o| o.id.0 >= 100).expect("an offspring");
-    assert_eq!(child.signal, Signal::Warning);
-    assert_eq!(child.venom_mg, 0);
-    assert!(
-        child.is_mimic(),
-        "a mimic lineage is learnable, not a coin flip"
     );
 }
 

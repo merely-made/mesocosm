@@ -526,8 +526,13 @@ fn the_same_pursuit_selects_between_bodies_at_a_generated_threshold() {
         ];
         world
     };
-    let mut compact = setup([1, 1, 1]);
-    let mut broad = setup([3, 1, 3]);
+    // Both bodies are actuators, and were single voxels of bulk until TD8: a
+    // body with no contractile part cannot travel at all now, so a hunter with
+    // none could not have demonstrated the threshold either way. The long axis
+    // is vertical in both, so what still separates them is the footprint the
+    // one-voxel gap has to admit.
+    let mut compact = setup([1, 4, 1]);
+    let mut broad = setup([3, 7, 3]);
     let mut compact_twin = compact.clone();
     let mut broad_twin = broad.clone();
 

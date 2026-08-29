@@ -37,7 +37,7 @@ fn main() {
             "--replay" => replay = args.next().map(PathBuf::from),
             "--record-demo" => record_demo = true,
             "--auto-eat" => config.auto_eat_every = args.next().and_then(|v| v.parse().ok()),
-            // Presentation only, and unruled: see `HostConfig::slab_half_height`.
+            // Presentation only; the default is ruled and this varies it.
             "--slab" => {
                 if let Some(half) = args.next().and_then(|v| v.parse::<f32>().ok()) {
                     config.slab_half_height = half;
@@ -117,6 +117,6 @@ mesocosm-genet: run Mesocosm in a window
   --record-demo   write a scripted trace headlessly and exit
   --auto-eat N    metabolize automatically every N steps
   --seed N        world seed
-  --slab H        section slab half-height in voxels (presentation only)
+  --slab H        section slab half-height in voxels (presentation only, default 28)
 
 controls: WASD move, E/Space eat, Q deposit, C dig, arrows pan, Esc quit";
