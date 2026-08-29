@@ -313,6 +313,15 @@ pub struct World {
     /// Serialized whole, so carves live inside the replay hash (G1).
     #[serde(default)]
     ground: crate::places::Ground,
+    /// The enclosure's matter, per voxel column.
+    ///
+    /// **The closed cycle's other half** (TD6). Producers draw out of it,
+    /// bodies return to it, and the player's deposit enriches it, so the sum
+    /// of soil, living substance, carrion and reserves is a constant of the
+    /// run. World state like everything else here: serialized, hashed, and a
+    /// pure function of the seed and the trace.
+    #[serde(default)]
+    soil: crate::places::Soil,
     /// Everywhere each lineage has been.
     ///
     /// **A high-water set**, for the same reason the frontier is a high-water
@@ -438,6 +447,7 @@ impl World {
             &mut self.pending,
             &self.lineages,
             self.development_palette,
+            &mut self.soil,
             &self.places,
             &self.ground,
             focus,

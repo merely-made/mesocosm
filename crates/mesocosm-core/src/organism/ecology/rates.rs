@@ -53,16 +53,20 @@ pub(super) const UPKEEP_BASE_MG: u64 = 1;
 /// of upkeep to 333.
 const UPKEEP_SCALE: u64 = 62;
 /// Edge of a crowding cell, in voxel units.
-/// TD2c: 16 -> 8, undoing TD2's doubling. That doubling only ever compensated
-/// for bodies escaping onto an unbounded plain; behind TD2b's walls a 16-voxel
-/// cell leaves ~9 cells over the whole enclosure and reads genesis as a crush.
+/// TD2c: 16 -> 8, undoing TD2's doubling. TD6 kept it: the soil bounds a
+/// stand's *mass*, but nothing in a closed cycle bounds its *number*, and a
+/// stand answered a finite matter budget by subdividing into ever-smaller
+/// plants (620 producers and still rising at the horizon with crowding out).
 /// `population_instrument.rs` mirrors this.
 pub(super) const CROWD_CELL: i32 = 8;
 /// Neighbours a cell supports before its occupants start shading each other
 /// out. Beyond this a producer's income falls away and self-thinning begins.
-/// TD2c: 2 -> 1, holding the stand's ceiling near 250 while `FIXES_BASE_MG`
-/// buys headroom — capacity is `FIXES x COMFORT x UPKEEP_SCALE / 31` per cell.
+/// TD2c: 2 -> 1, holding the stand's ceiling near 250 -- capacity is
+/// `FIXES x COMFORT x UPKEEP_SCALE / 31` per cell.
 pub(super) const CROWD_COMFORT: u32 = 1;
+/// Voxels in the palette's reference segment (`PartPalette::primitive().mass`
+/// is half-extent [2,2,2], so 5x5x5). The unit an adult mass is quoted in.
+const REFERENCE_SEGMENT_VOXELS: u64 = 125;
 /// Fraction of a parent's mass an offspring costs, as a divisor.
 pub(crate) const OFFSPRING_COST: u64 = 4;
 /// Mass below which an organism cannot sustain itself.
@@ -82,6 +86,22 @@ const HUNGRY_UPKEEP_TICKS: u64 = 8;
 /// closes.
 pub(crate) fn is_hungry(organism: &Organism) -> bool {
     organism.budget_below(HUNGRY_UPKEEP_TICKS)
+}
+
+/// The adult mass one part can hold: its own voxel volume, priced so that a
+/// reference segment holds the ecology's own reference mass.
+///
+/// **No new authored number.** The two it reads are already here — the
+/// allometry's `REFERENCE_MASS_MG` and the palette's own segment shape — which
+/// is what makes this the body plan's ceiling rather than a second knob.
+/// Floored at one milligram: development already gives every structural part
+/// at least that, so a ceiling below it would make a legal body illegal.
+pub(crate) fn part_ceiling_mg(half_extent: [i32; 3]) -> u64 {
+    let voxels: u64 = half_extent
+        .iter()
+        .map(|h| 2 * u64::from(h.unsigned_abs()) + 1)
+        .product();
+    (voxels * REFERENCE_MASS_MG / REFERENCE_SEGMENT_VOXELS).max(1)
 }
 
 /// Integer approximation of `mass^0.75`. It is monotonic, deterministic, and

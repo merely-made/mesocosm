@@ -20,6 +20,20 @@ use crate::species::Lineages;
 
 use super::{DEVELOPMENT_SALT, ENCLOSURE, PLACE_SALT, PLACE_SIDE, RECIPE_SALT, World};
 
+/// Matter in one voxel column when the enclosure is founded.
+///
+/// **The world's entire matter budget is this times the column count**, and
+/// nothing ever adds to it: light is the open input, matter is not. (TD6)
+///
+/// A hundred milligrams is the ecology's own reference body mass, so the rule
+/// reads plainly: *the enclosure opens holding one reference body's worth of
+/// substance under every voxel column it has*. At `ENCLOSURE = 16` that is a
+/// 33x33 grid and 108,900 mg — about three times what a 61-founder cohort
+/// carries in bodies and reserves, so the terrarium opens with real room to
+/// grow into and a fixed ceiling to grow within. Sized from the constant, so
+/// widening the enclosure widens the budget with it.
+const SOIL_SEED_MG_PER_COLUMN: u64 = 100;
+
 struct Founder {
     id: OrganismId,
     species: SpeciesId,
@@ -275,6 +289,7 @@ impl World {
             // from the landscape and the ground below is real.
             places: grown.places.clone(),
             ground,
+            soil: crate::places::Soil::seeded(ENCLOSURE, SOIL_SEED_MG_PER_COLUMN),
             ranges: std::collections::BTreeMap::new(),
             record: crate::record::WorldRecord::new(),
             organisms,

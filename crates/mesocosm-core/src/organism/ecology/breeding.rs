@@ -1,0 +1,149 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// SPDX-License-Identifier: MPL-2.0
+
+//! The tick's birth pass.
+//!
+//! Split out of `ecology.rs` on 2026-08-29 when TD6's matter cycle pushed that
+//! file to the six-hundred-line ceiling — the same split-before-adding move
+//! that put `ecology::tests`, `ecology::movement` and `ecology::rates` in files
+//! of their own. What stayed next door is rent, feeding, dispersal and death;
+//! what moved here is the one pass that makes a new body, which has its own
+//! concerns: the filial stream, recipe realization, and the scatter.
+
+use crate::development::PartPalette;
+use crate::history::Event;
+use crate::places::{Ground, Tier};
+use crate::rng::Rng;
+use crate::species::Lineages;
+
+use super::rates::OFFSPRING_COST;
+use super::{Organism, OrganismId, Stage, Tally, movement::surface_stance};
+
+/// Reproduction, after everything has been fed, so a tick's births do not
+/// depend on where in the list a parent happened to sit.
+///
+/// Newborns are appended by the caller, after this returns, so a child cannot
+/// be born into the same pass that made it.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn breed(
+    organisms: &mut [Organism],
+    newborns: &mut Vec<Organism>,
+    next_id: &mut u32,
+    rng: &mut Rng,
+    events: &mut Vec<Event>,
+    lineages: &Lineages,
+    palette: PartPalette,
+    ground: Option<&Ground>,
+    tally: &mut Tally,
+) {
+    let ready: Vec<usize> = organisms
+        .iter()
+        .enumerate()
+        .filter(|(_, o)| o.can_reproduce())
+        .map(|(index, _)| index)
+        .collect();
+    for index in ready {
+        let parent = &organisms[index];
+        let cost = parent.biomass_mg() / OFFSPRING_COST;
+        // A child's opening budget is **provisioned**, out of the parent's own
+        // reserve. Until TD6 it was conjured: the parent paid `cost` once, in
+        // body mass, and the child was handed a body worth `cost` *and* a
+        // budget worth `cost`, so every birth in the enclosure minted matter.
+        // A parent with nothing banked still breeds; its child simply starts
+        // hungry, which is an honest consequence rather than a free lunch.
+        let endowment = parent.energy_mg.min(cost);
+        let child_id = OrganismId(*next_id);
+        let development_seed = filial_seed(parent.development_seed, child_id);
+        let Some(lineage) = lineages.get(parent.species) else {
+            continue;
+        };
+        // Provisioning is binding. A complex recipe may need more positive-
+        // mass parts than a quarter of this parent can pay for; in that case
+        // the birth waits, spending neither matter nor ecology entropy.
+        let Ok(mut body) = lineage.realize(development_seed, cost, palette) else {
+            continue;
+        };
+        body.plan.symmetry = parent.body.plan.symmetry;
+        // Wide enough to leave a crowded cell. Dispersal is how a stand
+        // escapes its own shade, so a short throw would trap every offspring
+        // in the same competition its parent is already losing.
+        let scatter = [rng.range_i32(-12, 12), 0, rng.range_i32(-12, 12)];
+        let position = [
+            parent.position[0] + scatter[0],
+            parent.position[1],
+            parent.position[2] + scatter[2],
+        ];
+        // A birth cannot scatter through the wall either: a parent near the
+        // edge threw offspring past Ground's resident bound, the far tier's
+        // own escape route since it skips step_for's check entirely. (TD2b)
+        let position = if let Some(ground) = ground {
+            let bound = ground.extent();
+            [
+                position[0].clamp(-bound, bound),
+                position[1],
+                position[2].clamp(-bound, bound),
+            ]
+        } else {
+            position
+        };
+        let walker_shape = crate::places::WalkerShape::from_aabb(body.aabb());
+        let child = Organism {
+            id: child_id,
+            species: parent.species,
+            // A child starts small but structurally filial: the lineage recipe
+            // grew this body under the current world's palette, and the whole
+            // graph contains exactly what the parent paid.
+            body,
+            development_seed,
+            life_history_mass_mg: cost,
+            energy_mg: endowment,
+            // A near-tier child is an embodied body immediately, rather
+            // than an abstract point that has to be repaired next tick.
+            position: match (ground, parent.tier) {
+                (Some(ground), Tier::Near) => surface_stance(ground, walker_shape, position)
+                    .or_else(|| surface_stance(ground, walker_shape, parent.position))
+                    .unwrap_or(parent.position),
+                _ => position,
+            },
+            tier: parent.tier,
+            last_seen: None,
+            fauna_policy: parent.fauna_policy.inherited(development_seed),
+            last_fauna_decision: None,
+            stage: Stage::Juvenile,
+            age: 0,
+            since_offspring: 0,
+            // A lie is heritable. An offspring wears its parent's colours and
+            // carries its parent's bite, which is what makes a mimic lineage a
+            // thing you can learn rather than a coin flip per organism.
+            signal: parent.signal,
+            venom_mg: parent.venom_mg,
+            guise: parent.guise,
+        };
+        *next_id += 1;
+        events.push(Event::Born {
+            organism: child.id,
+            species: child.species,
+            parent: Some(parent.id),
+        });
+        newborns.push(child);
+
+        let parent = &mut organisms[index];
+        // `can_reproduce` requires more than `STARVATION_MG * OFFSPRING_COST`
+        // of body, and cost is a quarter of that body, so the debit is always
+        // payable in full; a shortfall here would be matter out of nothing.
+        let short = parent.spend_mass(cost);
+        debug_assert_eq!(short, 0, "a birth outran its parent");
+        parent.energy_mg -= endowment;
+        parent.since_offspring = 0;
+        tally.born += 1;
+    }
+}
+
+const FILIAL_SALT: u64 = 0x4649_4C49_414C_0001;
+
+fn filial_seed(parent: u64, child: OrganismId) -> u64 {
+    let mut stream = Rng::from_seed(parent ^ FILIAL_SALT ^ u64::from(child.0));
+    stream.next_u64()
+}

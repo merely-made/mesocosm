@@ -14,7 +14,7 @@ use std::cmp::Reverse;
 use crate::history::Event;
 use crate::organism::{Kingdom, Signal};
 use crate::places::{
-    Ground, Places, Tier, WalkerShape, route_step_for, step_for as grounded_step,
+    Ground, Places, Soil, Tier, WalkerShape, route_step_for, step_for as grounded_step,
     surface_stance_for,
 };
 use crate::process::FeedingMode;
@@ -333,6 +333,7 @@ pub(super) fn disperse(
     places: &Places,
     ground: Option<&Ground>,
     rng: &mut Rng,
+    soil: &mut Soil,
     living: &[LivingTarget],
     living_cells: &Cells,
     carrion: &[CarrionTarget],
@@ -446,7 +447,12 @@ pub(super) fn disperse(
 
     if next != old {
         let distance = chebyshev(old, next) as u64;
-        organism.spend_mass(distance.max(1));
+        // Travel is paid in substance, and the substance goes into the ground
+        // it was covered over — the trail, not a sink. (TD6)
+        let owed = distance.max(1);
+        let unpaid = organism.spend_mass(owed);
+        let column = soil.column_at(old);
+        soil.deposit(column, owed - unpaid);
         organism.position = next;
         events.push(Event::Moved {
             organism: organism.id,

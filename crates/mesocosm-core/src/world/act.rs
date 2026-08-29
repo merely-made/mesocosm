@@ -9,14 +9,26 @@
 //! world, and nothing else in the crate does: `World::apply` is the only door,
 //! and this is the room behind it.
 
-use crate::body::{Attachment, BodyDocument, Origin, PartId, Provenance, VolumeRef};
-use crate::organism::{Kingdom, Organism, OrganismId, Stage};
+use crate::body::{Attachment, BodyDocument, Origin, PartId, Provenance};
+use crate::organism::{Organism, OrganismId};
 use crate::places::step_for;
 
 use super::{Intent, Outcome, Placement, Rejection, Route, World};
 
 /// Energy spent per unit of movement, in milligrams.
 const MOVE_COST_MG: u64 = 1;
+
+/// Where a landed meal's mass went: into the budget, or into the body.
+///
+/// The two are not interchangeable and the difference is the whole verb, but
+/// the closed cycle needs one more thing from them than the outcome says —
+/// their **sum**, because whatever the meal weighed and neither of them took
+/// has to go back into the world. (TD6)
+#[derive(Clone, Copy, Debug, Default)]
+struct Landed {
+    budget_mg: u64,
+    body_mg: u64,
+}
 
 impl World {
     pub(super) fn resolve(&mut self, intent: Intent) -> Outcome {
@@ -90,6 +102,10 @@ impl World {
                 };
                 me.energy_mg -= cost;
                 me.position = next;
+                // Travel is paid in substance, and it lands in the ground it
+                // was covered over rather than vanishing. (TD6)
+                let column = self.soil.column_at(from);
+                self.soil.deposit(column, cost);
                 Outcome::Moved
             }
 
@@ -141,12 +157,17 @@ impl World {
                 placement,
             } => self.metabolize(organism, placement),
 
+            // **Enriching the ground**, since TD6. It used to spawn a carcass
+            // — a scrap of loose matter waiting for a decomposer — which was
+            // the only detritus the enclosure had. Now the enclosure has a
+            // soil store, so a deposit is what it always sounded like: the
+            // player putting matter back into the column they are standing on,
+            // where a producer can draw it up again. The `organism` named by
+            // the outcome is the depositor, not a corpse that no longer
+            // exists.
             Intent::Deposit { mass_mg } => {
-                let (species, position) = {
-                    let Some(me) = self.controlled() else {
-                        return Outcome::Rejected(Rejection::Disembodied);
-                    };
-                    (me.species, me.position)
+                let Some((id, position)) = self.controlled().map(|me| (me.id, me.position)) else {
+                    return Outcome::Rejected(Rejection::Disembodied);
                 };
                 {
                     let me = self.controlled_mut().expect("checked above");
@@ -155,23 +176,8 @@ impl World {
                     }
                     me.energy_mg -= mass_mg;
                 }
-
-                let id = OrganismId(self.next_organism);
-                self.next_organism += 1;
-                self.organisms.push(Organism {
-                    // Deposited matter is dead matter: it feeds decomposers
-                    // and returns to the world rather than growing.
-                    stage: Stage::Carrion,
-                    ..Organism::founding(
-                        id,
-                        species,
-                        Kingdom::Decomposer,
-                        VolumeRef::from_tag(64),
-                        [1, 1, 1],
-                        position,
-                        mass_mg,
-                    )
-                });
+                let column = self.soil.column_at(position);
+                self.soil.deposit(column, mass_mg);
                 Outcome::Deposited { organism: id }
             }
         }
@@ -241,7 +247,7 @@ impl World {
             .flatten();
 
         let eaten = self.organisms.remove(index);
-        let (outcome, gain_mg) = self.land(&eaten, route, growth);
+        let (outcome, landed) = self.land(&eaten, route, growth);
 
         if matches!(outcome, Outcome::Rejected(_)) {
             // Nothing landed, so nothing was eaten and nothing is owed.
@@ -272,9 +278,20 @@ impl World {
         // The floor itself remains: energy is unsigned, so venom beyond what a
         // critter has is forgiven rather than owed. A debt or damage model is a
         // later decision, recorded in the phenotype plan.
+        let mut spilled = 0;
         if let Some(me) = self.controlled_mut() {
-            me.energy_mg = (me.energy_mg + gain_mg).saturating_sub(eaten.venom_mg);
+            let before = me.energy_mg + landed.budget_mg;
+            me.energy_mg = before.saturating_sub(eaten.venom_mg);
+            spilled = before - me.energy_mg;
         }
+        // Everything the meal was that the eater did not keep goes into the
+        // ground under it: the reserve it was carrying, the half of a mirrored
+        // pair that would not attach, an odd milligram a split could not
+        // halve, and what a bite of venom cost to bring up. (TD6)
+        let column = self.soil.column_at(eaten.position);
+        let unkept = eaten.biomass_mg() - landed.budget_mg - landed.body_mg;
+        self.soil
+            .deposit(column, unkept + eaten.energy_mg + spilled);
         self.learn_from(&eaten);
         outcome
     }
@@ -318,21 +335,24 @@ impl World {
         }
     }
 
-    /// Attempts the routed outcome, returning it and the energy it yields.
-    /// Mutates the body but never the roster or the ledger.
+    /// Attempts the routed outcome, returning it and where the meal's mass
+    /// went. Mutates the body but never the roster or the ledger.
     fn land(
         &mut self,
         eaten: &Organism,
         route: Route,
         growth: Option<crate::growth::Growth>,
-    ) -> (Outcome, u64) {
+    ) -> (Outcome, Landed) {
         match route {
             Route::Burn => (
                 Outcome::Burned {
                     organism: eaten.id,
                     energy_mg: eaten.biomass_mg(),
                 },
-                eaten.biomass_mg(),
+                Landed {
+                    budget_mg: eaten.biomass_mg(),
+                    body_mg: 0,
+                },
             ),
             Route::Incorporate {
                 placement:
@@ -355,8 +375,17 @@ impl World {
                     provenance,
                 );
                 match attached {
-                    Ok(part) => (Outcome::Incorporated { part }, 0),
-                    Err(_) => (Outcome::Rejected(Rejection::NoSuchParent(parent)), 0),
+                    Ok(part) => (
+                        Outcome::Incorporated { part },
+                        Landed {
+                            budget_mg: 0,
+                            body_mg: eaten.biomass_mg(),
+                        },
+                    ),
+                    Err(_) => (
+                        Outcome::Rejected(Rejection::NoSuchParent(parent)),
+                        Landed::default(),
+                    ),
                 }
             }
             Route::Incorporate {
@@ -377,12 +406,12 @@ impl World {
                     crate::growth::attachment(&growth),
                     provenance.clone(),
                 ) else {
-                    return (Outcome::Rejected(Rejection::NoRoom), 0);
+                    return (Outcome::Rejected(Rejection::NoRoom), Landed::default());
                 };
 
                 // No energy. Growing is the slow answer, and a meal cannot be
                 // both meals.
-                let outcome = match crate::growth::mirror_attachment(&growth) {
+                let (outcome, body_mg) = match crate::growth::mirror_attachment(&growth) {
                     Some(mirrored) => match self.controlled_body_mut().attach(
                         eaten.volume(),
                         each,
@@ -390,12 +419,18 @@ impl World {
                         mirrored,
                         provenance,
                     ) {
-                        Ok(mirror) => Outcome::IncorporatedPair { part, mirror },
-                        Err(_) => Outcome::Incorporated { part },
+                        Ok(mirror) => (Outcome::IncorporatedPair { part, mirror }, each * 2),
+                        Err(_) => (Outcome::Incorporated { part }, each),
                     },
-                    None => Outcome::Incorporated { part },
+                    None => (Outcome::Incorporated { part }, each),
                 };
-                (outcome, 0)
+                (
+                    outcome,
+                    Landed {
+                        budget_mg: 0,
+                        body_mg,
+                    },
+                )
             }
         }
     }

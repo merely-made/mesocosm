@@ -307,14 +307,52 @@ impl Organism {
             .max(1)
     }
 
-    /// Adds substance, to the root part.
+    /// The adult mass this body plan describes.
+    ///
+    /// **Determinate growth** (TD6, ruled 2026-08-29). Income, upkeep and the
+    /// reproduction tax all scale as `m^0.75`, so the sign of net growth never
+    /// depended on size and no body ever arrived at an adult mass. The ceiling
+    /// is derived per part from what the plan already knows — the part's own
+    /// voxel volume — and summed, so a longer or bulkier recipe is a larger
+    /// adult and gigantism is a lineage strategy rather than an authored
+    /// number. It is no longer the stability mechanism (conservation is), so
+    /// it can be exactly this simple.
+    ///
+    /// The way past it is the game's own verb: eating adds *parts*, and every
+    /// part brings its own ceiling with it.
+    pub fn mass_ceiling_mg(&self) -> u64 {
+        self.body
+            .living()
+            .map(|part| ecology::part_ceiling_mg(part.half_extent))
+            .sum()
+    }
+
+    /// How much more matter this body could take in, as substance or reserve.
+    ///
+    /// What a feeding body should ask for: drawing beyond it would only have
+    /// to be handed straight back to the world.
+    pub fn intake_room_mg(&self) -> u64 {
+        let ceiling = self.mass_ceiling_mg();
+        ceiling.saturating_sub(self.biomass_mg()) + ceiling.saturating_sub(self.energy_mg)
+    }
+
+    /// Adds substance, to the root part, up to [`Self::mass_ceiling_mg`].
     ///
     /// Growth by feeding thickens what is already there. Gaining a *part* is
     /// incorporation, which is a different act with a different cost.
-    pub fn gain_mass(&mut self, mg: u64) {
+    ///
+    /// Returns what would not fit. Matter is conserved, so a caller has to put
+    /// that somewhere real rather than letting it evaporate.
+    pub fn gain_mass(&mut self, mg: u64) -> u64 {
+        let room = self.mass_ceiling_mg().saturating_sub(self.biomass_mg());
+        let kept = mg.min(room);
         let root = self.body.root;
-        if let Some(part) = self.body.parts.get_mut(root.0 as usize) {
-            part.mass_mg = part.mass_mg.saturating_add(mg);
+        match self.body.parts.get_mut(root.0 as usize) {
+            Some(part) => {
+                part.mass_mg = part.mass_mg.saturating_add(kept);
+                mg - kept
+            }
+            None => mg,
         }
     }
 

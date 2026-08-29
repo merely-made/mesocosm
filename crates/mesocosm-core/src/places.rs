@@ -52,6 +52,7 @@ mod bricks;
 mod grown;
 mod near;
 mod relief;
+mod soil;
 
 #[cfg(test)]
 pub(crate) use bricks::nest_entry;
@@ -62,6 +63,7 @@ pub use near::{
     route_step_for, spot, spot_for, step, step_for, surface_stance_for,
 };
 pub use relief::Relief;
+pub use soil::{Column, Soil};
 
 use std::collections::{BTreeSet, VecDeque};
 

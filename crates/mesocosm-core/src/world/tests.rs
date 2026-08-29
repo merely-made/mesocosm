@@ -1227,9 +1227,24 @@ fn a_bigger_body_costs_more_to_carry() {
 
 #[test]
 fn deposit_returns_matter_to_the_enclosure() {
+    // It used to spawn a carcass; since TD6 it enriches the ground the
+    // depositor is standing on, which is what "returns matter to the
+    // enclosure" always meant. The column, not the roster, is what moves.
     let mut world = World::new(3, 2);
     let count = world.organisms.len();
+    let before = world.soil().total_mg();
+
     let outcome = world.apply(Intent::Deposit { mass_mg: 200 });
+
     assert!(matches!(outcome, Outcome::Deposited { .. }));
-    assert_eq!(world.organisms.len(), count + 1);
+    assert_eq!(world.organisms.len(), count, "no carcass is minted");
+    // Loose lower bound: the tick that follows also pays rent into the ground
+    // and lets any producer draw out of it, so the deposit is most of this
+    // move but not all of it.
+    assert!(
+        world.soil().total_mg() >= before + 150,
+        "the ground should be richer for it: {} -> {}",
+        before,
+        world.soil().total_mg()
+    );
 }

@@ -184,6 +184,44 @@ or its remaining job is stated; fixtures re-record.
 
 ## Findings
 
+- **2026-08-29 (TD6, and it wants a ruling): point uptake at per-voxel grain
+  starves the enclosure, because a producer can reach 1 column of 1,089.** The
+  granularity ruling was made on performance and expressiveness evidence, which
+  it still passes; this is new evidence of a different kind and it invalidates
+  nothing the probe measured. Measured, with a sealed store: a producer drains
+  the column it stands on within tens of ticks and thereafter earns **exactly
+  the rent it just paid** — net zero, permanently, at any constants, because
+  the only matter returning to its column is its own. A probe at soil 300
+  mg/column read 17 producers standing on **0 mg** with **340,000 mg** lying in
+  the enclosure around them; consumers dead by tick 1,100, decomposers by 800,
+  every seed collapsing. Raising the seed does not fix it — it converts the
+  collapse into producers *mining outward* column by column (610-825 bodies,
+  consumers still dead), because reachability rather than supply is what binds.
+  **What shipped is soil percolation**, added under protest and flagged here:
+  once per tick every column sheds `1/PERCOLATION_DIVISOR` of what it holds
+  into its four neighbours, exact in integers, so a column's loss is its
+  neighbours' gain and conservation is untouched. It is the medium's own
+  property (dissolved minerals move through soil, which is *why* a root that
+  searches a radius finds more) rather than the foraging behaviour this round
+  deliberately left unbuilt, and it is what makes "the enclosure gets a finite
+  matter budget" mean *one* budget. It is decisively load-bearing: with it off
+  and everything else identical, every baseline seed ends at **~1 organism**;
+  with it on at divisor 8, 46-100. **Mark's call:** whether the real answer is
+  the forage radius the grain was chosen for (TD7), percolation as shipped, a
+  coarser grain for uptake only, or producers that relocate off spent ground.
+  This is the one decision in TD6 taken without him, and it was taken because
+  the alternative was shipping a dead terrarium.
+- **2026-08-29 (TD6): consumers, not producers, are what still fails.** With
+  the cycle closed and percolation supplying the stand, the chain now dies at
+  the same place it died in TD5 and TD5b: the founding cohort's ~20 consumers
+  over-graze ~17 producers in the first 200 ticks, grow to 700-1,500 mg on the
+  proceeds (their body plans allow 2,000-2,500), and then starve in a thinned
+  pasture; decomposers follow. The consumer:producer *ceiling* ratio is ~4:1
+  because a consumer recipe realizes ~24 parts against a producer's ~5, so
+  determinate growth as derived lets a grazer outgrow its own food's adult size
+  by four times — an inverted pyramid written into the body plans, not into the
+  constants. That is the next round's target, and it is the third round running
+  that `breathes` has been out of reach for this reason.
 - **2026-08-29 (TD1):** the ecology at 61 founders is **bimodal, not
   reliably explosive**: across seeds 1-5, three boil and two collapse. The
   boils are pure producer blooms — producers 60 → 600+, consumers flat at
@@ -203,6 +241,161 @@ or its remaining job is stated; fixtures re-record.
   retired, and a fresh demo trace is recorded at the new constants.
 
 ## Progress
+
+- **2026-08-29 (later): TD6 landed — the matter cycle closes, growth becomes
+  determinate, and the enclosure stops being able to make mass.** Conservation
+  is exact and proven; the runaway is gone; the verdict tally regressed, and
+  the reason is a structural finding that wants a ruling.
+
+  **The store.** `places::soil` (`crates/mesocosm-core/src/places/soil.rs`,
+  306 lines) holds one `u64` of milligrams per voxel column, row-major in z
+  then x over `-extent..=extent`, sized from `ENCLOSURE` — 33x33 = 1,089
+  columns, 8.7 KB. World state: a `soil` field on `World`, serialized, inside
+  `state_hash`, round-tripped by a test. A `Column` is an opaque index only
+  `Soil` mints, and `column_at` **clamps** rather than refusing, so nothing
+  deposited can fall off the edge of the ledger. Addressing (`column_at`,
+  `columns_within`) is deliberately separate from transfer (`matter_mg`,
+  `draw`, `deposit`), so the ruled forage radius is a read over
+  `columns_within` and then the same `draw` — a test asserts r=3 reaches 49 of
+  1,089 columns here, which is the reach the granularity ruling was for. The
+  foraging *behaviour* is not built, as scoped. `Soil` is not `Ground`: bricks
+  are what is solid, soil is what can be eaten out of the floor, and a carve
+  moves none of the second.
+
+  **The cycle, closed at nine seams.** Producers `draw` from their own column
+  and can take nothing more; rent goes into the column the body stands on
+  (both halves — budget-paid and the self-consumption when the budget is
+  empty); carrion decay puts its milligram in the column it is lying on; a
+  death releases the reserve the body was still carrying; travel is paid in
+  substance into the ground it was covered over, for NPCs and for the played
+  `Intent::Move` alike; `Intent::Deposit` now enriches the column instead of
+  minting a carcass; the played meal returns what the eater did not keep —
+  the meal's own reserve, an odd milligram a mirrored split could not halve,
+  the half of a pair that would not attach, and what a bite of venom cost;
+  and **a birth is provisioned rather than conjured** — until now a parent
+  paid `cost` once in body mass and the child was handed a body worth `cost`
+  *and* a budget worth `cost`, so every birth in the enclosure minted matter.
+  The child's opening budget now comes out of the parent's own reserve.
+
+  Genesis seeds `SOIL_SEED_MG_PER_COLUMN = 100` per column — the ecology's own
+  `REFERENCE_MASS_MG`, so the rule reads *one reference body's worth of
+  substance under every voxel column*. At the shipping enclosure that is
+  108,900 mg, about three times what a 61-founder cohort carries in bodies and
+  reserves. Sized from `ENCLOSURE`, never hardcoded.
+
+  **The tick had to be restructured, and this is why.** Crediting an eater its
+  full mouthful and reconciling afterwards conjures matter, because two grazers
+  reach the same small producer and the second finds less than it bit for —
+  and there is no reconciliation that is always payable (the eater may have
+  died and released its reserve before the drain pass ran). The conservation
+  test caught it at **tick 28 of seed 4, 1 mg**. So the tick is now three
+  passes: rent and the bite each body *reaches for*; the meals settled one at
+  a time with both bodies in hand, crediting exactly what came out of the prey;
+  then dispersal, maturity, decay and death. The birth pass moved to
+  `ecology/breeding.rs` at the 600-line ceiling, following the crate's own
+  sibling-file precedent.
+
+  **Determinate growth, derived, no new number.** `Organism::mass_ceiling_mg`
+  sums a per-part ceiling over the living body, and a part's ceiling is its own
+  voxel volume priced so that a reference segment holds `REFERENCE_MASS_MG` —
+  both numbers were already here. `gain_mass` caps at it and returns what would
+  not fit; `earn` routes the overflow to the budget (capped the same way) and
+  hands the remainder back to the world; a feeding body clamps its bite to
+  `intake_room_mg`, so **a full body does not feed**. Measured at genesis: mean
+  producer ceiling 477-870 mg against a mean drawn mass of ~290, mean consumer
+  ceiling 2,044-2,456, the played critter 1,568-2,522; 0-3 founders of 61 open
+  at or over their ceiling. The way past the ceiling is the game's own verb —
+  eating adds *parts*, and every part brings its ceiling with it.
+
+  **Crowding is not redundant, and the round measured why.** The soil bounds a
+  stand's **mass**; nothing in a closed matter budget bounds its **number**. A
+  run with crowding removed answered a finite enclosure by subdividing: 620
+  producers and still climbing at the horizon at every soil seed swept (100,
+  300, 500, 600, 1,000 mg/column) and every minimum-body size swept
+  (`STARVATION_MG` 20/60/120). `CROWD_CELL`/`CROWD_COMFORT` are therefore kept
+  at TD2c's 8/1, unchanged, and the rent floor under them is kept too — but it
+  is no longer a hand-out: it is a *request*, and the column answers it or does
+  not. Density is the job crowding still does; it is simply no longer the only
+  regulator.
+
+  **Conservation, and the proof it can fail.** `tests/matter.rs`: four seeds x
+  4,000 idle ticks, checked **milligram-exact every tick** (births, deaths,
+  grazing, predation, scavenging, decay, dispersal and the founding cohort
+  dying of old age all fall inside that window), plus a played-verb run
+  covering deposit, movement, carve and metabolize. **Zero exceptions** — no
+  sink, no source, no tolerance. Two things are outside the account because
+  they are not matter: light (the ruled open input, which powers uptake and
+  never enters the ledger) and ground bricks. The same `conserved()` the long
+  runs use is handed a conjured milligram and a leaked one and must report
+  both; the conjured control replays the pre-TD6 producer income exactly.
+  Flipping that control's assertion to prove it really trips:
+
+  ```text
+  thread 'the_check_catches_income_conjured_the_way_it_used_to_be' panicked at
+  crates\mesocosm-core\tests\matter.rs:146:10:
+  PROOF RUN: the deliberately-broken control must trip the check: "matter is not
+  conserved after conjuring a producer's old income: 145549 mg against 145538 mg
+  at genesis (11 mg conjured); soil 109002 mg, 61 bodies holding 36547 mg"
+  ```
+
+  The instrument carries it too: every seed's receipt records `total_matter_mg`
+  per sample, and it is identical across every sample of every run.
+
+  **Verdicts, reported honestly: this is a regression.** Baseline was 2
+  breathes / 7 thins / 0 boil / 1 collapse (TD5b). TD6 reads **0 breathes / 9
+  thins / 0 boil / 1 collapse**, control all collapse, max escapees 0. Receipt:
+  `td6_matter.json`.
+
+  | seed | verdict | start | end | P/C/D start | P/C/D end | end biomass | soil end | total matter |
+  | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: |
+  | 1 | thins | 61 | 36 | 22/25/14 | 36/0/0 | 3,267 mg | 139,784 | 145,538 |
+  | 2 | thins | 61 | 60 | 20/21/20 | 60/0/0 | 27,616 mg | 96,778 | 146,602 |
+  | 3 | thins | 61 | 40 | 17/27/17 | 40/0/0 | 7,400 mg | 130,604 | 145,180 |
+  | 4 | thins | 61 | 83 | 17/21/23 | 83/0/0 | 9,522 mg | 125,069 | 141,652 |
+  | 5 | thins | 61 | 100 | 16/25/20 | 100/0/0 | 9,106 mg | 129,782 | 147,248 |
+  | 6 | thins | 61 | 69 | 16/23/22 | 69/0/0 | 7,346 mg | 133,943 | 146,890 |
+  | 7 | thins | 61 | 78 | 22/20/19 | 78/0/0 | 8,425 mg | 131,345 | 147,070 |
+  | 8 | thins | 61 | 56 | 24/19/18 | 56/0/0 | 7,720 mg | 132,195 | 146,032 |
+  | 9 | thins | 61 | 64 | 24/20/17 | 64/0/0 | 21,052 mg | 109,033 | 145,148 |
+  | 10 | collapse | 61 | 0 | 23/20/18 | 0/0/0 | 0 mg | 147,375 | 147,904 |
+
+  **The runaway is gone and the numbers say so.** TD5's producer stands reached
+  ~4 x 10^10 mg on ~150 bodies. End biomass is now **3,267-27,616 mg**, six
+  orders of magnitude down, and it is bounded by construction rather than by
+  tuning: the rest of the world's matter is in the ground, where it can be
+  pointed at.
+
+  **No `rates.rs` constant was changed and no `td6_matter_tuned.json` was
+  written** — the same call TD5 made, for the same reason. The bounded pass was
+  run and is recorded here rather than shipped: soil seed 100/300/500/600/1,000
+  mg per column, percolation divisor 8/16/32/64, `CROWD_COMFORT` 1/2/3,
+  `STARVATION_MG` 20/60/120. None reached `breathes`. Below ~300 mg/column
+  without percolation everything collapses; at 300-1,000 producers boil in
+  *count* (610-825 bodies, still rising) while consumers and decomposers are
+  already dead; `CROWD_COMFORT` 3 buys bigger stands (237-299 producers) and
+  one seed each keeping consumers or decomposers, but no seed keeping both.
+
+  **Fixtures.** Demo re-recorded: 120 intents, hash **`c8713ce9a82f5d6f`** (was
+  `e8ba7206ac96834f`), `--replay` headed landing it exactly, exit 0, 30 frames
+  on the RTX 4060 (Vulkan) — 61 body parts, 12 roster members, ground revision
+  2. Instrument proven: one bit flipped in the recorded hash exits 1 with
+  `MISMATCH`. Default paths (`ps1_played.trace.json` / `.json` / `.png`). The
+  capture reads the section with the played critter's wide-armed silhouette at
+  centre, two green roster bodies to its left and three lavender ones to its
+  right, the minimap, and vitals at `energy 615 mg` with no burn notice.
+
+  **Tests.** `cargo test --workspace`: green (`mesocosm-lens` run separately at
+  `--test-threads=1`, 38 passed, per the standing environment residue).
+  `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+  `cargo fmt --all --check`: clean. `cargo check -p paredros-room --features
+  r1-proof`: builds (one pre-existing `dead_code` warning in that repo, not
+  this round's). Four tests were retuned with a one-line why on each:
+  `ecology::tests`'s fixture half-extent went `[1,1,1]` to `[5,5,5]` (27 voxels
+  carrying 300 mg was invisible until a body plan had an adult mass);
+  `a_contractile_consumer_can_take_live_consumer_prey` widened its long-and-thin
+  shapes to `[8,2,2]`/`[4,4,4]` so a 300 mg body sits under its own ceiling and
+  can still bite; and `deposit_returns_matter_to_the_enclosure` now asserts the
+  ground got richer and no carcass was minted.
 
 - **2026-08-29 (later): TD5b landed — founders arrive mid-life, and the
   corpse drought closes.** `genesis.rs`'s age draw was `rng.below(200)`
@@ -579,3 +772,10 @@ or its remaining job is stated; fixtures re-record.
   bodies, not mass) can bite. A real fix is a body-plan-derived mass
   ceiling or substrate-limited income — a mechanics design conversation
   for Mark, deliberately not attempted this round.
+  **Closed 2026-08-29 (TD6): both fixes landed, and both were needed.**
+  Substrate-limited income makes the enclosure's matter a fixed total (end
+  biomass 3,267-27,616 mg against TD5's ~4 x 10^10), and the body plan's own
+  voxel volume gives every body an adult mass. Crowding survives with its job
+  restated: the soil bounds a stand's mass, crowding bounds its number, and
+  removing it let a stand answer a finite budget by subdividing into 620
+  ever-smaller plants. See TD6's Progress entry.

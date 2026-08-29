@@ -1,24 +1,40 @@
 use super::*;
 use crate::body::{SpeciesId, VolumeRef};
-use crate::history::{Event, MealKind};
+use crate::history::Event;
 use crate::organism::{Kingdom, Signal};
 
+/// A fixture body big enough to be the mass it is given.
+///
+/// The half-extent used to be `[1, 1, 1]` — twenty-seven voxels carrying three
+/// hundred milligrams, which nothing noticed until TD6 gave a body plan an
+/// adult mass derived from its own volume. `[5, 5, 5]` is 1,331 voxels, so
+/// these fixtures sit well under their ceiling and can still be watched
+/// growing. (2026-08-29 TD6)
 fn organism(kingdom: Kingdom, mass: u64) -> Organism {
     Organism::founding(
         OrganismId(0),
         SpeciesId(2),
         kingdom,
         VolumeRef::from_tag(16),
-        [1, 1, 1],
+        [5, 5, 5],
         [0, 0, 0],
         mass,
     )
+}
+
+/// A fixture soil with enough matter that these tests measure the rule they
+/// name rather than the enclosure running out. Real worlds seed theirs from
+/// `world::genesis`; the conservation invariant is proved there, over a
+/// founded world, in `tests/matter.rs`.
+fn soil() -> Soil {
+    Soil::seeded(32, 100_000)
 }
 
 fn run(organisms: &mut Vec<Organism>, ticks: u32) -> Tally {
     let mut rng = Rng::from_seed(1);
     let mut next = 100;
     let mut total = Tally::default();
+    let mut ground = soil();
     let lineages = registry(organisms);
     for _ in 0..ticks {
         let t = step(
@@ -28,6 +44,7 @@ fn run(organisms: &mut Vec<Organism>, ticks: u32) -> Tally {
             &mut Vec::new(),
             &lineages,
             PartPalette::primitive(),
+            &mut ground,
         );
         total.matured += t.matured;
         total.born += t.born;
@@ -45,6 +62,7 @@ fn run(organisms: &mut Vec<Organism>, ticks: u32) -> Tally {
 fn until(world: &mut Vec<Organism>, done: impl Fn(&[Organism]) -> bool) -> bool {
     let mut next_id = 900;
     let mut rng = Rng::from_seed(7);
+    let mut ground = soil();
     let lineages = registry(world);
     for _ in 0..4_000 {
         if done(world) {
@@ -57,6 +75,7 @@ fn until(world: &mut Vec<Organism>, done: impl Fn(&[Organism]) -> bool) -> bool 
             &mut Vec::new(),
             &lineages,
             PartPalette::primitive(),
+            &mut ground,
         );
     }
     done(world)
@@ -101,12 +120,16 @@ fn trophic_role_is_read_from_body_symmetry() {
 
 #[test]
 fn a_contractile_consumer_can_take_live_consumer_prey() {
+    // The half-extents stay long-and-thin, because that is what makes this
+    // body a predator (a Limb-role part performs Contract). They are wider
+    // than they were so a 300 mg body sits under its own TD6 adult mass and
+    // still has room to take a bite. (2026-08-29 TD6)
     let predator = Organism::founding(
         OrganismId(0),
         SpeciesId(2),
         Kingdom::Consumer,
         VolumeRef::from_tag(16),
-        [3, 1, 1],
+        [8, 2, 2],
         [0, 0, 0],
         300,
     );
@@ -115,7 +138,7 @@ fn a_contractile_consumer_can_take_live_consumer_prey() {
         SpeciesId(3),
         Kingdom::Consumer,
         VolumeRef::from_tag(17),
-        [1, 1, 1],
+        [4, 4, 4],
         [2, 0, 0],
         300,
     );
@@ -133,11 +156,12 @@ fn a_contractile_consumer_can_take_live_consumer_prey() {
         &mut events,
         &lines,
         PartPalette::primitive(),
+        &mut soil(),
     );
 
     assert!(events.iter().any(|event| matches!(
         event,
-        Event::Fed { eater, from, kind: MealKind::Predation, .. }
+        Event::Fed { eater, from, kind: crate::history::MealKind::Predation, .. }
             if *eater == predator.id && *from == OrganismId(1)
     )));
 }
@@ -160,6 +184,7 @@ fn an_exhausted_body_disperses_through_the_place_graph() {
         &mut events,
         &lines,
         PartPalette::primitive(),
+        &mut soil(),
         &places,
         Some([0, 0, 0]),
     );
@@ -224,6 +249,7 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
         &mut fast_events,
         &fast_lines,
         PartPalette::primitive(),
+        &mut soil(),
         &places,
         Some([0, 0, 0]),
     );
@@ -234,6 +260,7 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
         &mut slow_events,
         &slow_lines,
         PartPalette::primitive(),
+        &mut soil(),
         &places,
         Some([0, 0, 0]),
     );
@@ -275,6 +302,7 @@ fn far_bodies_form_conserved_cohorts_and_promote_at_the_focus() {
         &mut events,
         &lines,
         PartPalette::primitive(),
+        &mut soil(),
         &places,
         Some([0, 0, 0]),
     );
@@ -290,6 +318,7 @@ fn far_bodies_form_conserved_cohorts_and_promote_at_the_focus() {
         &mut events,
         &lines,
         PartPalette::primitive(),
+        &mut soil(),
         &places,
         Some([0, 0, 0]),
     );
@@ -395,6 +424,7 @@ fn an_underprovisioned_body_waits_without_spending_or_drawing() {
         &mut Vec::new(),
         &lineages,
         PartPalette::primitive(),
+        &mut soil(),
     );
 
     assert_eq!(tally.born, 0);

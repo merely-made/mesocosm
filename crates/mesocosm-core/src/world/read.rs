@@ -194,6 +194,31 @@ impl World {
         self.ground.drain_dirty()
     }
 
+    /// The enclosure's matter store.
+    ///
+    /// Read-only from outside: matter moves through the tick and the recorded
+    /// intents, never by a host reaching in. Its total plus every organism's
+    /// substance and reserve is the conserved quantity TD6 rests on, which is
+    /// what a conservation test reads through here.
+    pub fn soil(&self) -> &crate::places::Soil {
+        &self.soil
+    }
+
+    /// Every milligram in the enclosure: ground, living substance, carrion,
+    /// and banked reserves.
+    ///
+    /// **The invariant.** It is constant across a run from genesis onward,
+    /// because matter has nowhere else to be — light is the only open input
+    /// and light is not matter.
+    pub fn total_matter_mg(&self) -> u64 {
+        self.soil.total_mg()
+            + self
+                .organisms
+                .iter()
+                .map(|o| o.biomass_mg() + o.energy_mg)
+                .sum::<u64>()
+    }
+
     pub fn places(&self) -> &Places {
         &self.places
     }
