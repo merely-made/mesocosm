@@ -45,8 +45,9 @@ niche, for a survival strategy in a strange place.
 ## Where it sits
 
 Vessel 1 of a three-game wing that shares a world substrate, a lineage model,
-and a trust plane, but shares no engine, genre, or schedule: Mesocosm (first
-person), Paredros (second person), Isometry (third person). Mesocosm is
+and a trust plane — engine organs are shared where they stay verb-neutral —
+but shares no genre, schedule, or verbs: Mesocosm (first person), Paredros
+(second person), Isometry (third person). Mesocosm is
 standalone-complete; inheritance into the others is enrichment, never
 homework.
 
