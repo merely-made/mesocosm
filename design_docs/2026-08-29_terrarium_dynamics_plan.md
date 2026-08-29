@@ -121,6 +121,24 @@ banking corpses and surviving the gaps; a mechanics-only receipt is
 recorded before any constants follow-up, and any follow-up nudge is
 documented constant by constant; fixtures re-record at the new economy.
 
+## TD5b — the founding cohort arrives mid-life (ruled 2026-08-29, Mark)
+
+TD5's own finding: the corpse drought is set at founding, not in `rates.rs`.
+Founders stagger age over `rng.below(200)` against a lifespan in the
+thousands, so the enclosure holds no real carrion until the founders
+themselves start dying of old age around tick 1,800 — decomposers, banking
+correctly since TD5, are all dead by tick ~430 with nothing left to bank.
+Widen the stagger so a founder's age is drawn proportional to its own
+`lifespan_for_mass`, so the cohort arrives distributed across its whole
+life — mid-life on average, with a near-death tail that seeds carrion from
+the first ticks — rather than every founder a newborn.
+
+**Done when:** the carrion-window probe shows corpses present in the
+formerly-empty tick 20-1,400 span; the instrument shows a gain (more
+`breathes`, decomposers alive at the horizon) over TD5's mechanics-only
+receipt; collapse control still collapses and escapees stay zero; fixtures
+re-record at the new genesis.
+
 ## Findings
 
 - **2026-08-29 (TD1):** the ecology at 61 founders is **bimodal, not
@@ -142,6 +160,96 @@ documented constant by constant; fixtures re-record at the new economy.
   retired, and a fresh demo trace is recorded at the new constants.
 
 ## Progress
+
+- **2026-08-29 (later): TD5b landed — founders arrive mid-life, and the
+  corpse drought closes.** `genesis.rs`'s age draw was `rng.below(200)`
+  regardless of the founder's own mass; it is now
+  `rng.below(lifespan_for_mass(mass))` — proportional to the individual's
+  own life-history rate, uniform across its **whole** life. Mean age lands at
+  the founder's own midpoint (mid-life, the title's word, not a knob picked
+  to sound right), and the draw's near-death tail seeds carrion from the
+  first ticks without any founder's age exceeding its own lifespan. The
+  played critter (organism 0) keeps `age: 0` — its own line, separate from
+  the loop, untouched — because the player's life should start near its
+  beginning, not drawn from the same whole-life distribution as the ecology
+  around it. One-line why lives on the draw itself; genesis is otherwise
+  unchanged, `since_offspring`'s own stagger included.
+
+  **The carrion window (probe, seeds 1 and 7 — TD5's own probe seeds,
+  extended to 2,000 ticks, sampled every 10).** Before: the [20,1400] span
+  held *some* corpse on 360/1381 and 316/1381 sampled ticks respectively,
+  but every one was a trickle — 1 to ~30 mg, a starvation death decaying
+  at 1 mg/tick before the next one replaced it — so TD5's "no real carrion"
+  reading holds even though the window was not literally always at zero.
+  Real accumulation (hundreds of thousands of mg, from old-age deaths)
+  only began at tick 1,267-1,330. After: seed 1 holds a corpse on
+  **1,381/1,381** sampled ticks in the window — full coverage — at
+  hundreds to low thousands of mg from tick 30 on; seed 7 holds one on
+  1,092/1,381, with the last empty tick at 409 and the window continuously
+  occupied after. The drought's far edge is gone; its near edge (the first
+  ~20-30 ticks, before any founder can plausibly have died) is structural
+  and untouched by this change.
+
+  **Verdicts.** Baseline 0 breathes / 9 thins / 0 boil / 1 collapse (of 10,
+  reproduced before touching genesis, matching TD5's own receipt exactly)
+  → **2 breathes / 7 thins / 0 boil / 1 collapse**. Decomposers alive at the
+  10,000-tick horizon: 0 of 10 seeds before, **3 of 10 after** (seed 3: 0 →
+  37; seed 7: 0 → 14; seed 9: 0 → 31). Seeds 3 and 7 convert fully —
+  founded P/C/D end at 90/3/37 and 54/70/14, every kingdom the world
+  started with still standing. Collapse control still all-collapse (the
+  control founds no extra founders, so it never touches the changed draw);
+  max escapees still 0 across every sample. Receipt: `td5b_midlife.json`,
+  both batches, same schema as every earlier round's.
+
+  **Reported honestly: this is not an unmixed win.** Total end-population
+  fell in most seeds that were already thinning (seed 1: 364 → 143; seed 4:
+  369 → 195; seed 6: 125 → 48; seed 8: 308 → 90; seed 10: 168 → 83) — the
+  wider stagger's near-death tail is real attrition, not just useful
+  corpses, so a founding cohort that arrives partway through dying trades
+  some peak population for the carrion that population's death provides.
+  Seed 9 is the sharpest trade: consumers held 35 at the horizon before and
+  **0 after** — the predicted risk (an early die-off wave thinning live
+  prey) landed in this one seed, even as its decomposers went 0 → 31. Seed
+  5's consumers fell 2 → 0, already marginal either side. TD5's own
+  majority-breathing bar is still unmet (2 of 10, not a majority) — TD5b
+  closes the structural finding TD5 could not reach from `rates.rs`, it
+  does not finish TD5's own done-condition.
+
+  **Fixtures.** Demo re-recorded: 120 intents, hash **`e8ba7206ac96834f`**
+  (was `02b072a5cfe7b10b`), `--replay` headed landing it exactly, exit 0, 30
+  frames on the RTX 4060 (Vulkan) — 61 body parts, 14 roster members, ground
+  revision 2. Instrument re-proven: one bit flipped in the recorded hash
+  exits 1 with `MISMATCH`. Written to the default paths (`ps1_played.trace.json`
+  / `.json` / `.png`).
+
+  **Tests.** `genesis.rs` gained one test, `ages_are_staggered_across_the_founders_own_lifespan`
+  (max founder age exceeds the old flat 200 cap; the played critter stays
+  `age: 0`), with a one-line why on both the test and the draw it checks.
+  The two existing genesis tests (`every_seed_founds_all_three_kingdoms`,
+  `since_offspring_is_staggered_like_age`) needed no change — neither reads
+  age's distribution — and pass unmodified. `cargo test --workspace`: green,
+  with one environment residue below. `cargo clippy --workspace --all-targets
+  -- -D warnings`: clean. `cargo fmt --check`: clean.
+
+  **No constant in `rates.rs` was touched.** The corpse drought was
+  genuinely a genesis question, as TD5's finding said; nothing here argues
+  for a retune, though seed 9's consumer trade-off is worth watching if a
+  future round touches predation pressure.
+
+  Two residues. **`mesocosm-lens`'s GPU-adapter tests deadlock under the
+  default parallel test harness in this environment** — reproduced on the
+  unmodified crate (nothing this round touched it), confirmed by isolating:
+  `cargo test -p mesocosm-lens` hangs indefinitely with several
+  `tracer_tests` cases stuck past 60 seconds regardless of thread count
+  contention, but `cargo test -p mesocosm-lens -- --test-threads=1` passes
+  all 38 clean in 14 seconds. Pre-existing, out of this round's scope
+  (rendering, not genesis), and not touched; `cargo test --workspace` here
+  means that plus the rest of the workspace at default threading, both
+  green. Second, the wider stagger widens the founding population's own
+  variance — a seed's early die-off is now part of its founder draw the way
+  its kingdom composition already was, so a future retune reading "seed 9
+  collapsed" should check whether that seed's draw changed before assuming
+  a constant did.
 
 - **2026-08-29 (later): TD5's mechanics landed; its done-condition did not,
   and the reason is structural.** The economy is one rule now, and the
@@ -415,6 +523,12 @@ documented constant by constant; fixtures re-record at the new economy.
   genesis and matter-cycle question, not a rates.rs one, and against the
   RimWorld bar it is the loop that currently fails to compose: decomposers
   are a kingdom nobody ever sees do their job.
+  **Ruled 2026-08-29: the founding cohort arrives mid-life (TD5b).** Age now
+  draws proportional to the founder's own `lifespan_for_mass`, not a flat
+  200; see TD5b's Progress entry for the carrion-window and verdict
+  receipts. Not a full close — seed 9 traded its consumers for its
+  decomposers, and the window's first ~20-30 ticks are still structurally
+  empty — but the far edge (tick 20-1,400 holding no real carrion) is gone.
 - **Individual mass has no fixed point.** Income, upkeep, and the
   reproduction tax all scale as m^0.75, so net growth's sign is
   mass-independent: bodies either grow without bound or shrink to stall;

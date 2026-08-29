@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! TD1's headless population instrument, carried through TD2, TD2b, TD2c,
-//! TD2d and TD5 as each round's measuring stick.
+//! TD2d, TD5 and TD5b as each round's measuring stick.
 //!
 //! Founds real worlds and drives them with nothing but `Intent::Idle` for
 //! several starter lifespans, sampling per-kingdom alive counts, total
@@ -31,7 +31,7 @@
 //! cargo run -p mesocosm-core --example population_instrument --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td5_economy.json` (curves + verdicts
+//! Writes `Code/testing/mesocosm/td5b_midlife.json` (curves + verdicts
 //! per seed) and prints a terminal summary; each earlier round's receipt
 //! keeps its own filename and none is overwritten. `Code/testing/<repo>/` is this
 //! workspace's standing receipts convention; the path is found by walking up
@@ -445,13 +445,13 @@ fn report(run: &RunResult) {
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/td5_economy.json` by walking up from
+/// Finds `Code/testing/mesocosm/td5b_midlife.json` by walking up from
 /// this crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
 /// is not this example's business to hardcode. Each round's receipt keeps its
 /// own filename and none is overwritten: `td1_population.json`,
 /// `td2_retune.json`, `td2b_walls.json`, `td2c_persistence.json`,
-/// `td2d_scavengers.json`, and now this. (2026-08-29 TD5)
+/// `td2d_scavengers.json`, `td5_economy.json`, and now this. (2026-08-29 TD5b)
 fn receipt_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repos_ancestor = manifest_dir
@@ -461,7 +461,7 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td5_economy.json")
+    workspace_root.join("testing/mesocosm/td5b_midlife.json")
 }
 
 fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {

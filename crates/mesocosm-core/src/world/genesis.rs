@@ -85,6 +85,9 @@ impl World {
             mass_mg: 1_000,
             position: [0, 0, 0],
             stage: Stage::Juvenile,
+            // Kept newborn, unlike the mid-life stagger below: the player's
+            // life should start near its beginning, not drawn from the same
+            // whole-life distribution as the ecology around it. (TD5b)
             age: 0,
             since_offspring: 0,
             signal: Signal::Plain,
@@ -111,8 +114,17 @@ impl World {
                     _ => Kingdom::Producer,
                 });
             // Staggered ages, so the enclosure is mid-life rather than all
-            // hatching on the same tick.
-            let age = rng.below(200) as u32;
+            // hatching on the same tick. Proportional to the founder's own
+            // lifespan_for_mass rather than a flat 200: a flat stagger left
+            // every founder a newborn against a 2,000-3,000-tick life, so
+            // nothing died of old age until ~1,800 and the enclosure held no
+            // real carrion until then (TD5 finding). Uniform over the whole
+            // life puts the founding cohort's mean age at its own midpoint —
+            // mid-life — with a near-death tail that seeds carrion from the
+            // first ticks, the shape a throwaway rng.below(2000) diagnostic
+            // proved: 42 decomposers alive at the 10,000-tick horizon in seed
+            // 7. (2026-08-29 TD5b)
+            let age = rng.below(u64::from(ecology::lifespan_for_mass(mass).max(1))) as u32;
             // Staggered the same way: an un-staggered founder pool all reads
             // since_offspring 0, gating the world's whole first brood behind
             // one full gestation. (2026-08-29 TD2b)
@@ -336,5 +348,34 @@ mod tests {
             distinct.iter().any(|&v| v > 0),
             "no founder started with a head start on gestation"
         );
+    }
+
+    // Before the mid-life stagger (2026-08-29, TD5b), every founder's age was
+    // rng.below(200) against a lifespan in the thousands, so nothing died of
+    // old age until deep into the run and the enclosure held no real carrion
+    // until then (TD5's corpse-drought finding). Age must now range well
+    // past the old flat cap, and the played critter must stay a newborn --
+    // the player's life should start near its beginning, not drawn from the
+    // same distribution as the ecology around it.
+    #[test]
+    fn ages_are_staggered_across_the_founders_own_lifespan() {
+        let world = World::new(4_242, 60);
+        let max_age = world
+            .organisms
+            .iter()
+            .filter(|o| o.species != SpeciesId(1))
+            .map(|o| o.age)
+            .max()
+            .expect("60 non-played founders");
+        assert!(
+            max_age > 200,
+            "no founder aged past the old flat rng.below(200) cap: {max_age}"
+        );
+        let played = world
+            .organisms
+            .iter()
+            .find(|o| o.id == OrganismId(0))
+            .expect("the played critter founds as organism 0");
+        assert_eq!(played.age, 0, "the played critter did not start a newborn");
     }
 }
