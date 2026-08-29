@@ -435,7 +435,10 @@ pub struct BrickCapture {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BrickTraceError {
     CaptureFormat(wgpu::TextureFormat),
-    TooManyCapsules { actual: usize, maximum: usize },
+    TooManyCapsules {
+        actual: usize,
+        maximum: usize,
+    },
     UnknownBrickSlot(u32),
     /// The depth join cannot write comparable fragment depth without the
     /// raster tenant's world-to-clip matrix.

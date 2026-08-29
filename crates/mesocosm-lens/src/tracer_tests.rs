@@ -6,8 +6,8 @@
 use mesocosm_core::places::{Ground, Places};
 
 use crate::{
-    BrickChange, BrickFrameInput, BrickMap, BrickProjectionRevision, BrickRevision, BrickTraceError,
-    BrickTracer, CritterPose, Flight, Grade, LeasedAtlas, critter::Capsule,
+    BrickChange, BrickFrameInput, BrickMap, BrickProjectionRevision, BrickRevision,
+    BrickTraceError, BrickTracer, CritterPose, Flight, Grade, LeasedAtlas, critter::Capsule,
 };
 
 fn ground() -> Ground {
@@ -782,7 +782,13 @@ fn a_lease_at_the_wrong_epoch_is_refused() {
         .capture(
             BrickFrameInput::new(&map, revision, &camera, &grade)
                 .changed(BrickChange::Slots(&changed_slots))
-                .with_leased_atlas(lease(&refused_buffer, &map, revision, voxels.len() as u64, 72))
+                .with_leased_atlas(lease(
+                    &refused_buffer,
+                    &map,
+                    revision,
+                    voxels.len() as u64,
+                    72,
+                ))
                 .with_expected_read_epoch(73),
         )
         .expect("mismatched epoch frame");
@@ -804,7 +810,13 @@ fn a_lease_at_the_wrong_epoch_is_refused() {
         .capture(
             BrickFrameInput::new(&map, revision, &camera, &grade)
                 .changed(BrickChange::Slots(&changed_slots))
-                .with_leased_atlas(lease(&accepted_buffer, &map, revision, voxels.len() as u64, 73))
+                .with_leased_atlas(lease(
+                    &accepted_buffer,
+                    &map,
+                    revision,
+                    voxels.len() as u64,
+                    73,
+                ))
                 .with_expected_read_epoch(73),
         )
         .expect("matching epoch frame");

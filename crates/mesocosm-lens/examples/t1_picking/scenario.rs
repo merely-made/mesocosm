@@ -19,8 +19,8 @@
 //! of `Ground::solid`, no traversal arithmetic shared with Rapier.
 
 use mesocosm_core::places::{Ground, Places};
-use mesocosm_core::voxel_profile::GroundVoxelProfile;
 use mesocosm_core::snapshot;
+use mesocosm_core::voxel_profile::GroundVoxelProfile;
 use mesocosm_lens::{
     BrickChange, BrickDiagnostics, BrickFrameInput, BrickMap, BrickRevision, BrickTracer,
     CritterPose, Grade, TraceCamera, critter::Capsule,
@@ -245,9 +245,8 @@ impl Scenario {
         if log != again {
             return Err("two identical sweeps produced different logs".into());
         }
-        let log_hash = snapshot::hash_bytes(
-            &postcard::to_allocvec(&log).map_err(|e| e.to_string())?,
-        );
+        let log_hash =
+            snapshot::hash_bytes(&postcard::to_allocvec(&log).map_err(|e| e.to_string())?);
 
         let classes = |stops: &[Stop]| {
             let ground = stops
@@ -301,11 +300,7 @@ impl Scenario {
             camera,
             grade: Grade::retro(3),
             pose,
-            origin: [
-                body_centre[0],
-                body_top * 0.5 + 4.0,
-                slab_near_z(),
-            ],
+            origin: [body_centre[0], body_top * 0.5 + 4.0, slab_near_z()],
             log,
             log_hash,
             stops,

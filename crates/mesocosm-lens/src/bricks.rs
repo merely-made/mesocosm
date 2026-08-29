@@ -11,8 +11,8 @@
 
 use std::ops::Deref;
 
-use modulus::BrickMap as SharedBrickMap;
 use mesocosm_core::places::Ground;
+use modulus::BrickMap as SharedBrickMap;
 
 pub use modulus::{BrickMapError, BrickProjectionRevision, RetargetDelta};
 
