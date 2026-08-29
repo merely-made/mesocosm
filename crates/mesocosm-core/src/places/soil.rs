@@ -23,12 +23,17 @@
 //! # Why per voxel column
 //!
 //! Ruled on measured evidence (`Code/testing/mesocosm/soil_granularity_probe.md`,
-//! 96 configs). At the shipping enclosure a direct index into a 4 KB array is
-//! the *fastest* grain for point uptake — 1.75us against 5.66us for a
+//! 96 configs). At the then-shipping enclosure a direct index into a 4 KB array
+//! was the *fastest* grain for point uptake — 1.75us against 5.66us for a
 //! nearest-site scan — and it is the only grain that can express a forage
 //! radius at all: a coarse grain's r=3 neighbourhood already covers the whole
 //! world, so roots hunting minerals through soil cannot be represented in it
 //! at any price.
+//!
+//! S1 widened the store to 129x129 (130 KiB), which leaves point uptake
+//! unchanged — an index is an index — and makes [`Soil::percolate`], the one
+//! pass that sweeps every column every tick, the store's whole cost. It is
+//! measured per rung in `Code/testing/mesocosm/s1_wide.json`.
 //!
 //! # The forage radius, built
 //!
@@ -56,9 +61,11 @@ const PERCOLATION_DIVISOR: u64 = 8;
 
 /// How far a root searches for its next milligram, in voxel columns.
 ///
-/// Three, because that is the reach the per-voxel grain was ruled for: 49 of
-/// 1,089 columns here, where every coarser grain's r=3 already covered the
-/// whole world and a forage radius could not be expressed at all. (TD7)
+/// Three, because that is the reach the per-voxel grain was ruled for: 49
+/// columns of the enclosure's 16,641, where every coarser grain's r=3 already
+/// covered the whole world and a forage radius could not be expressed at all.
+/// (TD7. The count was 49 of 1,089 when the reach was ruled; S1 widened the
+/// world and left the reach alone — a root's search is anatomy, not geography.)
 pub const FORAGE_RADIUS: i32 = 3;
 
 /// One voxel column of the enclosure: a direct index into [`Soil`].
@@ -166,7 +173,10 @@ impl Soil {
     /// **Transport, not regrowth.** Nothing is created — a column's loss is
     /// exactly its neighbours' gain, in integers — so conservation is
     /// unaffected. What it buys is that the enclosure's matter budget is one
-    /// budget rather than 1,089 sealed jars.
+    /// budget rather than 16,641 sealed jars.
+    ///
+    /// **The one pass that is O(columns) rather than O(bodies)**, so it is the
+    /// pass a wider enclosure charges for directly. S1 measured it.
     ///
     /// See [`PERCOLATION_DIVISOR`] for why the round needed it.
     pub fn percolate(&mut self) {
@@ -239,16 +249,20 @@ impl Soil {
 mod tests {
     use super::*;
 
-    // The shipping enclosure: `world::ENCLOSURE` is 16, so a 33x33 grid. Sized
-    // from the constant here the same way the world sizes it.
-    const ENCLOSURE: i32 = 16;
+    // The shipping enclosure, read from the world rather than mirrored: S1
+    // moved it 16 -> 64 and a copied 16 here would have gone on quietly
+    // testing the world that used to ship.
+    use crate::world::ENCLOSURE;
+
+    /// Columns to a side at the shipping enclosure. 129 since S1.
+    const SIDE: usize = (2 * ENCLOSURE + 1) as usize;
 
     #[test]
     fn the_store_covers_the_enclosure_one_column_per_voxel() {
         let soil = Soil::seeded(ENCLOSURE, 100);
-        assert_eq!(soil.side(), 33);
-        assert_eq!(soil.columns(), 33 * 33);
-        assert_eq!(soil.total_mg(), 33 * 33 * 100);
+        assert_eq!(soil.side() as usize, SIDE);
+        assert_eq!(soil.columns(), SIDE * SIDE);
+        assert_eq!(soil.total_mg(), (SIDE * SIDE * 100) as u64);
 
         // Distinct columns for distinct voxels, and the same one twice for
         // the same voxel: this is the grain the ruling bought.
@@ -305,8 +319,9 @@ mod tests {
 
     #[test]
     fn a_radius_reads_a_real_neighbourhood_at_the_shipping_size() {
-        // The measured reason for this grain: r=3 is 49 of 1,089 columns
-        // here, where the coarse grains' r=3 already covered the whole world.
+        // The measured reason for this grain: r=3 is 49 columns of the
+        // enclosure's 16,641 (1,089 before S1 widened it), where the coarse
+        // grains' r=3 already covered the whole world.
         let soil = Soil::seeded(ENCLOSURE, 0);
         let middle = soil.column_at([0, 0, 0]);
         assert_eq!(soil.columns_within(middle, 3).count(), 49);

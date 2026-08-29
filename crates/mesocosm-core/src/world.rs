@@ -28,10 +28,45 @@ mod genesis;
 mod read;
 
 /// How far the enclosure reaches from its middle, in voxels.
-pub const ENCLOSURE: i32 = 16;
+///
+/// **Sixty-four since S1** (scale plan, 2026-08-29): a 129-voxel span, 15.3x
+/// the floor area of the 33-voxel world that shipped before it. Mark ruled
+/// scale a feature in its own right, and the same day read the captures and
+/// asked why the creatures looked so big — one number answers both. A palette
+/// limb is 9 voxels long, which was **27%** of the old world's width and is
+/// **7%** of this one's; the fix is the world rather than the bodies, because
+/// `part_ceiling_mg` prices voxel volume and shrinking half-extents would drag
+/// the economy TD6 and TD7 just tuned.
+///
+/// Terrain is O(area), never O(volume) — [`crate::places::SURFACE_BAND`] caps
+/// height — so this costs bricks and soil columns quadratically and nothing
+/// cubically.
+pub const ENCLOSURE: i32 = 64;
+
+/// Non-played founders, scaled to the enclosure's floor area.
+///
+/// **Density is what stays fixed.** The 33-voxel world founded 60 over its
+/// 1,089 columns; a 129-voxel world founding the same 60 would be that
+/// terrarium fifteen times emptier — big instead of diffuse is the failure the
+/// scale plan names, and it names it at every rung. Derived rather than typed,
+/// so widening the enclosure again carries the cohort with it. At
+/// `ENCLOSURE = 64` this is 916, and the played critter makes 917.
+pub const FOUNDERS: u32 = {
+    let side = (2 * ENCLOSURE + 1) as u32;
+    let reference_side: u32 = 33;
+    side * side * 60 / (reference_side * reference_side)
+};
 
 /// Regions to a side. Nine is coarser than a crowding cell on purpose: a place
 /// is somewhere you can be, not a bucket for counting neighbours.
+///
+/// **Deliberately unchanged by S1.** Growing it reorders every RNG draw and is
+/// S3's whole subject (a spatial index, a distance-capped far tier, cohorts as
+/// an execution path); S1 is constants and scaling only. The consequence is
+/// measured and reported in the scale plan's S1 entry: nine regions over a
+/// 129-voxel span makes each region 43 voxels across, so the near/far line —
+/// tuned as `demote_hops = 2` against a diameter-2 graph — now falls tens of
+/// voxels away instead of ten.
 pub const PLACE_SIDE: u16 = 3;
 
 /// Places draw from their own stream, derived from the world's seed.

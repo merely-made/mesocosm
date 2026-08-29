@@ -33,6 +33,16 @@ fn set_energy(world: &mut World, energy_mg: u64) {
         .energy_mg = energy_mg;
 }
 
+/// Sets what one organism's flesh costs to swallow.
+fn venom_of(world: &mut World, organism: mesocosm_core::OrganismId, venom_mg: u64) {
+    world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == organism)
+        .expect("the organism is in the roster")
+        .venom_mg = venom_mg;
+}
+
 /// The budget at which the body stops building and starts burning.
 fn starving_below(world: &World) -> u64 {
     world.controlled().unwrap().upkeep_mg() * STARVED_UPKEEP_TICKS
@@ -222,13 +232,16 @@ fn venom_is_charged_whatever_the_meal_becomes() {
 
     for starved in [false, true] {
         let (mut poisoned, prey) = fed();
+        // **Both sides say what the prey is carrying.** The control used to be
+        // "the fixture's prey, untouched", which quietly assumed the nearest
+        // organism was harmless; genesis gives three founders in ten some
+        // venom, and S1's wider enclosure put one of those under the played
+        // critter's nose — 74 mg of it, so the "clean" world was the poisoned
+        // one and the subtraction underflowed. Setting both ends of the
+        // comparison makes the claim independent of the draw. (2026-08-29 S1)
         let mut clean = poisoned.clone();
-        poisoned
-            .organisms
-            .iter_mut()
-            .find(|o| o.id == prey)
-            .unwrap()
-            .venom_mg = VENOM;
+        venom_of(&mut poisoned, prey, VENOM);
+        venom_of(&mut clean, prey, 0);
         if starved {
             // Half the line: inside it, but with enough left that the zero
             // floor cannot forgive part of the toxin.

@@ -130,6 +130,12 @@ impl Host {
                 .gpu
                 .as_ref()
                 .map_or(0, |gpu| gpu.section.last_roster_members()),
+            slab_half_height: self
+                .gpu
+                .as_ref()
+                .map_or(self.config.slab_half_height, |gpu| {
+                    gpu.section.half_height()
+                }),
             trace: self
                 .config
                 .trace

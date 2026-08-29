@@ -75,6 +75,10 @@ pub struct PlayedReceipt {
     /// Bodies the last traced frame drew beside the played one: every alive
     /// organism the slab window held, capped by the lens's roster limit.
     pub section_roster: u32,
+    /// How much world the section framed, in voxels of slab half-height. A
+    /// capture that does not say what it framed cannot be compared with the
+    /// next one, and this number is still unruled. (S1)
+    pub slab_half_height: f32,
     pub trace: Option<String>,
     pub capture: Option<String>,
 }

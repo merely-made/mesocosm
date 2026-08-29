@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! TD1's headless population instrument, carried through TD2, TD2b, TD2c,
-//! TD2d, TD5, TD5b, TD6 and TD7 as each round's measuring stick.
+//! TD2d, TD5, TD5b, TD6, TD7 and S1 as each round's measuring stick.
 //!
 //! Founds real worlds and drives them with nothing but `Intent::Idle` for
 //! several starter lifespans, sampling per-kingdom alive counts, total
@@ -31,7 +31,7 @@
 //! cargo run -p mesocosm-core --example population_instrument --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td7_priced.json` (curves + verdicts
+//! Writes `Code/testing/mesocosm/s1_wide_instrument.json` (curves + verdicts
 //! per seed) and prints a terminal summary; each earlier round's receipt
 //! keeps its own filename and none is overwritten. `Code/testing/<repo>/` is this
 //! workspace's standing receipts convention; the path is found by walking up
@@ -43,6 +43,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use mesocosm_core::world::{ENCLOSURE, FOUNDERS};
 use mesocosm_core::{Intent, Kingdom, World};
 
 /// `lifespan_for_mass(1000mg)` — the starter mass every `World::new` founds
@@ -63,10 +64,11 @@ const BASELINE_SEEDS: [u64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 /// the same draws produce opposite verdicts under a different founding.
 const CONTROL_SEEDS: [u64; 5] = [1, 2, 3, 4, 5];
 
-/// Founders beyond the played critter. 60 extra plus the always-present
-/// played critter is 61 founders — the same starting count the 2026-08-29
-/// playtest read as "61 -> 8,155".
-const BASELINE_ORGANISM_COUNT: u32 = 60;
+/// Founders beyond the played critter: the world's own area-scaled cohort,
+/// read from `world::FOUNDERS` rather than typed here, so the instrument
+/// measures the terrarium that ships instead of a fixture that used to.
+/// (2026-08-29 S1; it was a literal 60 through TD7.)
+const BASELINE_ORGANISM_COUNT: u32 = FOUNDERS;
 /// Zero extra: the played critter (a Consumer) founds alone, with no
 /// producer in the world to ever feed it. It can find no prey, so its
 /// income is permanently zero and upkeep starves it out. This is the
@@ -95,11 +97,6 @@ const COLLAPSE_FRACTION: u64 = 50;
 /// density statistic kept at 8 so the `max_cell` column still compares against
 /// every earlier round's receipt.
 const CROWD_CELL: i32 = 8;
-/// The enclosure's resident bound, mirrored from `world.rs`'s public
-/// `ENCLOSURE` (not re-exported from the crate root, so copied rather than
-/// imported). TD2b's `outside` column reads directly against this: a body
-/// past it stands where `Ground::grow` never laid terrain. (2026-08-29 TD2b)
-const ENCLOSURE: i32 = 16;
 
 #[derive(Clone, Copy)]
 struct Sample {
@@ -113,8 +110,8 @@ struct Sample {
     /// self-thinning is even being asked to do anything.
     max_cell: u32,
     /// Furthest occupied position from the enclosure's centre, on either
-    /// horizontal axis. `World::ENCLOSURE` is 16, so anything past that is a
-    /// body standing where the ground the enclosure grew does not reach.
+    /// horizontal axis. Anything past `world::ENCLOSURE` is a body standing
+    /// where the ground the enclosure grew does not reach.
     span: i32,
     /// Count of living organisms strictly past `ENCLOSURE` on either
     /// horizontal axis: the escapee proof for TD2b's wall. Zero across a run
@@ -468,14 +465,14 @@ fn report(run: &RunResult) {
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/td7_priced.json` by walking up from
+/// Finds `Code/testing/mesocosm/s1_wide_instrument.json` by walking up from
 /// this crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
 /// is not this example's business to hardcode. Each round's receipt keeps its
 /// own filename and none is overwritten: `td1_population.json`,
 /// `td2_retune.json`, `td2b_walls.json`, `td2c_persistence.json`,
 /// `td2d_scavengers.json`, `td5_economy.json`, `td5b_midlife.json`,
-/// `td6_matter.json`, and now this. (2026-08-29 TD7)
+/// `td6_matter.json`, `td7_priced.json`, and now this. (2026-08-29 S1)
 fn receipt_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repos_ancestor = manifest_dir
@@ -485,7 +482,7 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td7_priced.json")
+    workspace_root.join("testing/mesocosm/s1_wide_instrument.json")
 }
 
 fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {

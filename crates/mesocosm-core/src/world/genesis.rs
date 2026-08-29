@@ -27,11 +27,12 @@ use super::{DEVELOPMENT_SALT, ENCLOSURE, PLACE_SALT, PLACE_SIDE, RECIPE_SALT, Wo
 ///
 /// A hundred milligrams is the ecology's own reference body mass, so the rule
 /// reads plainly: *the enclosure opens holding one reference body's worth of
-/// substance under every voxel column it has*. At `ENCLOSURE = 16` that is a
-/// 33x33 grid and 108,900 mg — about three times what a 61-founder cohort
-/// carries in bodies and reserves, so the terrarium opens with real room to
-/// grow into and a fixed ceiling to grow within. Sized from the constant, so
-/// widening the enclosure widens the budget with it.
+/// substance under every voxel column it has*. Sized from the constant, so
+/// widening the enclosure widens the budget with it — which S1 verified rather
+/// than re-derived: at `ENCLOSURE = 64` this is a 129x129 grid and 1,664,100 mg
+/// against the 33x33 grid's 108,900, the same 15.3x the area grew by, and the
+/// same ~3x what the founding cohort carries because the cohort scaled with the
+/// area too.
 const SOIL_SEED_MG_PER_COLUMN: u64 = 100;
 
 struct Founder {
@@ -371,10 +372,15 @@ mod tests {
     // founded zero producer species -- guaranteed collapse under any
     // constants. Every seed must now found all three kingdoms among the
     // non-played species.
+    // The founding cohort every test below reads. Derived, not typed: S1 tied
+    // it to the enclosure's area, and a test that kept saying 60 would stop
+    // being about the world that ships.
+    use super::super::FOUNDERS;
+
     #[test]
     fn every_seed_founds_all_three_kingdoms() {
         for seed in 1u64..=10 {
-            let world = World::new(seed, 60);
+            let world = World::new(seed, FOUNDERS);
             let mut kingdoms: BTreeMap<Kingdom, u32> = BTreeMap::new();
             for organism in &world.organisms {
                 if organism.species != SpeciesId(1) {
@@ -396,7 +402,7 @@ mod tests {
     #[test]
     fn founding_is_a_pyramid_in_every_seed() {
         for seed in 1u64..=10 {
-            let world = World::new(seed, 60);
+            let world = World::new(seed, FOUNDERS);
             let mut kingdoms: BTreeMap<Kingdom, u32> = BTreeMap::new();
             for organism in &world.organisms {
                 if organism.species != SpeciesId(1) {
@@ -409,7 +415,10 @@ mod tests {
                     kingdoms.get(&Kingdom::Consumer).copied(),
                     kingdoms.get(&Kingdom::Decomposer).copied(),
                 ),
-                (Some(40), Some(15), Some(5)),
+                // 916 founders: 610 producers (2/3), 229 consumers (1/4), 77
+                // decomposers (the rest). The shares are TD7's; the counts moved
+                // with S1's area-scaled cohort and the pyramid survived it.
+                (Some(610), Some(229), Some(77)),
                 "seed {seed} founded {kingdoms:?} rather than the 2/3 : 1/4 : rest pyramid"
             );
         }

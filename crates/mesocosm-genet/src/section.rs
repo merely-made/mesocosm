@@ -21,7 +21,16 @@ use mesocosm_render::composite::Composite;
 /// The G2 slab, ratified 2026-08-21: half-height, section depth, and the
 /// palette depth of the retro grade. Kept as defaults, not as constants a
 /// camera policy may not vary.
-const SLAB_HALF_HEIGHT: f32 = 20.0;
+///
+/// The half-height is the **default**, and a host may carry another
+/// ([`HostConfig::slab_half_height`](crate::HostConfig)): it was calibrated for
+/// a 128-voxel G2 fixture, it over-framed the 33-voxel enclosure, and S1's
+/// 129-voxel enclosure reopened the arithmetic rather than settling it.
+pub const SLAB_HALF_HEIGHT: f32 = 20.0;
+/// **Slice thickness, and deliberately not scaled with the enclosure.** A
+/// section shows a cut of fixed depth; widening it to keep the same fraction of
+/// a bigger world would only stack more bodies into the same pixels, which is
+/// the pile the S1 finding started from.
 const SLAB_DEPTH: f32 = 16.0;
 const PALETTE: u32 = 3;
 
@@ -68,6 +77,9 @@ pub struct Section {
     grade: Grade,
     width: u32,
     height: u32,
+    /// How much world this section frames. Presentation, so it lives beside the
+    /// device rather than in the world.
+    half_height: f32,
     /// What the tracer writes: display-encoded values in a linear-tagged
     /// format, exactly as the lens's own captures read them back.
     traced: wgpu::Texture,
@@ -92,6 +104,7 @@ impl Section {
         height: u32,
         format: wgpu::TextureFormat,
         ground: &Ground,
+        half_height: f32,
     ) -> Result<Self, String> {
         let map = BrickMap::from_ground(ground).map_err(|error| error.to_string())?;
         let tracer =
@@ -113,6 +126,11 @@ impl Section {
             grade: Grade::retro(PALETTE),
             width,
             height,
+            half_height: if half_height > 0.0 {
+                half_height
+            } else {
+                SLAB_HALF_HEIGHT
+            },
             traced,
             traced_view,
             display,
@@ -147,16 +165,21 @@ impl Section {
         self.width as f32 / self.height.max(1) as f32
     }
 
-    /// Half-height and depth stay the G2 numbers.
+    /// Depth stays the G2 number; the half-height is the host's.
     fn camera(&self, centre: [f32; 3]) -> Option<TraceCamera> {
         TraceCamera::orthographic_slab(
             centre,
             FORWARD,
             UP,
-            SLAB_HALF_HEIGHT,
+            self.half_height,
             self.aspect(),
             SLAB_DEPTH,
         )
+    }
+
+    /// How much world the section frames, in voxels of half-height.
+    pub fn half_height(&self) -> f32 {
+        self.half_height
     }
 
     /// The world box this camera actually shows, from the camera's own
@@ -166,8 +189,8 @@ impl Section {
         SlabWindow {
             centre,
             half: [
-                SLAB_HALF_HEIGHT * self.aspect(),
-                SLAB_HALF_HEIGHT,
+                self.half_height * self.aspect(),
+                self.half_height,
                 SLAB_DEPTH * 0.5,
             ],
         }

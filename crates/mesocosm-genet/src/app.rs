@@ -50,13 +50,26 @@ pub struct HostConfig {
     /// Metabolize automatically every N steps, so a capture run has something
     /// to show without keyboard input.
     pub auto_eat_every: Option<u64>,
+    /// Half the height of the section's orthographic slab, in voxels — how much
+    /// world the terrarium view frames.
+    ///
+    /// **A knob rather than a constant because the number is unruled.** S1
+    /// widened the world to 129 voxels and proposed a value with the
+    /// arithmetic; until Mark rules, the default stays what shipped and the
+    /// proposal is one `--slab` away, so a capture of either is reproducible
+    /// from the tree. Presentation only: it never reaches an intent, so it
+    /// cannot move a replay hash. (2026-08-29 S1.)
+    pub slab_half_height: f32,
 }
 
 impl Default for HostConfig {
     fn default() -> Self {
         Self {
             seed: 0x00A7_7AC4,
-            organisms: 60,
+            // The world's own area-scaled cohort, not a literal: S1 tied the
+            // founding population to the enclosure's floor area so a wider
+            // terrarium is bigger rather than emptier.
+            organisms: mesocosm_core::world::FOUNDERS,
             // The canonical played tempo (TD2, ruled 2026-08-29). Sixty was
             // never chosen; it was the frame rate, and driving the ecology's
             // tick-tuned life history at it mapped a whole lifetime onto
@@ -72,6 +85,7 @@ impl Default for HostConfig {
             receipt: None,
             replay: None,
             auto_eat_every: None,
+            slab_half_height: section::SLAB_HALF_HEIGHT,
         }
     }
 }
@@ -496,6 +510,7 @@ impl ApplicationHandler for Host {
             self.config.height,
             format,
             self.runtime.world().ground(),
+            self.config.slab_half_height,
         ) {
             Ok(section) => section,
             Err(error) => {

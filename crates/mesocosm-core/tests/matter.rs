@@ -66,6 +66,13 @@ fn matter_is_conserved_across_a_long_run() {
     // Four seeds across four thousand idle ticks each: births, deaths,
     // grazing, predation, scavenging, decay, dispersal, and the founding
     // cohort dying of old age all happen inside this window.
+    //
+    // Sixty founders rather than the world's own `FOUNDERS`, deliberately:
+    // conservation is a property of the **seams** — one birth, one meal, one
+    // death, one step — and this run buys seam coverage by length, which is
+    // what four thousand ticks are for. The shipping cohort is proved
+    // separately below, where it costs a short run rather than a fifteen-fold
+    // one. (2026-08-29 S1)
     for seed in [1u64, 4, 7, 4_242] {
         let mut world = World::new(seed, 60);
         let opening = world.total_matter_mg();
@@ -78,6 +85,29 @@ fn matter_is_conserved_across_a_long_run() {
                 panic!("{why}");
             }
         }
+    }
+}
+
+// The same invariant at the size the world actually ships. S1 widened the
+// enclosure 16 -> 64 and scaled the founding cohort with its area, so the run
+// above — honest about seams — is no longer honest about scale: a cycle that
+// closes over 61 bodies and 1,089 columns has not been shown to close over 917
+// and 16,641. Short by design, because the seam coverage is the long run's job
+// and this one's is the size. (2026-08-29 S1)
+#[test]
+fn matter_is_conserved_at_the_shipping_cohort() {
+    let mut world = World::new(1, mesocosm_core::world::FOUNDERS);
+    let opening = world.total_matter_mg();
+    assert!(opening > 0, "the wide enclosure founded empty");
+
+    for tick in 1..=200 {
+        world.apply(Intent::Idle);
+        conserved(
+            &world,
+            opening,
+            &format!("on tick {tick} of the wide enclosure"),
+        )
+        .expect("conserved");
     }
 }
 
