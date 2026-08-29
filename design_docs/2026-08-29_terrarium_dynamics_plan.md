@@ -182,6 +182,43 @@ more seeds breathing with founded kingdoms persisting, zero boils, the
 collapse control still collapsing; crowding is either retired as redundant
 or its remaining job is stated; fixtures re-record.
 
+## TD7 — life priced by how it lives (ruled 2026-08-29, Mark)
+
+TD6's two flagged residues, answered together by one principle Mark
+stated: "moving has metabolic costs. locomotion doesn't come free for
+animals. we consume more nutrients than plants. so for flora, roots
+seeking water and nutrients and minerals from/in soil is doing so at the
+speed of growth on low rent metabolism." Rent prices what a body does,
+not only what it weighs.
+
+- **Soil flow: percolation and root forage, both.** Percolation stays as
+  shipped — diffusion is the medium's property. Producers additionally
+  gain the forage-radius uptake the per-voxel grain was chosen for: roots
+  reading neighbouring columns and drawing from the richest — slowly, at
+  the speed of growth, on low-rent metabolism.
+- **Locomotion-derived rent.** Upkeep gains a motility term derived from
+  the body plan (the locomotion anatomy already computes), so sessile
+  producers run cheap and motile consumers pay for their speed. The
+  trophic asymmetry becomes physics, not an authored constant.
+- **Pyramid-shaped founding.** Counts make the pyramid: many producers,
+  fewer consumers, few decomposers, replacing the equal-thirds kingdom
+  floor. Individual sizes stay what bodies honestly say.
+- **Producers grow bigger.** Producer recipes gain the parts/volume for
+  real stands — plants are big — raising their derived ceilings.
+
+Alongside, not inside, this round: Mark opened the composable-forms
+question — microbe / virus / parasite / symbiote as inhabitable classes
+at animal scale ("watching an animal you inhabit do its thing under your
+influence"), forms of life as "conditionally composable classes." That
+gets its own research brief (traits, prior-art frameworks, and which
+combinations the substrate can honestly carry), not a slot in this round.
+
+**Done when:** the instrument reaches breathes in a majority of seeds with
+zero boils, founded kingdoms at the horizon, the collapse control still
+collapsing, matter still conserved to the milligram (the TD6 test is the
+gate every change must pass); the rent asymmetry is derived from body-plan
+numbers, not tuned; fixtures re-record.
+
 ## Findings
 
 - **2026-08-29 (TD6, and it wants a ruling): point uptake at per-voxel grain
