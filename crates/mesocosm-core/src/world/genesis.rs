@@ -87,10 +87,24 @@ impl World {
         for i in (1..floor_kingdoms.len()).rev() {
             floor_kingdoms.swap(i, rng.below(i as u64 + 1) as usize);
         }
-        let mut species_roles: BTreeMap<SpeciesId, Kingdom> =
-            BTreeMap::from([(SpeciesId(1), Kingdom::Consumer)]);
+        let mut species_of: BTreeMap<Kingdom, SpeciesId> = BTreeMap::new();
         for (offset, kingdom) in floor_kingdoms.into_iter().enumerate() {
-            species_roles.insert(SpeciesId(2 + offset as u32), kingdom);
+            species_of.insert(kingdom, SpeciesId(2 + offset as u32));
+        }
+        // **Counts make the pyramid** (2026-08-29 TD7). A uniform species draw
+        // founded equal thirds, which is an ecology standing on its point: the
+        // 20-odd consumers it put on 20-odd producers over-grazed the stand
+        // within 200 ticks in every seed of TD6's receipt. The tiers are
+        // therefore drawn as a composition rather than per founder — exactly
+        // `PRODUCER_SHARE` producers and `CONSUMER_SHARE` consumers of the
+        // non-played founders, the rest decomposers — and shuffled into
+        // arrival order from the same seeded stream, so the pyramid is the
+        // world's shape rather than a distribution it usually lands near. At
+        // the shipping 60 that is 40 / 15 / 5. Individual sizes stay what the
+        // bodies honestly say.
+        let mut kingdoms = pyramid(organism_count as usize);
+        for i in (1..kingdoms.len()).rev() {
+            kingdoms.swap(i, rng.below(i as u64 + 1) as usize);
         }
         founders.push(Founder {
             id: OrganismId(0),
@@ -116,17 +130,10 @@ impl World {
             let y = rng.range_i32(-2, 2);
             let z = rng.range_i32(-ENCLOSURE, ENCLOSURE);
             let mass = 100 + rng.below(400);
-            let species = SpeciesId(2 + (rng.below(3) as u32));
-            // A species has one inherited silhouette: the kingdom floor above
-            // already set it for every species that exists today, so this
-            // only fires for a species the floor did not reach.
-            let kingdom = *species_roles
-                .entry(species)
-                .or_insert_with(|| match rng.below(6) {
-                    0 => Kingdom::Consumer,
-                    1 => Kingdom::Decomposer,
-                    _ => Kingdom::Producer,
-                });
+            // A species has one inherited silhouette, so the tier this founder
+            // drew names the species rather than the other way round.
+            let kingdom = kingdoms[(index - 1) as usize];
+            let species = species_of[&kingdom];
             // Staggered ages, so the enclosure is mid-life rather than all
             // hatching on the same tick. Proportional to the founder's own
             // lifespan_for_mass rather than a flat 200: a flat stagger left
@@ -310,6 +317,47 @@ impl World {
     }
 }
 
+/// Share of the non-played founders that are producers. Two thirds: the base
+/// of the chain has to out-number what grazes it, and TD6 measured what
+/// happens when it does not.
+const PRODUCER_SHARE: (usize, usize) = (2, 3);
+/// Share that are consumers. A quarter — fewer mouths than plants, and still
+/// enough of them to be an ecology rather than a stand with visitors.
+const CONSUMER_SHARE: (usize, usize) = (1, 4);
+
+/// The founding composition: many producers, fewer consumers, few
+/// decomposers, in that order.
+///
+/// Exact rather than drawn, so the pyramid is a guarantee. **Every kingdom is
+/// still founded** — the TD2b floor, kept: a tier that rounds to nothing takes
+/// one founder from the widest rather than leaving a rung out of the chain.
+fn pyramid(count: usize) -> Vec<Kingdom> {
+    let producers = count * PRODUCER_SHARE.0 / PRODUCER_SHARE.1;
+    let consumers = count * CONSUMER_SHARE.0 / CONSUMER_SHARE.1;
+    let mut tiers = [
+        producers,
+        consumers,
+        count.saturating_sub(producers + consumers),
+    ];
+    for tier in 0..tiers.len() {
+        if tiers[tier] > 0 {
+            continue;
+        }
+        let widest = (0..tiers.len())
+            .max_by_key(|&other| tiers[other])
+            .expect("three tiers");
+        if tiers[widest] > 1 {
+            tiers[widest] -= 1;
+            tiers[tier] += 1;
+        }
+    }
+    [Kingdom::Producer, Kingdom::Consumer, Kingdom::Decomposer]
+        .into_iter()
+        .zip(tiers)
+        .flat_map(|(kingdom, many)| std::iter::repeat_n(kingdom, many))
+        .collect()
+}
+
 fn founder_seed(world_seed: u64, organism: OrganismId) -> u64 {
     let mut stream = Rng::from_seed(world_seed ^ DEVELOPMENT_SALT ^ u64::from(organism.0));
     stream.next_u64()
@@ -337,6 +385,47 @@ mod tests {
                 assert!(
                     kingdoms.get(&kingdom).is_some_and(|&count| count > 0),
                     "seed {seed} founded no {kingdom:?} among the non-played species: {kingdoms:?}"
+                );
+            }
+        }
+    }
+
+    // The founding composition is a pyramid, not equal thirds (2026-08-29,
+    // TD7): many producers, fewer consumers, few decomposers, exactly and in
+    // every seed rather than on average.
+    #[test]
+    fn founding_is_a_pyramid_in_every_seed() {
+        for seed in 1u64..=10 {
+            let world = World::new(seed, 60);
+            let mut kingdoms: BTreeMap<Kingdom, u32> = BTreeMap::new();
+            for organism in &world.organisms {
+                if organism.species != SpeciesId(1) {
+                    *kingdoms.entry(organism.kingdom()).or_default() += 1;
+                }
+            }
+            assert_eq!(
+                (
+                    kingdoms.get(&Kingdom::Producer).copied(),
+                    kingdoms.get(&Kingdom::Consumer).copied(),
+                    kingdoms.get(&Kingdom::Decomposer).copied(),
+                ),
+                (Some(40), Some(15), Some(5)),
+                "seed {seed} founded {kingdoms:?} rather than the 2/3 : 1/4 : rest pyramid"
+            );
+        }
+    }
+
+    // The pyramid never costs the TD2b floor: a founding too small to give a
+    // tier its share still gives it a founder.
+    #[test]
+    fn a_small_pyramid_still_founds_every_kingdom() {
+        for count in 3..=12 {
+            let tiers = pyramid(count);
+            assert_eq!(tiers.len(), count);
+            for kingdom in [Kingdom::Producer, Kingdom::Consumer, Kingdom::Decomposer] {
+                assert!(
+                    tiers.contains(&kingdom),
+                    "a founding of {count} left out {kingdom:?}: {tiers:?}"
                 );
             }
         }

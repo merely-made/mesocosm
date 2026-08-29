@@ -92,7 +92,8 @@ fn registry(organisms: &[Organism]) -> Lineages {
 #[test]
 fn allometric_rates_cross_three_orders_without_flat_steps() {
     let masses = [100, 1_000, 10_000];
-    let upkeep: Vec<_> = masses.iter().map(|mass| upkeep_for_mass(*mass)).collect();
+    // Sessile rent — actuator span 0 — which TD7 left exactly where it was.
+    let upkeep: Vec<_> = masses.iter().map(|m| upkeep_for_body(*m, 0, 1)).collect();
     let feeding: Vec<_> = masses
         .iter()
         .map(|mass| feeding_rate_for_mass(*mass))

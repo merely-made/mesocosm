@@ -84,16 +84,34 @@ fn a_held_critter_still_ages_pays_rent_and_can_die() {
     // could not starve while you held it would make standing still a strategy.
     let mut world = World::new(4_242, 60);
     let before = world.controlled().expect("embodied").clone();
+    let me = before.id;
 
+    // What it ate while being held, counted rather than assumed. TD7's pyramid
+    // founds forty producers, so a held grazer now finds a meal most ticks and
+    // a falling reserve is no longer the way to see the rent: it is out-earning
+    // it. The ledger still shows the payment.
+    let mut eaten = 0u64;
     for _ in 0..50 {
         world.apply(refused());
+        for event in world.drain_events() {
+            if let mesocosm_core::Event::Fed {
+                eater, mass_mg: mg, ..
+            } = event
+                && eater == me
+            {
+                eaten += mg;
+            }
+        }
     }
 
     let after = world.controlled().expect("still alive after fifty ticks");
     assert!(after.age > before.age, "a held body still gets older");
     assert!(
-        after.energy_mg < before.energy_mg,
-        "and still pays for being alive"
+        after.energy_mg + after.biomass_mg() < before.energy_mg + before.biomass_mg() + eaten,
+        "and still pays for being alive: it holds {} mg against the {} mg it \
+         started with plus the {eaten} mg it ate",
+        after.energy_mg + after.biomass_mg(),
+        before.energy_mg + before.biomass_mg(),
     );
 }
 

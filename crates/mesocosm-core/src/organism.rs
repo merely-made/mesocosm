@@ -290,9 +290,14 @@ impl Organism {
         }
     }
 
-    /// A compact locomotion reading used by the drive selector. It is based
-    /// on the same contractile geometry that makes a body a predator.
-    pub fn locomotion(&self) -> u32 {
+    /// How far this body's actuators swing, in voxels: each living
+    /// contractile part's longest half-extent, summed.
+    ///
+    /// **Zero for a body with no actuator**, which is what a sessile plan
+    /// honestly reads. [`Self::locomotion`] floors the same number at one for
+    /// the drive selector's arithmetic; rent prices this one, so a plant pays
+    /// nothing for a machinery it does not carry. (TD7)
+    pub fn actuator_span(&self) -> u32 {
         self.body
             .living()
             .filter(|part| self.body.processes(part.id).contains(&Process::Contract))
@@ -304,7 +309,12 @@ impl Organism {
                     .unwrap_or(0)
             })
             .sum::<u32>()
-            .max(1)
+    }
+
+    /// A compact locomotion reading used by the drive selector. It is based
+    /// on the same contractile geometry that makes a body a predator.
+    pub fn locomotion(&self) -> u32 {
+        self.actuator_span().max(1)
     }
 
     /// The adult mass this body plan describes.
@@ -388,14 +398,25 @@ impl Organism {
         parts * 4 + (self.biomass_mg() / 500) as i32
     }
 
-    /// What this organism spends per tick simply existing.
+    /// What this organism spends per tick simply existing — **and moving**.
     ///
     /// **Scales with what it is carrying**, which is the whole point of
     /// reconciling the ledgers: before this, upkeep was a flat milligram and
     /// a body could grow without limit for free. Growing is now a standing
     /// cost, which is what gives *burn or grow* a downside to weigh.
+    ///
+    /// TD7 adds the second half: rent prices what a body *does*, not only what
+    /// it weighs. The three numbers here are all the body plan's own —
+    /// [`Self::biomass_mg`], [`Self::actuator_span`], and
+    /// [`Self::mass_ceiling_mg`] — so the trophic asymmetry between a plant and
+    /// an animal is anatomy rather than an authored constant. See
+    /// [`ecology::upkeep_for_body`].
     pub fn upkeep_mg(&self) -> u64 {
-        ecology::upkeep_for_mass(self.biomass_mg())
+        ecology::upkeep_for_body(
+            self.biomass_mg(),
+            self.actuator_span(),
+            self.mass_ceiling_mg(),
+        )
     }
 
     /// Whether the budget holds fewer than `ticks` ticks of upkeep.

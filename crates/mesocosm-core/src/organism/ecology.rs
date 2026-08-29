@@ -15,7 +15,7 @@
 
 use crate::cohort;
 use crate::development::PartPalette;
-use crate::places::{Ground, Places, Soil, Tier, TierLine};
+use crate::places::{FORAGE_RADIUS, Ground, Places, Soil, Tier, TierLine};
 use crate::process::FeedingMode;
 use crate::rng::Rng;
 use crate::species::Lineages;
@@ -314,10 +314,12 @@ fn step_inner(
         let room = organism.intake_room_mg();
 
         match organism.feeding_mode() {
-            // Producers make biomass out of the ground they stand on, and only
-            // out of that. Income used to be a number the world minted; it is
-            // now a withdrawal from a finite column, which is what makes
-            // runaway growth impossible rather than merely discouraged. (TD6)
+            // Producers make biomass out of the ground, drawn rather than
+            // minted, which is what makes runaway growth impossible rather
+            // than merely discouraged (TD6). **Roots forage** (TD7): the read
+            // is a whole neighbourhood, the draw is one tick's income out of
+            // the richest column in it — wide reach at the speed of growth,
+            // never the radius' worth of columns at once.
             FeedingMode::Producer => {
                 let crowd = density
                     .get(&cell_of(organism.position))
@@ -334,7 +336,7 @@ fn step_inner(
                 let want = (income * u64::from(CROWD_COMFORT) / u64::from(crowd))
                     .clamp(UPKEEP_BASE_MG, income)
                     .min(room);
-                let drawn = soil.draw(column, want);
+                let drawn = soil.draw_richest_within(column, FORAGE_RADIUS, want);
                 let spilled = earn(organism, drawn);
                 soil.deposit(column, spilled);
             }

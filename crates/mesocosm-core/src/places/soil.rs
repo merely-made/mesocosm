@@ -30,14 +30,13 @@
 //! world, so roots hunting minerals through soil cannot be represented in it
 //! at any price.
 //!
-//! # Shaped for a forage radius, which this round does not implement
+//! # The forage radius, built
 //!
 //! Addressing ([`Column`], [`Soil::column_at`], [`Soil::columns_within`]) is
 //! separate from transfer ([`Soil::matter_mg`], [`Soil::draw`],
-//! [`Soil::deposit`]), so a root that hunts across neighbouring columns is a
-//! read over `columns_within` followed by the same `draw` uptake now takes.
-//! Uptake today is a point read at the body's own column; the foraging
-//! *behaviour* is deliberately not built yet.
+//! [`Soil::deposit`]), so TD7's root forage is exactly what that separation
+//! promised: a read over `columns_within` followed by the same `draw` uptake
+//! always took. See [`Soil::draw_richest_within`] and [`FORAGE_RADIUS`].
 
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +53,13 @@ use serde::{Deserialize, Serialize};
 /// foraging behaviour this round deliberately left unbuilt, and it is what
 /// makes "the enclosure gets a finite matter budget" mean one budget.
 const PERCOLATION_DIVISOR: u64 = 8;
+
+/// How far a root searches for its next milligram, in voxel columns.
+///
+/// Three, because that is the reach the per-voxel grain was ruled for: 49 of
+/// 1,089 columns here, where every coarser grain's r=3 already covered the
+/// whole world and a forage radius could not be expressed at all. (TD7)
+pub const FORAGE_RADIUS: i32 = 3;
 
 /// One voxel column of the enclosure: a direct index into [`Soil`].
 ///
@@ -198,12 +204,26 @@ impl Soil {
         }
     }
 
+    /// Takes up to `want_mg` out of the richest column within `radius`.
+    ///
+    /// **The reach is wide; the draw is not.** A root reads its whole
+    /// neighbourhood and then takes the ordinary income out of the best column
+    /// it found — at the speed of growth, on low-rent metabolism, never the
+    /// radius' worth of columns at once. Ties go to the lowest column index, so
+    /// a stand on flat ground forages the same way every replay.
+    pub fn draw_richest_within(&mut self, column: Column, radius: i32, want_mg: u64) -> u64 {
+        let richest = self
+            .columns_within(column, radius)
+            .max_by_key(|found| (self.matter_mg(*found), std::cmp::Reverse(found.0)))
+            .unwrap_or(column);
+        self.draw(richest, want_mg)
+    }
+
     /// The columns within `radius` of one, in canonical order.
     ///
-    /// The reach a root would search. Nothing draws through it yet — uptake is
-    /// a point read at the body's own column — but it is the shape the ruled
-    /// granularity exists for, and it is here so the forage read is an
-    /// addition rather than a redesign.
+    /// The reach a root searches: [`Soil::draw_richest_within`] is this read
+    /// followed by the same [`Soil::draw`] a point uptake always took, which
+    /// is why the addressing was kept separate from the transfer.
     pub fn columns_within(&self, column: Column, radius: i32) -> impl Iterator<Item = Column> + '_ {
         let side = self.side();
         let (cx, cz) = (column.0 as i32 % side, column.0 as i32 / side);
@@ -294,6 +314,43 @@ mod tests {
         // Clipped at the wall rather than wrapping onto the far side.
         let corner = soil.column_at([-ENCLOSURE, 0, -ENCLOSURE]);
         assert_eq!(soil.columns_within(corner, 3).count(), 16);
+    }
+
+    #[test]
+    fn a_root_reaches_the_richest_column_it_can_search_and_takes_only_its_income() {
+        // The TD7 shape: wide reach, ordinary draw. A spent column no longer
+        // means a spent producer, because the neighbourhood is what it eats
+        // out of — but one tick still only buys one tick's income.
+        let mut soil = Soil::seeded(ENCLOSURE, 0);
+        let standing = soil.column_at([0, 0, 0]);
+        let rich = soil.column_at([2, 0, -3]);
+        soil.deposit(rich, 500);
+
+        assert_eq!(soil.draw_richest_within(standing, FORAGE_RADIUS, 20), 20);
+        assert_eq!(soil.matter_mg(rich), 480, "only the income came out");
+        assert_eq!(soil.total_mg(), 480, "and nothing was made or lost");
+
+        // Out of reach is out of reach: the radius is a real bound, not a
+        // world-wide search wearing one.
+        let far = soil.column_at([12, 0, 12]);
+        soil.deposit(far, 900);
+        assert_eq!(
+            soil.draw_richest_within(standing, FORAGE_RADIUS, 1_000),
+            480
+        );
+        assert_eq!(soil.matter_mg(far), 900);
+    }
+
+    #[test]
+    fn a_forage_read_is_deterministic_when_every_column_is_equal() {
+        // Ties go to the lowest column index, so a stand on flat ground draws
+        // the same way in every replay of the same world.
+        let mut a = Soil::seeded(ENCLOSURE, 100);
+        let mut b = a.clone();
+        let middle = a.column_at([0, 0, 0]);
+        a.draw_richest_within(middle, FORAGE_RADIUS, 7);
+        b.draw_richest_within(middle, FORAGE_RADIUS, 7);
+        assert_eq!(a, b);
     }
 
     #[test]

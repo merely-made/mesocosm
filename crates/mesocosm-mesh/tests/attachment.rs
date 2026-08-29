@@ -14,7 +14,9 @@
 //! stays a judgment for the windowed host. What they do establish is that
 //! everything the screen would need is derivable, deterministic, and cheap.
 
-use mesocosm_core::{Intent, Origin, Outcome, PartId, Placement, VolumeRef, World, Yaw};
+use mesocosm_core::{
+    Intent, Origin, Outcome, PartId, Placement, STARVED_UPKEEP_TICKS, VolumeRef, World, Yaw,
+};
 use mesocosm_mesh::{Volume, VolumeMap, mesh_body};
 
 /// Volumes for the fixture: a body, and one for every primitive tag the world
@@ -59,6 +61,23 @@ fn reachable_organism(world: &mut World) -> mesocosm_core::OrganismId {
     panic!("nothing came within reach")
 }
 
+/// Fills the played critter's reserve so its next meal *builds*.
+///
+/// TD4 made the body route a meal — starved burns, provisioned incorporates —
+/// and TD7 raised what a motile body's rent is, so the starved horizon
+/// (`upkeep x STARVED_UPKEEP_TICKS`) is now further from empty than the walk to
+/// a neighbour leaves it. These tests are about attachment, not about routing,
+/// so they say which state the body is in rather than hoping.
+fn provisioned(world: &mut World) {
+    let id = world.controlled_id().expect("embodied");
+    let organism = world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == id)
+        .expect("still on the roster");
+    organism.energy_mg = organism.upkeep_mg() * (STARVED_UPKEEP_TICKS + 1);
+}
+
 #[test]
 fn eating_changes_mass_balance_collision_and_geometry() {
     let source = source();
@@ -70,6 +89,7 @@ fn eating_changes_mass_balance_collision_and_geometry() {
     let drawn_before = mesh_body(world.body().unwrap(), &source).unwrap();
 
     let target = reachable_organism(&mut world);
+    provisioned(&mut world);
     let outcome = world.apply(Intent::Metabolize {
         organism: target,
         placement: Placement::Explicit {
@@ -129,6 +149,7 @@ fn an_eaten_part_still_says_whose_it_was() {
         .map(|m| m.species)
         .unwrap();
 
+    provisioned(&mut world);
     let outcome = world.apply(Intent::Metabolize {
         organism: target,
         placement: Placement::Explicit {

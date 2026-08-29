@@ -67,6 +67,11 @@ pub(super) const CROWD_COMFORT: u32 = 1;
 /// Voxels in the palette's reference segment (`PartPalette::primitive().mass`
 /// is half-extent [2,2,2], so 5x5x5). The unit an adult mass is quoted in.
 const REFERENCE_SEGMENT_VOXELS: u64 = 125;
+/// The mass one reference segment holds, restated as the unit
+/// [`upkeep_for_body`] measures a body's ceiling in — the same
+/// `REFERENCE_MASS_MG` above, named for the job so the motility formula reads
+/// as "swing per reference segment of body" rather than as arithmetic.
+const REFERENCE_SEGMENT_MG: u64 = REFERENCE_MASS_MG;
 /// Fraction of a parent's mass an offspring costs, as a divisor.
 pub(crate) const OFFSPRING_COST: u64 = 4;
 /// Mass below which an organism cannot sustain itself.
@@ -164,12 +169,120 @@ pub(crate) fn decay_rate_for_mass(mass_mg: u64) -> u64 {
     allometric_rate(DECAYS_BASE_MG, mass_mg)
 }
 
-pub(crate) fn upkeep_for_mass(mass_mg: u64) -> u64 {
-    UPKEEP_BASE_MG + three_quarter_power(mass_mg) / UPKEEP_SCALE
+/// Rent priced by how a body lives, not only by what it weighs. (TD7)
+///
+/// **Derived, not tuned — three body-plan numbers and no new constant.**
+///
+/// ```text
+/// rent = UPKEEP_BASE_MG + m^0.75 * (ceiling + span * REFERENCE_SEGMENT_MG)
+///                       / (UPKEEP_SCALE * ceiling)
+/// ```
+///
+/// The mass term is unchanged. The motile multiple is
+/// `span * REFERENCE_SEGMENT_MG / ceiling`: **the actuator swing this body
+/// carries per reference segment of body it carries it on**, where `span` is
+/// `Organism::actuator_span` (each contractile part's longest half-extent,
+/// summed) and `ceiling` is `Organism::mass_ceiling_mg` (the adult mass the
+/// plan describes, itself a sum of per-part voxel volumes).
+///
+/// Why this is the honest normalizer: the swing has to be measured against
+/// *something*, or a long body pays for being long rather than for moving.
+/// Dividing by the plan's own adult mass makes the term scale-free — both
+/// halves grow with the body — so it reads a body's **build**, not its size.
+///
+/// The consequences are all readings, not choices. A sessile plan reads span
+/// 0 and pays exactly the mass rent it paid before, to the milligram. A
+/// palette limb is half-extent `[4,1,1]`, so it swings 4 and holds a 64 mg
+/// ceiling while an axial segment holds 100 mg; the seeded consumers and
+/// decomposers this world founds land at roughly 2 to 4 swing per reference
+/// segment, so they pay 3x to 5x a plant's rent for the same mass. And the
+/// multiple is **bounded by construction**: a body made of nothing but limbs
+/// reads `4 * 100 / 64` = 6.25, so no anatomy can price itself past ~7x.
+///
+/// Integer-exact and monotonic: one division, so conservation holds and the
+/// rent a body owes is the rent it pays.
+pub(crate) fn upkeep_for_body(mass_mg: u64, actuator_span: u32, ceiling_mg: u64) -> u64 {
+    // A body with every part severed has no ceiling to normalize against; it
+    // also has no actuators, so the mass term is the whole answer.
+    let ceiling = ceiling_mg.max(1);
+    let priced = ceiling + u64::from(actuator_span) * REFERENCE_SEGMENT_MG;
+    UPKEEP_BASE_MG + three_quarter_power(mass_mg) * priced / (UPKEEP_SCALE * ceiling)
 }
 
 /// One graph step's dispersal budget. Contractile geometry gives larger bodies
 /// more options, while hunger makes leaving an exhausted place worthwhile.
 pub(crate) fn dispersal_for(organism: &Organism) -> u32 {
     (organism.locomotion() / 4).max(1) + u32::from(is_hungry(organism))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::organism::Kingdom;
+
+    #[test]
+    fn rent_prices_the_body_plan_not_only_the_mass() {
+        // TD7's asymmetry, and that it is a reading rather than a constant.
+        // Same mass, same adult ceiling, different build.
+        let mass = 1_000;
+        let ceiling = 2_000;
+        let sessile = upkeep_for_body(mass, 0, ceiling);
+
+        assert_eq!(
+            sessile,
+            upkeep_for_body(mass, 0, 1),
+            "a body with no actuator pays the mass rent whatever its ceiling"
+        );
+        assert_eq!(
+            sessile,
+            UPKEEP_BASE_MG + three_quarter_power(mass) / UPKEEP_SCALE,
+            "and pays exactly what it paid before TD7"
+        );
+
+        // Four palette limbs: half-extent [4,1,1], so they swing 4 apiece.
+        let motile = upkeep_for_body(mass, 4 * 4, ceiling);
+        assert!(
+            motile > sessile,
+            "moving cost nothing: {motile} against {sessile}"
+        );
+        assert!(
+            upkeep_for_body(mass, 4 * 8, ceiling) > motile,
+            "twice the swing did not cost more"
+        );
+        // Bounded by construction: a limb swings 4 and holds a 64 mg ceiling,
+        // so a body of nothing but limbs — the most motile anatomy the palette
+        // can express — reads 4 * 100 / 64 swing per reference segment and
+        // tops out near 7x however many of them it grows.
+        let all_limbs = upkeep_for_body(mass, 4 * 100, 64 * 100);
+        assert!(
+            all_limbs <= sessile * 8,
+            "the surcharge outran the bound the body plan puts on it: \
+             {all_limbs} against {sessile}"
+        );
+    }
+
+    #[test]
+    fn a_seeded_producer_is_sessile_and_a_seeded_consumer_is_not() {
+        // The rent asymmetry only means anything if the bodies the world
+        // actually founds differ in the number it reads. They do, by recipe:
+        // `axis::seed` gives an unlimbed line no contractile part at all.
+        let world = crate::world::World::new(3, 60);
+        let (mut sessile_producers, mut motile_consumers) = (0, 0);
+        for organism in world.organisms.iter().filter(|o| o.is_alive()) {
+            match organism.kingdom() {
+                Kingdom::Producer => {
+                    assert_eq!(
+                        organism.actuator_span(),
+                        0,
+                        "a producer grew an actuator: {:?}",
+                        organism.id
+                    );
+                    sessile_producers += 1;
+                }
+                Kingdom::Consumer if organism.actuator_span() > 0 => motile_consumers += 1,
+                _ => {}
+            }
+        }
+        assert!(sessile_producers > 0 && motile_consumers > 0);
+    }
 }

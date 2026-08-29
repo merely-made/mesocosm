@@ -175,14 +175,59 @@ fn serialization_does_not_distinguish_the_played_critter() {
         moved.organisms.len(),
         "no creature was added or removed by inhabiting one"
     );
+    // **Identity, not milligrams.** `apply` always advances a tick, and a held
+    // body is the one body the ecology does not walk (TD4) — so the two worlds
+    // walked different creatures on that tick. Since TD7 a producer's uptake
+    // reads a whole forage neighbourhood rather than the column it stands on,
+    // which is enough for that one difference to reach a plant's mouthful and
+    // move it a milligram. The simulation is entitled to diverge; what Law C
+    // forbids is a *mark* on the creature, so every field of an organism that
+    // is not something the tick moves must match, body shapes included.
+    let identity = |o: &mesocosm_core::Organism| {
+        (
+            o.id,
+            o.species,
+            o.guise,
+            o.signal,
+            o.venom_mg,
+            o.tier,
+            o.stage,
+            o.development_seed,
+            o.life_history_mass_mg,
+            o.body.plan.clone(),
+            o.body
+                .parts
+                .iter()
+                .map(|part| {
+                    (
+                        part.id,
+                        part.half_extent,
+                        part.volume,
+                        part.pivot,
+                        part.attachment,
+                        part.provenance.clone(),
+                        part.severed,
+                    )
+                })
+                .collect::<Vec<_>>(),
+        )
+    };
     for (mine, theirs) in world.organisms.iter().zip(&moved.organisms) {
-        assert_eq!(mine.body, theirs.body, "and no body differs");
+        assert_eq!(
+            identity(mine),
+            identity(theirs),
+            "a creature carries something that says whether it is the played one"
+        );
     }
 
     let a = snapshot(&world).unwrap();
     let b = snapshot(&moved).unwrap();
+    // A loose sanity bound, and deliberately loose: after the field-by-field
+    // check above, the only thing left that can move these lengths is the
+    // width of the numbers a diverged tick wrote. A played flag would be a
+    // field per creature and the check above would already have caught it.
     assert!(
-        a.len().abs_diff(b.len()) < 8,
+        a.len().abs_diff(b.len()) < a.len() / 100,
         "inhabiting costs a lineage id, not a representation ({} vs {})",
         a.len(),
         b.len()

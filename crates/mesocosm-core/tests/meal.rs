@@ -75,6 +75,28 @@ fn fed() -> (World, mesocosm_core::OrganismId) {
     (world, prey)
 }
 
+/// Applies an intent and reports what the **ecology** fed the played critter
+/// on the same tick.
+///
+/// The act resolves first and the enclosure steps after it, so a played meal's
+/// receipt has a second meal sitting on top of it. That was invisible while a
+/// grazer rarely found anything within reach; TD7's pyramid founds forty
+/// producers, so it gets a bite most ticks. These tests are about the *played*
+/// meal, so they subtract the ecology's.
+fn apply_counting_the_ecologys_own_meal(world: &mut World, intent: Intent) -> (Outcome, u64) {
+    let me = world.controlled_id();
+    let outcome = world.apply(intent);
+    let fed = world
+        .drain_events()
+        .into_iter()
+        .filter_map(|event| match event {
+            mesocosm_core::Event::Fed { eater, mass_mg, .. } if Some(eater) == me => Some(mass_mg),
+            _ => None,
+        })
+        .sum();
+    (outcome, fed)
+}
+
 /// The same fixture, emptied out. A starved critter is a state you arrive at
 /// by playing badly; a test arrives at it by saying so.
 fn starving() -> (World, mesocosm_core::OrganismId) {
@@ -249,12 +271,13 @@ fn being_nearly_starved_does_not_make_venom_safer() {
         "the toxin outweighs the meal"
     );
 
-    world.apply(eat(prey));
+    let (_, fed) = apply_counting_the_ecologys_own_meal(&mut world, eat(prey));
 
-    assert_eq!(
+    assert!(
+        world.energy_mg().unwrap() <= fed,
+        "a meal that cannot cover its venom leaves nothing: {} mg held against \
+         the {fed} mg the enclosure fed it on the same tick",
         world.energy_mg().unwrap(),
-        0,
-        "a meal that cannot cover its venom leaves nothing"
     );
 }
 
@@ -280,13 +303,22 @@ fn two_starving_critters_pay_the_same_toxin() {
     set_energy(&mut nearly, line / 8);
     set_energy(&mut barely, line - 1);
 
-    let (nearly_before, barely_before) = (nearly.energy_mg().unwrap(), barely.energy_mg().unwrap());
-    nearly.apply(eat(prey));
-    barely.apply(eat(prey));
+    // Measured on everything the body holds, budget and substance together,
+    // less what the enclosure fed it on the same tick. A budget alone no longer
+    // says it: the two are starved by different margins, so the ecology's own
+    // bite lands in a different account in each, which is a fact about routing
+    // rather than about what the venom cost.
+    let held = |world: &World| {
+        let me = world.controlled().expect("embodied");
+        me.energy_mg + me.biomass_mg()
+    };
+    let (nearly_before, barely_before) = (held(&nearly), held(&barely));
+    let (_, nearly_fed) = apply_counting_the_ecologys_own_meal(&mut nearly, eat(prey));
+    let (_, barely_fed) = apply_counting_the_ecologys_own_meal(&mut barely, eat(prey));
 
     assert_eq!(
-        nearly.energy_mg().unwrap() - nearly_before,
-        barely.energy_mg().unwrap() - barely_before,
+        held(&nearly) - nearly_before - nearly_fed,
+        held(&barely) - barely_before - barely_fed,
         "the same meal nets the same amount at any starving budget"
     );
 }

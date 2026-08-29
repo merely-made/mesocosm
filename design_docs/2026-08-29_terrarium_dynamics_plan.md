@@ -221,6 +221,57 @@ numbers, not tuned; fixtures re-record.
 
 ## Findings
 
+- **2026-08-29 (TD7, and it wants a ruling): consumers and decomposers are
+  recruitment-limited, not mortality-limited, and reproduction never learned
+  about determinate growth.** Measured over 3,000 idle ticks, seeds 1 and 5,
+  counting `Born` and `Died` events by kingdom and sampling every living body
+  against its own `mass_ceiling_mg`:
+
+  | seed 1 / seed 5 | births | deaths | mean body / adult mass |
+  | --- | ---: | ---: | ---: |
+  | producers | 252 / 253 | 132 / 104 | 0.32 / 0.37 |
+  | consumers | **13 / 6** | 26 / 21 | **0.23 / 0.17** |
+  | decomposers | **0 / 2** | 5 / 7 | **0.00 / 0.03** |
+
+  Producers replace themselves twice over; consumers breed at half their death
+  rate and decomposers essentially never breed at all. They are not being
+  killed faster than producers — they are failing to recruit, because they live
+  at a fifth of the adult mass their own body plan describes and a decomposer
+  lives at its starvation floor. TD6 derived an adult mass from the body plan
+  and made growth determinate; `Organism::can_reproduce` still gates on an
+  absolute `STARVATION_MG * OFFSPRING_COST` floor of 80 mg and a gestation
+  clock, so it has no idea what "adult" means, and a body stalled at 17-23% of
+  its ceiling sheds a quarter of itself per brood into a child born smaller
+  still. **Mark's call:** whether breeding should be gated on the plan's own
+  adult mass (life history's own answer, and the missing half of TD6), on the
+  reserve rather than the body, or left alone with the shortfall fixed
+  elsewhere. No `rates.rs` constant reaches it — the sweep above is the
+  evidence.
+
+- **2026-08-29 (TD7): decomposers still starve inside a full larder, which is
+  TD2c's finding re-measured with the food actually present.** The same probe
+  read a mean of **12-15 carrion bodies standing in the enclosure** in seeds 1
+  and 5, while the decomposers dying in those runs had gone 26-106 ticks since
+  their last meal and were dying at 15-20 mg. Five founding decomposers took
+  602 mg of scavenging in 3,000 ticks with a dozen corpses on the ground. The
+  binding constraint is `DECOMPOSE_RANGE` and the search, not the yield: TD6
+  said raising `DECAYS_BASE_MG` would not rescue them, and quadrupling it in
+  this round's sweep did not. It is the one kingdom whose failure is a
+  *movement* problem, and it is the reason `breathes` needs a reach ruling
+  rather than a rate.
+
+- **2026-08-29 (TD7): a body with no actuator still walks, and now walks for
+  free.** `axis::seed` gives a limbed line a chance of drawing no `Limb` tagma
+  at all, so a seed can found consumers or decomposers with `actuator_span` 0 —
+  across the ten measured seeds at the shipped founding, 22 of 160 consumers
+  and 20 of 50 decomposers.
+  Those bodies pay a plant's rent, and `dispersal_for` floors `locomotion()` at
+  1, so they move anyway. Seed 2 is the visible consequence: its consumer
+  species draws an unlimbed recipe, grazes at a producer's price, and is the
+  one collapse in the receipt. TD7 priced the machinery honestly; nothing yet
+  says a body without the machinery cannot travel. **Mark's call**, since it is
+  a rule about what a body plan is allowed to do rather than a number.
+
 - **2026-08-29 (TD6, and it wants a ruling): point uptake at per-voxel grain
   starves the enclosure, because a producer can reach 1 column of 1,089.** The
   granularity ruling was made on performance and expressiveness evidence, which
@@ -278,6 +329,162 @@ numbers, not tuned; fixtures re-record.
   retired, and a fresh demo trace is recorded at the new constants.
 
 ## Progress
+
+- **2026-08-29 (later still): TD7 landed — rent is priced by how a body lives,
+  and the base of the pyramid is fixed. The tiers above it are not, and the
+  round measured exactly why.** All four ruled changes are in, conservation is
+  still milligram-exact, and the verdict tally is unmoved at **0 breathes / 9
+  thins / 0 boil / 1 collapse**. What moved is everything under that number:
+  the producer stand went from a thinned 3,267-27,616 mg to 14,192-65,541 mg of
+  standing biomass, and the two failing kingdoms turn out to be
+  **recruitment-limited, not mortality-limited**.
+
+  **1. Root forage** (`places/soil.rs`, 363 lines). `Soil::draw_richest_within`
+  reads `columns_within` and then takes the ordinary income out of the richest
+  column it found: **wide reach, one tick's draw**, never the radius' worth of
+  columns at once. `FORAGE_RADIUS = 3` — the reach the per-voxel grain was ruled
+  for, 49 of 1,089 columns here, where every coarser grain's r=3 already covered
+  the whole world. Ties go to the lowest column index so a stand on flat ground
+  forages the same way in every replay. Percolation is exactly as TD6 shipped
+  it. Conservation is untouched because this is the same `draw`: the addressing
+  and the transfer were kept apart for precisely this, and the forage read was
+  an addition rather than a redesign, as the TD6 entry predicted.
+
+  **2. Locomotion-derived rent, and the formula is the body plan's own.**
+  `Organism::locomotion()` was a sum of each living contractile part's longest
+  half-extent, floored at 1 for the drive selector. The floor is now split off
+  as `Organism::actuator_span()`, which reads **0** for a body with no actuator
+  — what a sessile plan honestly says — and `locomotion()` is that `.max(1)`.
+  `ecology::upkeep_for_body` prices it:
+
+  ```text
+  rent = UPKEEP_BASE_MG + m^0.75 * (ceiling + span * REFERENCE_SEGMENT_MG)
+                        / (UPKEEP_SCALE * ceiling)
+  ```
+
+  Three numbers, all already here: `biomass_mg`, `actuator_span`, and TD6's
+  `mass_ceiling_mg`. The motile multiple is `span * 100 / ceiling` — **the
+  actuator swing a body carries per reference segment of body it carries it
+  on**. Dividing by the plan's own adult mass is what makes it scale-free: both
+  halves grow with the body, so the term reads a body's *build* and not its
+  size, and a long plant does not pay for being long. **No new constant**, and
+  `REFERENCE_SEGMENT_MG` is `REFERENCE_MASS_MG` renamed for the job.
+
+  The consequences are readings. A sessile body reads span 0 and the formula
+  collapses to `m^0.75 / UPKEEP_SCALE` **exactly**, to the milligram — a test
+  asserts it. A palette limb is half-extent `[4,1,1]`, so it swings 4 and holds
+  a 64 mg ceiling against an axial segment's 100 mg, which bounds the whole
+  surcharge by construction at `1 + 4*100/64` = 7.25x for a body of nothing but
+  limbs. Measured at genesis across seeds 1-10, mean rent per founder:
+
+  | kingdom | before TD7 | after TD7 |
+  | --- | --- | --- |
+  | producers (span 0, always) | 1.4-1.9 mg/tick | **1.4-1.9, unchanged** |
+  | consumers, limbed recipe (span 16-108) | 1.5-1.8 | **2.3-6.4** |
+  | decomposers, limbed recipe (span 32-64) | 1.4-1.7 | **2.6-4.6** |
+  | either, unlimbed recipe (span 0) | 1.5-1.8 | **1.2-1.8, unchanged** |
+
+  Before this round every kingdom paid the same 1.4-1.9 mg/tick for the same
+  mass. That is the trophic asymmetry TD7 was for, and it is anatomy.
+
+  **3. Pyramid founding** (`world/genesis.rs`). `pyramid(count)` composes the
+  tiers exactly rather than drawing them: `PRODUCER_SHARE` 2/3, `CONSUMER_SHARE`
+  1/4, the rest decomposers, then a Fisher-Yates shuffle over the seeded stream
+  so the pyramid is the world's shape rather than a distribution it usually
+  lands near. At the shipping 60 non-played founders that is **40 / 15 / 5**,
+  and 40/16/5 with the played consumer — in every seed, asserted. TD2b's kingdom
+  floor is kept: a tier that rounds to nothing takes one founder from the widest
+  rather than leaving a rung out, tested over foundings of 3 to 12. The species
+  draw inverted with it — the tier a founder drew now names its species, since a
+  species has one inherited silhouette.
+
+  **4. Producers grow bigger** (`axis.rs`). Only the unlimbed branch of
+  `axis::seed` changed, and only its two existing draws: stretches
+  `1 + below(2)` -> `1 + below(3)`, segments per stretch `1 + below(6)` ->
+  `4 + below(8)`. No new part type, no new template, no palette change — the
+  same axial rules asked for a larger stand. Measured at genesis, seeds 1-10:
+
+  | | parts per body | derived ceiling | mean ceiling per seed |
+  | --- | --- | --- | --- |
+  | producers before | 2-16 | 200-1,600 mg | 477-1,069 mg |
+  | producers after | **5-35** | **500-3,500 mg** | **747-3,175 mg** |
+  | consumers (unchanged) | 3-48 | 300-3,576 mg | 1,392-2,799 mg |
+
+  TD6's inverted pyramid — a grazer able to outgrow its own food's adult size by
+  four times — is gone from the body plans.
+
+  **Verdicts. The tally is unmoved and the world underneath it is not.**
+  Baseline reproduced once before touching anything and it matched TD6's table
+  milligram for milligram. Receipt: `td7_priced.json` (mechanics only; no
+  `rates.rs` constant was changed, so there is no `td7_priced_tuned.json`).
+
+  | seed | verdict | start | end | P/C/D start | P/C/D end | end biomass | soil end | total matter |
+  | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: |
+  | 1 | thins | 61 | 117 | 40/16/5 | 117/0/0 | 63,473 mg | 33,305 | 148,390 |
+  | 2 | collapse | 61 | 0 | 40/16/5 | 0/0/0 | 0 mg | 141,677 | 144,646 |
+  | 3 | thins | 61 | 89 | 40/16/5 | 89/0/0 | 58,974 mg | 52,557 | 148,386 |
+  | 4 | thins | 61 | 120 | 40/16/5 | 120/0/0 | 53,932 mg | 43,626 | 143,412 |
+  | 5 | thins | 61 | 119 | 40/16/5 | 119/0/0 | 65,541 mg | 35,990 | 147,150 |
+  | 6 | thins | 61 | 114 | 40/16/5 | 114/0/0 | 24,234 mg | 100,840 | 147,810 |
+  | 7 | thins | 61 | 155 | 40/16/5 | 155/0/0 | 43,670 mg | 62,493 | 144,338 |
+  | 8 | thins | 61 | 83 | 40/16/5 | 83/0/0 | 26,450 mg | 97,742 | 147,702 |
+  | 9 | thins | 61 | 76 | 40/16/5 | 76/0/0 | 14,192 mg | 121,018 | 149,070 |
+  | 10 | thins | 61 | 91 | 40/16/5 | 91/0/0 | 32,528 mg | 88,288 | 145,330 |
+
+  Control all collapse, max escapees 0, `total_matter_mg` identical across every
+  sample of every run. Against TD6: end biomass 3,267-27,616 -> 14,192-65,541
+  mg, and the soil is drawn down to 33,305-121,018 mg from a flat
+  108,900 — the stand is now eating the enclosure the way a stand should. The
+  one collapse moved from seed 10 to seed 2 (whose consumer species draws an
+  unlimbed recipe, so it grazes at a plant's rent).
+
+  **The bounded `rates.rs` pass was run and is recorded here rather than
+  shipped** — the same call TD5 and TD6 made, for the same reason: nothing
+  reached `breathes`. Six configurations, ten seeds each:
+
+  | GRAZES / DECAYS / COMFORT / HUNGRY | breathes | thins | boil | collapse |
+  | --- | ---: | ---: | ---: | ---: |
+  | 3 / 4 / 1 / 8 (shipped) | 0 | 9 | 0 | 1 |
+  | 6 / 4 / 1 / 8 | 0 | 9 | 0 | 1 |
+  | 6 / 4 / 2 / 8 | 0 | 9 | 0 | 1 |
+  | 6 / 8 / 2 / 8 | 0 | 8 | 0 | 2 |
+  | 6 / 8 / 2 / 24 | 0 | 8 | 0 | 2 |
+  | 9 / 16 / 2 / 24 | 0 | 9 | 0 | 1 |
+  | 12 / 16 / 3 / 24 | 0 | 9 | 0 | 1 |
+
+  Every one of them ends every seed at `P/0/0`. Raising the graze and decay
+  rates and loosening crowding buys **bigger producer stands** (up to 315 at the
+  horizon) and nothing else, which is itself the evidence that the binding
+  constraint is not a rate.
+
+  **Fixtures.** Demo re-recorded: 120 intents, hash **`33ffc5b46789be9d`** (was
+  `c8713ce9a82f5d6f`), `--replay` headed landing it exactly, exit 0, 30 frames
+  on the RTX 4060 (Vulkan) — 55 body parts, 18 roster members, ground revision
+  2. Instrument proven: one bit flipped in the recorded hash exits 1 with
+  `MISMATCH`. Default paths (`ps1_played.trace.json` / `.json` / `.png`). The
+  capture reads a section that is visibly a different ecology from TD6's: a
+  chain of green producer segments strung along the whole surface with salmon
+  and red bodies among them, the minimap, and vitals at `energy 1364 mg` — with
+  a **burn** notice this time, which is TD7's rent showing on the played body.
+
+  **Tests.** `cargo test --workspace`: green (`mesocosm-lens` run separately at
+  `--test-threads=1`, 38 passed, per the standing environment residue).
+  `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+  `cargo fmt --all --check`: clean. `cargo check -p paredros-room --features
+  r1-proof`: builds (the same one pre-existing `dead_code` warning in that repo
+  TD6 recorded, not this round's). `axis.rs` went past the ceiling, so its
+  test module moved to `axis/tests.rs` (428 + 202) — the same split the ecology
+  already uses. Six tests were retuned, one line of why on each:
+  `allometric_rates_cross_three_orders_without_flat_steps` now asks for the
+  sessile rent explicitly; `serialization_does_not_distinguish_the_played_critter`
+  compares every field of an organism that a tick does not move rather than
+  bytes, because a wider forage read lets a different hand reach a plant's
+  mouthful inside one tick; `a_held_critter_still_ages_pays_rent_and_can_die`
+  measures rent against what the critter ate, because forty producers mean a
+  held grazer now out-earns its rent; both venom tests subtract the ecology's
+  own bite from the played meal's receipt; and mesocosm-mesh's two attachment
+  tests provision the critter, because TD7's rent moved the starved horizon
+  further from empty than the walk to a neighbour leaves it.
 
 - **2026-08-29 (later): TD6 landed — the matter cycle closes, growth becomes
   determinate, and the enclosure stops being able to make mass.** Conservation
