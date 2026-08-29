@@ -108,6 +108,23 @@ fidelity contract with Mark rather than grown out of a stress test.
 Incremental/merkle snapshot hashing is admitted only when a rung's receipt
 shows the monolithic hash is the binding constraint, not before.
 
+## The framing, ruled 2026-08-29 (Mark)
+
+**Slab half-height 28**, closing the presentation question open since PS1.
+The world is 5.2:1 (129 voxels wide against a 25-voxel band) inside a 1.78:1
+window, so no half-height both frames the width and fills the height; 28
+frames the content's height and lets width follow, showing 77% of the world
+and reading a 9-voxel limb at 9% of frame. It ships as the default in place
+of 20; `--slab` keeps every framing reproducible, and all of them replay to
+one hash, so the ruling cannot reach a trace.
+
+**Companion rule, ruled with it:** past roughly half-height 24 the frame dips
+below bedrock and shows void, so the follow-centre is clamped so the view
+stays on the world. The clamp is presentation, like the framing.
+
+Superseded by this: PS1's note that "the right half-height is nearer 9-11".
+That was measured on a 32-voxel enclosure S1 has since grown to 129.
+
 ## Findings
 
 - **2026-08-29 (S1, and it argues S3 is needed sooner than planned): the

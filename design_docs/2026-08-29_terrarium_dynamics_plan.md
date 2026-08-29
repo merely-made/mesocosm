@@ -219,6 +219,44 @@ collapsing, matter still conserved to the milligram (the TD6 test is the
 gate every change must pass); the rent asymmetry is derived from body-plan
 numbers, not tuned; fixtures re-record.
 
+## TD8 — the chain under `breathes` (ruled 2026-08-29, Mark)
+
+Three rulings, taken together from the open rulings register's blocking set
+(entries 1-3), which are the whole remaining chain under `breathes`. TD7
+proved the constraint is recruitment rather than mortality, and that no
+`rates.rs` constant reaches any of these — each is a rule about what a body
+may do, not a number.
+
+- **Reproduction gates on adult mass.** Breeding becomes eligible at a
+  fraction of the ceiling the body's own plan implies, replacing the
+  absolute 80 mg floor that knows nothing about determinate growth. This is
+  the missing half of TD6: a big-plan body must grow up before it breeds,
+  which both throttles the founding boom and stops a body stalled at a fifth
+  of its ceiling shedding broods it cannot afford. The gestation clock
+  stays; the mass floor is what changes. Pick and document the fraction
+  against the instrument.
+- **Corpses persist longer.** Decomposers starve beside 12-15 standing
+  corpses because carrion is a rare event rather than a standing resource;
+  the yield lever is ruled out by measurement (quadrupling `DECAYS_BASE_MG`
+  changed nothing) and the search was already fixed in TD2d. Slowing carrion
+  decay turns the event into a resource, and it lands on the side the code
+  already worries about — "the dead return whether or not a decomposer is
+  present... locked matter is a real failure mode."
+- **No actuator, no travel.** `dispersal_for` floors locomotion at 1, so a
+  body drawn with no `Limb` tagma (22 of 160 consumers, 20 of 50
+  decomposers) pays a plant's rent under TD7 and moves anyway — grazing at a
+  plant's price, which is what seed 2's long-standing collapse was. Remove
+  the floor: a body with no contractile parts is sessile. A sessile consumer
+  that cannot reach food starves, and that is the correct outcome, not a
+  regression. Whether `axis::seed` should draw such a line at all is a
+  separate question and is not ruled here.
+
+**Done when:** the instrument reaches `breathes` in a majority of seeds with
+zero boils and founded kingdoms at the horizon; the collapse control still
+collapses; matter is still conserved to the milligram; each ruling is shown
+to have moved what it was aimed at (recruitment, decomposer persistence, the
+free-lunch species) rather than only moving the total; fixtures re-record.
+
 ## Findings
 
 - **2026-08-29 (TD7, and it wants a ruling): consumers and decomposers are
