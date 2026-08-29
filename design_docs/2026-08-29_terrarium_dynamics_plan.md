@@ -292,6 +292,74 @@ shown to restore spread without restoring the free lunch; fixtures re-record.
 
 ## Findings
 
+- **2026-08-29 (TD9, and it is the fifth structural thing in the way, measured
+  rather than guessed): the consumer kingdom is eaten by itself, and the seed
+  where it cannot be is the only seed where it holds.** `Event::Fed` names both
+  sides of every meal and no receipt before this one read the *prey's* side.
+  Reading it, over 3,000 ticks with both TD9 changes in, seeds 1 / 2 / 5:
+
+  | | taken out of consumers | of that, by consumers | of that, same species | consumers at 3,000 ticks |
+  | --- | ---: | ---: | ---: | ---: |
+  | seed 1 | 83,211 mg | **80,996 (97%)** | **78,522 (94%)** | 0 |
+  | seed 2 | 21,563 mg | **3,250 (15%)** | **0 (0%)** | **23, and flat** |
+  | seed 5 | 79,910 mg | **73,244 (92%)** | **71,618 (90%)** | 0 |
+
+  The founding consumer cohort is 230 bodies whose survivors still read ~570 mg
+  apiece at tick 50, so it is of order 130,000 mg of flesh; seeds 1 and 5 take
+  79-83,000 mg of that back out through consumer mouths,
+  **more than half the kingdom's founding mass eaten by the kingdom itself, and
+  nearly all of it by its own species.** It is invisible in every earlier
+  receipt because a body eaten from 590 mg down to 20 mg dies reading `starved`,
+  exactly like one that found nothing — which is why four rounds have read this
+  as a food-supply problem.
+
+  Seed 2 is the control the world supplied for free: its consumer species draws
+  an unlimbed recipe, so it is a `Grazer` rather than a `Predator`, so
+  `choose_living_target` will only let it take `Kingdom::Producer`. It is the
+  only one of the three whose consumers survive the probe window (23 alive, the
+  curve flattening 36 → 24 → 23 at ticks 1,500 / 2,250 / 3,000), and the only
+  one whose cannibalism reads zero. That correlation holds across all four arms
+  of TD9's leave-one-out.
+
+  The mechanism is in `movement::choose_living_target`, and it is a rule rather
+  than a number: a `Predator`'s candidates are filtered by reach, by signal
+  (a `Warning` body is skipped), and **by nothing else** — no size ratio, no
+  species check, no kin check. The score then *prefers* mass
+  (`.saturating_sub(target.mass_mg.min(256) / 64)`), and at genesis the richest
+  plain body within reach of a founding consumer is another founding consumer.
+  The cohort is dense, it is its own best meal, and it is gone inside 300 ticks:
+  seed 5 reads 230 → 94 by tick 50 and → 20 by tick 300, against a first brood
+  interval its own plan sets at ~580 ticks. **The kingdom is extinct before its
+  first possible birth**, which is why no income change reaches it.
+
+  It is not mortality-versus-recruitment in the old sense either. Mean age at
+  death is 1,114-1,252 ticks against a brood interval of 561-580, so the bodies
+  that *survive the founding* do live long enough to breed twice. It is the
+  transient that is fatal, and the transient is intraguild predation.
+
+  TD9's own income change makes it sharper, which is the honest reading of the
+  leave-one-out: consumer-on-consumer went **63,137 → 80,996 mg** in seed 1 and
+  **40,117 → 73,244 mg** in seed 5 with the build-scaled bite in, because the
+  bodies with the most build are both the best predators and the richest prey.
+  **Mark's call**, and it is the same *kind* of decision TD8's three were —
+  what a body plan is allowed to do — not a rate: whether a predator needs a
+  size ratio over its prey, whether conspecifics are off the menu, whether
+  `axis::seed` should stop founding a whole tier as one interbreeding species,
+  or whether the founding cohort should simply not be dense enough to be its own
+  pasture. No `rates.rs` constant reaches it; the four arms above are the
+  evidence.
+
+- **2026-08-29 (TD9): the played critter no longer survives its own demo.** The
+  120-intent playtest trace ends with `state dead` in the vitals panel and
+  `body_parts` 0, where TD8 recorded 56 parts and a `burn` notice. Attributed,
+  not assumed: the pre-TD9 core re-records the demo at TD8's exact hash
+  `3b86d0ef9ebd7d33` with 56 parts, and the same run with TD9 in reads
+  `a892c9cf398f08a3` with 0. It is the finding above wearing a hand: the played
+  critter is a `Consumer` in a founding cohort that now eats itself with a
+  build-scaled bite, and it is the size of body that ranks best as prey. It is
+  flagged rather than fixed because the fixture is doing its job — it recorded
+  the change — and because the cause is the ruling question above.
+
 - **2026-08-29 (TD8, and it is the fourth structural thing in the way):
   consumers reach food on most of their ticks and starve anyway, because TD7
   priced motility into rent and nothing priced it into income.** Measured over
@@ -445,7 +513,193 @@ shown to restore spread without restoring the free lunch; fixtures re-record.
 
 ## Progress
 
-- **2026-08-29 (last today): TD8 landed — all three rulings are in, each moved
+- **2026-08-29 (last today): TD9 landed — income reads the body, producers
+  creep, and `breathes` is still out of reach. What this round bought is not a
+  verdict, it is the cause: the consumer kingdom is eaten by itself.**
+  Conservation is milligram-exact and identical seed-for-seed to the pre-round
+  baseline, the control still collapses, escapees are zero, and the verdict
+  tally is unmoved at **0 breathes / 10 thins / 0 boil / 0 collapse**. Both
+  ruled changes are in and both moved their own targets. Receipts:
+  `td9_chain.json` (the instrument) and `td9_attribution.json` (the probe, now
+  `crates/mesocosm-core/examples/td8_attribution/`, extended with TD9's two
+  targets and run in all four arms of a leave-one-out).
+
+  **1. The bite scales with build, by exactly the multiple TD7's rent divides
+  by.** TD7 lifted rent's build term out of the arithmetic; TD9 lifts it out of
+  TD7 as `rates::build_multiple` so there is **one** such term and both halves
+  of a body's ledger read it:
+
+  ```text
+  bite = GRAZES_BASE_MG * m^0.75 * (ceiling + span * REFERENCE_SEGMENT_MG)
+                        / (m_ref^0.75 * ceiling)
+  rent = UPKEEP_BASE_MG  + m^0.75 * (ceiling + span * REFERENCE_SEGMENT_MG)
+                        / (UPKEEP_SCALE * ceiling)
+  ```
+
+  Three body-plan numbers, all already here — `biomass_mg`, `actuator_span`,
+  `mass_ceiling_mg` — and **no new authored constant**. `GRAZES_BASE_MG` and
+  `DECAYS_BASE_MG` are untouched at TD2c's 3 and 4; the sweep of the first to 12
+  is on record as not reaching this, and a base that had to move would have
+  meant the round was a retune wearing a ruling's clothes. `feeding_rate_for_mass`
+  and `decay_rate_for_mass` became `..._for_body`, taking span and ceiling; the
+  scavenger arm gets the same multiple, because a decomposer that grew something
+  to tear with should tear more off for the same reason a predator should.
+
+  **The symmetry check, exact rather than directional.** A sessile body reads
+  span 0, the multiple is `ceiling / ceiling`, and the bite is **bit-identical**
+  to the old `allometric_rate(GRAZES_BASE_MG, m)` — one floor over a fraction
+  that reduces, not two roundings — which is TD7's own collapse-to-the-old-
+  formula test written on the income side. A test asserts both that and the stated
+  formula. What it does **not** assert is a ratio of the two rates: rent divides
+  by `UPKEEP_SCALE` and income does not, so the two floors round at different
+  scales and the shared thing to state is the multiple, which is one function.
+
+  **Its target moved, and the specific gap TD8 measured closed.** Leave-one-out
+  at 3,000 ticks, seeds 1 / 2 / 5, mouthful and hit rate:
+
+  | arm | mouthful C | hit rate C | intake per body-tick | consumer adult% mean |
+  | --- | ---: | ---: | ---: | ---: |
+  | neither change (round start) | 7 / 11 / 5 mg | 69 / 22 / 95% | 4.8 / 2.4 / 4.8 | 34 / 37 / 9 |
+  | creep only (**bite left out**) | 8 / 10 / 5 mg | 71 / 27 / 95% | 5.7 / 2.7 / 4.8 | 48 / 44 / 9 |
+  | bite only (creep left out) | 23 / 11 / 34 mg | 27 / 25 / 27% | 6.2 / 2.8 / 9.2 | 43 / 43 / 14 |
+  | **both, as shipped** | **25 / 11 / 35 mg** | 28 / 25 / 27% | **7.0 / 2.8 / 9.5** | **50 / 43 / 17** |
+
+  The row that matters is the third against the second: leaving the bite out
+  leaves the mouthful exactly where TD2c tuned it, and putting it in is the only
+  thing in this round that moves it. The 5-11 mg mouthful TD8 named is gone:
+  23-35 mg where the body is limbed, and unchanged at 11 in seed 2 — whose
+  consumer species is unlimbed, so its bite is multiplied by one, which is the
+  symmetry visible in the wild rather than in a test. Intake per body-tick rises
+  by half to double and consumers live at half their adult mass instead of a
+  third. **The falling hit rate is not a regression**: a bigger bite fills
+  `intake_room_mg` sooner and a full body does not reach for a meal, so
+  `fed_events / alive_ticks` now conflates "cannot find food" with "does not
+  need any". Intake per body-tick is the honest number and it went up.
+
+  **And it did not reach `breathes`**, for a reason this round measured — see
+  the first Finding below. Consumers end at 0 / 23 / 0 against 3 / 7 / 0.
+
+  **2. Producers creep, and the creep is the smallest budget in the file.**
+  `rates::travels` replaces the bare `actuator_span() == 0` test in
+  `movement::disperse`: a body travels if it has an actuator **or** if it is a
+  `Producer`. The exception is written against the **feeding mode**, never
+  against the absence of limbs, which is the whole of the care — an unlimbed
+  *consumer* still reads false and stays exactly as sessile as TD8 left it.
+
+  **The size, and why.** `preferred_target` gives a producer no target, so the
+  hungry-wander branch is its entire travel budget: **one grounded voxel per
+  tick, only while its reserve is under `HUNGRY_UPKEEP_TICKS` (8 ticks) of
+  rent, paid for in substance like any other step.** Only a plant being shaded
+  or drained out of its own column moves, and it moves at one voxel. A creeping
+  body is additionally barred from the place-graph hop the far tier and the
+  groundless fixtures use — a stand spreads out of its own shade, it does not
+  relocate to the next place — which is the one thing here that is smaller than
+  what TD8 removed rather than equal to it. **No new constant**: the rate is the
+  wander's own one-step-per-tick and the gate is TD5's existing hunger horizon.
+
+  **Its target moved, and the free lunch stayed shut.** Seeds 1 / 2 / 5, producer
+  `Moved` events **0 / 0 / 0 → 48,065 / 5 / 122,974**, against TD8's pre-ruling
+  129,534 / 2,615 / 292,361 — restored, and at a third to a half the volume,
+  which is the hunger gate doing the limiting. Unlimbed consumer and decomposer
+  `Moved` events are **0 in every seed and every arm**, which is what TD8's
+  ruling means in receipt terms and is the line this change had to not cross.
+
+  **The honest half: the spread it buys is small.** Producer occupancy at the
+  horizon, in 8-voxel cells, goes 285 → 289 (seed 1) and 288 → 288 (seed 5).
+  Creep restores *movement*; it barely moves *occupancy*, because breeding
+  already scatters offspring ±12 voxels and the stand had therefore not actually
+  lost the ability to spread when TD8 made it sessile — it had lost the ability
+  of an individual plant to leave. That is worth having and is what was ruled,
+  but the "129,534 → 0" number TD8 flagged overstated what was lost, and this
+  round can say so with the occupancy column.
+
+  **Verdicts.** Baseline reproduced at HEAD before anything was touched and
+  matched TD8's table seed for seed, verdict for verdict. Receipt:
+  `td9_chain.json`.
+
+  | seed | verdict | start | end | P/C/D end (TD8) | P/C/D end (TD9) | end biomass | soil end | total matter |
+  | ---: | --- | ---: | ---: | --- | --- | ---: | ---: | ---: |
+  | 1 | thins | 917 | 1,557 | 1,637/0/54 | 1,506/0/**51** | 1,285,193 mg | 346,865 | 2,206,906 |
+  | 2 | thins | 917 | 933 | 1,036/45/0 | 878/**55**/0 | 549,904 mg | 830,332 | 2,220,206 |
+  | 3 | thins | 917 | 1,473 | 1,472/0/0 | 1,435/0/**38** | 1,092,153 mg | 598,746 | 2,217,028 |
+  | 4 | thins | 917 | 1,430 | 1,492/0/27 | 1,430/0/0 | 855,336 mg | 76,948 | 2,202,302 |
+  | 5 | thins | 917 | 1,458 | 1,636/0/53 | 1,458/0/0 | 865,262 mg | 72,079 | 2,214,890 |
+  | 6 | thins | 917 | 1,484 | 1,386/0/0 | 1,484/0/0 | 781,143 mg | 315,594 | 2,214,018 |
+  | 7 | thins | 917 | 1,550 | 947/52/0 | 1,503/0/**47** | 1,317,265 mg | 358,280 | 2,222,946 |
+  | 8 | thins | 917 | 1,311 | 1,193/0/0 | 1,311/0/0 | 380,819 mg | 1,336,331 | 2,212,850 |
+  | 9 | thins | 917 | 1,197 | 1,043/0/0 | 1,197/0/0 | 354,588 mg | 1,387,178 | 2,209,340 |
+  | 10 | thins | 917 | 1,184 | 1,151/0/0 | 1,184/0/0 | 359,938 mg | 1,363,773 | 2,204,656 |
+
+  **What the curve actually does, since `thins` is the verdict either way.** It
+  is not a flatline: seed 1 runs 917 → 531 (tick 100) → 760 → 1,311 → **1,874
+  (tick 3,100)** → 1,362 (tick 5,100) → 1,798 (tick 8,100) → 1,557, a founding
+  crash then a roughly 3,000-tick oscillation of ±25% about ~1,600. That is a
+  producer stand rising and self-thinning against the soil, with a decomposer
+  tail riding the carrion it drops. It is a **living** curve and it is still not
+  `breathes`, because the verdict asks for the *founded kingdoms* at the
+  horizon and the consumer line is flat at zero in nine of ten seeds — every
+  one but seed 2, the seed whose consumers cannot eat each other. A stand
+  that oscillates is not a chain that breathes, and TD1's `Thins` verdict exists
+  precisely to refuse the relabelling.
+
+  Control all collapse, max escapees 0, `total_matter_mg` flat across every
+  sample of every run and **identical seed-for-seed to the pre-round baseline**
+  — the same ten totals TD8 recorded, to the milligram. Four seeds hold a second
+  kingdom to the horizon against TD8's five: seed 3 gains decomposers and seed 7
+  swaps consumers for them, while seeds 4 and 5 lose theirs. End biomass rose in
+  seven of ten. **This is a lateral move in the verdict and the round says so.**
+
+  **No `rates.rs` sweep was run**, deliberately and for the fifth round running.
+  What this round has to say about the constants is that they are not where the
+  answer is, and the Findings below say where it is instead.
+
+  **Fixtures.** Demo re-recorded: 120 intents, hash **`a892c9cf398f08a3`** (was
+  `3b86d0ef9ebd7d33`), `--replay` headed landing it exactly, exit 0, 30 frames on
+  the RTX 4060 (Vulkan), ground revision 2, `slab_half_height` 28, 33 roster
+  members. Instrument proven twice: one bit flipped in the recorded hash exits
+  **1** with `MISMATCH`, and the *pre-TD9* core re-records TD8's own hash
+  exactly, which is what makes the played critter's death below an attribution
+  rather than a guess. Default paths (`ps1_played.trace.json` / `.json` /
+  `.png`), plus `td9_income.png`. The capture reads a stepped dark-red soil
+  section with roughly twenty-five bodies strung along the surface — orange-red
+  capsules among green hemispheres, two or three lavender ones, the minimap top
+  right — and a vitals panel that says **`state dead`**. That is new, it is
+  TD9's doing, and it has a Finding of its own. `td9_income.png` and
+  `ps1_played.png` are byte-identical, which is worth saying because it was
+  checked: three consecutive replays of one trace produce the same PNG, so the
+  capture is as deterministic as the hash.
+
+  **Hazard, found the hard way and recorded rather than fixed:** a live headed
+  session writes the *same* default paths the fixture uses, so one interactive
+  run of `cargo run -p mesocosm-genet` silently replaces
+  `ps1_played.{trace.json,json,png}` with its own. It happened mid-round — the
+  receipt read back `"mode": "played"`, 5,003 frames, 1,819 steps — and the
+  fixture had to be re-recorded and re-verified afterwards. The verification
+  order that survives it is: record, replay, and check `"mode": "replay"` and
+  `trace_len` in `ps1_played.json` **last**. Whether a played session should
+  default to a different filename is a genet question and is not ruled here.
+
+  **Tests.** `cargo test --workspace`: green (`mesocosm-lens` run separately at
+  `--test-threads=1`, 38 passed, per the standing environment residue).
+  `cargo test -p mesocosm-core --test matter --release`: 5 passed, 26 s.
+  `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+  `cargo fmt --all --check`: clean. `cargo check -p paredros-room --features
+  r1-proof`: builds, with the same one pre-existing `dead_code` warning TD6, TD7
+  and TD8 recorded — it has to be invoked from inside the `paredros` checkout,
+  since `--features` for a package outside this workspace is refused here.
+  Two new tests state the two rules —
+  `the_bite_reads_the_same_build_the_rent_does` and
+  `producers_creep_and_unlimbed_consumers_do_not`, the second seeded at 2
+  because that is the founding that has both an unlimbed consumer and a producer
+  to tell apart. One test was retuned, one line of why:
+  `allometric_rates_cross_three_orders_without_flat_steps` asks for the sessile
+  bite explicitly, the way TD7 made it ask for the sessile rent. The probe went
+  past the ceiling and split into `td8_attribution/{main,report}.rs` (411 + 287)
+  — the same split-before-adding move `ecology/tests` and `axis` made. It keeps
+  its TD8 name because it is the same probe extended rather than a second one;
+  receipts are per round, so `td8_attribution.json` stays as TD8 wrote it.
+
+- **2026-08-29: TD8 landed — all three rulings are in, each moved
   its own target, and `breathes` is still out of reach for a reason this round
   measured rather than guessed.** Conservation is milligram-exact, the control
   still collapses, escapees are zero, and the verdict tally is unmoved at **0

@@ -24,7 +24,7 @@ use crate::organism::{
     FaunaDecisionTrace, FaunaDrive, FaunaSenses, FaunaTraits, LastSeen, Organism, OrganismId,
 };
 
-use super::{dispersal_for, is_hungry};
+use super::{dispersal_for, is_hungry, travels};
 
 mod perception;
 
@@ -390,10 +390,15 @@ pub(super) fn disperse(
     // asked for a budget, so a body with nothing that contracts still walked —
     // and it walked at a plant's rent, which is the free lunch the ruling
     // withdraws. It reads its drives and its memory above, exactly as before;
-    // what it cannot do is act on them by going somewhere. Producers read zero
-    // too, which is the same rule rather than a special case: TD7 already
-    // prices them as sessile, and this is what being sessile means.
-    let next = if organism.actuator_span() == 0 {
+    // what it cannot do is act on them by going somewhere.
+    //
+    // **Producers creep** (TD9). TD8 made the *stand* sessile as a side-effect,
+    // because a producer is unlimbed by construction, and that retired the one
+    // way a shaded plant had of leaving its own shade. `travels` restores it as
+    // a rule about how a producer lives rather than about bodies without limbs,
+    // so the free lunch stays withdrawn: an unlimbed consumer still reads false
+    // here and still goes nowhere.
+    let next = if !travels(organism) {
         organism.position
     } else if let Some(target) = target {
         if organism.tier == Tier::Far {
@@ -430,7 +435,17 @@ pub(super) fn disperse(
             at
         }
     } else if is_hungry(organism) {
-        if organism.tier == Tier::Far {
+        // **The size of the creep** (TD9). A producer gets no target from
+        // `preferred_target`, so this branch is its entire travel budget: one
+        // grounded voxel, only while its reserve is under `HUNGRY_UPKEEP_TICKS`
+        // of rent, paid for in substance like every other step. A creeping body
+        // never takes the place-graph hop below — a stand spreads out of its
+        // own shade at the speed of growth, it does not relocate to the next
+        // place — and with no ground under it there is nothing to creep across.
+        let creeping = organism.actuator_span() == 0;
+        if creeping && (organism.tier == Tier::Far || ground.is_none()) {
+            organism.position
+        } else if organism.tier == Tier::Far {
             let next = diffuse(places, organism.position, rng);
             ground
                 .and_then(|ground| surface_stance(ground, shape, next))

@@ -13,6 +13,7 @@
 //! retune's written record.
 
 use super::Organism;
+use crate::process::FeedingMode;
 
 /// Reference body mass for the allometric rates below.
 const REFERENCE_MASS_MG: u64 = 100;
@@ -187,12 +188,72 @@ pub(crate) fn producer_income_for_mass(mass_mg: u64) -> u64 {
     allometric_rate(FIXES_BASE_MG, mass_mg)
 }
 
-pub(crate) fn feeding_rate_for_mass(mass_mg: u64) -> u64 {
-    allometric_rate(GRAZES_BASE_MG, mass_mg)
+/// The one number both sides of the ledger read: **the actuator swing this
+/// body carries per reference segment of body it carries it on**, kept as an
+/// exact numerator over the plan's own adult mass so a caller can apply it in
+/// a single division.
+///
+/// TD7 derived it and charged rent by it; TD9 pays income by it. Splitting it
+/// out is what makes the symmetry a fact of the code rather than a claim in a
+/// comment — there is one build multiple, and both halves of a body's ledger
+/// are the same allometric base times it.
+fn build_multiple(actuator_span: u32, ceiling_mg: u64) -> (u64, u64) {
+    // A body with every part severed has no ceiling to normalize against; it
+    // also has no actuators, so the multiple is exactly one.
+    let ceiling = ceiling_mg.max(1);
+    (
+        ceiling + u64::from(actuator_span) * REFERENCE_SEGMENT_MG,
+        ceiling,
+    )
 }
 
-pub(crate) fn decay_rate_for_mass(mass_mg: u64) -> u64 {
-    allometric_rate(DECAYS_BASE_MG, mass_mg)
+/// An allometric rate scaled by [`build_multiple`], in one division so the
+/// result is integer-exact and a sessile body's answer is bit-identical to the
+/// plain [`allometric_rate`] it replaces.
+fn build_scaled_rate(base: u64, mass_mg: u64, actuator_span: u32, ceiling_mg: u64) -> u64 {
+    let reference = three_quarter_power(REFERENCE_MASS_MG).max(1);
+    let (priced, ceiling) = build_multiple(actuator_span, ceiling_mg);
+    (base * three_quarter_power(mass_mg) * priced / (reference * ceiling)).max(1)
+}
+
+/// The mouthful a grazer or a predator reaches for. (TD9)
+///
+/// **The bite scales with build.** Same shape as [`upkeep_for_body`], same
+/// three body-plan numbers, same multiple:
+///
+/// ```text
+/// bite = GRAZES_BASE_MG * m^0.75 * (ceiling + span * REFERENCE_SEGMENT_MG)
+///                       / (m_ref^0.75 * ceiling)
+/// ```
+///
+/// TD7 made rent read a body's build and left income reading its mass alone,
+/// so a body that paid a motility surcharge earned no return on it — measured
+/// in TD8 as consumers clearing TD2c's ~75% prey hit-rate bar and starving
+/// anyway on 5-11 mg mouthfuls against a rent that had risen from 1.5-1.8 to
+/// 2.3-6.4 mg/tick. The machinery a body built to feed with is the same
+/// contractile machinery it pays for; this is what makes limbs a strategy
+/// rather than a tax.
+///
+/// **No new authored constant.** The base is TD2c's `GRAZES_BASE_MG`, untouched
+/// — the sweep to 12 is on record as not reaching this — and the multiple is
+/// TD7's, read off the same `actuator_span` and `mass_ceiling_mg`.
+///
+/// A sessile body reads span 0, the multiple is `ceiling / ceiling`, and the
+/// rate is **exactly** what it was before TD9, to the milligram: the division
+/// is one floor over a fraction that reduces, not two roundings. A test
+/// asserts it, mirroring TD7's own symmetry check on rent.
+pub(crate) fn feeding_rate_for_body(mass_mg: u64, actuator_span: u32, ceiling_mg: u64) -> u64 {
+    build_scaled_rate(GRAZES_BASE_MG, mass_mg, actuator_span, ceiling_mg)
+}
+
+/// The mouthful a scavenger draws off a corpse, by the same rule. (TD9)
+///
+/// A decomposer that grew something to tear with should tear more off, for the
+/// same reason a predator should. This is not the yield lever TD6 and TD7
+/// measured out and TD8 ruled against: `DECAYS_BASE_MG` is unchanged, and what
+/// moves is the same build multiple every other body reads.
+pub(crate) fn decay_rate_for_body(mass_mg: u64, actuator_span: u32, ceiling_mg: u64) -> u64 {
+    build_scaled_rate(DECAYS_BASE_MG, mass_mg, actuator_span, ceiling_mg)
 }
 
 /// Rent priced by how a body lives, not only by what it weighs. (TD7)
@@ -227,11 +288,11 @@ pub(crate) fn decay_rate_for_mass(mass_mg: u64) -> u64 {
 ///
 /// Integer-exact and monotonic: one division, so conservation holds and the
 /// rent a body owes is the rent it pays.
+///
+/// TD9 lifted the multiple out into [`build_multiple`] so income could read the
+/// same one. The arithmetic here is unchanged.
 pub(crate) fn upkeep_for_body(mass_mg: u64, actuator_span: u32, ceiling_mg: u64) -> u64 {
-    // A body with every part severed has no ceiling to normalize against; it
-    // also has no actuators, so the mass term is the whole answer.
-    let ceiling = ceiling_mg.max(1);
-    let priced = ceiling + u64::from(actuator_span) * REFERENCE_SEGMENT_MG;
+    let (priced, ceiling) = build_multiple(actuator_span, ceiling_mg);
     UPKEEP_BASE_MG + three_quarter_power(mass_mg) * priced / (UPKEEP_SCALE * ceiling)
 }
 
@@ -249,6 +310,24 @@ pub(crate) fn dispersal_for(organism: &Organism) -> u32 {
         0 => 0,
         span => (span / 4).max(1) + u32::from(is_hungry(organism)),
     }
+}
+
+/// Whether this body may go anywhere at all this tick.
+///
+/// **No actuator, no travel** (TD8) — **and producers creep** (TD9). A body
+/// that carries nothing contractile is sessile, which is the rule that
+/// withdrew the free lunch; a producer is the one exception, because spreading
+/// is part of how a producer makes its living rather than something it does
+/// with limbs.
+///
+/// The exception is written against the **feeding mode**, not against the
+/// absence of limbs, and that is the whole of the care here: an unlimbed
+/// *consumer* still reads false and stays exactly as sessile as TD8 left it.
+/// The budget the exception buys is deliberately the smallest one in the file —
+/// see `movement::disperse`, where a creeping body gets one grounded voxel and
+/// never a place-graph hop.
+pub(crate) fn travels(organism: &Organism) -> bool {
+    organism.actuator_span() > 0 || organism.feeding_mode() == FeedingMode::Producer
 }
 
 #[cfg(test)]
@@ -295,6 +374,87 @@ mod tests {
             "the surcharge outran the bound the body plan puts on it: \
              {all_limbs} against {sessile}"
         );
+    }
+
+    #[test]
+    fn the_bite_reads_the_same_build_the_rent_does() {
+        // TD9's symmetry, stated the way TD7's is: the income side is the same
+        // allometric base times the same multiple, so a body that pays a
+        // motility surcharge earns a return on it.
+        let mass = 1_000;
+        let ceiling = 2_000;
+        let sessile = feeding_rate_for_body(mass, 0, ceiling);
+
+        assert_eq!(
+            sessile,
+            feeding_rate_for_body(mass, 0, 1),
+            "a body with no actuator bites its mass whatever its ceiling"
+        );
+        assert_eq!(
+            sessile,
+            allometric_rate(GRAZES_BASE_MG, mass),
+            "and bites exactly what it bit before TD9"
+        );
+        assert_eq!(
+            decay_rate_for_body(mass, 0, ceiling),
+            allometric_rate(DECAYS_BASE_MG, mass),
+            "the scavenger's sessile draw moved"
+        );
+
+        // Four palette limbs, the fixture TD7's rent test uses.
+        let motile = feeding_rate_for_body(mass, 4 * 4, ceiling);
+        assert!(motile > sessile, "limbs earned nothing: {motile}/{sessile}");
+        assert!(
+            feeding_rate_for_body(mass, 4 * 8, ceiling) > motile,
+            "twice the swing did not earn more"
+        );
+
+        // And the symmetry is one function rather than two agreeing comments:
+        // rent and income both scale by `build_multiple` of the same body, and
+        // that is the whole of what "symmetric with TD7" means here. (The two
+        // *rates* still round separately, at their own scales — rent divides by
+        // `UPKEEP_SCALE` and income does not — so the shared thing to assert is
+        // the multiple, not a ratio of two floors.)
+        assert_eq!(
+            build_multiple(4 * 4, ceiling),
+            (ceiling + 4 * 4 * REFERENCE_SEGMENT_MG, ceiling)
+        );
+        assert_eq!(
+            motile,
+            GRAZES_BASE_MG * three_quarter_power(mass) * (ceiling + 1_600)
+                / (three_quarter_power(REFERENCE_MASS_MG) * ceiling),
+            "the bite is not the formula the doc states"
+        );
+    }
+
+    #[test]
+    fn producers_creep_and_unlimbed_consumers_do_not() {
+        // TD9's second ruling, and the line it must not cross. The exception is
+        // written against the feeding mode, so it reaches every producer and no
+        // consumer — including the unlimbed consumers TD8 made sessile, who are
+        // the free lunch this must not reopen.
+        let world = crate::world::World::new(2, 60);
+        let (mut creeping, mut still) = (0, 0);
+        for organism in world.organisms.iter().filter(|o| o.is_alive()) {
+            match organism.kingdom() {
+                Kingdom::Producer => {
+                    assert_eq!(organism.actuator_span(), 0, "a producer grew an actuator");
+                    assert!(travels(organism), "a producer cannot spread");
+                    creeping += 1;
+                }
+                _ if organism.actuator_span() == 0 => {
+                    assert!(
+                        !travels(organism),
+                        "an unlimbed consumer got the producer's budget: {:?}",
+                        organism.id
+                    );
+                    still += 1;
+                }
+                _ => assert!(travels(organism)),
+            }
+        }
+        // Seed 2 is the free-lunch founding, so it has both kinds to look at.
+        assert!(creeping > 0 && still > 0, "the seed founds both kinds");
     }
 
     #[test]

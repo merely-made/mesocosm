@@ -340,8 +340,16 @@ fn step_inner(
                 let spilled = earn(organism, drawn);
                 soil.deposit(column, spilled);
             }
+            // **The bite scales with build** (TD9): the mouthful reads the same
+            // three body-plan numbers the rent above reads, so the body that
+            // pays for its machinery is the body that gets to use it.
             FeedingMode::Grazer | FeedingMode::Predator => {
-                let amount = feeding_rate_for_mass(organism.biomass_mg()).min(room);
+                let amount = feeding_rate_for_body(
+                    organism.biomass_mg(),
+                    organism.actuator_span(),
+                    organism.mass_ceiling_mg(),
+                )
+                .min(room);
                 if amount > 0
                     && let Some(prey) =
                         choose_living_target(organism, &living, &living_cells, ground)
@@ -361,7 +369,12 @@ fn step_inner(
             }
             // Decomposers only earn where something has died.
             FeedingMode::Scavenger => {
-                let amount = decay_rate_for_mass(organism.biomass_mg()).min(room);
+                let amount = decay_rate_for_body(
+                    organism.biomass_mg(),
+                    organism.actuator_span(),
+                    organism.mass_ceiling_mg(),
+                )
+                .min(room);
                 if amount > 0
                     && let Some(source) =
                         choose_carrion_target(organism, &carrion, &carrion_cells, ground)
@@ -493,7 +506,7 @@ fn step_inner(
                 // `CARRION_DECAY_TICKS` makes it a standing resource. `age`
                 // keeps counting after death, so each corpse carries its own
                 // phase and the enclosure does not decay in lockstep. The
-                // scavenger's own draw (`decay_rate_for_mass`) is untouched:
+                // scavenger's own draw (`decay_rate_for_body`) is untouched:
                 // the yield lever was measured and ruled out, this is duration.
                 let returning = u64::from(organism.age.is_multiple_of(CARRION_DECAY_TICKS));
                 let unreturned = organism.spend_mass(returning);

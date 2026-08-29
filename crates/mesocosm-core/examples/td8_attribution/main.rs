@@ -3,11 +3,17 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! TD8's attribution probe: one run, three targets, one per ruling.
+//! The attribution probe: one run, one target per ruling.
+//!
+//! Written for TD8's three rulings and extended in TD9 for its two, because a
+//! second probe measuring the same world from the same events would only be a
+//! second thing to keep in step. The file keeps its TD8 name; the receipt is
+//! per round, so `td8_attribution.json` stays as TD8 recorded it and this
+//! writes `td9_attribution.json`.
 //!
 //! The population instrument reads a *verdict*; this reads whether each ruling
 //! moved the thing it was aimed at. A round that only moves the total has not
-//! shown its rulings did anything, so each of the three gets its own numbers:
+//! shown its rulings did anything, so each gets its own numbers:
 //!
 //! 1. **Reproduction gates on adult mass** was aimed at **recruitment** —
 //!    consumers and decomposers reaching a breeding size. Reported as births
@@ -22,12 +28,22 @@
 //!    founding count of unlimbed consumers and decomposers, the `Moved` events
 //!    they emitted, what they ate, and whether they were still standing at the
 //!    horizon.
+//! 4. **The bite scales with build** (TD9) was aimed at the **specific gap TD8
+//!    measured**: consumers clearing TD2c's ~75% prey hit-rate bar and starving
+//!    anyway on 5-11 mg mouthfuls. Reported by the numbers that named it — hit
+//!    rate, mouthful, the starvation-against-age death split — plus the
+//!    consumer biomass trajectory, so a kingdom that is merely dying more
+//!    slowly can be told from one that is holding.
+//! 5. **Producers creep** (TD9) was aimed at **spread without the free lunch**.
+//!    Reported as producer `Moved` events and the count of distinct occupancy
+//!    cells each kingdom stands in, against the unlimbed consumers and
+//!    decomposers of target 3, who must stay at zero movements.
 //!
 //! ```text
 //! cargo run -p mesocosm-core --example td8_attribution --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td8_attribution.json` and prints the same
+//! Writes `Code/testing/mesocosm/td9_attribution.json` and prints the same
 //! numbers. Seeds and horizon are arguments so a before/after pair is one
 //! command each; the defaults are TD7's own probe window (3,000 ticks) over the
 //! seeds its finding table quoted plus seed 2, whose consumer species is the
@@ -35,7 +51,6 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::PathBuf;
 
 use mesocosm_core::{Event, Intent, Kingdom, MealKind, OrganismId, Stage, World};
 
@@ -48,8 +63,18 @@ const STARVATION_MG: u64 = 20;
 /// Seeds 1 and 5 are the pair TD7's recruitment table quoted; 2 is the seed
 /// whose consumer species draws an unlimbed recipe.
 const SEEDS: [u64; 3] = [1, 2, 5];
-
-const KINGDOMS: [&str; 3] = ["producers", "consumers", "decomposers"];
+/// Extra curve samples over the founding transient, on top of the quarters of
+/// whatever horizon the run is given.
+const CURVE_TICKS: [u32; 6] = [50, 100, 200, 300, 400, 600];
+/// Mirrors `ecology::rates::gestation_for_mass`, crate-private like
+/// `STARVATION_MG` above: `GESTATION_BASE` 480 quarter-scaled against the
+/// reference mass's own fourth root of 3.
+fn gestation_for_mass(mass_mg: u64) -> u64 {
+    fn root(value: u64) -> u64 {
+        (1..).find(|n| n * n > value).unwrap_or(1) - 1
+    }
+    (480 * root(root(mass_mg.max(1))).max(1) / 3).max(1)
+}
 
 fn kingdom_index(kingdom: Kingdom) -> usize {
     match kingdom {
@@ -59,68 +84,9 @@ fn kingdom_index(kingdom: Kingdom) -> usize {
     }
 }
 
-/// Everything one seeded run says about the three targets.
-struct Reading {
-    seed: u64,
-    // Ruling 1: recruitment.
-    born: [u64; 3],
-    died: [u64; 3],
-    /// Deaths split by which of the ecology's two exits took the body: it was
-    /// at or under `STARVATION_MG` when it died, or it had simply run out of
-    /// lifespan. A kingdom dying of old age is a different failure from a
-    /// kingdom dying hungry, and the difference is not in the verdict.
-    died_starved: [u64; 3],
-    died_aged: [u64; 3],
-    alive_end: [u64; 3],
-    /// Mean of `biomass_mg * 100 / mass_ceiling_mg` over the living, per
-    /// kingdom, sampled at the horizon. TD7 measured 0.32 / 0.23 / 0.00 as
-    /// fractions; this is the same number in percent.
-    adult_pct_end: [u64; 3],
-    /// The same reading averaged over every sample, so a kingdom that is
-    /// extinct at the horizon still reports how it lived.
-    adult_pct_mean: [u64; 3],
-    /// Living bodies that pass `can_reproduce` at the horizon.
-    breeding_end: [u64; 3],
-    /// Meals taken, and body-ticks lived, per kingdom. The ratio is the **prey
-    /// hit rate** TD2c named as the number a grazer's viability turns on: at
-    /// `GRAZES_BASE_MG` 3 a fed tick nets roughly double its rent, so a grazer
-    /// needs to eat on something like a third to a half of its ticks. This is
-    /// what says whether a starving consumer is short of food or short of
-    /// reach.
-    fed_events: [u64; 3],
-    /// Milligrams those meals actually delivered. `fed_mg / fed_events` is the
-    /// **mouthful**, which is the other half of the viability question: a body
-    /// that reaches food on most of its ticks and starves anyway is being paid
-    /// too little per bite, not failing to find one.
-    fed_mg: [u64; 3],
-    alive_ticks: [u64; 3],
-    // Ruling 2: decomposer persistence.
-    /// Mean standing carrion count across the samples. TD7 read 12-15.
-    carrion_mean: u64,
-    carrion_end: u64,
-    scavenged_mg: u64,
-    /// Ticks since its last meal, averaged over decomposers at death.
-    decomposer_fast_at_death: u64,
-    decomposer_deaths: u64,
-    // Ruling 3: the free-lunch species.
-    /// Consumers and decomposers founded with `actuator_span() == 0`.
-    unlimbed_founders: u64,
-    /// Of those, how many were still alive at the horizon.
-    unlimbed_alive_end: u64,
-    /// `Moved` events emitted by an unlimbed consumer or decomposer. Zero is
-    /// what "no actuator, no travel" means in receipt terms.
-    unlimbed_moves: u64,
-    /// Every `Moved` event, by kingdom. A producer is unlimbed by construction,
-    /// so this is where a ruling about actuators shows its whole reach.
-    moves: [u64; 3],
-    /// What those bodies ate, and what every other consumer/decomposer ate, so
-    /// the free lunch can be seen being withdrawn rather than merely counted.
-    unlimbed_fed_mg: u64,
-    limbed_fed_mg: u64,
-    /// Total living count at the horizon, so the probe's own window can be
-    /// checked against the instrument's.
-    alive_total_end: u64,
-}
+mod report;
+
+use report::{CELL, Reading, receipt_path, render_json, report};
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -209,6 +175,13 @@ fn run(seed: u64, ticks: u32) -> Reading {
     let mut limbed_fed_mg = 0u64;
     let mut decomposer_fast_total = 0u64;
     let mut decomposer_deaths = 0u64;
+    let mut curve: Vec<(u32, [u64; 3], [u64; 3])> = Vec::new();
+    let mut eaten_mg = [0u64; 3];
+    let mut consumer_on_consumer_mg = 0u64;
+    let mut cannibal_mg = 0u64;
+    let mut age_total = [0u64; 3];
+    let mut gestation_total = [0u64; 3];
+    let mut age_samples = [0u64; 3];
 
     // Kingdom by id, so an event about a body that has since been retained out
     // of the world can still be attributed. Filled at genesis and at birth.
@@ -217,6 +190,8 @@ fn run(seed: u64, ticks: u32) -> Reading {
         .map(|o| (o.id.0, kingdom_index(o.kingdom())))
         .collect();
     let unlimbed_ids: std::collections::BTreeSet<u32> = unlimbed.iter().map(|id| id.0).collect();
+    let mut species_of: BTreeMap<u32, u32> =
+        world.living().map(|o| (o.id.0, o.species.0)).collect();
     let mut last_meal: BTreeMap<u32, u32> = BTreeMap::new();
 
     for tick in 1..=ticks {
@@ -232,6 +207,7 @@ fn run(seed: u64, ticks: u32) -> Reading {
                     if let Some(o) = world.organisms.iter().find(|o| o.id == *organism) {
                         let k = kingdom_index(o.kingdom());
                         kingdom_of.insert(organism.0, k);
+                        species_of.insert(organism.0, o.species.0);
                         born[k] += 1;
                     }
                 }
@@ -251,6 +227,13 @@ fn run(seed: u64, ticks: u32) -> Reading {
                     } else {
                         died_aged[k] += 1;
                     }
+                    // How long the body lived, against how long its own plan
+                    // makes it wait between broods.
+                    if let Some(o) = world.organisms.iter().find(|o| o.id == *organism) {
+                        age_total[k] += u64::from(o.age);
+                        gestation_total[k] += gestation_for_mass(o.life_history_mass_mg);
+                        age_samples[k] += 1;
+                    }
                     if k == 2 {
                         decomposer_deaths += 1;
                         let last = last_meal.get(&organism.0).copied().unwrap_or(0);
@@ -259,14 +242,25 @@ fn run(seed: u64, ticks: u32) -> Reading {
                 }
                 Event::Fed {
                     eater,
+                    from,
                     mass_mg,
                     kind,
-                    ..
                 } => {
                     last_meal.insert(eater.0, tick);
                     let eater_kingdom = kingdom_of.get(&eater.0).copied().unwrap_or(0);
+                    let prey_kingdom = kingdom_of.get(&from.0).copied().unwrap_or(0);
                     fed_events[eater_kingdom] += 1;
                     fed_mg[eater_kingdom] += mass_mg;
+                    eaten_mg[prey_kingdom] += mass_mg;
+                    if eater_kingdom == 1 && prey_kingdom == 1 {
+                        consumer_on_consumer_mg += mass_mg;
+                        // Same species, not merely the same kingdom: the
+                        // difference between a food web and a body eating its
+                        // own lineage.
+                        if species_of.get(&eater.0) == species_of.get(&from.0) {
+                            cannibal_mg += mass_mg;
+                        }
+                    }
                     if *kind == MealKind::Scavenging {
                         scavenged_mg += mass_mg;
                     }
@@ -312,14 +306,32 @@ fn run(seed: u64, ticks: u32) -> Reading {
                 }
             }
         }
+        // Dense over the founding transient, sparse afterwards: the crash the
+        // curve has to resolve happens inside the first few hundred ticks.
+        if CURVE_TICKS.contains(&tick) || tick.is_multiple_of(ticks.div_ceil(4).max(1)) {
+            let (mut alive, mut biomass) = ([0u64; 3], [0u64; 3]);
+            for organism in world.living() {
+                let k = kingdom_index(organism.kingdom());
+                alive[k] += 1;
+                biomass[k] += organism.biomass_mg();
+            }
+            curve.push((tick, alive, biomass));
+        }
     }
 
     let mut alive_end = [0u64; 3];
     let mut breeding_end = [0u64; 3];
     let mut adult_pct_end = [0u64; 3];
+    let mut biomass_end = [0u64; 3];
+    let mut cells: [std::collections::BTreeSet<(i32, i32)>; 3] = Default::default();
     for organism in world.living() {
         let k = kingdom_index(organism.kingdom());
         alive_end[k] += 1;
+        biomass_end[k] += organism.biomass_mg();
+        cells[k].insert((
+            organism.position[0].div_euclid(CELL),
+            organism.position[2].div_euclid(CELL),
+        ));
         if organism.can_reproduce() {
             breeding_end[k] += 1;
         }
@@ -367,6 +379,18 @@ fn run(seed: u64, ticks: u32) -> Reading {
         unlimbed_fed_mg,
         limbed_fed_mg,
         alive_total_end: alive_end.iter().sum(),
+        biomass_end,
+        curve,
+        age_at_death: std::array::from_fn(|k| {
+            age_total[k].checked_div(age_samples[k]).unwrap_or(0)
+        }),
+        gestation_at_death: std::array::from_fn(|k| {
+            gestation_total[k].checked_div(age_samples[k]).unwrap_or(0)
+        }),
+        eaten_mg,
+        consumer_on_consumer_mg,
+        cannibal_mg,
+        cells_end: std::array::from_fn(|k| cells[k].len() as u64),
     }
 }
 
@@ -384,143 +408,4 @@ fn adult_share(world: &World, kingdom: usize) -> (u64, u64) {
         count += 1;
     }
     (sum, count)
-}
-
-fn report(r: &Reading) {
-    println!("  seed {}", r.seed);
-    println!("    1. recruitment (the reproduction gate's target)");
-    for (k, name) in KINGDOMS.iter().enumerate() {
-        println!(
-            "       {name:<12} born {:<6} died {:<6} (starved {:<5} aged {:<5}) alive_end {:<6} breeding_end {:<5} adult% end {:<4} mean {}",
-            r.born[k],
-            r.died[k],
-            r.died_starved[k],
-            r.died_aged[k],
-            r.alive_end[k],
-            r.breeding_end[k],
-            r.adult_pct_end[k],
-            r.adult_pct_mean[k],
-        );
-    }
-    println!(
-        "       prey hit rate (meals per body-tick lived) C {}% D {}%; mouthful C {} mg D {} mg",
-        r.fed_events[1] * 100 / r.alive_ticks[1].max(1),
-        r.fed_events[2] * 100 / r.alive_ticks[2].max(1),
-        r.fed_mg[1] / r.fed_events[1].max(1),
-        r.fed_mg[2] / r.fed_events[2].max(1),
-    );
-    println!("    2. decomposer persistence (the carrion ruling's target)");
-    println!(
-        "       standing carrion mean {} end {}; scavenged {} mg; decomposer deaths {} after a mean {} ticks unfed",
-        r.carrion_mean,
-        r.carrion_end,
-        r.scavenged_mg,
-        r.decomposer_deaths,
-        r.decomposer_fast_at_death,
-    );
-    println!("    3. the free-lunch species (the dispersal floor's target)");
-    println!(
-        "       unlimbed consumers/decomposers founded {}, alive at horizon {}, Moved events {}, ate {} mg (limbed peers ate {} mg)",
-        r.unlimbed_founders,
-        r.unlimbed_alive_end,
-        r.unlimbed_moves,
-        r.unlimbed_fed_mg,
-        r.limbed_fed_mg,
-    );
-    println!(
-        "       every Moved event by kingdom P/C/D: {}/{}/{}",
-        r.moves[0], r.moves[1], r.moves[2],
-    );
-    println!("       total alive at horizon {}\n", r.alive_total_end);
-}
-
-/// Beside every other round's receipt, found the same way the population
-/// instrument finds its own.
-fn receipt_path() -> PathBuf {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repos_ancestor = manifest_dir
-        .ancestors()
-        .find(|p| p.file_name().is_some_and(|name| name == "repos"))
-        .expect("mesocosm-core is checked out under a `repos/` directory, per Code/CLAUDE.md");
-    let workspace_root = repos_ancestor
-        .parent()
-        .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td8_attribution.json")
-}
-
-fn render_json(ticks: u32, readings: &[Reading], census: &[(u64, u64, u64)]) -> String {
-    let mut out = String::new();
-    out.push_str("{\n");
-    out.push_str(&format!("  \"ticks\": {ticks},\n"));
-    out.push_str("  \"founding_census\": [\n");
-    for (index, (seed, unlimbed, fauna)) in census.iter().enumerate() {
-        out.push_str(&format!(
-            "    {{\"seed\": {seed}, \"unlimbed\": {unlimbed}, \"consumers_decomposers\": {fauna}}}"
-        ));
-        if index + 1 < census.len() {
-            out.push(',');
-        }
-        out.push('\n');
-    }
-    out.push_str("  ],\n");
-    out.push_str("  \"runs\": [\n");
-    for (index, r) in readings.iter().enumerate() {
-        out.push_str("    {\n");
-        out.push_str(&format!("      \"seed\": {},\n", r.seed));
-        out.push_str(&format!("      \"born\": {:?},\n", r.born));
-        out.push_str(&format!("      \"died\": {:?},\n", r.died));
-        out.push_str(&format!("      \"died_starved\": {:?},\n", r.died_starved));
-        out.push_str(&format!("      \"died_aged\": {:?},\n", r.died_aged));
-        out.push_str(&format!("      \"alive_end\": {:?},\n", r.alive_end));
-        out.push_str(&format!("      \"breeding_end\": {:?},\n", r.breeding_end));
-        out.push_str(&format!("      \"fed_events\": {:?},\n", r.fed_events));
-        out.push_str(&format!("      \"alive_ticks\": {:?},\n", r.alive_ticks));
-        out.push_str(&format!(
-            "      \"adult_pct_end\": {:?},\n",
-            r.adult_pct_end
-        ));
-        out.push_str(&format!(
-            "      \"adult_pct_mean\": {:?},\n",
-            r.adult_pct_mean
-        ));
-        out.push_str(&format!("      \"carrion_mean\": {},\n", r.carrion_mean));
-        out.push_str(&format!("      \"carrion_end\": {},\n", r.carrion_end));
-        out.push_str(&format!("      \"scavenged_mg\": {},\n", r.scavenged_mg));
-        out.push_str(&format!(
-            "      \"decomposer_deaths\": {},\n",
-            r.decomposer_deaths
-        ));
-        out.push_str(&format!(
-            "      \"decomposer_fast_at_death\": {},\n",
-            r.decomposer_fast_at_death
-        ));
-        out.push_str(&format!(
-            "      \"unlimbed_founders\": {},\n",
-            r.unlimbed_founders
-        ));
-        out.push_str(&format!(
-            "      \"unlimbed_alive_end\": {},\n",
-            r.unlimbed_alive_end
-        ));
-        out.push_str(&format!(
-            "      \"unlimbed_moves\": {},\n",
-            r.unlimbed_moves
-        ));
-        out.push_str(&format!(
-            "      \"unlimbed_fed_mg\": {},\n",
-            r.unlimbed_fed_mg
-        ));
-        out.push_str(&format!("      \"limbed_fed_mg\": {},\n", r.limbed_fed_mg));
-        out.push_str(&format!(
-            "      \"alive_total_end\": {}\n",
-            r.alive_total_end
-        ));
-        out.push_str("    }");
-        if index + 1 < readings.len() {
-            out.push(',');
-        }
-        out.push('\n');
-    }
-    out.push_str("  ]\n}\n");
-    out
 }
