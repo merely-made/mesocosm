@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! TD1: the headless population instrument.
+//! TD1's headless population instrument, carried into TD2 as the retune's
+//! measuring stick.
 //!
 //! Founds real worlds and drives them with nothing but `Intent::Idle` for
 //! several starter lifespans, sampling per-kingdom alive counts, total
@@ -11,9 +12,9 @@
 //! verdict is read off the curve by simple, stated arithmetic: no fitted
 //! models, no significance tests. See `design_docs/2026-08-29_terrarium_dynamics_plan.md`, TD1.
 //!
-//! Two batches run: a **baseline** at today's constants (the 2026-08-29
-//! playtest's single played run boiled, 61 -> 8,155; this instrument checks
-//! whether that holds across seeds rather than assuming it), and a
+//! Two batches run: a **baseline** at today's constants (before the TD2
+//! retune this read 7 boils and 3 collapses over these ten seeds, and no
+//! breathing run at all), and a
 //! **control** founded with a single organism and no producer to feed it
 //! (expected to collapse). The control is what proves the verdict logic can
 //! say something other than "boil" — an instrument that only ever reads one
@@ -28,32 +29,37 @@
 //! cargo run -p mesocosm-core --example population_instrument --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td1_population.json` (curves + verdicts per
-//! seed) and prints a terminal summary. `Code/testing/<repo>/` is this
+//! Writes `Code/testing/mesocosm/td2_retune.json` (curves + verdicts per
+//! seed) and prints a terminal summary; `td1_population.json` beside it is
+//! the pre-retune history and is not overwritten. `Code/testing/<repo>/` is this
 //! workspace's standing receipts convention; the path is found by walking up
 //! from this crate to the `repos` ancestor rather than a fixed `../` count,
 //! so it survives the crate moving depth within the repo.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
 use mesocosm_core::{Intent, Kingdom, World};
 
-/// The starter mass every `World::new` founds its played critter with.
-/// `lifespan_for_mass(1000mg)` is 1,000 ticks at today's constants (verified
-/// against `ecology.rs`'s quarter-power tables), so this many ticks is ten
-/// starter lifespans.
+/// `lifespan_for_mass(1000mg)` — the starter mass every `World::new` founds
+/// its played critter with — is 3,000 ticks after the 2026-08-29 retune
+/// (verified against `ecology.rs`'s quarter-power tables), so this many ticks
+/// is three and a third starter lifespans. It was ten before the retune
+/// stretched the tempo; the horizon stayed put so the two receipts compare.
 const TICKS: u32 = 10_000;
 /// Sample cadence. 100 samples over the run is enough to see the shape of
 /// the curve without writing a receipt per tick.
 const SAMPLE_INTERVAL: u32 = 100;
-/// Five arbitrary seeds. Nothing about them is tuned; the point is that the
-/// verdict holds across an uncherrypicked handful, not one lucky draw.
-const BASELINE_SEEDS: [u64; 5] = [1, 2, 3, 4, 5];
-/// Same five seeds, reused for the control so a reader can see the same
-/// draws produce opposite verdicts under a different founding.
-const CONTROL_SEEDS: [u64; 5] = BASELINE_SEEDS;
+/// Ten arbitrary seeds. Nothing about them is tuned; the point is that the
+/// verdict holds across an uncherrypicked handful, not one lucky draw. Widened
+/// from five on 2026-08-29 for TD2, because a retune judged on five draws is
+/// judged on one bad founder composition either way.
+const BASELINE_SEEDS: [u64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/// The first five of those seeds, reused for the control so a reader can see
+/// the same draws produce opposite verdicts under a different founding.
+const CONTROL_SEEDS: [u64; 5] = [1, 2, 3, 4, 5];
 
 /// Founders beyond the played critter. 60 extra plus the always-present
 /// played critter is 61 founders — the same starting count the 2026-08-29
@@ -79,6 +85,13 @@ const BOIL_MULTIPLE: u64 = 10;
 /// demand for literal extinction.
 const COLLAPSE_FRACTION: u64 = 50;
 
+/// Edge of the ecology's crowding cell, mirrored from `ecology.rs`'s private
+/// `CROWD_CELL` so the instrument can report the occupancy the producer
+/// income rule actually sees. A copy, not a coupling: if the two drift the
+/// crowding column is wrong and nothing else is, which is why it is stated
+/// here rather than inferred.
+const CROWD_CELL: i32 = 16;
+
 #[derive(Clone, Copy)]
 struct Sample {
     tick: u32,
@@ -86,6 +99,14 @@ struct Sample {
     total_biomass_mg: u64,
     cum_born: u64,
     cum_died: u64,
+    /// Occupancy of the fullest crowding cell. This is the number the
+    /// producer income rule divides by, so it says directly whether
+    /// self-thinning is even being asked to do anything.
+    max_cell: u32,
+    /// Furthest occupied position from the enclosure's centre, on either
+    /// horizontal axis. `World::ENCLOSURE` is 16, so anything past that is a
+    /// body standing where the ground the enclosure grew does not reach.
+    span: i32,
 }
 
 impl Sample {
@@ -135,9 +156,20 @@ fn kingdom_index(kingdom: Kingdom) -> usize {
 fn sample_of(world: &World, tick: u32, cum_born: u64, cum_died: u64) -> Sample {
     let mut alive = [0u32; 3];
     let mut total_biomass_mg = 0u64;
+    let mut density: BTreeMap<(i32, i32), u32> = BTreeMap::new();
+    let mut span = 0i32;
     for organism in world.organisms.iter().filter(|o| o.is_alive()) {
         alive[kingdom_index(organism.kingdom())] += 1;
         total_biomass_mg += organism.biomass_mg();
+        *density
+            .entry((
+                organism.position[0].div_euclid(CROWD_CELL),
+                organism.position[2].div_euclid(CROWD_CELL),
+            ))
+            .or_default() += 1;
+        span = span
+            .max(organism.position[0].abs())
+            .max(organism.position[2].abs());
     }
     Sample {
         tick,
@@ -145,6 +177,8 @@ fn sample_of(world: &World, tick: u32, cum_born: u64, cum_died: u64) -> Sample {
         total_biomass_mg,
         cum_born,
         cum_died,
+        max_cell: density.into_values().max().unwrap_or(0),
+        span,
     }
 }
 
@@ -288,10 +322,15 @@ fn main() {
         .inspect(report)
         .collect();
 
-    let baseline_all_boil = baseline.iter().all(|r| r.verdict == Verdict::Boil);
+    let tally =
+        |runs: &[RunResult], verdict: Verdict| runs.iter().filter(|r| r.verdict == verdict).count();
     let control_all_collapse = control.iter().all(|r| r.verdict == Verdict::Collapse);
     println!(
-        "\nbaseline all boil: {baseline_all_boil}   control all collapse: {control_all_collapse}"
+        "\nbaseline: {} breathes, {} boil, {} collapse (of {})   control all collapse: {control_all_collapse}",
+        tally(&baseline, Verdict::Breathes),
+        tally(&baseline, Verdict::Boil),
+        tally(&baseline, Verdict::Collapse),
+        baseline.len(),
     );
 
     let path = receipt_path();
@@ -312,7 +351,7 @@ fn report(run: &RunResult) {
         .max_by_key(|s| s.total_alive())
         .expect("at least one sample");
     println!(
-        "  seed {:>3}: {:<9} start={:<6} peak={:<6} (tick {:<6}) end={:<6} (tick {:<6}) born={:<6} died={:<6} [{} ms]",
+        "  seed {:>3}: {:<9} start={:<5} peak={:<5} (tick {:<5}) end={:<5} (tick {:<5}) born={:<5} died={:<5} [{} ms]",
         run.seed,
         run.verdict.label(),
         start.total_alive(),
@@ -324,10 +363,26 @@ fn report(run: &RunResult) {
         end.cum_died,
         run.elapsed_ms,
     );
+    // Kingdoms at both ends, because a total that "breathes" while one
+    // kingdom is flat at zero is not the trophic balance TD2 is after.
+    println!(
+        "            kingdoms P/C/D start {}/{}/{} -> end {}/{}/{}; fullest crowd cell {} -> {}; span {} -> {}; end biomass {} mg",
+        start.alive[0],
+        start.alive[1],
+        start.alive[2],
+        end.alive[0],
+        end.alive[1],
+        end.alive[2],
+        start.max_cell,
+        end.max_cell,
+        start.span,
+        end.span,
+        end.total_biomass_mg,
+    );
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/td1_population.json` by walking up from this
+/// Finds `Code/testing/mesocosm/td2_retune.json` by walking up from this
 /// crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
 /// is not this example's business to hardcode.
@@ -340,7 +395,7 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td1_population.json")
+    workspace_root.join("testing/mesocosm/td2_retune.json")
 }
 
 fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {
@@ -396,7 +451,7 @@ fn render_run(out: &mut String, run: &RunResult, indent: usize) {
     for (index, sample) in run.samples.iter().enumerate() {
         out.push_str(&sample_indent);
         out.push_str(&format!(
-            "{{\"tick\": {}, \"producer\": {}, \"consumer\": {}, \"decomposer\": {}, \"total_biomass_mg\": {}, \"cum_born\": {}, \"cum_died\": {}}}",
+            "{{\"tick\": {}, \"producer\": {}, \"consumer\": {}, \"decomposer\": {}, \"total_biomass_mg\": {}, \"cum_born\": {}, \"cum_died\": {}, \"max_cell\": {}, \"span\": {}}}",
             sample.tick,
             sample.alive[0],
             sample.alive[1],
@@ -404,6 +459,8 @@ fn render_run(out: &mut String, run: &RunResult, indent: usize) {
             sample.total_biomass_mg,
             sample.cum_born,
             sample.cum_died,
+            sample.max_cell,
+            sample.span,
         ));
         if index + 1 < run.samples.len() {
             out.push(',');

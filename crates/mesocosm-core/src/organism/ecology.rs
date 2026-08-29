@@ -39,21 +39,43 @@ const REFERENCE_MASS_MG: u64 = 100;
 /// power life-history rates.
 const REFERENCE_MASS_QRT: u64 = 3;
 /// Reference rates at 100 mg. These are model parameters, not organism facts.
-const MATURITY_BASE: u32 = 90;
-const LIFESPAN_BASE: u32 = 600;
-const GESTATION_BASE: u32 = 120;
-const FIXES_BASE_MG: u64 = 3;
-const GRAZES_BASE_MG: u64 = 4;
-const DECAYS_BASE_MG: u64 = 3;
+/// The 2026-08-29 numbers are the TD2 retune, swept against
+/// `examples/population_instrument.rs` over seeds 1-10 at 61 founders; the
+/// receipt is `Code/testing/mesocosm/td2_retune.json`.
+///
+/// 2026-08-29 retune: 3x, stretched with lifespan so the juvenile share of a
+/// life is unchanged at the slower tempo.
+const MATURITY_BASE: u32 = 270;
+/// 2026-08-29 retune: 3x, putting a 1,000 mg starter's life at 3,000 ticks —
+/// five minutes at the canonical 10 ticks/second rather than 100 seconds.
+const LIFESPAN_BASE: u32 = 1800;
+/// 2026-08-29 retune: 4x against lifespan's 3x, one brood fewer per life. This
+/// is the knob that decides boil against breathe: 360 boils twice over the ten
+/// seeds and 420 once, 480 none.
+const GESTATION_BASE: u32 = 480;
+/// 2026-08-29 retune: producer income cut a third, the bloom's own throttle.
+const FIXES_BASE_MG: u64 = 2;
+/// 2026-08-29 retune: halved, so a grazer crops its pasture instead of
+/// stripping it and starving behind it. Consumers persist at 2 and die out at
+/// 4.
+const GRAZES_BASE_MG: u64 = 2;
+/// 2026-08-29 retune: scavenger income raised against the stretched tempo. It
+/// does not rescue decomposers on its own — carrion is too sparse to find.
+const DECAYS_BASE_MG: u64 = 4;
 /// The basal cost of being alive.
 const UPKEEP_BASE_MG: u64 = 1;
 /// The allometric share of the body's mass paid as upkeep.
-const UPKEEP_SCALE: u64 = 31;
+/// 2026-08-29 retune: halved rent, taking a 1,000 mg starter's energy budget
+/// from 166 ticks of upkeep to 333.
+const UPKEEP_SCALE: u64 = 62;
 /// Edge of a crowding cell, in voxel units.
-const CROWD_CELL: i32 = 8;
+/// 2026-08-29 retune: doubled, so shading still registers once bodies spread
+/// past the ground the enclosure grew. `population_instrument.rs` mirrors this.
+const CROWD_CELL: i32 = 16;
 /// Neighbours a cell supports before its occupants start shading each other
 /// out. Beyond this a producer's income falls away and self-thinning begins.
-const CROWD_COMFORT: u32 = 4;
+/// 2026-08-29 retune: halved, which halves the enclosure's producer capacity.
+const CROWD_COMFORT: u32 = 2;
 /// Fraction of a parent's mass an offspring costs, as a divisor.
 pub(crate) const OFFSPRING_COST: u64 = 4;
 /// Mass below which an organism cannot sustain itself.

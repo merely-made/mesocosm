@@ -111,6 +111,43 @@ became diegetic.
 
 ## Progress
 
+- **2026-08-29 (later): TD2's constants landed** — ten seeds go from 0
+  breathes / 7 boils to **7 breathes / 0 boils** (remaining 3 collapses are
+  founder draws, see the structural findings). Lifespan base 600 → 1800 (a
+  1,000mg starter lives 3,000 ticks — five minutes at 10 t/s), gestation
+  4x against lifespan's 3x (the knob that decided boil vs breathe),
+  producer/grazer income halved-ish, upkeep scale halved (budget 166 → 333
+  ticks), crowding cells widened and comfort halved. Collapse control
+  still reads collapse. Receipt: `td2_retune.json` beside TD1's
+  before-history. Every prior replay hash is now broken by design, per the
+  Findings note.
 - **2026-08-29:** founded; tempo (both-deliberately, working value 10 t/s),
   instincts-under-idleness, body-routed income, and dynamics-first priority
   all ruled by Mark the same day.
+
+## Findings (structural, from TD2 — constants cannot reach these)
+
+- **The terrarium has no walls.** `Ground::grow` lays bricks over ±16 but
+  `Ground::solid` calls everything below y=0 floor forever, so
+  `near::step_for`'s doorway/forced-drop branches walk bodies off the edge
+  onto an infinite plain (seed 1: 71 escapees by tick 10,000; occupied
+  span 16 → ~220). Off the map, crowding — the ecology's only density
+  regulator — never engages: producers grow to 10^7 mg, consumers and
+  decomposers cannot find food within range. The enclosure is the vessel's
+  ruled identity; the edge should refuse a step, wall not cliff. (TD2b)
+- **Founding has no kingdom floor.** Each of the 3 non-played species
+  draws its kingdom at 4/6 producer, 1/6 consumer, 1/6 decomposer: over
+  seeds 1-10 that yields 2 worlds with zero producer species (both
+  collapse under any constants), 5 with no consumer species beyond the
+  played lineage, 7 with no decomposer. An ant farm is stocked with a
+  working web: genesis should guarantee each kingdom at least one species.
+  Founders also all start `since_offspring: 0`, gating the first brood in
+  any world behind a full gestation; staggering it as `age` already is
+  converts at least one collapse seed. (TD2b)
+- **Individual mass has no fixed point.** Income, upkeep, and the
+  reproduction tax all scale as m^0.75, so net growth's sign is
+  mass-independent: bodies either grow without bound or shrink to stall;
+  no constant choice creates an adult size — only crowding (which counts
+  bodies, not mass) can bite. A real fix is a body-plan-derived mass
+  ceiling or substrate-limited income — a mechanics design conversation
+  for Mark, deliberately not attempted this round.
