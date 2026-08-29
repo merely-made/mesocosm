@@ -384,16 +384,33 @@ fn step_inner(
     // conjured matter here before, and there is no reconciliation that is
     // always payable.
     for meal in &meals {
+        let prey_mass_mg = organisms[meal.prey].biomass_mg();
         let taken = meal.mass_mg - organisms[meal.prey].spend_mass(meal.mass_mg);
         if taken == 0 {
             continue;
         }
         let from = organisms[meal.prey].id;
+        let venom_mg = organisms[meal.prey].venom_mg;
+        let prey_column = soil.column_at(organisms[meal.prey].position);
         let column = soil.column_at(organisms[meal.eater].position);
         let eater = &mut organisms[meal.eater];
         let eater_id = eater.id;
         let spilled = earn(eater, taken);
         soil.deposit(column, spilled);
+        // Gains before costs, same order act.rs's played meal settled on: a
+        // nearly starved eater must not lose part of the toxin to the zero
+        // floor and then still bank the whole bite. A bite doses by the
+        // fraction of the flesh it took, not a flat per-meal tax, so an NPC
+        // that nibbles a venomous body across many ticks pays what the whole
+        // body would have cost, split by mouthful. Energy is unsigned, so a
+        // dose beyond what the eater has is forgiven, not owed — matching
+        // act.rs's floor. What it actually paid returns to the column under
+        // the prey, not the eater: nothing evaporates. (closes the live
+        // inconsistency: only the played meal charged venom before this)
+        let dose = venom_mg.saturating_mul(taken) / prey_mass_mg.max(1);
+        let before_venom = eater.energy_mg;
+        eater.energy_mg = before_venom.saturating_sub(dose);
+        soil.deposit(prey_column, before_venom - eater.energy_mg);
         events.push(Event::Fed {
             eater: eater_id,
             from,

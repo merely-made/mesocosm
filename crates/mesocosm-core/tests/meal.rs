@@ -341,6 +341,12 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
     // One transaction. An earlier cut removed the organism and charged venom
     // before the attachment was known to succeed, so a refusal ate the meal and
     // poisoned you for it.
+    //
+    // The ecology steps whether or not the played verb landed (TD5: nothing
+    // exempts the held body from its own instinctive feeding), and that pass
+    // now charges venom too, so a rejection is judged against an idle twin of
+    // the same tick rather than against rent alone — otherwise the ecology's
+    // own bite, not the refusal, would be on trial.
     let (mut world, prey) = fed();
     world
         .organisms
@@ -348,10 +354,9 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
         .find(|o| o.id == prey)
         .unwrap()
         .venom_mg = 90;
+    let mut control = world.clone();
 
     let roster = world.organisms.len();
-    let energy = world.energy_mg().unwrap();
-    let upkeep = world.controlled().unwrap().upkeep_mg();
     let parts = world.body().unwrap().len();
 
     let outcome = world.apply(Intent::Metabolize {
@@ -362,6 +367,7 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
             yaw: mesocosm_core::Yaw::Zero,
         },
     });
+    control.apply(Intent::Idle);
 
     assert_eq!(
         outcome,
@@ -369,8 +375,8 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
     );
     assert_eq!(
         world.energy_mg().unwrap(),
-        energy - upkeep,
-        "rent only: no venom was charged"
+        control.energy_mg().unwrap(),
+        "the refusal itself cost nothing beyond what the same tick's own ecology would have"
     );
     assert_eq!(world.body().unwrap().len(), parts, "nothing was grown");
     assert!(
@@ -384,25 +390,30 @@ fn a_refused_placement_costs_neither_the_meal_nor_its_venom() {
 fn a_refused_meal_leaves_the_world_untouched() {
     // Placement is resolved before the organism is consumed, so a body with
     // nowhere to put a part does not lose the meal as well.
+    //
+    // Judged against an idle twin of the same tick, not against rent alone:
+    // the ecology's own instinctive feeding (and, since the NPC-venom fix,
+    // its own venom) rides along on every apply() regardless of the played
+    // verb, seed 4,242's founders included, so "rent only" is no longer a
+    // safe prediction on its own.
     let (mut world, _) = fed();
+    let mut control = world.clone();
     let absent = mesocosm_core::OrganismId(9_999);
     let roster = world.organisms.len();
     let parts = world.body().unwrap().len();
-    let energy = world.energy_mg().unwrap();
 
-    let upkeep = world.controlled().unwrap().upkeep_mg();
     let outcome = world.apply(eat(absent));
+    control.apply(Intent::Idle);
 
     assert_eq!(
         outcome,
         Outcome::Rejected(Rejection::NoSuchOrganism(absent))
     );
     assert_eq!(world.body().unwrap().len(), parts, "nothing was grown");
-    // Rent still came due, but the refusal itself cost nothing.
     assert_eq!(
         world.energy_mg().unwrap(),
-        energy - upkeep,
-        "no venom, no meal, just rent"
+        control.energy_mg().unwrap(),
+        "the refusal itself cost nothing beyond what the same tick's own ecology would have"
     );
     // The ecology still stepped, so the roster may change by birth or death,
     // but no organism was eaten by this refusal.
