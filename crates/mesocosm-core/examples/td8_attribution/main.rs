@@ -53,7 +53,7 @@
 //! cargo run -p mesocosm-core --example td8_attribution --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td10_attribution.json` and prints the same
+//! Writes `Code/testing/mesocosm/td11_attribution.json` and prints the same
 //! numbers. Seeds and horizon are arguments so a before/after pair is one
 //! command each; the defaults are TD7's own probe window (3,000 ticks) over the
 //! seeds its finding table quoted plus seed 2, whose consumer species is the
@@ -96,7 +96,7 @@ fn kingdom_index(kingdom: Kingdom) -> usize {
 
 mod report;
 
-use report::{CELL, Reading, receipt_path, render_json, report};
+use report::{CELL, Pool, Reading, receipt_path, render_json, report};
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -113,9 +113,11 @@ fn main() {
     println!("TD8 attribution probe: {ticks} idle ticks, seeds {seeds:?}\n");
     let census = founding_census();
     println!("  founding census, seeds 1-10 (the free-lunch draw, before anything moves)");
-    for (seed, unlimbed, consumers_decomposers) in &census {
+    for (seed, unlimbed, consumers_decomposers, blind, mean_sight) in &census {
         println!(
-            "    seed {seed:>2}: {unlimbed} of {consumers_decomposers} consumers+decomposers have no actuator"
+            "    seed {seed:>2}: of {consumers_decomposers} consumers+decomposers, {unlimbed:>3} have no actuator and {blind:>3} no sense organ; mean near horizon {}.{} voxels",
+            mean_sight / 10,
+            mean_sight % 10
         );
     }
     println!();
@@ -138,7 +140,15 @@ fn main() {
 /// half of the probe can afford. (TD7 measured 22 of 160 and 20 of 50 at the
 /// ±16 founding; S1's pyramid names a species by its tier, so the draw is now
 /// all-or-nothing per species.)
-fn founding_census() -> Vec<(u64, u64, u64)> {
+///
+/// **TD11 adds the sensory draw beside it**, and it is the round's own residue:
+/// `sight_range` now reads sense organs a founding cohort almost never has. A
+/// sense organ is a *geometry*, not an appendage — `plan::classify` calls any
+/// part whose half-extents are all within 1 a `Role::Sensor` — and `axis::seed`
+/// draws a body plan per species, so a whole tier is sighted or blind together.
+/// Five of these ten seeds contain no sensing part at all. The mean near
+/// horizon is reported with it, in tenths of a voxel.
+fn founding_census() -> Vec<(u64, u64, u64, u64, u64)> {
     (1..=10)
         .map(|seed| {
             let world = World::new(seed, mesocosm_core::world::FOUNDERS);
@@ -147,7 +157,21 @@ fn founding_census() -> Vec<(u64, u64, u64)> {
                 .filter(|o| o.kingdom() != Kingdom::Producer)
                 .collect();
             let unlimbed = fauna.iter().filter(|o| o.actuator_span() == 0).count() as u64;
-            (seed, unlimbed, fauna.len() as u64)
+            let blind = fauna.iter().filter(|o| o.sensor_span() == 0).count() as u64;
+            let sight: u64 = fauna
+                .iter()
+                .map(|o| {
+                    let ceiling = o.mass_ceiling_mg().max(1);
+                    80 * (ceiling + u64::from(o.sensor_span()) * 100) / ceiling
+                })
+                .sum();
+            (
+                seed,
+                unlimbed,
+                fauna.len() as u64,
+                blind,
+                sight / (fauna.len() as u64).max(1),
+            )
         })
         .collect()
 }
@@ -213,7 +237,7 @@ fn run(seed: u64, ticks: u32) -> Reading {
     let mut consumer_trough = (0u32, u64::MAX);
     // Sampled at genesis too: the whole question is whether the discount had
     // anything to prefer, and at tick 0 it does. (TD10)
-    let mut pool: Vec<(u32, u64, u64, u64)> = vec![prey_pool(&world, 0)];
+    let mut pool: Vec<Pool> = vec![prey_pool(&world, 0)];
 
     // Kingdom by id, so an event about a body that has since been retained out
     // of the world can still be attributed. Filled at genesis and at birth.
@@ -447,20 +471,34 @@ fn run(seed: u64, ticks: u32) -> Reading {
 /// one is whether or not the window reaches it.
 ///
 /// **The window is the tick's own, and it is not the bite reach.** A near body
-/// scans `sight_range`, which is `min(GRAZE_RANGE + body.reach(), 8)` — so a
-/// body that can bite at fifty voxels still forages at eight. Mirrored here the
-/// way `STARVATION_MG` and `CELL` are: a receipt reads the rule.
-fn prey_pool(world: &World, tick: u32) -> (u32, u64, u64, u64) {
+/// scans `sight_range`, which since TD11 is `8 * (ceiling + sensor_span * 100)
+/// / ceiling` and nothing else — the body's own sensory build, no longer
+/// clamped by the reach it bites at. Mirrored here the way `STARVATION_MG` and
+/// `CELL` are: a receipt reads the rule.
+fn prey_pool(world: &World, tick: u32) -> Pool {
     let bodies: Vec<_> = world
         .living()
-        .map(|o| (o.id, o.kingdom(), o.position, o.signal, o.body.reach()))
+        .map(|o| {
+            (
+                o.id,
+                o.kingdom(),
+                o.position,
+                o.signal,
+                // TD11's sight rule: the flat 8 is now the multiple's own base.
+                (8 * (o.mass_ceiling_mg().max(1) + u64::from(o.sensor_span()) * 100)
+                    / o.mass_ceiling_mg().max(1)) as i32,
+            )
+        })
         .collect();
     let (mut consumers, mut alternatives, mut with_one, mut nearest) = (0u64, 0u64, 0u64, 0u64);
-    for (id, kingdom, at, _, reach) in &bodies {
+    let (mut sight_total, mut sensored) = (0u64, 0u64);
+    for (id, kingdom, at, _, window) in &bodies {
         if *kingdom != Kingdom::Consumer {
             continue;
         }
-        let window = (5 + reach).min(8);
+        let window = *window;
+        sight_total += window.max(0).unsigned_abs() as u64;
+        sensored += u64::from(window > 8);
         consumers += 1;
         let mut seen = 0u64;
         let mut closest = i32::MAX;
@@ -486,6 +524,11 @@ fn prey_pool(world: &World, tick: u32) -> (u32, u64, u64, u64) {
         alternatives * 1_000 / consumers.max(1),
         with_one * 1_000 / consumers.max(1),
         nearest / consumers.max(1),
+        // TD11: the window itself, in tenths of a voxel, and how many consumers
+        // read past the blind floor of eight. A sight rule that no anatomy in
+        // the world triggers has to be visible as such.
+        sight_total * 10 / consumers.max(1),
+        sensored * 1_000 / consumers.max(1),
     )
 }
 

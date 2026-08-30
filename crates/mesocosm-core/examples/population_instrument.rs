@@ -31,7 +31,7 @@
 //! cargo run -p mesocosm-core --example population_instrument --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td10_chain.json` (curves + verdicts
+//! Writes `Code/testing/mesocosm/td11_chain.json` (curves + verdicts
 //! per seed) and prints a terminal summary; each earlier round's receipt
 //! keeps its own filename and none is overwritten. `Code/testing/<repo>/` is this
 //! workspace's standing receipts convention; the path is found by walking up
@@ -465,7 +465,7 @@ fn report(run: &RunResult) {
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/td10_chain.json` by walking up from
+/// Finds `Code/testing/mesocosm/td11_chain.json` by walking up from
 /// this crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
 /// is not this example's business to hardcode. Each round's receipt keeps its
@@ -483,7 +483,7 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td10_chain.json")
+    workspace_root.join("testing/mesocosm/td11_chain.json")
 }
 
 fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {

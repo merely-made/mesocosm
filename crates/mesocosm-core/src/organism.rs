@@ -311,6 +311,33 @@ impl Organism {
             .sum::<u32>()
     }
 
+    /// How far this body's sense organs extend, in voxels: each living
+    /// sensing part's longest half-extent, summed. The exact shape of
+    /// [`Self::actuator_span`], read off [`Process::Sense`] instead of
+    /// [`Process::Contract`]. (TD11)
+    ///
+    /// **Zero for a body with no sense organ**, which is what a blind plan
+    /// honestly reads — see [`ecology::sight_for_body`], where zero is the
+    /// near horizon a body has always had rather than no horizon at all.
+    ///
+    /// Span rather than [`FaunaTraits::sensory_parts`]'s count, for the reason
+    /// rent reads span: a count cannot say that a bigger organ senses more, and
+    /// the two coincide anyway on the primitive palette, whose sensor template
+    /// is `[1, 1, 1]`.
+    pub fn sensor_span(&self) -> u32 {
+        self.body
+            .living()
+            .filter(|part| self.body.processes(part.id).contains(&Process::Sense))
+            .map(|part| {
+                part.half_extent
+                    .iter()
+                    .map(|v| v.unsigned_abs())
+                    .max()
+                    .unwrap_or(0)
+            })
+            .sum::<u32>()
+    }
+
     /// A compact locomotion reading used by the drive selector. It is based
     /// on the same contractile geometry that makes a body a predator.
     pub fn locomotion(&self) -> u32 {

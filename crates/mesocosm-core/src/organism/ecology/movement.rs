@@ -30,7 +30,9 @@ use super::{dispersal_for, is_hungry, travels};
 mod perception;
 
 pub(super) use perception::{CarrionTarget, LivingTarget, carrion_cells, living_cells};
-use perception::{Cells, can_perceive, can_perceive_position, nearby_indexes, sight_range};
+use perception::{
+    Cells, can_perceive, can_perceive_position, forage_gradient, nearby_indexes, sight_range,
+};
 
 /// How far a consumer reaches for a meal, in voxel units.
 pub(super) const GRAZE_RANGE: i32 = 5;
@@ -434,23 +436,7 @@ pub(super) fn disperse(
                 .and_then(|ground| surface_stance(ground, shape, next))
                 .unwrap_or(next)
         } else if let Some(ground) = ground {
-            let mut at = organism.position;
-            for _ in 0..dispersal_for(organism) {
-                let next = if pursuing_memory {
-                    route_step_for(ground, shape, at, target, MEMORY_ROUTE_BUDGET)
-                        .unwrap_or_else(|| grounded_step(ground, shape, at, target))
-                } else {
-                    grounded_step(ground, shape, at, target)
-                };
-                if next == at {
-                    break;
-                }
-                at = next;
-                if chebyshev(at, target) <= organism.body.reach() + GRAZE_RANGE {
-                    break;
-                }
-            }
-            at
+            walk_grounded(organism, ground, shape, target, pursuing_memory)
         } else {
             let mut at = organism.position;
             for _ in 0..dispersal_for(organism) {
@@ -478,18 +464,35 @@ pub(super) fn disperse(
                 .and_then(|ground| surface_stance(ground, shape, next))
                 .unwrap_or(next)
         } else if let Some(ground) = ground {
-            const WANDER: [[i32; 2]; 4] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-            let [dx, dz] = WANDER[rng.below(WANDER.len() as u64) as usize];
-            grounded_step(
-                ground,
-                shape,
-                organism.position,
-                [
-                    organism.position[0] + dx,
-                    organism.position[1],
-                    organism.position[2] + dz,
-                ],
-            )
+            // **Hunger follows a gradient** (TD11), and it is exactly the same
+            // *one* grounded voxel the random wander took — the direction
+            // changes, never the size. See `perception::forage_gradient` for
+            // the rule, for why a bucket centre is not a second sight, and for
+            // what the pursuit budget cost when it was tried here instead.
+            // A heading the ground refuses falls back to the wander: the
+            // gradient has no route-finder, so it is the only thing here that
+            // can get around an obstruction.
+            let uphill =
+                forage_gradient(organism, living, living_cells, carrion, carrion_cells, kin)
+                    .map(|at| grounded_step(ground, shape, organism.position, at))
+                    .filter(|next| *next != organism.position);
+            match uphill {
+                Some(next) => next,
+                None => {
+                    const WANDER: [[i32; 2]; 4] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+                    let [dx, dz] = WANDER[rng.below(WANDER.len() as u64) as usize];
+                    grounded_step(
+                        ground,
+                        shape,
+                        organism.position,
+                        [
+                            organism.position[0] + dx,
+                            organism.position[1],
+                            organism.position[2] + dz,
+                        ],
+                    )
+                }
+            }
         } else {
             diffuse(places, organism.position, rng)
         }
@@ -515,6 +518,37 @@ pub(super) fn disperse(
     } else {
         false
     }
+}
+
+/// One tick's grounded travel toward a place, spending the dispersal budget a
+/// step at a time and stopping where the ground refuses or the body arrives.
+///
+/// Lifted out of `disperse` in TD11 so the hungry gradient walks by exactly the
+/// same rule a pursuit does; the arithmetic is unchanged.
+fn walk_grounded(
+    organism: &Organism,
+    ground: &Ground,
+    shape: WalkerShape,
+    target: [i32; 3],
+    pursuing_memory: bool,
+) -> [i32; 3] {
+    let mut at = organism.position;
+    for _ in 0..dispersal_for(organism) {
+        let next = if pursuing_memory {
+            route_step_for(ground, shape, at, target, MEMORY_ROUTE_BUDGET)
+                .unwrap_or_else(|| grounded_step(ground, shape, at, target))
+        } else {
+            grounded_step(ground, shape, at, target)
+        };
+        if next == at {
+            break;
+        }
+        at = next;
+        if chebyshev(at, target) <= organism.body.reach() + GRAZE_RANGE {
+            break;
+        }
+    }
+    at
 }
 
 fn integer_step(from: [i32; 3], to: [i32; 3]) -> [i32; 3] {

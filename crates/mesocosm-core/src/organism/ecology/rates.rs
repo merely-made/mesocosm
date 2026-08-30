@@ -256,6 +256,38 @@ pub(crate) fn decay_rate_for_body(mass_mg: u64, actuator_span: u32, ceiling_mg: 
     build_scaled_rate(DECAYS_BASE_MG, mass_mg, actuator_span, ceiling_mg)
 }
 
+/// The near tier's search horizon, read off the body's sense organs. (TD11)
+///
+/// **Sight reads the body**, by exactly the arithmetic rent and the bite read —
+/// [`build_multiple`], handed a *sensory* span instead of a contractile one:
+///
+/// ```text
+/// sight = base * (ceiling + sensor_span * REFERENCE_SEGMENT_MG) / ceiling
+/// ```
+///
+/// It answers TD10's sixth finding: bodies foraged at eight and bit at fifty.
+///
+/// **No new authored constant, and the old eight survives as the reference.**
+/// `base` is the caller's existing `NEAR_SIGHT_RANGE`; the multiple is the one
+/// every other body-derived rate here already reads. A body with no sense organ
+/// reads span 0 and a `ceiling / ceiling` multiple, so its horizon is
+/// **exactly** the eight it had before — eight is the floor, not a subtraction.
+/// Normalized against the plan's adult mass for TD7's reason, so the term is
+/// scale-free and reads **build** rather than size.
+///
+/// **Bounded by construction**, like rent's multiple: the palette's sensor is
+/// half-extent `[1, 1, 1]`, so it swings 1 against a 21 mg ceiling and a
+/// reference segment's 100 mg. A body of nothing but sense organs reads
+/// `121 / 21` and tops out at 46 voxels; no anatomy can see the enclosure.
+///
+/// Integer-exact and monotonic: one division. The caller does **not** clamp by
+/// reach any more — that clamp was the conflation TD10 named, and `sight_range`
+/// documents its removal.
+pub(crate) fn sight_for_body(base: i32, sensor_span: u32, ceiling_mg: u64) -> i32 {
+    let (priced, ceiling) = build_multiple(sensor_span, ceiling_mg);
+    (u64::from(base.max(0).unsigned_abs()) * priced / ceiling).min(i32::MAX as u64) as i32
+}
+
 /// Rent priced by how a body lives, not only by what it weighs. (TD7)
 ///
 /// **Derived, not tuned — three body-plan numbers and no new constant.**
@@ -373,6 +405,45 @@ mod tests {
             all_limbs <= sessile * 8,
             "the surcharge outran the bound the body plan puts on it: \
              {all_limbs} against {sessile}"
+        );
+    }
+
+    #[test]
+    fn the_horizon_reads_the_same_build_the_rent_does() {
+        // TD11's symmetry, stated the way TD7's and TD9's are: a blind plan
+        // reads *exactly* the base it was handed, and sensory build buys
+        // horizon at the one build multiple.
+        let ceiling = 2_000;
+        assert_eq!(
+            sight_for_body(8, 0, ceiling),
+            8,
+            "a body with no sense organ sees exactly what it always did"
+        );
+        assert_eq!(
+            sight_for_body(8, 0, 1),
+            8,
+            "whatever its ceiling, and with a severed plan's ceiling of nothing"
+        );
+
+        let sensing = sight_for_body(8, 4, ceiling);
+        assert!(sensing > 8, "sensory anatomy bought no horizon: {sensing}");
+        assert!(
+            sight_for_body(8, 8, ceiling) > sensing,
+            "twice the sensory span did not see further"
+        );
+        // Scale-free: doubling the plan and its sense organs together leaves
+        // the horizon where it was, so it reads build rather than size.
+        assert_eq!(
+            sight_for_body(8, 8, 2 * ceiling),
+            sensing,
+            "a bigger body with proportionally the same senses saw differently"
+        );
+        // Bounded by construction: a body of nothing but the palette's
+        // [1,1,1] sensor reads 121/21 and tops out at 46 voxels.
+        assert_eq!(
+            sight_for_body(8, 100, 21 * 100),
+            46,
+            "no anatomy may see the enclosure"
         );
     }
 

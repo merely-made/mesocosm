@@ -133,8 +133,17 @@ pub struct Reading {
     /// prefer what is standing there, so this is what says whether an unmoved
     /// cannibalism number is the rule failing or the pasture being gone — and
     /// the last column says whether the pasture is gone or merely out of sight.
-    pub pool: Vec<(u32, u64, u64, u64)>,
+    /// TD11 adds two columns: tenths of a voxel of scan window the mean living
+    /// consumer actually carries, and consumers per thousand whose window reads
+    /// past the blind floor of eight. A sight rule no anatomy in the world
+    /// triggers has to be legible as such.
+    pub pool: Vec<Pool>,
 }
+
+/// One prey-pool sample: tick, alternatives per thousand consumers, share with
+/// any per thousand, tenths of a voxel to the nearest, tenths of a voxel of
+/// window, and sighted consumers per thousand.
+pub type Pool = (u32, u64, u64, u64, u64, u64);
 
 /// Edge of the occupancy bucket, mirroring the population instrument's own
 /// (itself `ecology::rates::CROWD_CELL`, which is crate-private). A receipt
@@ -240,19 +249,22 @@ pub fn report(r: &Reading) {
     let pool: Vec<String> = r
         .pool
         .iter()
-        .map(|(tick, per_body, share, nearest)| {
+        .map(|(tick, per_body, share, nearest, window, sighted)| {
             format!(
-                "{tick}:{}.{:03}@{}%/{}.{}v",
+                "{tick}:{}.{:03}@{}%/{}.{}v w{}.{}/{}%",
                 per_body / 1_000,
                 per_body % 1_000,
                 share / 10,
                 nearest / 10,
                 nearest % 10,
+                window / 10,
+                window % 10,
+                sighted / 10,
             )
         })
         .collect();
     println!(
-        "       prey pool  tick:alternatives-per-consumer@share-with-any/voxels-to-nearest  {}",
+        "       prey pool  tick:alternatives@share/voxels-to-nearest w-window/share-sighted  {}",
         pool.join("  "),
     );
     println!("       total alive at horizon {}\n", r.alive_total_end);
@@ -269,15 +281,19 @@ pub fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td10_attribution.json")
+    workspace_root.join("testing/mesocosm/td11_attribution.json")
 }
 
-pub fn render_json(ticks: u32, readings: &[Reading], census: &[(u64, u64, u64)]) -> String {
+pub fn render_json(
+    ticks: u32,
+    readings: &[Reading],
+    census: &[(u64, u64, u64, u64, u64)],
+) -> String {
     let rows: Vec<String> = census
         .iter()
-        .map(|(seed, unlimbed, fauna)| {
+        .map(|(seed, unlimbed, fauna, blind, sight)| {
             format!(
-                "    {{\"seed\": {seed}, \"unlimbed\": {unlimbed}, \"consumers_decomposers\": {fauna}}}"
+                "    {{\"seed\": {seed}, \"unlimbed\": {unlimbed}, \"consumers_decomposers\": {fauna}, \"blind\": {blind}, \"mean_near_sight_tenths\": {sight}}}"
             )
         })
         .collect();
@@ -353,8 +369,8 @@ fn render_run(r: &Reading) -> String {
                 "[{}]",
                 r.pool
                     .iter()
-                    .map(|(tick, per_body, share, nearest)| format!(
-                        "[{tick}, {per_body}, {share}, {nearest}]"
+                    .map(|(tick, per_body, share, nearest, window, sighted)| format!(
+                        "[{tick}, {per_body}, {share}, {nearest}, {window}, {sighted}]"
                     ))
                     .collect::<Vec<_>>()
                     .join(", ")

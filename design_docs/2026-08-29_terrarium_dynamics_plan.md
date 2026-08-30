@@ -321,7 +321,7 @@ of consumer predation falls and the consumer kingdom's extinction crosses its
 own first-brood interval; seed 2's unlimbed grazers — the natural control,
 which never cannibalized — do not move; fixtures re-record.
 
-## TD11 — sight reads the body, hunger follows a gradient (ruled 2026-08-29, Mark; IN FLIGHT, parked on `wip/td11-sight`)
+## TD11 — sight reads the body, hunger follows a gradient (ruled 2026-08-29, Mark)
 
 TD10's sixth cause, answered with both levers. The pattern's completion:
 rent reads the body (TD7), income reads the body (TD9), and now the search
@@ -338,12 +338,10 @@ horizon does too.
   (`draw_richest_within` over a perceivable radius). Must compose with
   TD10's kinship discount and TD4's held-critter skip.
 
-**Status at the 2026-08-29 session pause (Claude update):** implementation
-is on branch `wip/td11-sight` (commit `04c2b5a`), stopped partway through
-leave-one-out attribution. NOT merged; the full receipt discipline (matter
-test, instrument before/after at the 0-breathes/10-thins baseline,
-attribution, fixture re-record, workspace green) must run before it lands.
-Resume by continuing the branch or re-dispatching against this section.
+**Status:** verified 2026-08-30 with the full receipt discipline run — see the
+TD11 Progress entry below for both formulas, the four-arm attribution, the
+cost table and the verdict. The work sits in `main`'s tree, squashed off
+`wip/td11-sight`; the branch is left untouched as history.
 
 **Done when:** the standing TD discipline — breathes or the seventh cause
 named with evidence; attribution shows the in-window alternatives table
@@ -361,6 +359,74 @@ the second playtest stands: single-loop polish is done until the loops can
 compose.
 
 ## Findings
+
+- **2026-08-30 (TD11, and it is the seventh structural thing in the way,
+  measured rather than guessed): the founding cohort has no sense organs to
+  read, so a rule that reads them is inert — and in the one seed that grew
+  them, it grew them on bodies that cannot walk.** The census, over the
+  instrument's own ten seeds, at genesis, before anything moves. Consumers and
+  decomposers with **no** part performing `Process::Sense`, out of 307, and the
+  mean near horizon the new rule gives that cohort:
+
+  | seed | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | blind of 307 | **307** | 78 | 230 | 230 | 230 | **307** | 306 | **307** | **307** | **307** |
+  | mean horizon | 8.0 | **10.7** | 8.7 | 8.9 | 8.6 | 8.0 | 8.0 | 8.0 | 8.0 | 8.0 |
+
+  In five of the ten seeds **not one body in the world has a sensing part** —
+  `max sensor_span` is literally 0 — and a sixth has exactly one. The derived
+  horizon in those six is 8.0 voxels, which is the flat constant it replaced, to
+  the voxel. Across all ten seeds **307 of 3,070 founding fauna can see**, which
+  is one in ten.
+
+  **And the draw is per tier, not per body**, which is why the number is so
+  lumpy. A sense organ here is a *geometry*, not an appendage: `plan::classify`
+  calls any part whose half-extents are all within 1 a `Role::Sensor`, and
+  `axis::seed` draws one recipe per species, so a whole tier is sighted or blind
+  together. The cross-tab at genesis, limbed against sighted, says it exactly —
+  every sighted count is 77 (the decomposer founding) or 229 (the consumer one):
+
+  | seed | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | limbed + sighted | 0 | 0 | **77** | 0 | **77** | 0 | 0 | 0 | 0 | 0 |
+  | unlimbed + sighted | 0 | **229** | 0 | **77** | 0 | 0 | 1 | 0 | 0 | 0 |
+  | max sensor span | 0 | 12 | 10 | 12 | 10 | 0 | 12 | 0 | 0 | 0 |
+
+  Read down the two sighted rows and the whole attribution falls out. **Seed 2's
+  229 sighted bodies are, to the body, its unlimbed ones** — the species that
+  drew eyes drew no limbs, so its bite `reach` binds before its sight does and
+  its world is **bit-identical** with the rule on or off (Progress §3). Seeds 3
+  and 5 are the only seeds whose sighted tier can walk, they are the *decomposer*
+  tier in both, and they are the only seeds where the sight arm moves anything:
+  seed 5's decomposers go 18 → 26 alive and scavenge 456,606 → 602,273 mg on
+  sight alone, and seed 3 gains a decomposer tail it did not have. **A
+  body-derived rule can only be as good as the bodies the world hands it**, and
+  `axis::seed` hands out sense organs to one tier in ten.
+
+  **Mark's call, and it is a rulings-level one, not a constant.** Whether
+  `axis::seed` should found sensory tagmata the way it founds contractile ones;
+  whether a founding tier drawing *no* sense organ at all should be legal, the
+  way TD8 ruled about actuators; whether the sensory palette is simply too thin
+  for a per-species draw to hit; or whether an NPC lineage should be able to
+  *acquire* what it was not founded with — `World::learn_from` returns early for
+  anything but the controlled critter, so today an NPC line is frozen at genesis
+  no matter how long it lives or what it eats, which is the traits brief's
+  incorporation half and reads `None` lineage distance with the opposite sign
+  (see the TD10 finding below). No `rates.rs` constant reaches any of them, and
+  the seventh round in a row declines to sweep one.
+
+- **2026-08-30 (TD11): seed 2 has stopped being the control the world supplied,
+  and the leave-one-out arm has replaced it.** TD10 leaned on seed 2 staying
+  bit-identical, which it could, because TD10 ruled a *predation* rule and seed
+  2's consumers are grazers with no consumer targets. TD11 rules a *movement*
+  rule, and seed 2 moves — consumers 23 → 8, producers 48 → 80, `cannibal_mg`
+  0 → 2,060 — while its unlimbed bodies still record **zero** moves, so TD8's
+  ruling is intact and it is the seed's *other* bodies that changed. A control
+  is only a control against the class of rule it is blind to, and no seed is
+  blind to movement. What replaced it is stronger anyway: arm `neither`
+  reproduces `td10_attribution.json` number for number, which proves the whole
+  harness rather than one seed's immunity. Later rounds should build the arm
+  first and read the seed second.
 
 - **2026-08-29 (TD10, and it is the sixth structural thing in the way, measured
   rather than guessed): a body forages at eight voxels and bites at fifty, so
@@ -650,6 +716,246 @@ compose.
   retired, and a fresh demo trace is recorded at the new constants.
 
 ## Progress
+
+- **2026-08-30: TD11 verified — the gradient is the half that works, sight
+  reads a body the world almost never grows, and the seventh cause is that the
+  founding draw hands out no sense organs.** Both mechanisms are in and both
+  are correct; leave-one-out over four builds says the gradient carries every
+  behavioural gain and sight carries the whole cost. The verdict tally is
+  unmoved for the **seventh** round at **0 breathes / 10 thins / 0 boil /
+  0 collapse**, control all collapse, escapees 0, and `total_matter_mg` is
+  identical seed-for-seed to TD10's ten totals, to the milligram. Receipts:
+  `td11_chain.json` (instrument), `td11_attribution.json` (probe, landed
+  configuration), `td11_arms.json` (the four-arm leave-one-out),
+  `td11_sight.png` (capture). No `rates.rs` sweep was run, deliberately and for
+  the seventh round running.
+
+  **1. Sight reads the body, in one line of arithmetic.** `sight_for_body` in
+  `rates.rs`, the same `build_multiple` TD7's rent and TD9's bite divide by,
+  handed a *sensory* span instead of a contractile one:
+
+  ```text
+  sight = NEAR_SIGHT_RANGE * (ceiling + sensor_span * REFERENCE_SEGMENT_MG) / ceiling
+  ```
+
+  `sensor_span` is `Organism::sensor_span()` — each living part performing
+  `Process::Sense`, its longest half-extent, summed — the exact shape of
+  `actuator_span`. **No new authored constant**: the base is the old flat
+  `NEAR_SIGHT_RANGE`, which survives as the reference *and the floor*. A blind
+  body reads span 0, the multiple is `ceiling / ceiling`, and its horizon is
+  **exactly** the eight it always had. Normalized against the plan's own adult
+  mass for TD7's reason, so it reads build and not size. Bounded by
+  construction: the palette's sensor is half-extent `[1, 1, 1]`, so a body made
+  of nothing but sense organs reads `121 / 21` and tops out at 46 voxels — no
+  anatomy can see the enclosure. The near cap also stopped clamping by `reach`,
+  which is the second half of the ruling rather than a tidy-up: sight is a
+  sensory reading and clamping it by an actuator span is reading the wrong
+  tissue. **The raycast gate is untouched** — the widened `sight` is passed to
+  `can_perceive` exactly as the narrow one was, so a wider horizon is a longer
+  ray and never a wallhack.
+
+  **2. Hunger follows a gradient, and it is a heading rather than a sight.**
+  `perception::forage_gradient` reads the tick's own sensory buckets the way a
+  producer's `draw_richest_within` reads soil columns, over the span the body
+  was already searching in with the near cap off (`GRAZE_RANGE + reach`, or the
+  decomposer's `DECOMPOSE_RANGE + reach`) — so a body that bites at fifty also
+  *smells* at fifty, which is exactly the asymmetry TD10's sixth finding named.
+  The answer is a **bucket centre, never a body**: nothing it returns can be
+  pursued, bitten or remembered, `can_perceive` still decides every one of
+  those, and a body that walks up a gradient into an occluded stand still sees
+  nothing when it arrives. **Nearest ring first, richest inside it**, ties to
+  the lowest `BTreeMap` key — the same lexicographic shape `preferred_living`
+  ranks by, and deterministic on every replay. It composes as ruled: a bucket's
+  weight counts only what this body would actually eat and `Kin::remove` scores
+  the eater's own line to a hard zero (TD10), and `disperse` is still never
+  called for the held body (TD4) — `unlimbed_moves` is 0 in every seed of every
+  arm. The step is **one grounded voxel**, the same size the random wander
+  took; only the direction changes, and a heading the ground refuses falls back
+  to the wander.
+
+  **3. Leave-one-out, four builds, and the positive control holds.** Both
+  mechanisms were reverted in place and the probe rebuilt per arm.
+  **Arm `neither` reproduces `td10_attribution.json` exactly — every number in
+  all three seeds** — so the harness is proven before any arm is read.
+
+  | seed | arm | P/C/D at 3,000 | consumers first zero | cannibal mg | scavenged mg |
+  | ---: | --- | --- | ---: | ---: | ---: |
+  | 1 | neither (= TD10) | 1810/**0**/16 | 2,153 | 71,143 | 197,347 |
+  | 1 | sight only | 1810/**0**/16 | 2,153 | 71,143 | 197,347 |
+  | 1 | gradient only | 1890/**5**/36 | **never** | 66,826 | 768,563 |
+  | 1 | both | 1890/**5**/36 | **never** | 66,826 | 768,563 |
+  | 2 | neither (= TD10) | 48/**23**/0 | never | 0 | 39,275 |
+  | 2 | sight only | 48/**23**/0 | never | 0 | 39,275 |
+  | 2 | gradient only | 80/**8**/0 | never | 2,060 | 78,715 |
+  | 2 | both | 80/**8**/0 | never | 2,060 | 78,715 |
+  | 5 | neither (= TD10) | 1794/0/18 | 1,139 | 98,154 | 456,606 |
+  | 5 | sight only | 1798/0/26 | **674** | 100,242 | 602,273 |
+  | 5 | gradient only | 1853/0/30 | 858 | 107,072 | 722,815 |
+  | 5 | both | 1815/0/23 | 862 | 95,954 | 686,637 |
+
+  **In seeds 1 and 2 the sight arm is bit-identical to the pre-TD11 core.** In
+  seed 1 that is because the whole cohort is blind. In seed 2 it is stranger and
+  worth the finding below: its consumers *do* carry sense organs and their
+  measured window really does go 8.0 → 11.1 voxels, and the world still does not
+  move a body, because the same species draw that grew them eyes grew them no
+  limbs — all 229 of them, measured, not inferred — so their bite `reach` binds
+  before their sight does. Only seed 5 moves under sight alone, and there the
+  sighted tier is the **decomposers**, who gain (18 → 26 alive, 456,606 →
+  602,273 mg scavenged) while the consumers lose: extinction from 1,139 to 674.
+
+  **4. The in-window alternatives table, which is what TD10 asked for.** Per
+  living consumer, plain non-consumer bodies inside the window the tick actually
+  scans, the share of consumers with any, and voxels to the nearest such body
+  whether or not the window reaches it.
+
+  | seed | arm | tick 0 | 50 | 200 | 600 | 1,500 | 3,000 |
+  | ---: | --- | --- | --- | --- | --- | --- | --- |
+  | 1 | neither | 7.85 @ 100%, 2.6v | 0.55 @ 45%, 7.8v | 0.25 @ 25%, 13.3v | 2.67 @ 67%, 10.6v | 0.17 @ 17%, 9.1v | **0 @ 0%** (extinct) |
+  | 1 | both | 7.85 @ 100%, 2.6v | 0.55 @ 45%, 7.8v | 0.40 @ 35%, 10.8v | 2.80 @ 100%, 7.0v | 2.22 @ 67%, 7.2v | 0.20 @ 20%, 8.8v |
+  | 2 | neither | 7.92 @ 100%, 2.6v | 4.75 @ 96%, 4.4v | 0.48 @ 32%, 11.3v | 0.17 @ 12%, 18.0v | 0.30 @ 17%, 26.5v | 0.39 @ 13%, 25.5v |
+  | 2 | both | **14.42 @ 100%**, 2.6v | **9.14 @ 100%**, 4.3v | **1.40 @ 54%**, 11.8v | **0.82 @ 46%**, 12.9v | **0.90 @ 60%**, 10.9v | **2.50 @ 62%**, 12.0v |
+  | 5 | neither | 7.50 @ 100%, 2.6v | 0.12 @ 6%, 14.4v | 0.04 @ 3%, 17.7v | 1.00 @ 100%, 8.0v | 0 (extinct) | 0 (extinct) |
+  | 5 | both | 7.50 @ 100%, 2.6v | 0.08 @ 4%, 17.7v | 0.43 @ 4%, 21.0v | 0.33 @ 33%, 28.0v | 0 (extinct) | 0 (extinct) |
+
+  **Yes, it keeps the window populated where a consumer kingdom survives to be
+  measured, and no, that is not sight doing it.** Seed 2's doubling at tick 0 is
+  the sight arm's arithmetic and nothing else — it is the probe reading a wider
+  window over an unchanged world. Everything after tick 50 in seeds 1 and 2 is
+  the gradient: it is the only arm that moves the trajectory.
+
+  **Hungry bodies do close distance.** Voxels to the nearest edible body, which
+  is the reading the gradient is aimed at, seed 2 (the only seed with consumers
+  alive in both arms all the way out):
+
+  | tick | 200 | 300 | 400 | 600 | 750 | 1,500 | 2,250 | 3,000 |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | gradient off | 11.3 | 16.2 | 16.9 | 18.0 | 20.0 | 26.5 | 29.2 | 25.5 |
+  | gradient on | 11.8 | **13.4** | **12.9** | **12.9** | **13.8** | **10.9** | **14.2** | **12.0** |
+
+  Off, the pasture recedes monotonically to 29 voxels and stays there. On, it is
+  held between 11 and 14 for three thousand ticks. Seed 1 reads the same shape
+  (15.4 → 10.7 at tick 300, and 8.8 rather than a dead kingdom at 3,000), and
+  the decomposers say it loudest: seed 1 scavenges **768,563 mg against 197,347**
+  and ends with 36 decomposers rather than 16.
+
+  **Consumer survival past the founding transient, in the two seeds that lost
+  them.** Seed 1's consumer curve goes 64 → 40 at tick 200 (the gradient costs
+  it bodies early — a walking body burns), then 3 → 5 at 600, 2 → 10 at 750,
+  0 → 6 at 2,250 and **0 → 5 at 3,000, never reading zero at all**. That is the
+  first time in eleven rounds a consumer kingdom in seed 1 has been alive at the
+  probe horizon. Seed 5 is not saved: 1,139 → 862. Seed 2, which never lost
+  them, ends 23 → 8.
+
+  **5. Seed 2, the standing control, moves — and it is not the unlimbed
+  grazers that moved.** TD10 recorded seed 2 bit-identical because its
+  consumers are unlimbed `Grazer`s whose only legal targets are producers. Under
+  TD11 the seed changes: consumers 23 → 8, producers 48 → 80, and
+  `cannibal_mg` goes 0 → 2,060 for the first time. `unlimbed_moves` is still
+  **0** — the free lunch stays withdrawn and TD8's ruling is intact. What moved
+  is everything *around* them: producer `Moved` 5 → 44, its limbed consumers
+  44 → 303, decomposers 9,054 → 11,376. The control was a control against a
+  *predation* rule, and the gradient is a *movement* rule, so it was never
+  entitled to hold here. Stated rather than explained away: the seed the world
+  supplied to keep TD10 honest cannot keep TD11 honest, and arm `neither`
+  replaces it.
+
+  **6. Cost, and it is the round's cheapest surprise.** Sight range feeds the
+  bucketed scan, so a wider horizon means more buckets — but almost no body has
+  a wider horizon. Measured two ways. The attribution probe, same three seeds
+  and 3,000 ticks per arm, wall clock normalized by the run's own body-ticks
+  (`alive_ticks`, which the probe already records, so populations that diverge
+  between arms do not confound it):
+
+  | arm | wall ms | body-ticks | us per body-tick |
+  | --- | ---: | ---: | ---: |
+  | neither | 33,711 | 6,072,919 | 5.551 |
+  | sight only | 34,042 | 6,063,914 | **5.614** |
+  | gradient only | 34,027 | 6,192,088 | 5.495 |
+  | both | 34,009 | 6,058,173 | **5.614** |
+
+  **+1.1%, and every milligram of it is sight**; the gradient is free to the
+  noise floor, because `densest_cell` only runs for a hungry body that resolved
+  no target at all and it walks buckets the tick already built. `sight_cost_receipt`
+  agrees from the other end — a 300-body Near tick goes **2,013.75 us → 2,061.00 us**
+  (+2.3%, 12.1% → 12.4% of a 16.7 ms frame), the per-body shape is unchanged, and
+  its four state hashes are **identical across all four arms**, which is itself the
+  finding: eight ticks from genesis, nobody is hungry and nobody has an eye.
+
+  **Fixtures, and the demo hash did not move.** Re-recorded: 120 intents, hash
+  **`8f6df49c63923be6`** — *the same hash TD10 recorded*. Headed `--replay`
+  lands it exactly, exit 0, 30 frames on the RTX 4060 (Vulkan), ground revision
+  2, `slab_half_height` 28, 35 roster members, `body_parts` 60. The instrument
+  is proven the usual way: one bit flipped in the recorded hash exits **1** with
+  `MISMATCH`. This is the first round whose fixture did not break, and the
+  reason is measured rather than assumed — the probe run at the demo's own seed
+  (10975940, the same `FOUNDERS` roster) reads a **8.0-voxel window and 0%
+  sighted consumers at every sample**, so sight is inert in that world by
+  construction, and across the demo's 120 ticks no hungry body's gradient step
+  differed from the random one it replaced. Default paths
+  (`ps1_played.trace.json` / `.json` / `.png`), plus `td11_sight.png`, which is
+  byte-identical to `ps1_played.png`.
+
+  **The capture, read.** A flat grey sky over the top half; a stepped dark-red
+  soil section rising left to right onto a plateau, over a dark grey interior.
+  Roughly twenty-five bodies strung along the surface — orange-red capsules,
+  green hemispheres, four or five lavender ones. Four black notches sit in the
+  soil surface where the section shows no voxel, in the same places TD10
+  recorded them and still unexplained. Minimap top right: a purple field with
+  scattered pink cells, a pale blue view wedge and the white dot of the
+  controlled critter at its apex. Vitals bottom left: `energy 2934 mg` on a
+  nearly full bar with the ordinary `burned` notice — the played critter is
+  alive with all 60 parts, as TD10 left it.
+
+  **Verdicts.** Baseline is TD10's own ten seeds at the same ±64 horizon
+  (`td10_chain.json`, which is the pre-TD11 core).
+
+  | seed | verdict | start | end (TD10) | end (TD11) | P/C/D end (TD10) | P/C/D end (TD11) | end biomass | soil end | total matter |
+  | ---: | --- | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |
+  | 1 | thins | 917 | 1,530 | 1,629 | 1471/0/59 | 1569/0/**60** | 1,241,396 mg | 488,432 | 2,206,906 |
+  | 2 | thins | 917 | 887 | 1,117 | 813/74/0 | 1094/**23**/0 | 691,333 mg | 672,825 | 2,220,206 |
+  | 3 | thins | 917 | 1,425 | 1,480 | 1425/0/0 | 1431/0/**49** | 1,087,614 mg | 645,999 | 2,217,028 |
+  | 4 | thins | 917 | 1,415 | 1,430 | 1415/0/0 | 1430/0/0 | 847,273 mg | 71,814 | 2,202,302 |
+  | 5 | thins | 917 | 1,605 | 1,571 | 1560/0/45 | 1521/0/**50** | 1,235,217 mg | 529,745 | 2,214,890 |
+  | 6 | thins | 917 | 1,445 | 1,428 | 1445/0/0 | 1408/0/**20** | 762,454 mg | 954,104 | 2,214,018 |
+  | 7 | thins | 917 | 1,410 | 1,495 | 1410/0/0 | 1461/0/**34** | 1,157,160 mg | 515,757 | 2,222,946 |
+  | 8 | thins | 917 | 1,339 | 1,258 | 1339/0/0 | 1258/0/0 | 370,074 mg | 1,361,412 | 2,212,850 |
+  | 9 | thins | 917 | 1,199 | 1,159 | 1199/0/0 | 1159/0/0 | 381,867 mg | 1,317,317 | 2,209,340 |
+  | 10 | thins | 917 | 1,159 | 1,295 | 1159/0/0 | 1295/0/0 | 395,097 mg | 1,310,729 | 2,204,656 |
+
+  **Six seeds hold a second kingdom to the horizon against TD10's three**, which
+  is the best that number has read in the whole plan — and every one of the
+  three new ones is a *decomposer* tail (3, 6, 7), bought by the gradient
+  walking scavengers onto carrion. **It still does not breathe**, and it is not
+  close: nine of ten seeds end as a pure producer stand, the consumer kingdom is
+  extinct at the ten-thousand-tick horizon in nine of ten, and seed 2's 23
+  consumers are a decaying remainder rather than a population. See the first
+  Finding below for the seventh cause, which this round measured directly.
+
+  **Tests.** Two behaviours in `movement/tests.rs` (a blind plan reading exactly
+  the old eight, sensory anatomy buying horizon, the far tier untouched; and the
+  gradient walking past a nearer, fatter sibling to a stranger's bucket, then
+  answering `None` when only kin are in the horizon) and one rule in
+  `rates.rs`'s own tests (the blind case exact, monotonic in span, scale-free in
+  ceiling, and the 46-voxel ceiling). `cargo test -p mesocosm-core --test matter
+  --release` green — conservation is the gate and it holds.
+
+  **Residues.** `rates.rs` came off the branch at **611 lines**, over the
+  repo's six-hundred ceiling; it is back at exactly 600 with comment volume
+  trimmed and the long-form reasoning left here instead, which is the remedy
+  `CLAUDE.md` names, but the file has no room left and the next rate to land
+  there splits it. Two doc errors came off the branch with it and are corrected:
+  `sight_for_body` claimed its caller still clamped by reach (it does not), and
+  the probe's census claimed the sensory draw was gated by `Appendage::Feeler`
+  acquisition (it is not — `plan::classify` reads part *geometry*, and
+  `axis::seed` draws it at genesis). The demo's four black soil notches are
+  still recorded as seen rather than explained, for the second round.
+
+  `cargo test --workspace` green, `mesocosm-lens` separately at
+  `--test-threads=1` (38 passed). `cargo clippy --workspace --all-targets --
+  -D warnings`: clean. `cargo fmt --all --check`: clean. `cargo check -p
+  paredros-room --features r1-proof`: builds, from inside the `paredros`
+  checkout, with the same one pre-existing `dead_code` warning TD6 through TD10
+  recorded.
 
 - **2026-08-29 (last today): TD10 landed — kinship is spent, it is obeyed
   exactly, and the cohort still eats itself, because after fifty ticks there is

@@ -9,6 +9,7 @@
 //! file was at 585 lines against this repo's six-hundred ceiling and kinship
 //! had both a rule and a behaviour to state.
 
+use super::perception::NEAR_SIGHT_RANGE;
 use super::*;
 use crate::body::{SpeciesId, VolumeRef};
 use crate::organism::{Kingdom, Signal};
@@ -90,6 +91,111 @@ fn an_unrelated_line_is_eaten_exactly_as_it_was_before_kinship() {
         choose_living_target(&hunter, &living, &living_cells(&living), None, &kin),
         Some(2),
         "the nearer stranger, undiscounted"
+    );
+}
+
+#[test]
+fn sight_reads_the_body_and_a_blind_plan_reads_the_old_eight() {
+    // TD11's first half, and the symmetry check TD7 and TD9 both make: a plan
+    // with nothing that senses reads *exactly* the constant that used to be the
+    // flat cap, so nothing about a blind body moved. One that senses reads more,
+    // and the far tier is untouched by either.
+    let ground = Ground::default();
+    let blind = predator(2, 300);
+    assert_eq!(blind.sensor_span(), 0, "a limbed plan grows no sense organ");
+    assert_eq!(
+        sight_range(&blind, 50, Some(&ground)),
+        NEAR_SIGHT_RANGE,
+        "the reference is the floor, not a subtraction"
+    );
+
+    // A `[1, 1, 1]` part is the palette's own sensor: it classifies as
+    // `Role::Sensor` and so performs `Sense`.
+    let mut seeing = Organism::founding(
+        OrganismId(1),
+        SpeciesId(2),
+        Kingdom::Consumer,
+        VolumeRef::from_tag(16),
+        [1, 1, 1],
+        [0, 0, 0],
+        300,
+    );
+    assert!(seeing.sensor_span() > 0, "and this plan is all sense organ");
+    let seen = sight_range(&seeing, 50, Some(&ground));
+    assert!(
+        seen > NEAR_SIGHT_RANGE,
+        "sensory anatomy has to buy horizon: {seen}"
+    );
+    assert!(
+        seen <= NEAR_SIGHT_RANGE * 6,
+        "and the multiple is bounded by construction: {seen}"
+    );
+
+    seeing.tier = Tier::Far;
+    assert_eq!(
+        sight_range(&seeing, 50, Some(&ground)),
+        50,
+        "the far tier still answers the whole search span"
+    );
+}
+
+#[test]
+fn the_hungry_gradient_heads_for_pasture_and_never_for_its_own_line() {
+    // TD11's second half, composed with TD10's. A sibling stands in a *nearer*
+    // bucket than a stranger; the gradient must walk past it, because a heading
+    // toward your own line is the thing the round exists to stop being.
+    let mut lineages = Lineages::new();
+    lineages.found(SpeciesId(2));
+    lineages.found(SpeciesId(9));
+    let kin = Kin::new(&lineages);
+    let hunter = predator(2, 300);
+
+    let sibling = target(1, 2, [5, 0, 0], 4_000);
+    let stranger = target(2, 9, [10, 0, 0], 100);
+    let both = vec![sibling, stranger];
+    let carrion: Vec<CarrionTarget> = Vec::new();
+    assert_eq!(
+        forage_gradient(
+            &hunter,
+            &both,
+            &living_cells(&both),
+            &carrion,
+            &carrion_cells(&carrion),
+            &kin
+        ),
+        Some([10, 0, 2]),
+        "the centre of the stranger's bucket, not the nearer sibling's"
+    );
+
+    // With nothing but kin in the horizon there is no gradient at all, and the
+    // caller falls back to the random step it always took.
+    let alone = vec![sibling];
+    assert_eq!(
+        forage_gradient(
+            &hunter,
+            &alone,
+            &living_cells(&alone),
+            &carrion,
+            &carrion_cells(&carrion),
+            &kin
+        ),
+        None,
+        "a gradient toward your own line is not a fix"
+    );
+
+    // Nor is a gradient that points at the bucket you are standing in.
+    let here = vec![target(2, 9, [1, 0, 1], 100)];
+    assert_eq!(
+        forage_gradient(
+            &hunter,
+            &here,
+            &living_cells(&here),
+            &carrion,
+            &carrion_cells(&carrion),
+            &kin
+        ),
+        None,
+        "nothing to close distance on"
     );
 }
 
