@@ -358,6 +358,54 @@ species — TD10's structural finding). The loop-composition correction from
 the second playtest stands: single-loop polish is done until the loops can
 compose.
 
+## The series closes here (ruled 2026-08-30, Mark)
+
+TD11 is the last TD round. Mark's correction, on being shown "the seventh
+cause" (the founding draw hands out almost no sense organs):
+
+> "seems to me like there are none of the pressures to ensure that they
+> would acquire senses or anything. there is no update stage yet, for one,
+> where each lineage can evaluate and refine their bodyplan/trait
+> selection/evolutionary trajectory. so there's no loop... hardwiring
+> things isn't making mechanics; the hardwiring is like an addition because
+> we're unsure of how to proceed. so stop framing the incomplete state of
+> an incomplete game as unexpected issues that need squirrely chasing. we
+> should do the plan and fix what is functionally broken with the awareness
+> that later steps and architecting will be necessary to truly get to a
+> functioning prototype mesocosm."
+
+The reading this plan adopts: the eleven rounds fixed real defects (matter
+conjured at birth, missing walls, silent refusals, untempered predation)
+and those stand — but several "causes" were absences of systems the design
+already plans (no update stage, so no selection pressure; one species per
+tier, so no kinship structure; no epoch, so no world record), and treating
+each absence as a fresh surprise was the wrong frame. The instrument and
+its receipt discipline stay; `breathes` stops being a gate that spawns
+rounds. The work goes back through the plans.
+
+Two directions ruled with the correction, in Mark's words:
+
+- **Default, well-tuned creatures.** "making creatures just sorta voxel
+  chunks is pretty weird. let's start from the presumption that things
+  have senses, limbs, and set roles. let's start with default, well tuned
+  creatures with bodies, yes, made of voxels, but a bunch of small ones,
+  recognizably flora and fauna like how the isometry tokens aren't just
+  sorta cylinders... we're shooting for imagined creatures made of voxels
+  here. the game is not beginning at the start of evolution. we're not
+  dealing with single cells inventing life's basics. there should be some
+  built in expectations of capacities." Founding stops rolling bodies from
+  nothing and starts from authored, capable archetypes — recognizable
+  voxel flora and fauna at the Isometry-token bar, many small voxels per
+  body, senses/limbs/roles presumed. Owns the second playtest's
+  part-scale finding and the founding-senses observation in one designed
+  move. Gets its own plan.
+- **The update stage.** The missing loop named above: each lineage
+  evaluating and refining its bodyplan, trait selection, and trajectory —
+  the epoch boundary and adaptation machinery the epoch boundary and
+  phenotype plans already design, wired into the played loop (PS2). This
+  is where capacities become subject to selection and evolution becomes
+  actual rather than presumed.
+
 ## Findings
 
 - **2026-08-30 (TD11, and it is the seventh structural thing in the way,
