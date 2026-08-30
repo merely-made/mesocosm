@@ -15,28 +15,29 @@
 //! ```
 
 use mesocosm_core::{
-    PartPalette, PartTemplate, Soma, SpeciesId, VolumeRef, axis::catalogue, develop_body,
+    PartPalette, PartTemplate, RoleShapes, Soma, SpeciesId, VolumeRef, axis::catalogue,
+    develop_body,
 };
 use mesocosm_lens::{BodyLensProjection, BodyPlacement, Flight, Grade, Lens, maps};
 
 fn palette() -> PartPalette {
     PartPalette {
-        mass: PartTemplate {
+        mass: RoleShapes::only(PartTemplate {
             volume: VolumeRef::from_tag(1),
             half_extent: [2, 2, 2],
-        },
-        limb: PartTemplate {
+        }),
+        limb: RoleShapes::only(PartTemplate {
             volume: VolumeRef::from_tag(2),
             half_extent: [4, 1, 1],
-        },
-        plate: PartTemplate {
+        }),
+        plate: RoleShapes::only(PartTemplate {
             volume: VolumeRef::from_tag(3),
             half_extent: [4, 4, 1],
-        },
-        sensor: PartTemplate {
+        }),
+        sensor: RoleShapes::only(PartTemplate {
             volume: VolumeRef::from_tag(4),
             half_extent: [1, 1, 1],
-        },
+        }),
     }
 }
 

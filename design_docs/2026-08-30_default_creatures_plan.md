@@ -1,6 +1,6 @@
 # Default Creatures Plan (2026-08-30)
 
-**Status: plan (2026-08-30). Nothing built.** Founded on the ruling that closed
+**Status: in progress (2026-08-30). DC1 landed; DC1.5 next.** Founded on the ruling that closed
 the TD series in
 [`2026-08-29_terrarium_dynamics_plan.md`](2026-08-29_terrarium_dynamics_plan.md)
 §"The series closes here". This plan owns the *body* half of that ruling; the
@@ -728,7 +728,82 @@ recipe depends on which anatomy makes it what it is.
   (breeds later than TD8's gate). At 33 parts on today's volume the mean is 49
   voxels, so both are far off; at 300 parts they are not. §2.5.
 
+- **2026-08-30 (DC1): the §2.3 guard caps limb *length*, not only thinness.**
+  Holding build price at or below the primitive limb's 6.25 refuses `[5,1,1]`
+  (6.33) and `[6,1,1]` (6.45) as well as `[3,1,0]` (18.75), because span is
+  linear in the long axis while the ceiling is cubic in all three. **At a 3x3
+  cross-section the longest admissible Limb is `[4,1,1]`**; a longer limb has
+  to be thicker, e.g. `[5,2,2]` at 2.27. This is a constraint on archetype
+  authoring that §2.2's table implies but does not state, and DC2's legs
+  (`[3,1,1]`, 6.00) sit inside it. `development.rs`, `overpriced`.
+
+- **2026-08-30 (DC1): widening the palette is free at the ecology scale, not
+  merely at the body scale.** The ten-seed instrument's per-sample curves —
+  alive counts, biomass, births, deaths, soil, total matter — are byte-identical
+  to TD11's across all ten baseline seeds and all five control seeds, not just
+  equal in verdict. The snapshot format moved (`RoleShapes` and two `Tagma`
+  fields), so `state_hash` moved and the demo trace re-recorded; nothing the
+  simulation computes moved with it. `dc1_palette.json` against
+  `td11_chain.json`.
+
 ## Progress
+
+- **2026-08-30 (DC1): the palette learns more than four shapes.** Landed
+  against §6's done-conditions.
+
+  **What changed.** `PartPalette`'s four `PartTemplate` fields become four
+  `RoleShapes`, each a default template plus `PALETTE_SHAPES - 1` optional
+  extras — **four shapes per role**, sized on §2.4's carving B (three Mass
+  shapes, one each of Limb, Plate and Sensor) with one spare. The default is a
+  plain field rather than slot zero of an array, so "every role always has one
+  shape" is a fact of the type instead of a rule `validate` enforces. `Tagma`
+  gains `segment_shape` and `appendage_shape`, `u8` selectors where **0 is
+  every role's default**; a selector a world does not admit falls back to the
+  default rather than failing, which is what keeps the palette's stated
+  cross-world promise (`development.rs:40`) true. `develop_body` resolves the
+  segment template per tagma (the root from the first tagma's selector) and the
+  appendage template from the tagma's own. `PartPalette::validate` now runs the
+  classifier over *every* admitted shape, not just the default, and adds the
+  §2.3 build-price refusal for Limb and Sensor, priced with the economy's own
+  `part_ceiling_mg` rather than a copy of its formula. No archetype: the
+  primitive palette is one shape per role, exactly what it was.
+
+  **The null-change receipt.** The new `Tagma` fields and the widened palette
+  move the snapshot format, so `state_hash` cannot witness body identity —
+  it moved on all ten seeds, as §4.1 predicted. Identity was proven instead by
+  digesting, per seed at genesis, every organism's encoded `BodyDocument` and,
+  separately, every organism's genesis-drawn scalars (position, stage, age,
+  since_offspring, signal, venom, guise, development seed, masses) — the second
+  being a positive check that the **draw sequence** did not move, since every
+  genesis `rng` draw lands in one of those fields. Both digests and the total
+  living-part count are identical across all ten seeds before and after.
+
+  **Receipts.** `cargo test -p mesocosm-core --test matter --release` green (5
+  tests, 26 s). Four new refusal tests: a Limb at `[3,1,0]` and a Sensor at
+  `[1,1,0]` are refused with `Overpriced` while the primitive palette develops,
+  a wrong-role shape in a *later* slot is caught like one in the default, and
+  the two bounds are asserted equal to the primitive palette's own span and
+  ceiling so guard and palette cannot drift apart. `population_instrument
+  --release`: **0 breathes / 10 thins / 0 boil / 0 collapse**, control all
+  collapse, matter conserved in every seed, and the curves byte-identical to
+  TD11's (see Findings). Demo fixture re-recorded — same 120 intents, hash
+  `8f6df49c63923be6` -> `e2aca9bb40e7b0ea`; `--replay` at the default path exits
+  0 and reports the match, a falsified trace exits 1. `cargo test --workspace`
+  green (mesocosm-lens at `--test-threads=1`, 38 tests), `clippy --workspace
+  --all-targets -D warnings` clean, `cargo fmt --all --check` clean, `cargo
+  check -p paredros-room --features r1-proof` clean.
+
+  **Two small calls made here, both open to reversal.** The instrument's
+  receipt filename moved `td11_chain.json` -> `dc1_palette.json`, per its own
+  documented rule that no round overwrites another's; TD11's file is untouched.
+  And `development.rs`'s tests moved to `development/tests.rs` under the
+  600-LOC ceiling (528 / 310 / axis.rs 452).
+
+  **Left for Mark.** `PALETTE_SHAPES` is four, and the palette is *world*
+  state: DC4's eight archetypes share one. If the roster wants more than four
+  Mass shapes across all eight, raising the constant is one line, but it is a
+  budget question rather than a mechanical one and the number should be ruled
+  before the roster is authored, not discovered during it.
 
 - **2026-08-30:** founded. Assessment against the code complete: the body
   machinery (`axis.rs`, `plan.rs`, `development.rs`, `body.rs`, `species.rs`,

@@ -10,8 +10,21 @@
 //! organism's actual anatomy unrelated. This module is the join: segments and
 //! appendages become ordinary [`Part`](crate::body::Part)s, so every later
 //! projection reads the same body document.
+//!
+//! # Shape vocabulary
+//!
+//! A world admits [`PALETTE_SHAPES`] shapes per [`Role`], and a
+//! [`Tagma`] names which of them its segments and its appendages are made
+//! of. Before that a role admitted exactly one shape, so no body could hold
+//! more than four — which is why bodies read as repeated blocks rather than as
+//! creatures. Selector zero is still every role's default, so a recipe that
+//! names no shape develops exactly the body it always did.
+//!
+//! The palette is world state and the recipe is the heritable program, which
+//! is the boundary that keeps this one authority: a lineage carries *which*
+//! shape, a world carries *what that shape is*.
 
-use crate::axis::{Appendage, Recipe, Soma};
+use crate::axis::{Appendage, Recipe, Soma, Tagma};
 use crate::body::{AttachError, Attachment, BodyDocument, Provenance, SpeciesId, VolumeRef, Yaw};
 use crate::plan::{Role, classify};
 use serde::{Deserialize, Serialize};
@@ -27,13 +40,84 @@ pub struct PartTemplate {
     pub half_extent: [i32; 3],
 }
 
+/// How many shapes one world admits for one role.
+///
+/// **Four.** The most shape-hungry body the default creatures plan sizes
+/// (§2.4's carving B) spends three `Mass` shapes — trunk, head, snout — and one
+/// each of `Limb`, `Plate` and `Sensor`, so four leaves a spare per role. It
+/// also keeps the palette a small `Copy` value that a `World` snapshots
+/// whole. Widening the vocabulary later is this one constant.
+pub const PALETTE_SHAPES: usize = 4;
+
+/// The shapes a world admits for one role.
+///
+/// The default is a plain field rather than slot zero of an array, so "every
+/// role always has one shape" is a fact of the type instead of a rule
+/// `validate` has to enforce and every reader has to trust.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoleShapes {
+    /// Selector 0: what a recipe that names no shape is built from.
+    pub default: PartTemplate,
+    /// Selectors 1..; `None` is a slot this world does not admit.
+    pub extra: [Option<PartTemplate>; PALETTE_SHAPES - 1],
+}
+
+impl RoleShapes {
+    /// A role that admits one shape, which is what every role admitted before
+    /// the palette widened.
+    pub fn only(default: PartTemplate) -> Self {
+        Self {
+            default,
+            extra: [None; PALETTE_SHAPES - 1],
+        }
+    }
+
+    /// Admits one more shape, in the next free slot. Authoring-time only: a
+    /// palette asking for more shapes than a world holds is an authoring
+    /// mistake, not a runtime condition.
+    pub fn and(mut self, template: PartTemplate) -> Self {
+        let slot = self
+            .extra
+            .iter()
+            .position(Option::is_none)
+            .expect("a role admits PALETTE_SHAPES shapes");
+        self.extra[slot] = Some(template);
+        self
+    }
+
+    /// The shape a selector names, or the default when this world does not
+    /// admit that slot.
+    pub fn at(self, shape: u8) -> PartTemplate {
+        match usize::from(shape).checked_sub(1) {
+            None => self.default,
+            Some(index) => self
+                .extra
+                .get(index)
+                .copied()
+                .flatten()
+                .unwrap_or(self.default),
+        }
+    }
+
+    /// Every shape this world actually admits for the role.
+    pub fn admitted(self) -> impl Iterator<Item = PartTemplate> {
+        std::iter::once(self.default).chain(self.extra.into_iter().flatten())
+    }
+}
+
+impl From<PartTemplate> for RoleShapes {
+    fn from(template: PartTemplate) -> Self {
+        Self::only(template)
+    }
+}
+
 /// Templates available to one developmental realization.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PartPalette {
-    pub mass: PartTemplate,
-    pub limb: PartTemplate,
-    pub plate: PartTemplate,
-    pub sensor: PartTemplate,
+    pub mass: RoleShapes,
+    pub limb: RoleShapes,
+    pub plate: RoleShapes,
+    pub sensor: RoleShapes,
 }
 
 impl PartPalette {
@@ -42,28 +126,32 @@ impl PartPalette {
     /// The references are fixture content addresses while the project has no
     /// pack loader. Keeping the palette as world state means another world can
     /// admit different materials without changing a lineage's recipe.
+    ///
+    /// One shape per role: this is the vocabulary bodies were built from
+    /// before the palette could hold more, kept exactly so, so that widening
+    /// the machinery changed no body.
     pub fn primitive() -> Self {
         Self {
-            mass: PartTemplate {
+            mass: RoleShapes::only(PartTemplate {
                 volume: VolumeRef::from_tag(1),
                 half_extent: [2, 2, 2],
-            },
-            limb: PartTemplate {
+            }),
+            limb: RoleShapes::only(PartTemplate {
                 volume: VolumeRef::from_tag(2),
                 half_extent: [4, 1, 1],
-            },
-            plate: PartTemplate {
+            }),
+            plate: RoleShapes::only(PartTemplate {
                 volume: VolumeRef::from_tag(3),
                 half_extent: [4, 4, 1],
-            },
-            sensor: PartTemplate {
+            }),
+            sensor: RoleShapes::only(PartTemplate {
                 volume: VolumeRef::from_tag(4),
                 half_extent: [1, 1, 1],
-            },
+            }),
         }
     }
 
-    pub fn template(self, role: Role) -> PartTemplate {
+    pub fn shapes(self, role: Role) -> RoleShapes {
         match role {
             Role::Mass => self.mass,
             Role::Limb => self.limb,
@@ -72,14 +160,32 @@ impl PartPalette {
         }
     }
 
+    /// The role's default shape.
+    pub fn template(self, role: Role) -> PartTemplate {
+        self.shapes(role).default
+    }
+
+    /// The shape a recipe's selector names for this role.
+    pub fn template_at(self, role: Role, shape: u8) -> PartTemplate {
+        self.shapes(role).at(shape)
+    }
+
     fn validate(self) -> Result<(), DevelopmentError> {
         for role in Role::ALL {
-            let actual = classify(self.template(role).half_extent);
-            if actual != role {
-                return Err(DevelopmentError::WrongRole {
-                    expected: role,
-                    actual,
-                });
+            for template in self.shapes(role).admitted() {
+                let actual = classify(template.half_extent);
+                if actual != role {
+                    return Err(DevelopmentError::WrongRole {
+                        expected: role,
+                        actual,
+                    });
+                }
+                if overpriced(role, template.half_extent) {
+                    return Err(DevelopmentError::Overpriced {
+                        role,
+                        half_extent: template.half_extent,
+                    });
+                }
             }
         }
         Ok(())
@@ -92,14 +198,82 @@ impl Default for PartPalette {
     }
 }
 
+/// The primitive `Limb` `[4,1,1]`: span 4 against a 64 mg ceiling, a build
+/// price of 6.25. TD7's stated bound — "a body made of nothing but limbs reads
+/// `4 * 100 / 64`, so no anatomy can price itself past ~7x" — *is* this shape,
+/// written as if it were a property of the game.
+const LIMB_PRICE_BOUND: (u64, u64) = (4, 64);
+/// The primitive `Sensor` `[1,1,1]`: span 1 against a 21 mg ceiling, 4.76.
+/// TD11's "no anatomy may see the enclosure, 46 voxels" is `8 * (1 + 4.76)`.
+const SENSOR_PRICE_BOUND: (u64, u64) = (1, 21);
+
+/// The `(span, ceiling_mg)` a role's shapes are held to.
+///
+/// `None` where the economy cannot read a shape at all: `Mass` has no span
+/// term and `Plate` performs no process, so their detail is free.
+fn price_bound(role: Role) -> Option<(u64, u64)> {
+    match role {
+        Role::Limb => Some(LIMB_PRICE_BOUND),
+        Role::Sensor => Some(SENSOR_PRICE_BOUND),
+        Role::Mass | Role::Plate => None,
+    }
+}
+
+/// A part's contribution to a span: its longest half-extent, the same term
+/// `Organism::actuator_span` and `Organism::sensor_span` sum.
+fn span_voxels(half_extent: [i32; 3]) -> u64 {
+    half_extent
+        .iter()
+        .map(|v| u64::from(v.unsigned_abs()))
+        .max()
+        .unwrap_or(0)
+}
+
+/// Whether this shape would price a body past the palette the whole TD series
+/// was tuned against.
+///
+/// **Build price** is `100 * longest_half_extent / part_ceiling_mg`: what one
+/// part of this shape adds to a body's build multiple per milligram of body it
+/// hangs on. Ceiling is cubic in half-extent and span is linear, so the price
+/// scales as `1 / cross-sectional area` — a limb thinned from a 3x3 section to
+/// 1x1 raises TD7's ~7x ceiling to 61x in silence. Compared by
+/// cross-multiplication so the guard stays integer-exact, and read off
+/// `part_ceiling_mg` itself rather than a copy of its formula. (Plan §2.3)
+fn overpriced(role: Role, half_extent: [i32; 3]) -> bool {
+    let Some((bound_span, bound_ceiling)) = price_bound(role) else {
+        return false;
+    };
+    let ceiling = crate::organism::ecology::part_ceiling_mg(half_extent);
+    span_voxels(half_extent) * bound_ceiling > bound_span * ceiling
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DevelopmentError {
-    SomaLength { tagmata: usize, realised: usize },
+    SomaLength {
+        tagmata: usize,
+        realised: usize,
+    },
     EmptyAxis,
-    InvalidAbsence { tagma: u8, segment: u8 },
-    WrongRole { expected: Role, actual: Role },
+    InvalidAbsence {
+        tagma: u8,
+        segment: u8,
+    },
+    WrongRole {
+        expected: Role,
+        actual: Role,
+    },
+    /// A `Limb` or `Sensor` shape whose build price exceeds the primitive
+    /// palette's, which would move every TD-series rate without moving a
+    /// single constant. See [`overpriced`].
+    Overpriced {
+        role: Role,
+        half_extent: [i32; 3],
+    },
     TooManyParts,
-    InsufficientMass { mass_mg: u64, parts: u32 },
+    InsufficientMass {
+        mass_mg: u64,
+        parts: u32,
+    },
     Attach(AttachError),
 }
 
@@ -133,18 +307,27 @@ pub fn develop_body(
     }
     let each = mass_mg / u64::from(count);
     let root_mass = each + mass_mg % u64::from(count);
-    let segment_template = palette.template(Role::Mass);
+    // The root is the first stretch's first segment, so it is made of that
+    // stretch's shape rather than the role's default.
+    let root_template = palette.template_at(
+        Role::Mass,
+        recipe
+            .tagmata
+            .first()
+            .map_or(0, |tagma| tagma.segment_shape),
+    );
     let mut body = BodyDocument::new(
         species,
-        segment_template.volume,
+        root_template.volume,
         root_mass,
-        segment_template.half_extent,
+        root_template.half_extent,
     );
 
     let mut previous_segment = body.root;
     let mut first = true;
     for (tagma_index, tagma) in recipe.tagmata.iter().enumerate() {
         let realised = soma.segments[tagma_index];
+        let segment_template = palette.template_at(Role::Mass, tagma.segment_shape);
         for segment_index in 0..realised {
             let segment = if first {
                 first = false;
@@ -176,14 +359,7 @@ pub fn develop_body(
             if is_absent(soma, tagma_index, segment_index) {
                 continue;
             }
-            attach_appendages(
-                &mut body,
-                segment,
-                tagma.appendage,
-                tagma.per_segment,
-                each,
-                palette,
-            )?;
+            attach_appendages(&mut body, segment, tagma, each, palette)?;
         }
     }
 
@@ -264,15 +440,16 @@ fn is_absent(soma: &Soma, tagma: usize, segment: u8) -> bool {
 fn attach_appendages(
     body: &mut BodyDocument,
     segment: crate::body::PartId,
-    appendage: Appendage,
-    per_segment: u8,
+    tagma: &Tagma,
     mass_mg: u64,
     palette: PartPalette,
 ) -> Result<(), DevelopmentError> {
+    let appendage = tagma.appendage;
+    let per_segment = tagma.per_segment;
     let Some(role) = appendage.role() else {
         return Ok(());
     };
-    let template = palette.template(role);
+    let template = palette.template_at(role, tagma.appendage_shape);
     let segment_half = body
         .part(segment)
         .expect("development only addresses attached segments")
@@ -348,158 +525,4 @@ fn slot_offset(ordinal: u8, count: u8, half: i32) -> i32 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::axis::{Tagma, catalogue};
-
-    fn palette() -> PartPalette {
-        PartPalette {
-            mass: PartTemplate {
-                volume: VolumeRef::from_tag(1),
-                half_extent: [2, 2, 2],
-            },
-            limb: PartTemplate {
-                volume: VolumeRef::from_tag(2),
-                half_extent: [4, 1, 1],
-            },
-            plate: PartTemplate {
-                volume: VolumeRef::from_tag(3),
-                half_extent: [4, 4, 1],
-            },
-            sensor: PartTemplate {
-                volume: VolumeRef::from_tag(4),
-                half_extent: [1, 1, 1],
-            },
-        }
-    }
-
-    fn exact_soma(recipe: &Recipe) -> Soma {
-        Soma {
-            segments: recipe.tagmata.iter().map(|tagma| tagma.segments).collect(),
-            absent: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn appendage_roles_become_actual_parts() {
-        let recipe = Recipe::of(vec![
-            Tagma::new(1, Appendage::Feeler),
-            Tagma::new(1, Appendage::Mouth),
-            Tagma::new(1, Appendage::Limb),
-            Tagma::new(1, Appendage::Plate),
-        ]);
-        let body = develop_body(
-            SpeciesId(7),
-            &recipe,
-            &exact_soma(&recipe),
-            1_000,
-            palette(),
-        )
-        .unwrap();
-        let roles: Vec<_> = body
-            .living()
-            .map(|part| classify(part.half_extent))
-            .collect();
-
-        assert_eq!(
-            roles.iter().filter(|role| **role == Role::Sensor).count(),
-            2
-        );
-        assert_eq!(roles.iter().filter(|role| **role == Role::Limb).count(), 2);
-        assert_eq!(roles.iter().filter(|role| **role == Role::Plate).count(), 1);
-        assert_eq!(roles.iter().filter(|role| **role == Role::Mass).count(), 5);
-    }
-
-    #[test]
-    fn a_snake_and_tetrapod_now_have_different_part_graphs() {
-        let tetrapod = catalogue::tetrapod(6);
-        let snake = catalogue::snake(16);
-        let legs = develop_body(
-            SpeciesId(1),
-            &tetrapod,
-            &exact_soma(&tetrapod),
-            4_000,
-            palette(),
-        )
-        .unwrap();
-        let legless =
-            develop_body(SpeciesId(2), &snake, &exact_soma(&snake), 4_000, palette()).unwrap();
-
-        assert!(
-            legs.living()
-                .any(|part| classify(part.half_extent) == Role::Limb)
-        );
-        assert!(
-            !legless
-                .living()
-                .any(|part| classify(part.half_extent) == Role::Limb)
-        );
-        assert!(
-            legless.living().count() > legs.living().count(),
-            "length remains anatomy"
-        );
-    }
-
-    #[test]
-    fn developmental_absence_removes_the_appendages_not_the_segment() {
-        let recipe = catalogue::centipede(4);
-        let complete = exact_soma(&recipe);
-        let mut absent = complete.clone();
-        absent.absent.push((1, 2));
-        let whole = develop_body(SpeciesId(1), &recipe, &complete, 1_000, palette()).unwrap();
-        let varied = develop_body(SpeciesId(1), &recipe, &absent, 1_000, palette()).unwrap();
-
-        assert_eq!(
-            whole.len() - varied.len(),
-            2,
-            "one bilateral appendage pair is absent"
-        );
-        let whole_mass = whole
-            .living()
-            .filter(|p| classify(p.half_extent) == Role::Mass)
-            .count();
-        let varied_mass = varied
-            .living()
-            .filter(|p| classify(p.half_extent) == Role::Mass)
-            .count();
-        assert_eq!(whole_mass, varied_mass, "the axial segment still developed");
-    }
-
-    #[test]
-    fn development_conserves_mass_and_is_deterministic() {
-        let recipe = catalogue::insect();
-        let soma = Soma::develop(&recipe, 19);
-        let a = develop_body(SpeciesId(3), &recipe, &soma, 4_003, palette()).unwrap();
-        let b = develop_body(SpeciesId(3), &recipe, &soma, 4_003, palette()).unwrap();
-        assert_eq!(a, b);
-        assert_eq!(a.total_mass_mg(), 4_003);
-        assert!(a.living().all(|part| part.mass_mg > 0));
-    }
-
-    #[test]
-    fn a_palette_cannot_lie_about_a_role() {
-        let recipe = catalogue::insect();
-        let soma = exact_soma(&recipe);
-        let mut wrong = palette();
-        wrong.limb.half_extent = [2, 2, 2];
-        assert_eq!(
-            develop_body(SpeciesId(1), &recipe, &soma, 2_000, wrong),
-            Err(DevelopmentError::WrongRole {
-                expected: Role::Limb,
-                actual: Role::Mass
-            })
-        );
-    }
-
-    #[test]
-    fn the_expression_floor_is_the_number_of_parts() {
-        let recipe = catalogue::centipede(4);
-        let soma = exact_soma(&recipe);
-        let minimum = minimum_body_mass_mg(&recipe, &soma).unwrap();
-        let body =
-            develop_body(SpeciesId(1), &recipe, &soma, u64::from(minimum), palette()).unwrap();
-
-        assert_eq!(minimum as usize, body.len());
-        assert!(body.living().all(|part| part.mass_mg == 1));
-    }
-}
+mod tests;

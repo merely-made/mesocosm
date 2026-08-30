@@ -206,7 +206,7 @@ fn geometry_did_not_travel_and_that_is_the_law() {
     let returned = Chronicle::from_bytes(RETURNED).unwrap();
     let a = regrow(&returned, PartPalette::primitive());
     let mut other_world = PartPalette::primitive();
-    other_world.mass.half_extent = [3, 3, 3];
+    other_world.mass.default.half_extent = [3, 3, 3];
     let b = regrow(&returned, other_world);
 
     assert_eq!(a.len(), b.len(), "the same record founds the same lineage");

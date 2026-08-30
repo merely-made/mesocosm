@@ -106,6 +106,14 @@ impl Appendage {
 }
 
 /// One stretch of the axis, and what it makes.
+///
+/// The two shape selectors are indices into the world's
+/// [`PartPalette`](crate::development::PartPalette), which admits several
+/// shapes per role. **Zero is every role's default**, so a recipe that names
+/// no shape is built from exactly the templates recipes were built from when
+/// a role admitted only one. A selector the world does not admit falls back to
+/// that default rather than failing, which is what lets a recipe travel to a
+/// world with a poorer vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tagma {
     /// How many segments this stretch holds.
@@ -116,6 +124,11 @@ pub struct Tagma {
     /// suppresses without changing the stretch's identity, which is how a
     /// snake keeps a trunk and loses its legs.
     pub per_segment: u8,
+    /// Which admitted `Role::Mass` shape this stretch's segments are made of.
+    pub segment_shape: u8,
+    /// Which admitted shape this stretch's appendages are made of, indexed
+    /// within the appendage's own role.
+    pub appendage_shape: u8,
 }
 
 impl Tagma {
@@ -124,6 +137,8 @@ impl Tagma {
             segments,
             appendage,
             per_segment: 1,
+            segment_shape: 0,
+            appendage_shape: 0,
         }
     }
 
@@ -132,11 +147,20 @@ impl Tagma {
             segments,
             appendage: Appendage::None,
             per_segment: 0,
+            segment_shape: 0,
+            appendage_shape: 0,
         }
     }
 
     pub fn with_per_segment(mut self, per_segment: u8) -> Self {
         self.per_segment = per_segment;
+        self
+    }
+
+    /// Picks this stretch's segment and appendage shapes out of the palette.
+    pub fn with_shapes(mut self, segment_shape: u8, appendage_shape: u8) -> Self {
+        self.segment_shape = segment_shape;
+        self.appendage_shape = appendage_shape;
         self
     }
 

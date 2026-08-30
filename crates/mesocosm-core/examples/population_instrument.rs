@@ -31,7 +31,7 @@
 //! cargo run -p mesocosm-core --example population_instrument --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/td11_chain.json` (curves + verdicts
+//! Writes `Code/testing/mesocosm/dc1_palette.json` (curves + verdicts
 //! per seed) and prints a terminal summary; each earlier round's receipt
 //! keeps its own filename and none is overwritten. `Code/testing/<repo>/` is this
 //! workspace's standing receipts convention; the path is found by walking up
@@ -465,15 +465,15 @@ fn report(run: &RunResult) {
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/td11_chain.json` by walking up from
+/// Finds `Code/testing/mesocosm/dc1_palette.json` by walking up from
 /// this crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
 /// is not this example's business to hardcode. Each round's receipt keeps its
 /// own filename and none is overwritten: `td1_population.json`,
 /// `td2_retune.json`, `td2b_walls.json`, `td2c_persistence.json`,
 /// `td2d_scavengers.json`, `td5_economy.json`, `td5b_midlife.json`,
-/// `td6_matter.json`, `td7_priced.json`, `s1_wide_instrument.json`, and now
-/// this. (2026-08-29 TD8)
+/// `td6_matter.json`, `td7_priced.json`, `s1_wide_instrument.json`,
+/// `td11_chain.json`, and now this. (2026-08-29 TD8; renamed per round)
 fn receipt_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repos_ancestor = manifest_dir
@@ -483,7 +483,7 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/td11_chain.json")
+    workspace_root.join("testing/mesocosm/dc1_palette.json")
 }
 
 fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {

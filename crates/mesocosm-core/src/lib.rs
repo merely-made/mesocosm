@@ -71,7 +71,8 @@ pub use body::{
 pub use chronicle::{Chronicle, Consequence, Deed, PartOrigin, generate};
 pub use cohort::{Cohort, CohortKey, CohortMember};
 pub use development::{
-    DevelopmentError, PartPalette, PartTemplate, develop_body, minimum_body_mass_mg,
+    DevelopmentError, PALETTE_SHAPES, PartPalette, PartTemplate, RoleShapes, develop_body,
+    minimum_body_mass_mg,
 };
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use growth::{Growth, resolve};
