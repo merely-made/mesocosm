@@ -583,6 +583,34 @@ legs, plates and sense organs read differently from its trunk.
 
 ---
 
+## 6.5 The two blockers, ruled (2026-08-30, Mark)
+
+Both §4.3 blockers were ruled the day the plan landed:
+
+- **Grazer vs predator: mouth geometry.** A jaw — a Limb-classified mouth
+  part at the head — makes a predator; a cropping, Mass-classified mouth
+  makes a grazer. Geometric, the same anti-Spore posture the role system
+  takes, and a jaw adds actuator span so a predator pays and earns more,
+  which is correct.
+- **Kingdom unbinds from symmetry.** The deeper fix, taken deliberately:
+  kingdom becomes a reading of feeding anatomy rather than of
+  `body.plan.symmetry`, and symmetry becomes pure body-plan geometry. This
+  pulls the forms brief's Stage 1 in as a dependency — a producer must be
+  readable from *fixing anatomy*, and `Role::Plate` ("Fins, plates,
+  leaves") is the already-named geometry for it. The decomposer's anatomy
+  reading is the open design question the implementing slice must surface
+  if no honest reading exists. Known consequences, priced in the forms
+  brief's Stage 1 cost list and accepted: replay hashes move
+  (`feeding_mode` reaches `state_hash` via the fauna decision trace),
+  `CohortKey` semantics, `betrays_itself`, and guise's referent. The
+  mixotroph-as-prey question (register §13) stays deferred — archetypes
+  are single-mode, so edibility keeps reading the derived kingdom until a
+  body can honestly do both.
+
+The slice order gains a step: the unbinding is DC1.5 — after the palette
+widens and before any archetype is authored, since every archetype's
+recipe depends on which anatomy makes it what it is.
+
 ## 7. Open questions — Mark's
 
 1. **How many archetypes, and are eight the right eight?** §4.2 proposes 3/3/2.
