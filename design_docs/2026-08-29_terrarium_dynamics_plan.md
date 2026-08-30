@@ -321,6 +321,45 @@ of consumer predation falls and the consumer kingdom's extinction crosses its
 own first-brood interval; seed 2's unlimbed grazers — the natural control,
 which never cannibalized — do not move; fixtures re-record.
 
+## TD11 — sight reads the body, hunger follows a gradient (ruled 2026-08-29, Mark; IN FLIGHT, parked on `wip/td11-sight`)
+
+TD10's sixth cause, answered with both levers. The pattern's completion:
+rent reads the body (TD7), income reads the body (TD9), and now the search
+horizon does too.
+
+- **Sight reads Sense anatomy.** Near-tier sight range derives from the
+  body's `Role::Sensor` parts the way bite derives from actuators —
+  TD7-style, from what the plan already computes, no new authored constant
+  where avoidable (the flat 8 may survive as floor or reference). A body
+  with no sensor parts stays nearsighted; the raycast gate stays, so a
+  wider horizon is never wallhack.
+- **Hunger follows a gradient.** The one-random-voxel hungry wander becomes
+  movement toward denser pasture, by the pattern producers already use
+  (`draw_richest_within` over a perceivable radius). Must compose with
+  TD10's kinship discount and TD4's held-critter skip.
+
+**Status at the 2026-08-29 session pause (Claude update):** implementation
+is on branch `wip/td11-sight` (commit `04c2b5a`), stopped partway through
+leave-one-out attribution. NOT merged; the full receipt discipline (matter
+test, instrument before/after at the 0-breathes/10-thins baseline,
+attribution, fixture re-record, workspace green) must run before it lands.
+Resume by continuing the branch or re-dispatching against this section.
+
+**Done when:** the standing TD discipline — breathes or the seventh cause
+named with evidence; attribution shows the in-window alternatives table
+staying populated and hungry bodies closing distance to pasture; seed
+comparisons against TD10's table; conservation exact; fixtures re-recorded.
+
+## After TD11: PS2 is next (direction standing, not yet dispatched)
+
+Three lanes now queue behind the epoch boundary: succession (death →
+witnessing → TakeControl), the world record (empty until `end_epoch` has a
+production caller — the trait bank's weighting waits on it), and NPC
+speciation (kinship's discount cancels while each tier is one interbreeding
+species — TD10's structural finding). The loop-composition correction from
+the second playtest stands: single-loop polish is done until the loops can
+compose.
+
 ## Findings
 
 - **2026-08-29 (TD10, and it is the sixth structural thing in the way, measured
