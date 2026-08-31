@@ -6,7 +6,7 @@
 //! The real-Ground resident-view composition receipt.
 //!
 //! A Burn pass proposes a bounded carve from a material-derived field. Ground
-//! accepts the integer consequence, Quint patches and restamps the retained
+//! accepts the integer consequence, Conatus patches and restamps the retained
 //! atlas allocation, and BrickTracer observes that allocation without a CPU
 //! voxel upload. The accepted delta then replays without Burn.
 
@@ -16,14 +16,14 @@ use burn::{
     backend::wgpu::{RuntimeOptions, WgpuDevice, graphics::AutoGraphicsApi, init_setup},
     tensor::Tensor,
 };
+use conatus::resident::{
+    ChunkBounds, ChunkStamp, DirtyRegion, PlaneClass, PlaneElementType, PlaneId, RawKernelView,
+    ReadEpoch, ResidentChunk, ResidentClient,
+};
 use mesocosm_core::places::{Ground, Places};
 use mesocosm_lens::{
     BrickChange, BrickFrameInput, BrickMap, BrickProjectionRevision, BrickRevision, BrickTracer,
     Flight, Grade, LeasedAtlas,
-};
-use quint::resident::{
-    ChunkBounds, ChunkStamp, DirtyRegion, PlaneClass, PlaneElementType, PlaneId, RawKernelView,
-    ReadEpoch, ResidentChunk, ResidentClient,
 };
 use serde::{Deserialize, Serialize};
 
@@ -73,9 +73,9 @@ struct Receipt {
     expected_read_epoch: u64,
     epoch_mismatch_refusals: u32,
     epoch_fallback_matches_committed: bool,
-    quint_bytes_in_use: u64,
-    quint_number_allocs: u64,
-    quint_commit_allocator_growth: u64,
+    resident_bytes_in_use: u64,
+    resident_number_allocs: u64,
+    resident_commit_allocator_growth: u64,
     changed_pixels: usize,
     unchanged_atlas_bytes: u64,
     accepted_delta_bytes: usize,
@@ -418,7 +418,7 @@ fn main() {
     let memory_before_commit = client
         .compute_client()
         .memory_usage()
-        .expect("quint memory usage before commit");
+        .expect("resident memory usage before commit");
     resident_atlas
         .commit_plane_patch(
             &setup.queue,
@@ -436,7 +436,7 @@ fn main() {
     let memory_after_commit = client
         .compute_client()
         .memory_usage()
-        .expect("quint memory usage after commit");
+        .expect("resident memory usage after commit");
     assert_eq!(
         memory_before_commit.bytes_in_use, memory_after_commit.bytes_in_use,
         "the committed patch changed the allocator's bytes in use"
@@ -584,9 +584,9 @@ fn main() {
             expected_read_epoch: COMMITTED_EPOCH,
             epoch_mismatch_refusals: refused.diagnostics.epoch_lease_rejections,
             epoch_fallback_matches_committed: refused.pixels == committed.pixels,
-            quint_bytes_in_use: memory_after_commit.bytes_in_use,
-            quint_number_allocs: memory_after_commit.number_allocs,
-            quint_commit_allocator_growth: memory_after_commit
+            resident_bytes_in_use: memory_after_commit.bytes_in_use,
+            resident_number_allocs: memory_after_commit.number_allocs,
+            resident_commit_allocator_growth: memory_after_commit
                 .bytes_in_use
                 .saturating_sub(memory_before_commit.bytes_in_use),
             changed_pixels,

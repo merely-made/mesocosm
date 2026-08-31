@@ -9,7 +9,7 @@ publish = false
 
 [features]
 default = []
-resident-ground-receipt = ["dep:burn", "dep:quint"]
+resident-ground-receipt = ["dep:burn", "conatus/resident"]
 
 # The probe for the unified-raymarch candidate (render lane landscape §7).
 # Everything it consumes is 2D data: a heightmap, a colormap, a grade block.
@@ -24,7 +24,7 @@ pollster = "0.4"
 serde = { workspace = true }
 postcard = { workspace = true }
 burn = { version = "0.22.0-pre.2", default-features = false, features = ["std", "wgpu"], optional = true }
-quint = { git = "https://github.com/merely-made/mere.git", branch = "main", features = ["field-gpu"], optional = true }
+conatus = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-time = "1"
