@@ -3,7 +3,8 @@ use crate::body::{Attachment, Origin, Provenance, VolumeRef};
 use crate::history::History;
 use crate::organism::{Kingdom, LastSeen, Stage};
 use crate::places::{
-    Places, Tier, WALKER_HEIGHT, WalkerShape, route_step, spot, spot_for, step, surface_stance_for,
+    Places, Tier, WALKER_HEIGHT, WalkerShape, route_step, spot, spot_for, step, step_for,
+    surface_stance_for,
 };
 
 /// Walks the critter to its nearest neighbour and returns it.
@@ -1018,17 +1019,34 @@ fn a_carve_opens_a_grounded_step_and_replays() {
     // one-voxel doorway through it. The fixture searches real generated
     // ground rather than constructing a second terrain authority for a test.
     let mut world = World::new(4_242, 0);
+    // **A compact body, put there on purpose** (DC4). The played critter founds
+    // from an archetype now and its legs make it a five-column walker, which
+    // cannot stand beside a two-high face at all — so it can never be the body
+    // that carves a one-voxel doorway. That is a real consequence of the roster
+    // and it is recorded as a finding; this test is about carving and replay,
+    // so it drives a standard walker the way the rest of the near-tier fixtures
+    // do.
+    world.organisms[0] = Organism::founding(
+        OrganismId(0),
+        SpeciesId(1),
+        Kingdom::Consumer,
+        VolumeRef::from_tag(1),
+        [1, 1, 1],
+        [0, 0, 0],
+        300,
+    );
+    let shape = world.organisms[0].walker_shape();
     let directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     let doorway = (-ENCLOSURE..=ENCLOSURE).find_map(|z| {
         (-ENCLOSURE..=ENCLOSURE).find_map(|x| {
             let top = world.ground().surface(x, z)?;
             let from = [x, top + 1, z];
-            if !world.ground().stands(from, WALKER_HEIGHT) {
+            if !shape.stands(world.ground(), from) {
                 return None;
             }
             directions.into_iter().find_map(|[dx, dz]| {
                 let target = [from[0] + dx, from[1], from[2] + dz];
-                let blocked = step(world.ground(), from, target) == from
+                let blocked = step_for(world.ground(), shape, from, target) == from
                     && world.ground().solid(target)
                     && world.ground().solid([target[0], target[1] + 1, target[2]])
                     && world.ground().solid([target[0], target[1] - 1, target[2]]);
@@ -1050,7 +1068,7 @@ fn a_carve_opens_a_grounded_step_and_replays() {
     let trace = [
         Intent::Carve {
             at: opening,
-            radius: 1,
+            radius: shape.radius().max(1),
         },
         Intent::Move {
             delta: [target[0] - from[0], 0, target[2] - from[2]],
@@ -1065,7 +1083,7 @@ fn a_carve_opens_a_grounded_step_and_replays() {
         Some(target),
         "doorway did not admit the step"
     );
-    assert!(world.ground().stands(target, WALKER_HEIGHT));
+    assert!(shape.stands(world.ground(), target));
     assert_eq!(
         crate::snapshot::state_hash(&world),
         crate::snapshot::state_hash(&twin)

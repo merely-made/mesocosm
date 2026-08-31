@@ -1,7 +1,10 @@
 # Default Creatures Plan (2026-08-30)
 
-**Status: in progress (2026-08-31). DC1, DC1.5 and DC2 landed; DC3 next, and
-§7's first question now has evidence behind it.** Founded on the ruling that closed
+**Status: in progress (2026-08-31). DC1, DC1.5, DC2, DC3 and DC4 landed; DC5
+(colour) is the last slice and is a ruling.** DC4's roster ships as the default
+founding and its own done-condition — Mark looking at the captures and calling
+them critters — is not met; the Progress entry says what stands in the way and
+none of it is anatomy. Founded on the ruling that closed
 the TD series in
 [`2026-08-29_terrarium_dynamics_plan.md`](2026-08-29_terrarium_dynamics_plan.md)
 §"The series closes here". This plan owns the *body* half of that ruling; the
@@ -648,7 +651,17 @@ recipe depends on which anatomy makes it what it is.
    lineages deliberately are?** §4.2. Either way the naming round is yours; no
    names are proposed here.
 8. **Does `axis::seed` stay in the tree as the soup world's generator, or go?**
-   §1 assumes it stays. It has no other caller once genesis stops using it.
+   §1 assumes it stays. Since DC4 it has no caller in the shipping founding —
+   only `Founding::Drawn`, which the instrument keeps as its baseline arm.
+9. **Which axis does the section look down?** (DC4) The terrarium view looks
+   along `-z` and a body's segments chain along `+z`, so every critter is drawn
+   end-on and the roster's whole part budget is invisible. This is the cheapest
+   legibility the plan has left and it is presentation only — a yaw when the
+   section poses a body, or a camera that is not axis-aligned. Findings, DC4.
+10. **Is the roster's ecology acceptable, and if not which half moves?** (DC4)
+    Eight of ten seeds collapse against the drawn baseline's zero. The two
+    diagnostic arms in the Progress entry say which half of the roster carries
+    it; the fix is a body or a constant, and constants are the stop rule.
 
 ---
 
@@ -675,6 +688,133 @@ recipe depends on which anatomy makes it what it is.
 ---
 
 ## Findings
+
+- **2026-08-31 (DC4): the section looks straight down every body's own axis,
+  and that is why nothing reads as a critter.** `develop_body` chains segments
+  along `+z`; the ruled terrarium section looks along `-z`
+  (`genet::section::FORWARD`). So a thirty-part animal is drawn **end-on**: the
+  browser at slab 28 is a green blob with two side stubs, and its whole length
+  — the thing the roster spends its part budget on — is a single pixel column
+  deep. Turning the same slab a quarter (`dc4_*.png` against
+  `dc4_*_axial.png`) shows the body plan immediately. **Neither cut shows
+  everything**: broadside shows the axial chain and hides the limb pairs,
+  which point at the camera; axial shows the limbs and hides the chain. An
+  orthographic section cannot show both, because the two are perpendicular by
+  construction — which is exactly why DC2's capture used the menagerie's
+  three-quarter camera. This is the cheapest legibility left in the plan and it
+  is presentation, not anatomy: either the section carries a small yaw when it
+  poses a body, or the camera stops being axis-aligned. **Mark's**, and it
+  belongs beside DC5's colour question.
+
+- **2026-08-31 (DC4): a tall stalk is not expressible, and the roster hit it on
+  the first plant.** §4.2 asks for "a tall single-stalk with a crown". Segments
+  chain along one axis and nothing stacks along `y`, so the only vertical a
+  body has is the height of a single appendage: the tallest thing the palette
+  can build is a `[4,4,1]` frond standing eight voxels over its segment.
+  `producer_stalk` is therefore a sixteen-segment ground runner with a crown of
+  fronds at one end, and it reads as a bead chain with a box on its head
+  (`dc4_producer_stalk.png`). Raising a stalk needs a second growth axis —
+  either a `Facing`-aware `develop_body` or a recipe that can branch — and that
+  is a body-machinery change, not this slice's. Recorded rather than worked
+  around.
+
+- **2026-08-31 (DC4): the roster is a worse ecology than the browser alone, and
+  the pursuit form is not the fix DC2's finding predicted.** Ten seeds:
+  **0 breathes / 2 thins / 0 boil / 8 collapse**, against DC2's browser-alone
+  arm re-measured at 0/6/0/4 and the drawn baseline's 0/10/0/0. Founding a
+  predator beside the browser was the remedy DC2 named — a consumer tier that
+  is one interbreeding species cannot hold both readings, so install three —
+  and it does not land. What the end states say is that the failure changed
+  shape rather than easing: the **baseline** ends with a stand and no consumers
+  (nine seeds of ten end `1100-1500 / 0 / 40-160` P/C/D), while the **roster**
+  ends with consumers and no stand (`0 / 3-12 / 0` in seven of ten). The world
+  that founds capable fauna keeps them and loses the plants.
+
+- **2026-08-31 (DC4): the whole regression is in the authored *fauna*; the
+  authored stand carries none of it.** Two diagnostic arms split the roster in
+  half. **Producers authored, fauna drawn: 0 breathes / 10 thins / 0 boil / 0
+  collapse** — the baseline's verdicts exactly, and the standing producer counts
+  are *higher* than the baseline's in nine seeds of ten (1,328-1,567 against
+  1,140-1,534). **Fauna authored, stand drawn: 0 / 2 / 0 / 8** — the full
+  roster's verdict, to the seed. So the archetype stand is a strict improvement
+  and the archetype animals are what empty the world.
+
+  And the reason is the ruling itself, arriving as a price. DC1.5 measured that
+  the drawn consumer tier founds **blind** in nine seeds of ten (sensor span
+  zero) and sessile in the tenth, and the drawn decomposer tier is the same
+  lottery. The roster founds 306 non-played fauna a seed of which **every single
+  one** has a working eye, something that contracts, and the mouth its line
+  feeds by — which is DC4's second done-condition, met, and is also the thing
+  that strips the stand. *Founding capable animals is the plan's whole point and
+  it costs eight seeds in ten.* The remedy is a constant or a body, and rent,
+  bite and the breeding gate are `REFERENCE_*` territory the stop rule forbids
+  touching here, so this returns to Mark rather than being tuned away.
+  `dc4_roster.json`.
+
+- **2026-08-31 (DC4): armour is a position, and the position rule is four
+  lines of geometry the body already carried.** The DC1.5 residue said no
+  archetype could wear a shell without reading Producer. The rule Mark set —
+  fixing reads only from plates in canopy positions — turns out to need nothing
+  stored: a plate is in the canopy when its attachment offset points up rather
+  than sideways, and when no living part's lowest voxel is above its highest.
+  Both are read off `Attachment` and `half_extent`. `Yaw` turns about `y`, so a
+  part's height is the plain sum of the `y` offsets up its chain and the whole
+  reading is one forward pass in document order. `consumer_armoured` wears ten
+  plates, performs `Process::Fix`, and reads **Consumer**; the three producers
+  and every drawn fronded stretch still read Producer.
+  `organism/kingdom.rs::canopy`.
+
+- **2026-08-31 (DC4): the `Mass` and `Plate` banks are full at four, `Sensor`
+  can only ever hold two, and the roster fits.** DC1 left `PALETTE_SHAPES` as
+  Mark's budget question. Measured rather than guessed: the eight archetypes
+  spend **4 of 4 `Mass`** (`[2,2,2]`, `[2,1,1]`, `[2,2,1]`, `[2,1,0]`), **4 of
+  4 `Plate`** (`[4,4,1]`, `[3,3,0]`, `[4,0,4]`, `[0,4,4]`), **2 of 4 `Limb`**
+  (`[4,1,1]` as the jaw, `[3,1,1]` as the leg) and **2 of 4 `Sensor`**. The
+  `Sensor` spare is unspendable: the §2.3 build-price guard admits exactly
+  `[1,1,1]` and `[0,0,0]` and refuses every other shape that classifies as one,
+  so two is the whole vocabulary. The `Limb` spare is real but small — at a 3x3
+  cross-section the guard admits only `[3,1,1]` and `[4,1,1]`, and anything
+  longer has to be thicker. **The budget was not raised**; a ninth archetype
+  wanting a new bulk or leaf shape is what would raise it.
+
+- **2026-08-31 (DC4): the absence guard had to widen twice, and both widenings
+  are the same argument.** DC1.5 stopped `Soma::develop` taking a mouth. DC4
+  had to stop it taking a **lit plate** — a plant realized at one leafing
+  segment loses its whole canopy and is born a decomposer — and then a
+  **feeler**, because a line with one sensory stretch bears a blind founder
+  about one birth in twelve, which is TD11's defect reintroduced by lottery.
+  The rule that fell out is cleaner than the patches: **absence may take limbs,
+  vanes and covering, and nothing a body's kingdom or its senses are read
+  off.** Armour is variation; a leaf and an eye are not. Two archetypes also
+  had to be reshaped around the same hazard rather than guarded — the crust's
+  holdfasts went from two segments to three (at variance 1 a stretch of two can
+  realize as one and then lose it) and the armoured form's two single-segment
+  leg stretches became one of two, because absence is drawn per stretch and
+  both can come up short. `axis.rs::Soma::develop`,
+  `archetype::tests::development_cannot_blind_or_strand_a_fauna_archetype`.
+
+- **2026-08-31 (DC4): the archetype-bodied played critter is a five-column
+  walker and can no longer use the carve-a-doorway move.** `WalkerShape`
+  derives a passage radius from the body's shorter horizontal extent, and the
+  browser's leg pairs make that sixteen voxels — radius 2, a 5x5 footprint. A
+  radius-2 body cannot *stand* beside a two-high face at all, because the face
+  is inside its own footprint, so no carve can open a door for it: the world's
+  own terrain offers no such stance in 129 x 129 columns. The fixture
+  (`world::tests::a_carve_opens_a_grounded_step_and_replays`) now drives a
+  standard walker on purpose. This is a gameplay consequence of the ruling,
+  not a defect in carving, and it is worth a look before the roster ships:
+  either the played body is smaller than the roster's, or a carve widens with
+  the body that asks for it.
+
+- **2026-08-31 (DC4): a developed body's segments overlap by one voxel plane,
+  and the mesh path has never been asked about it.** `develop_body` places a
+  child segment at `parent_half + own_half`, and a part of half-extent `h`
+  spans `2h + 1` voxels, so consecutive segments share exactly one plane. The
+  capsule projection does not care; `mesocosm_mesh::flatten` does, and loses a
+  voxel per joint. It only surfaced now because the played critter used to
+  found with a handful of parts and now founds with thirty-three
+  (`genet::fixture::tests::parts_never_land_on_top_of_each_other`). Pre-existing
+  and untouched; the fixture starts from a single root instead.
 
 - **2026-08-31 (DC3): the vanish is confirmed, on a live body, by
   counterfactual.** §3.2 called it a candidate. A headed run grew the played
@@ -966,6 +1106,252 @@ recipe depends on which anatomy makes it what it is.
   into a fixing part. `growth.rs`, `world/act.rs::land`, `chronicle.rs`.
 
 ## Progress
+
+- **2026-08-31 (DC4): the eight archetypes, and the Isometry bar.** Landed
+  against §6's DC4 done-conditions and both of the 2026-08-31 rulings. **The
+  last done-condition is Mark's and no test supplies it**; the captures are
+  below and read honestly.
+
+  **The position rule, as implemented.** `Kingdom::of_body` asked
+  `body.performs(Process::Fix)`; it now asks `body.canopy()`
+  (`organism/kingdom.rs`), and the whole rule is stated in one block there:
+
+  > A plate is in a **canopy position** when (1) it is hung above what it grows
+  > from — its attachment offset has a positive `y` and no larger component on
+  > the lateral axis — and (2) nothing on the body stands over it: no living
+  > part's lowest voxel is higher than this plate's highest. The body fixes when
+  > it holds at least one such plate.
+
+  The axial component of the offset is deliberately not compared, because along
+  the axis is *where on a segment* an appendage sits — a slot — rather than
+  which way it faces; a mat's pads sit at `[0, +2, ±4]` and are canopy. `Yaw`
+  turns about `y`, so a part's height is the sum of the `y` offsets up its
+  chain and one forward pass in document order resolves every one of them; the
+  reading short-circuits on `performs(Fix)` first, so a body with no plate pays
+  what it always paid. Development learned to hang a plate two ways:
+  `ARMOUR_SHAPE` is `JAW_SHAPE`'s trick one bank over, so a plate selector at
+  or above it is worn as a **mirrored flank pair** instead of held above, and
+  `Appendage::covers` is the one predicate that says so. Nothing new is stored
+  on a part, so a grown or grafted plate reads the same way as a developed one.
+
+  **The eight recipes.** Palette, tagmata, and what the world reads off each.
+  `Mass` shapes: block `[2,2,2]`, slim `[2,1,1]`, broad `[2,2,1]`, crop
+  `[2,1,0]`. `Plate`: frond `[4,4,1]`, blade `[3,3,0]`, pad `[4,0,4]`, shell
+  `[0,4,4]`. `Limb`: jaw `[4,1,1]`, leg `[3,1,1]`. `Sensor`: eye `[1,1,1]`,
+  speck `[0,0,0]`.
+
+  | archetype | tagmata | parts | shapes it uses | reads as, and why |
+  | --- | ---: | ---: | --- | --- |
+  | `producer_mat` | 2 | 41 | block; pad x2 per segment | Producer — 26 pads held above their tiles |
+  | `producer_shrub` | 3 | 41 | block, slim; frond, blade | Producer — 8 fronds and 16 blades, all lit |
+  | `producer_stalk` | 3 | 26 | block; frond | Producer — a crown of 6 fronds on a 17-segment runner |
+  | `consumer_browser` | 8 | 33 | slim, broad, block, crop; leg; eye, speck | Consumer / Grazer — a `Mass` crop under the head |
+  | `consumer_pursuit` | 6 | 30 | slim, block; jaw, leg; eye | Consumer / **Predator** — the mouth is drawn from the `Limb` bank |
+  | `consumer_armoured` | 5 | 29 | slim, broad, block, crop; shell (covering), leg; eye | Consumer / Grazer — 10 plates, **none of them lit** |
+  | `decomposer_crust` | 3 | 36 | broad, crop; pad (covering), leg; eye | Decomposer — no mouth, and its pads lie beside it |
+  | `decomposer_detritivore` | 5 | 31 | slim, block; leg; eye, speck | Decomposer — nothing hangs under its head |
+
+  **Senses, as chosen.** Every fauna archetype carries working eyes (span > 0)
+  and something that contracts; **the three producers carry neither**, which
+  keeps their build multiple at exactly 1 and is what §2.4 says makes a stand
+  free. The crust is *not* sightless — a decomposer that could not tell where
+  the dead were would be scenery — and its contractile parts are holdfast
+  threads rather than legs, which is also what the drawn decomposer tier has
+  always had.
+
+  **The economy, measured off developed bodies.**
+
+  | archetype | parts | ceiling mg | actuator | sensor | build | rent | bite | sight | gate |
+  | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+  | `producer_mat` | 41 | 3,164 | 0 | 0 | 1.00 | 7 | 40 | 8 | 1,044 |
+  | `producer_shrub` | 41 | 3,364 | 0 | 0 | 1.00 | 8 | 42 | 8 | 1,110 |
+  | `producer_stalk` | 26 | 3,164 | 0 | 0 | 1.00 | 7 | 40 | 8 | 1,044 |
+  | `consumer_browser` | 33 | 1,284 | 18 | 2 | 2.40 | 9 | 49 | 9 | 423 |
+  | `consumer_pursuit` | 30 | 1,610 | 22 | 2 | 2.37 | 10 | 57 | 8 | 531 |
+  | `consumer_armoured` | 29 | 1,694 | 12 | 2 | 1.71 | 8 | 43 | 8 | 559 |
+  | `decomposer_crust` | 36 | 1,558 | 18 | 2 | 2.16 | 9 | 51 | 9 | 514 |
+  | `decomposer_detritivore` | 31 | 1,384 | 24 | 2 | 2.73 | 10 | 59 | 9 | 456 |
+
+  Every build multiple sits between 1.00 and 2.73, well inside the band TD7
+  tuned (its stated ceiling is ~7x and is a property of the palette). **The
+  browser's DC2 column is unmoved**, asserted as its own test. And §2.3's real
+  demand — *conserve total voxel volume per tier* — is asserted rather than
+  eyeballed: `the_roster_conserves_each_tiers_scale` measures the transitional
+  draw's own mean adult mass per tier and holds the roster within a fifth of
+  it (producers 3,231 against the draw's 3,238; consumers 1,529 against 1,547;
+  decomposers 1,471 against 1,438). The first cut of the roster was **2.7x
+  under** on producers, which would have written TD6's inverted pyramid back
+  into the body plans; the test is what caught it.
+
+  **Founding.** `Founding` became the per-tier set DC2's residue asked for: a
+  variant names, per kingdom, the list of authored bodies that tier founds, and
+  an empty list means it still draws. `Founding::Roster` is now the **default**,
+  so `World::new` — the shipping enclosure — founds eight non-played lineages
+  instead of three. Species ids are laid out as consecutive blocks in the same
+  shuffled tier order the TD2b floor already used, and within a tier the
+  archetypes take turns, so every archetype founds in every seed and the tier
+  splits evenly without spending a draw on it: **204/203/203 producers,
+  77/76/76 consumers, 39/38 decomposers**. The pyramid (610/229/77) and the
+  kingdom floor hold as tests. The played critter takes the first body of the
+  consumer tier — §5's open question answered provisionally, not ruled.
+
+  **The census, and it is a test.**
+  `world::genesis::tests::every_founded_fauna_body_senses_and_contracts` asserts
+  that every founded body that is not a producer — 229 consumers, 77
+  decomposers and the played critter, **307 a seed** — performs `Sense` with a
+  non-zero sensor span *and* performs `Contract`, over seeds 1-10. **3,070 of
+  3,070**, against TD11's 307 of 3,070. A sibling test in `axis::archetype`
+  holds the same claim over 4,096 development seeds per archetype, because a
+  one-in-a-hundred-and-forty-four founder is what a ten-seed world finds and a
+  bench test misses.
+
+  **The instrument, six arms, ten seeds each.**
+
+  | arm | founding | breathes | thins | boil | collapse |
+  | --- | --- | ---: | ---: | ---: | ---: |
+  | baseline | every tier draws (DC1.5's founding) | 0 | 10 | 0 | 0 |
+  | archetype | consumer tier founds the browser alone (DC2) | 0 | 6 | 0 | 4 |
+  | **roster** | **all eight archetypes (DC4, and what ships)** | **0** | **2** | **0** | **8** |
+  | stand only | producers authored, fauna drawn | 0 | 10 | 0 | 0 |
+  | fauna only | consumers and decomposers authored, stand drawn | 0 | 2 | 0 | 8 |
+  | control | one founder, no producer | — | — | — | 5 of 5 |
+
+  Matter conserved to the milligram in every sample of every run, zero escapees,
+  control all collapse. Per-kingdom end states (P/C/D at the horizon, by seed):
+
+  ```text
+  baseline  1:1288/0/62  2:180/65/0  3:1534/0/64  4:1140/0/48  5:1333/0/89
+            6:1403/0/40  7:1402/0/45  8:1354/0/161 9:1439/0/0   10:1427/0/42
+  archetype 1:126/20/0   2:696/0/0    3:576/0/0    4:0/1/7      5:0/1/0
+            6:339/10/0   7:212/4/0    8:1213/0/0   9:1/1/12     10:1/15/0
+  roster    1:722/7/0    2:0/3/0      3:4/12/0     4:0/11/0     5:0/12/0
+            6:2/3/11     7:430/0/0    8:0/1/0      9:0/3/0      10:0/6/2
+  stand     1:1493/0/26  2:1528/0/76  3:1489/0/65  4:1384/0/85  5:1533/0/103
+            6:1567/0/79  7:1481/0/40  8:1494/0/80  9:1337/0/0   10:1328/0/0
+  fauna     1:438/0/0    2:0/5/3      3:1/4/2      4:0/18/0     5:0/16/2
+            6:3/10/0     7:372/1/0    8:11/2/0     9:1/4/9      10:0/16/1
+  ```
+
+  **Does the pursuit form land as DC2's finding predicted? No.** DC2 read the
+  browser-alone arm's four collapses as "a tier is one interbreeding species, so
+  install three", and installing three makes it eight. The two diagnostic arms
+  say why the prediction missed: the trouble was never that the tier held one
+  reading, it is that **an authored animal is a capable animal** and a world of
+  306 seeing, walking, feeding fauna outstrips its stand. The stand-only arm
+  proves the producers are innocent — better than the draw, in fact — and the
+  fauna-only arm reproduces the roster exactly. The archetype arm's own numbers
+  also moved a seed from *breathes* to *thins* against DC2's recorded 1/5/0/4,
+  because the absence guard widened underneath it; reported rather than
+  absorbed.
+
+  **Receipts.** `cargo test -p mesocosm-core --test matter --release` green (5
+  tests, 51 s). `cargo test --workspace` green (567 tests, mesocosm-lens at
+  `--test-threads=1`), `clippy --workspace --all-targets -D warnings` clean,
+  `cargo fmt --all --check` clean, `cargo check -p paredros-room --features
+  r1-proof` clean. **No `REFERENCE_*` or `*_BASE` constant was touched.** Demo
+  fixture re-recorded — same 120 intents, hash `86af868ebb97e90b` ->
+  **`2295790889f3ccd5`**; `--replay` at the default path exits **0** and
+  reports the match, and a trace with one bit flipped in its recorded hash
+  exits **1**.
+
+  **The truncation key, ruled to extent.** `widest`
+  (`lens/tracer/params.rs`) orders by `radius² × (length + 2·radius)` instead
+  of the fatter endpoint radius. **The cap term is not decoration**: `|b − a|`
+  is exactly zero for every ball-shaped part, and the primitive `[2,2,2]` trunk
+  segment is a ball, so a literal `radius² × length` would rank every trunk
+  segment below every sliver. Two tests: a long thin frond outranks a short fat
+  bead, and a ball still ranks by its radius. The capture pair is one seed and
+  one frame of the shipping founding (`dc4_truncation_before.png` /
+  `dc4_truncation_after.png`, 28 roster members, 640 capsules past the budget):
+  **18,311 pixels of 2,073,600 differ, 0.9%**. The change is real and small,
+  and the reason it is small is worth saying: the DC3-era complaint was a
+  producer stand of `[4,4,1]` fronds against `[2,2,2]` root masses, and DC3's
+  own capsule radius rule already separates those two (2.5 against 2.0). Where
+  extent still decides is `producer_mat`, whose pads and segments **tie at
+  radius 2.0** and split 32 to 16 on extent — so the mats keep their leaves
+  instead of their root chain. On this frame that is a handful of bodies.
+
+  **What the captures actually show, honestly.** All at the ruled framing —
+  an orthographic slab of half-height 28 over the grown enclosure — and the
+  first thing to say is the finding above: the section looks along `-z` and a
+  body's segments chain along `+z`, so *the game's own camera draws every
+  critter end-on*. `dc4_<name>_axial.png` is that cut and it is uniformly
+  useless: the browser is a green blob with two side stubs. The eight
+  `dc4_<name>.png` are the same slab turned a quarter, which is the only cut
+  that shows a body plan, and `dc4_roster.png` is a contact sheet of those
+  eight.
+
+  - `producer_mat` — a row of fifteen round beads with one continuous flat
+    green slab lying over them. It reads as a low hedge or a mossy log; the
+    twenty-six pads merge into a single surface rather than reading as leaves.
+    Closest of the three to its brief.
+  - `producer_shrub` — two runs of upright green pills over a row of beads,
+    eight big and sixteen small. **The most plant-like body in the roster**:
+    the two leaf sizes read as two kinds of foliage on one plant.
+  - `producer_stalk` — a seventeen-bead chain lying on the ground with a single
+    box-shaped crown floating over one end. Not a stalk. This is the
+    no-vertical-axis finding, seen.
+  - `consumer_browser` — a fine bead chain, thicker in the middle, with two
+    ringed circles at the head. A caterpillar. DC2's verdict stands.
+  - `consumer_pursuit` — a bead chain with five big balls at the shoulder, two
+    ringed circles (the leg pairs, end-on) and a small blob under the head that
+    is the jaw. Reads as a fatter caterpillar; the jaw does not read as a jaw.
+  - `consumer_armoured` — **the one that reads.** A small head with two ringed
+    eyes, a stubby tail, and the ten flank shells fused into one long smooth
+    carapace bar. It reads as an armoured slug or a woodlouse, and it is the
+    body the position rule exists for.
+  - `decomposer_crust` — broadside it is almost nothing: its skirts are lateral
+    and point at the camera. Its *axial* cut is the good one — a round head
+    between two big lobes, which reads oddly like a small face.
+  - `decomposer_detritivore` — a long bead chain with **four** ringed balls in a
+    row where its leg segments are. The rings are the only thing separating it
+    from the browser at this framing, and they are the legs seen end-on rather
+    than anything the body was authored to show.
+
+  And `dc4_enclosure.png`, the living world at the ruled framing, twelve frames
+  in, 40 roster members and 1,003 capsules past the budget: a band of tall
+  green columns over low domes and pale lumps, denser and more varied than any
+  earlier capture in this plan, with real vertical structure in the stand.
+  Nothing in it is a critter yet. **The honest summary: the roster is a real
+  bestiary in the data and a field of smooth blobs on screen, and the three
+  things standing between them are all presentation — the axis the section
+  looks down, one tint per body (DC5), and a capsule projection that cannot
+  represent a slab (DC3's own finding).**
+
+  **Split, per the ceiling.** `population_instrument.rs` was 598 and is now a
+  directory: `main.rs` 280, `measure.rs` 279, `receipt.rs` 136.
+  `axis/archetype.rs` is 407 with its tests in `archetype/tests.rs` (401);
+  `axis.rs` 578 — the one to watch next — `development.rs` 511,
+  `organism/kingdom.rs` 409, `world/genesis.rs` 506, `genesis/tests.rs` 417.
+  `world/tests.rs` is 1,290 and was already past the ceiling before this slice.
+
+  **Outside the stated boundary, and why.** Two files beyond mesocosm-core, the
+  lens's truncation key and the fixtures had to move, both consequences rather
+  than choices. `genet::fixture::volumes` enumerated **one shape per role** and
+  so resolved four of the twelve the shipping palette now admits, which made
+  `mesh_body` fail on the first archetype body; it reads
+  `Founding::default().palette()` and every admitted shape now, so the table
+  cannot fall behind the core again. And `mesocosm-lens/examples/dc4_roster.rs`
+  is new — the archetype receipts needed the section's own orthographic slab,
+  which the `menagerie` example's perspective camera cannot give.
+
+  **Left for Mark.** Five, in rough order of how much they cost.
+
+  1. **The section's axis.** Every body is drawn end-on at the ruled framing.
+     Cheapest legibility left, presentation only, and it is what stands between
+     these captures and the bar. Findings, DC4.
+  2. **The roster's ecology.** Eight collapses in ten, and the diagnostic arms
+     put it entirely in the authored fauna. The fix is a constant or a body and
+     the stop rule forbids the first, so it is yours.
+  3. **Colour**, DC5 and §3.3, unchanged.
+  4. **DC-R3**, unchanged and still §3.3's ruling.
+  5. **Names**, §4.2 and §7's question 7 — eight role-descriptive identifiers
+     now exist and none of them is a name.
+
+  And two smaller ones this slice answered provisionally rather than ruled: the
+  played critter takes the consumer tier's first body (§5), and the crust is
+  the one archetype that stretched its brief — it is a *creeping* crust, with
+  eyes and holdfast threads, because the census admits no sightless fauna.
 
 - **2026-08-31 (DC3): the render budget, and the radius rule with it.** Landed
   against §6's DC3 done-conditions. DC-R1 and DC-R2 from §3.3; **DC-R3 is

@@ -204,6 +204,114 @@ fn ages_are_staggered_across_the_founders_own_lifespan() {
     assert_eq!(played.age, 0, "the played critter did not start a newborn");
 }
 
+// **The DC4 roster.** Eight authored lineages replace the three drawn tiers,
+// and the three guarantees §5 promised to keep have to survive it: the pyramid,
+// the kingdom floor, and one species per silhouette.
+
+#[test]
+fn every_seed_founds_all_eight_lineages() {
+    for seed in 1u64..=10 {
+        let world = World::new(seed, FOUNDERS);
+        let mut census: BTreeMap<SpeciesId, (Kingdom, u32)> = BTreeMap::new();
+        for organism in &world.organisms {
+            if organism.species == SpeciesId(1) {
+                continue;
+            }
+            let entry = census
+                .entry(organism.species)
+                .or_insert((organism.kingdom(), 0));
+            assert_eq!(entry.0, organism.kingdom(), "seed {seed}: a split lineage");
+            entry.1 += 1;
+        }
+        assert_eq!(census.len(), 8, "seed {seed} founded {census:?}");
+        assert!(
+            census.values().all(|(_, count)| *count > 0),
+            "seed {seed}: an empty lineage in {census:?}"
+        );
+        // Round-robin within a tier, so 610 producers split three ways, 229
+        // consumers three ways and 77 decomposers two — no draw spent on it.
+        let mut split: BTreeMap<Kingdom, Vec<u32>> = BTreeMap::new();
+        for (kingdom, count) in census.into_values() {
+            split.entry(kingdom).or_default().push(count);
+        }
+        for counts in split.values_mut() {
+            counts.sort_unstable();
+        }
+        assert_eq!(
+            split[&Kingdom::Producer],
+            vec![203, 203, 204],
+            "seed {seed}"
+        );
+        assert_eq!(split[&Kingdom::Consumer], vec![76, 76, 77], "seed {seed}");
+        assert_eq!(split[&Kingdom::Decomposer], vec![38, 39], "seed {seed}");
+    }
+}
+
+// **TD11's census, run again.** Its finding was that sense organs landed per
+// *tier*, so five of ten seeds founded a world where not one body could see and
+// 307 of 3,070 founding fauna had a sensor at all. The ruling this plan was
+// founded on presumes senses; this is that presumption, asserted.
+//
+// Fauna is every founded body that is not a producer, the played critter
+// included: 229 consumers + 77 decomposers + 1 = **307 a seed**.
+#[test]
+fn every_founded_fauna_body_senses_and_contracts() {
+    let mut fauna = 0u32;
+    for seed in 1u64..=10 {
+        let mut per_seed = 0;
+        for organism in &World::new(seed, FOUNDERS).organisms {
+            if organism.kingdom() == Kingdom::Producer {
+                continue;
+            }
+            per_seed += 1;
+            assert!(
+                organism.body.performs(crate::process::Process::Sense),
+                "seed {seed}: founder {:?} has no sense organ",
+                organism.id
+            );
+            assert!(
+                organism.sensor_span() > 0,
+                "seed {seed}: founder {:?} carries only specks and sees nothing",
+                organism.id
+            );
+            assert!(
+                organism.body.performs(crate::process::Process::Contract),
+                "seed {seed}: founder {:?} cannot move itself",
+                organism.id
+            );
+        }
+        assert_eq!(per_seed, 307, "seed {seed} founded {per_seed} fauna");
+        fauna += per_seed;
+    }
+    assert_eq!(fauna, 3_070);
+}
+
+// Both consumer readings and the armoured body's, founded rather than benched.
+// The armoured opportunist is the one the position rule exists for: it wears
+// eight plates, every one of them performs `Process::Fix`, and it reads
+// Consumer because none of them is held up to the light.
+#[test]
+fn the_roster_founds_a_predator_beside_the_grazers_and_an_armoured_body() {
+    use crate::process::{FeedingMode, Process};
+    let world = World::new(1, FOUNDERS);
+    let mut modes: BTreeMap<FeedingMode, u32> = BTreeMap::new();
+    let mut armoured = 0;
+    for organism in &world.organisms {
+        *modes.entry(organism.feeding_mode()).or_default() += 1;
+        if organism.kingdom() != Kingdom::Producer && organism.body.performs(Process::Fix) {
+            armoured += 1;
+            assert!(!organism.body.canopy(), "founder {:?} is lit", organism.id);
+        }
+    }
+    assert!(modes[&FeedingMode::Predator] > 0, "no pursuit form founded");
+    assert!(modes[&FeedingMode::Grazer] > 0);
+    assert!(modes[&FeedingMode::Scavenger] > 0);
+    assert!(modes[&FeedingMode::Producer] > 0);
+    // 77 armoured consumers and 39 crusts wearing skirts, less the handful a
+    // developmental absence stripped a plate pair from — armour is variation.
+    assert!((100..=116).contains(&armoured), "{armoured} plated fauna");
+}
+
 // **The DC2 arm.** The consumer tier founds from the authored browsing
 // hexapod; the other two still draw. Three things have to hold at once for the
 // arm to be isolable and for the archetype to be the creature it was authored
@@ -276,7 +384,8 @@ fn a_founded_archetype_reads_the_carving_b_column() {
 #[test]
 fn the_arm_leaves_the_other_two_tiers_alone() {
     for seed in 1u64..=10 {
-        let drawn = World::new(seed, FOUNDERS);
+        let drawn = World::founded(seed, FOUNDERS, Founding::Drawn)
+            .expect("the primitive palette is admissible");
         let armed = World::founded(seed, FOUNDERS, Founding::BrowsingConsumer)
             .expect("the archetype palette is admissible");
         let consumer_species: BTreeMap<SpeciesId, ()> = drawn

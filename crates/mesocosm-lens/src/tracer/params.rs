@@ -114,12 +114,12 @@ impl CritterParams {
 
 impl RosterPose {
     /// Capsules past [`crate::MAX_ROSTER_CAPSULES`] are dropped rather than
-    /// refused, and the ones kept are the **widest**.
+    /// refused, and the ones kept are the **largest by extent**.
     ///
     /// Document order is the axial chain from the root outward, so taking the
     /// first N kept a body's head end rather than its silhouette — and a
     /// silhouette is the whole job of a background member. Ties keep the
-    /// earlier capsule, so the choice is deterministic at equal radius.
+    /// earlier capsule, so the choice is deterministic at equal extent.
     pub(super) fn from_pose(pose: &CritterPose) -> Self {
         let mut pairs = [[0.0; 4]; MAX_ROSTER_CAPSULES * 2];
         let count = pose.capsules.len().min(MAX_ROSTER_CAPSULES);
@@ -141,16 +141,28 @@ impl RosterPose {
     }
 }
 
-/// Indices of the [`MAX_ROSTER_CAPSULES`] widest capsules, back in document
-/// order so the upload is stable. The common case is a body inside the budget,
-/// which costs one comparison and no allocation.
+/// Indices of the [`MAX_ROSTER_CAPSULES`] largest capsules by **extent**, back
+/// in document order so the upload is stable. The common case is a body inside
+/// the budget, which costs one comparison and no allocation.
+///
+/// **Extent, not radius** (ruled 2026-08-31). DC3 ordered by the fatter
+/// endpoint radius, and on a stand of producers that kept the round root
+/// masses and dropped the tall thin fronds — silhouette *area* delivered,
+/// silhouette *reading* not. `radius² × length` is the capsule's own volume up
+/// to a constant, so a long thin frond outranks a small fat bead. The length is
+/// the capsule's, cap to cap: `|b − a|` alone is **zero** for every ball-shaped
+/// part, and the primitive `[2,2,2]` trunk segment is a ball.
 fn widest(capsules: &[crate::critter::Capsule]) -> Vec<usize> {
     let mut order: Vec<usize> = (0..capsules.len()).collect();
     if order.len() > MAX_ROSTER_CAPSULES {
-        // Radius is per-endpoint; a capsule's contribution to a silhouette is
-        // its fatter end.
-        let girth = |index: &usize| capsules[*index].ra.max(capsules[*index].rb);
-        order.sort_by(|a, b| girth(b).total_cmp(&girth(a)).then(a.cmp(b)));
+        let extent = |index: &usize| {
+            let capsule = &capsules[*index];
+            let radius = capsule.ra.max(capsule.rb);
+            let axis = [0, 1, 2].map(|k| capsule.b[k] - capsule.a[k]);
+            let length = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+            radius * radius * (length + 2.0 * radius)
+        };
+        order.sort_by(|a, b| extent(b).total_cmp(&extent(a)).then(a.cmp(b)));
         order.truncate(MAX_ROSTER_CAPSULES);
         order.sort_unstable();
     }
@@ -203,6 +215,73 @@ pub(super) fn validates_change(input: BrickFrameInput<'_>) -> Result<(), BrickTr
 mod tests {
     use super::*;
     use crate::critter::Capsule;
+
+    /// A frond against a bead: the case the extent key was ruled for.
+    ///
+    /// The DC3 finding was that ordering by radius alone keeps a producer's
+    /// round root masses and drops its tall thin fronds. A capsule twice as
+    /// long at three quarters the radius has the larger extent and has to win.
+    #[test]
+    fn a_long_thin_capsule_outranks_a_short_fat_one() {
+        let bead = |index: usize| Capsule {
+            a: [index as f32, 0.0, 0.0],
+            ra: 1.0,
+            b: [index as f32, 0.2, 0.0],
+            rb: 1.0,
+        };
+        let frond = |index: usize| Capsule {
+            a: [index as f32, 0.0, 0.0],
+            ra: 0.75,
+            b: [index as f32, 6.0, 0.0],
+            rb: 0.75,
+        };
+        // Beads first in document order, so only the key can save the fronds.
+        let capsules: Vec<Capsule> = (0..MAX_ROSTER_CAPSULES)
+            .map(bead)
+            .chain((MAX_ROSTER_CAPSULES..MAX_ROSTER_CAPSULES * 2).map(frond))
+            .collect();
+        let pose = CritterPose::from_capsules(capsules, [[0.0; 4]; 2], [0.0; 3]);
+        let uploaded = RosterPose::from_pose(&pose);
+        for index in 0..MAX_ROSTER_CAPSULES {
+            assert_eq!(
+                uploaded.pairs[index * 2][3],
+                0.75,
+                "capsule {index} is a frond"
+            );
+        }
+    }
+
+    /// And a ball is not free: `|b - a|` is zero for the primitive `[2,2,2]`
+    /// segment, so the length the key reads has to be the capsule's own, cap to
+    /// cap, or every trunk segment would rank below every sliver.
+    #[test]
+    fn a_ball_shaped_capsule_still_ranks_by_its_radius() {
+        let ball = |index: usize| Capsule {
+            a: [index as f32, 0.0, 0.0],
+            ra: 2.0,
+            b: [index as f32, 0.0, 0.0],
+            rb: 2.0,
+        };
+        let sliver = |index: usize| Capsule {
+            a: [index as f32, 0.0, 0.0],
+            ra: 0.5,
+            b: [index as f32, 8.0, 0.0],
+            rb: 0.5,
+        };
+        let capsules: Vec<Capsule> = (0..MAX_ROSTER_CAPSULES)
+            .map(sliver)
+            .chain((MAX_ROSTER_CAPSULES..MAX_ROSTER_CAPSULES * 2).map(ball))
+            .collect();
+        let pose = CritterPose::from_capsules(capsules, [[0.0; 4]; 2], [0.0; 3]);
+        let uploaded = RosterPose::from_pose(&pose);
+        for index in 0..MAX_ROSTER_CAPSULES {
+            assert_eq!(
+                uploaded.pairs[index * 2][3],
+                2.0,
+                "capsule {index} is a ball"
+            );
+        }
+    }
 
     /// DC-R1, read off the uniform: the budget goes to the silhouette.
     ///

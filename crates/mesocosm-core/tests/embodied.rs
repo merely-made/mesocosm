@@ -32,6 +32,33 @@ fn starve(world: &mut World) {
         .energy_mg = 0;
 }
 
+/// A world whose played critter is a plain bulk root with a cropping mouth.
+///
+/// **DC4 moved the starting body.** The played critter founds from an archetype
+/// now — six legs, a crop and two eyes — so `World::new`'s critter is already an
+/// actuator and cannot show what growing one does. These tests are about
+/// anatomy deciding capability, so they put the body the claim is about in
+/// front of it rather than relying on what worldgen happens to hand them.
+fn bulk_world(seed: u64, founders: u32) -> World {
+    let mut world = World::new(seed, founders);
+    let me = world.controlled_id().expect("embodied");
+    let organism = world.organisms.iter_mut().find(|o| o.id == me).unwrap();
+    let (species, position) = (organism.species, organism.position);
+    *organism = mesocosm_core::Organism {
+        stage: mesocosm_core::Stage::Mature,
+        ..mesocosm_core::Organism::founding(
+            me,
+            species,
+            mesocosm_core::Kingdom::Consumer,
+            VolumeRef::from_tag(1),
+            [2, 2, 2],
+            position,
+            1_500,
+        )
+    };
+    world
+}
+
 /// Gives the played critter a long limb along `+x`, and returns its id.
 fn grow_a_limb(world: &mut World) -> mesocosm_core::PartId {
     let me = world.controlled_id().expect("embodied");
@@ -57,7 +84,7 @@ fn grow_a_limb(world: &mut World) -> mesocosm_core::PartId {
 #[test]
 fn a_bare_critter_reaches_less_than_a_limbed_one() {
     // The headline. Same world, same seed, different anatomy, different reach.
-    let bare = World::new(4_242, 24);
+    let bare = bulk_world(4_242, 24);
     let mut limbed = bare.clone();
     grow_a_limb(&mut limbed);
 
@@ -89,7 +116,7 @@ fn a_limb_makes_something_edible_that_was_not() {
     // The consequence in gameplay rather than in a fold: a meal just out of
     // range becomes reachable because the body changed, and for no other
     // reason.
-    let mut bare = World::new(4_242, 24);
+    let mut bare = bulk_world(4_242, 24);
     let here = bare.position().unwrap();
 
     // A morsel placed just beyond bulk reach and within a limb's.
@@ -140,7 +167,7 @@ fn a_limb_makes_something_edible_that_was_not() {
 fn severing_the_limb_removes_the_ability_it_provided() {
     // The other direction, and the reason the cascade ruling matters: a
     // capability that came from anatomy leaves with it.
-    let mut world = World::new(4_242, 24);
+    let mut world = bulk_world(4_242, 24);
     let limb = grow_a_limb(&mut world);
     let reached = world.reach();
 
@@ -161,7 +188,7 @@ fn severing_the_limb_removes_the_ability_it_provided() {
 fn a_refusal_says_which_embodied_requirement_failed() {
     // "Too far" and "you have no arm" are different problems, and a receipt
     // that only says OutOfReach cannot tell a player which one they have.
-    let mut world = World::new(4_242, 24);
+    let mut world = bulk_world(4_242, 24);
     let here = world.position().unwrap();
     let far = [here[0] + 500, here[1], here[2]];
 
@@ -210,7 +237,7 @@ fn a_refusal_says_which_embodied_requirement_failed() {
 fn processes_are_read_from_shape_and_not_stored() {
     // The anti-Spore property. There is no field granting a part an ability,
     // so a part cannot have one its shape does not imply.
-    let mut world = World::new(4_242, 24);
+    let mut world = bulk_world(4_242, 24);
     let body = world.body().unwrap();
 
     assert!(
@@ -305,16 +332,21 @@ fn a_body_and_its_weight_are_one_account() {
     let mut world = World::new(4_242, 24);
     let me = world.controlled_id().unwrap();
     let before = world.controlled().unwrap().biomass_mg();
+    // Growth is determinate, so the gain is taken out of the body's own
+    // headroom rather than a literal: an archetype-bodied critter has an adult
+    // mass and a test that asks for more than it gets a capped answer.
+    let room = (world.controlled().unwrap().mass_ceiling_mg() - before).min(500);
+    assert!(room > 0, "the starting body has room to grow");
 
     world
         .organisms
         .iter_mut()
         .find(|o| o.id == me)
         .unwrap()
-        .gain_mass(500);
+        .gain_mass(room);
 
     let after = world.controlled().unwrap();
-    assert_eq!(after.biomass_mg(), before + 500);
+    assert_eq!(after.biomass_mg(), before + room);
     assert_eq!(
         after.biomass_mg(),
         after.body.total_mass_mg(),

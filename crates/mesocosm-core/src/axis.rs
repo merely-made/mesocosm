@@ -63,6 +63,16 @@ use crate::rng::Rng;
 /// cannot overlap when the palette widens.
 pub const JAW_SHAPE: u8 = PALETTE_SHAPES as u8;
 
+/// The plate selector at which a plate stops being a frond and becomes
+/// covering.
+///
+/// The same trick as [`JAW_SHAPE`], one bank over: selectors `0..ARMOUR_SHAPE`
+/// hang a plate **above** its segment, where light reaches it, and
+/// `ARMOUR_SHAPE..` wear it as a mirrored pair on the segment's **flanks**,
+/// where nothing does. A recipe carries selectors and nothing else, so this is
+/// how an archetype says which of the two a stretch grows. (DC4)
+pub const ARMOUR_SHAPE: u8 = PALETTE_SHAPES as u8;
+
 /// What a stretch of segments grows.
 ///
 /// Deliberately the same vocabulary the parts graph already speaks: an
@@ -118,8 +128,21 @@ impl Appendage {
     pub fn shape_index(self, shape: u8) -> u8 {
         match self {
             Appendage::Mouth => shape % JAW_SHAPE,
+            Appendage::Plate => shape % ARMOUR_SHAPE,
             _ => shape,
         }
+    }
+
+    /// Whether this appendage, at this selector, is worn against the body
+    /// rather than held out from it.
+    ///
+    /// Only a plate can be: everything else has one position. See
+    /// [`ARMOUR_SHAPE`], and [`BodyDocument::canopy`] for what the position
+    /// then means.
+    ///
+    /// [`BodyDocument::canopy`]: crate::body::BodyDocument::canopy
+    pub fn covers(self, shape: u8) -> bool {
+        self == Appendage::Plate && shape >= ARMOUR_SHAPE
     }
 
     /// Whether a lineage starts able to express this.
@@ -401,16 +424,30 @@ impl Soma {
         // A rare developmental absence, drawn per tagma so a long stretch is
         // likelier to lose one than a short one.
         //
-        // **Never the mouth** (DC1.5). An individual missing one limb is
-        // variation; an individual missing the organ it feeds with is a
-        // stillbirth, and since a kingdom is read off that organ it would also
-        // be an individual born into a different kingdom from its own line.
+        // **Never a feeding organ, and never a sense organ** (DC1.5, widened at
+        // DC4). An individual missing one limb is variation; an individual
+        // missing the organ it feeds with is a stillbirth, and since a kingdom
+        // is read off that organ it would also be an individual born into a
+        // different kingdom from its own line. A mouth is one such organ and a
+        // **lit** plate is the other — a plant realized at one leafing segment
+        // could otherwise lose its whole canopy and be born a decomposer.
+        //
+        // A feeler is spared for the ruling's own reason rather than the
+        // reading's: senses are *presumed*, and TD11's finding was a world of
+        // blind bodies. A line with one sensory stretch would otherwise bear a
+        // blind founder about one birth in twelve, which is the defect this
+        // plan exists to close, reintroduced by a lottery.
+        //
+        // What absence still takes is limbs, vanes and covering — a leg pair,
+        // a fin, a missing shell. Those are variation.
         let mut absent = Vec::new();
         for (index, tagma) in lineage.tagmata.iter().enumerate() {
-            if tagma.appendage == Appendage::None
-                || tagma.appendage == Appendage::Mouth
-                || tagma.per_segment == 0
-            {
+            let presumed = match tagma.appendage {
+                Appendage::Mouth | Appendage::Feeler => true,
+                Appendage::Plate => !tagma.appendage.covers(tagma.appendage_shape),
+                _ => false,
+            };
+            if tagma.appendage == Appendage::None || presumed || tagma.per_segment == 0 {
                 continue;
             }
             let realised = segments[index];

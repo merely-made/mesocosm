@@ -10,7 +10,7 @@
 //! carries content addresses and knows nothing about what a volume looks like.
 
 use mesocosm_core::{
-    Intent, OrganismId, PartPalette, Placement, Role, VolumeRef, World, world::organism_extent,
+    Founding, Intent, OrganismId, Placement, Role, VolumeRef, World, world::organism_extent,
 };
 use mesocosm_mesh::{Volume, VolumeMap};
 
@@ -22,13 +22,19 @@ pub fn volumes() -> VolumeMap {
     // keeps this table from silently falling behind the core: when the
     // palette grew a sensor, a literal list quietly stopped resolving and
     // `mesh_body` failed with `MissingVolume`.
-    let palette = PartPalette::primitive();
+    // **Every admitted shape, not every role** (DC4). A role holds up to
+    // `PALETTE_SHAPES` templates now and the shipping founding fills most of
+    // them, so taking each role's default resolved four of twelve and
+    // `mesh_body` failed with `MissingVolume` on the first archetype body.
+    // Read off the founding's own palette, so the table cannot fall behind it.
+    let palette = Founding::default().palette();
     for role in [Role::Mass, Role::Limb, Role::Plate, Role::Sensor] {
-        let template = palette.template(role);
-        let size = template.half_extent.map(|half| (half * 2).max(1) as u32);
-        // `from_tag` puts the tag in byte zero; the material is only a
-        // palette index for the placeholder look.
-        map.insert(template.volume, Volume::solid(size, template.volume.0[0]));
+        for template in palette.shapes(role).admitted() {
+            let size = template.half_extent.map(|half| (half * 2).max(1) as u32);
+            // `from_tag` puts the tag in byte zero; the material is only a
+            // palette index for the placeholder look.
+            map.insert(template.volume, Volume::solid(size, template.volume.0[0]));
+        }
     }
 
     for tag in 16..24u8 {
@@ -116,6 +122,30 @@ mod tests {
     fn parts_never_land_on_top_of_each_other() {
         let volumes = volumes();
         let mut world = World::new(2024, 80);
+        // **A compact body to grow from** (DC4). The claim is about where
+        // *incorporation* puts a part, and the played critter now founds from
+        // an archetype whose chained segments already sit flush against one
+        // another — a developed body shares one voxel plane per joint, which
+        // `flatten` cannot represent and this assertion would read as an
+        // overlap. So the fixture starts from a single root, as it effectively
+        // did when worldgen happened to draw one.
+        {
+            let me = world.controlled_id().expect("embodied");
+            let organism = world.organisms.iter_mut().find(|o| o.id == me).unwrap();
+            let (species, position) = (organism.species, organism.position);
+            *organism = mesocosm_core::Organism {
+                stage: mesocosm_core::Stage::Mature,
+                ..mesocosm_core::Organism::founding(
+                    me,
+                    species,
+                    mesocosm_core::Kingdom::Decomposer,
+                    VolumeRef::from_tag(1),
+                    [2, 2, 2],
+                    position,
+                    1_500,
+                )
+            };
+        }
 
         // Walk to prey rather than assuming it is adjacent: reach is anatomy
         // now, and a starting critter touches very little.

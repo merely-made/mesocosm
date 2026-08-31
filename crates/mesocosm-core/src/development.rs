@@ -410,7 +410,7 @@ fn part_count(recipe: &Recipe, soma: &Soma) -> Result<u32, DevelopmentError> {
             if is_absent(soma, tagma_index, segment) {
                 continue;
             }
-            let pieces = appendage_pieces(tagma.appendage, tagma.per_segment);
+            let pieces = appendage_pieces(tagma);
             count = count
                 .checked_add(pieces)
                 .ok_or(DevelopmentError::TooManyParts)?;
@@ -422,11 +422,17 @@ fn part_count(recipe: &Recipe, soma: &Soma) -> Result<u32, DevelopmentError> {
     Ok(count)
 }
 
-fn appendage_pieces(appendage: Appendage, per_segment: u8) -> u32 {
-    let count = u32::from(per_segment);
-    match appendage {
+/// How many parts one stretch's appendage assignment makes per segment.
+///
+/// Paired for anything that grows on the flanks, single for anything borne on
+/// the midline — which now includes a covering plate, since armour wraps a
+/// body from both sides the way a limb pair does.
+fn appendage_pieces(tagma: &Tagma) -> u32 {
+    let count = u32::from(tagma.per_segment);
+    match tagma.appendage {
         Appendage::None => 0,
         Appendage::Limb | Appendage::Feeler | Appendage::Vane => count * 2,
+        Appendage::Plate if tagma.appendage.covers(tagma.appendage_shape) => count * 2,
         Appendage::Plate | Appendage::Mouth => count,
     }
 }
@@ -457,66 +463,41 @@ fn attach_appendages(
         .expect("development only addresses attached segments")
         .half_extent;
 
+    // Flush against the segment's own face, on the axis this appendage is
+    // borne on: limbs and coverings on the flanks as a mirrored pair, a plate
+    // held above, a mouth borne below.
+    let flush = |axis: usize, side: i32| {
+        side * (segment_half[axis].abs() + template.half_extent[axis].abs())
+    };
+    let covers = appendage.covers(tagma.appendage_shape);
     for ordinal in 0..per_segment {
         let along = slot_offset(ordinal, per_segment, template.half_extent[2].abs());
-        match appendage {
+        let sockets: &[[i32; 3]] = &match appendage {
+            Appendage::None => continue,
             Appendage::Limb | Appendage::Feeler | Appendage::Vane => {
-                for side in [-1, 1] {
-                    let offset = [
-                        side * (segment_half[0].abs() + template.half_extent[0].abs()),
-                        0,
-                        along,
-                    ];
-                    body.attach(
-                        template.volume,
-                        mass_mg,
-                        template.half_extent,
-                        Attachment {
-                            parent: segment,
-                            offset,
-                            yaw: Yaw::Zero,
-                        },
-                        Provenance::founding(),
-                    )?;
-                }
+                vec![[flush(0, -1), 0, along], [flush(0, 1), 0, along]]
             }
-            Appendage::Plate => {
-                let offset = [
-                    0,
-                    segment_half[1].abs() + template.half_extent[1].abs(),
-                    along,
-                ];
-                body.attach(
-                    template.volume,
-                    mass_mg,
-                    template.half_extent,
-                    Attachment {
-                        parent: segment,
-                        offset,
-                        yaw: Yaw::Zero,
-                    },
-                    Provenance::founding(),
-                )?;
+            // **Where a plate hangs is what it means** (DC4). Held above the
+            // segment it is a frond in the canopy; worn on the flanks it is
+            // covering, and covering fixes nothing.
+            Appendage::Plate if covers => {
+                vec![[flush(0, -1), 0, along], [flush(0, 1), 0, along]]
             }
-            Appendage::Mouth => {
-                let offset = [
-                    0,
-                    -(segment_half[1].abs() + template.half_extent[1].abs()),
-                    along,
-                ];
-                body.attach(
-                    template.volume,
-                    mass_mg,
-                    template.half_extent,
-                    Attachment {
-                        parent: segment,
-                        offset,
-                        yaw: Yaw::Zero,
-                    },
-                    Provenance::founding(),
-                )?;
-            }
-            Appendage::None => {}
+            Appendage::Plate => vec![[0, flush(1, 1), along]],
+            Appendage::Mouth => vec![[0, flush(1, -1), along]],
+        };
+        for offset in sockets {
+            body.attach(
+                template.volume,
+                mass_mg,
+                template.half_extent,
+                Attachment {
+                    parent: segment,
+                    offset: *offset,
+                    yaw: Yaw::Zero,
+                },
+                Provenance::founding(),
+            )?;
         }
     }
     Ok(())

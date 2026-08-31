@@ -505,7 +505,7 @@ mod tests {
         // consumer — including the unlimbed consumers TD8 made sessile, who are
         // the free lunch this must not reopen.
         let world = crate::world::World::new(2, 60);
-        let (mut creeping, mut still) = (0, 0);
+        let mut creeping = 0;
         for organism in world.organisms.iter().filter(|o| o.is_alive()) {
             match organism.kingdom() {
                 Kingdom::Producer => {
@@ -513,19 +513,33 @@ mod tests {
                     assert!(travels(organism), "a producer cannot spread");
                     creeping += 1;
                 }
-                _ if organism.actuator_span() == 0 => {
-                    assert!(
-                        !travels(organism),
-                        "an unlimbed consumer got the producer's budget: {:?}",
-                        organism.id
-                    );
-                    still += 1;
-                }
+                _ if organism.actuator_span() == 0 => panic!(
+                    "the roster founds nothing sessile that eats: {:?}",
+                    organism.id
+                ),
                 _ => assert!(travels(organism)),
             }
         }
-        // Seed 2 is the free-lunch founding, so it has both kinds to look at.
-        assert!(creeping > 0 && still > 0, "the seed founds both kinds");
+        assert!(creeping > 0, "the seed founds a stand");
+        // The line the exception must not cross, kept as a fixture rather than
+        // as a founding draw: **DC4's roster founds no sessile consumer at
+        // all**, every fauna archetype having limbs by the ruling, so the free
+        // lunch TD8 closed has to be built to be checked.
+        let sessile = crate::organism::Organism::founding(
+            crate::organism::OrganismId(1),
+            crate::body::SpeciesId(9),
+            Kingdom::Consumer,
+            crate::body::VolumeRef::from_tag(1),
+            [2, 2, 2],
+            [0, 0, 0],
+            1_000,
+        );
+        assert_eq!(sessile.actuator_span(), 0, "a crop is not an actuator");
+        assert_eq!(sessile.kingdom(), Kingdom::Consumer);
+        assert!(
+            !travels(&sessile),
+            "an unlimbed consumer got the producer's budget"
+        );
     }
 
     #[test]

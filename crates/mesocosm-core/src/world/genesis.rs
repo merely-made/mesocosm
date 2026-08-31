@@ -37,21 +37,39 @@ const SOIL_SEED_MG_PER_COLUMN: u64 = 100;
 
 /// Where a founding tier's bodies come from.
 ///
-/// **DC2's isolable arm.** The default creatures plan replaces the founding
-/// draw with authored archetypes one tier at a time, so the instrument can read
-/// each tier's cost on its own rather than a roster's cost all at once. Which
-/// palette a world admits follows from this, because an archetype's shapes are
-/// world state and its arrangement is the lineage's.
+/// **A per-tier set, since DC4.** It began as DC2's isolable arm — one tier
+/// authored so the instrument could read that tier's cost alone — and the
+/// roster made the natural shape a *list of bodies per tier* rather than one
+/// body per tier, because how many lineages a tier founds is now part of the
+/// answer. Which palette a world admits follows from the choice, because an
+/// archetype's shapes are world state and its arrangement is the lineage's.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Founding {
-    /// Every tier draws its recipe from [`axis::seed`](crate::axis::seed), the
-    /// worldgen lottery DC1.5 left in place.
-    #[default]
+    /// Every tier draws one recipe from [`axis::seed`](crate::axis::seed), the
+    /// worldgen lottery DC1.5 left in place. Three non-played lineages, which
+    /// is what the world founded through DC1.5.
     Drawn,
     /// The consumer tier founds from
     /// [`archetype::consumer_browser`](crate::axis::archetype::consumer_browser);
-    /// producers and decomposers still draw. (DC2)
+    /// producers and decomposers still draw. **DC2's arm**, kept so its
+    /// measurement stays reproducible against the roster's.
     BrowsingConsumer,
+    /// Only the producer tier founds authored bodies.
+    ///
+    /// **A DC4 diagnostic.** The roster moves the stand and the mouths at
+    /// once, so a verdict on it cannot say which half did the moving. These
+    /// two variants split it, and they exist for the instrument rather than
+    /// for a world to ship.
+    RosterStand,
+    /// Only the consumer and decomposer tiers do. The other half of
+    /// [`Founding::RosterStand`].
+    RosterFauna,
+    /// The full roster: one lineage per archetype, three producers, three
+    /// consumers, two decomposers, and nothing drawn. **This is how the
+    /// enclosure ships** (DC4) — `axis::seed` stays in the tree as the
+    /// generator a soup world would still use.
+    #[default]
+    Roster,
 }
 
 impl Founding {
@@ -61,18 +79,31 @@ impl Founding {
     pub fn palette(self) -> PartPalette {
         match self {
             Self::Drawn => PartPalette::primitive(),
-            Self::BrowsingConsumer => crate::axis::archetype::palette(),
+            _ => crate::axis::archetype::palette(),
         }
     }
 
-    /// The recipe this tier founds with, or `None` when it still draws.
-    fn authored(self, kingdom: Kingdom) -> Option<crate::axis::Recipe> {
+    /// The authored bodies this founding installs for a tier, one lineage
+    /// each, in founding order. Empty means the tier still draws.
+    fn tier(self, kingdom: Kingdom) -> &'static [fn() -> crate::axis::Recipe] {
+        use crate::axis::archetype;
         match (self, kingdom) {
-            (Self::BrowsingConsumer, Kingdom::Consumer) => {
-                Some(crate::axis::archetype::consumer_browser())
-            }
-            _ => None,
+            (Self::BrowsingConsumer, Kingdom::Consumer) => &archetype::CONSUMERS[..1],
+            (Self::RosterStand, Kingdom::Producer) => &archetype::PRODUCERS,
+            (Self::RosterFauna, Kingdom::Consumer) => &archetype::CONSUMERS,
+            (Self::RosterFauna, Kingdom::Decomposer) => &archetype::DECOMPOSERS,
+            (Self::Roster, Kingdom::Producer) => &archetype::PRODUCERS,
+            (Self::Roster, Kingdom::Consumer) => &archetype::CONSUMERS,
+            (Self::Roster, Kingdom::Decomposer) => &archetype::DECOMPOSERS,
+            _ => &[],
         }
+    }
+
+    /// How many non-played lineages this tier founds. A drawn tier is one
+    /// interbreeding species, which is the structural fact TD10 found and the
+    /// roster exists to change.
+    fn lineages(self, kingdom: Kingdom) -> usize {
+        self.tier(kingdom).len().max(1)
     }
 }
 
@@ -95,8 +126,8 @@ impl World {
     /// Builds the standard fixture: one critter and a deterministic scatter of
     /// organisms drawn from the seeded stream.
     pub fn new(seed: u64, organism_count: u32) -> Self {
-        Self::with_development_palette(seed, organism_count, PartPalette::primitive())
-            .expect("the baseline developmental palette is valid")
+        Self::founded(seed, organism_count, Founding::default())
+            .expect("the shipping founding's palette is valid")
     }
 
     /// Builds a world whose tiers found from [`Founding`]'s bodies, under the
@@ -114,17 +145,16 @@ impl World {
     /// The palette is snapshotted with the world. A host can therefore replace
     /// the baseline fixture references without smuggling asset choices into a
     /// lineage recipe or making replay depend on ambient configuration.
+    ///
+    /// **Founds [`Founding::Drawn`]**: a caller supplying its own vocabulary is
+    /// the soup world, and the roster's bodies name shapes that vocabulary may
+    /// not admit. Use [`World::founded`] to pick both together.
     pub fn with_development_palette(
         seed: u64,
         organism_count: u32,
         development_palette: PartPalette,
     ) -> Result<Self, DevelopmentError> {
-        Self::found(
-            seed,
-            organism_count,
-            development_palette,
-            Founding::default(),
-        )
+        Self::found(seed, organism_count, development_palette, Founding::Drawn)
     }
 
     fn found(
@@ -153,9 +183,22 @@ impl World {
         for i in (1..floor_kingdoms.len()).rev() {
             floor_kingdoms.swap(i, rng.below(i as u64 + 1) as usize);
         }
-        let mut species_of: BTreeMap<Kingdom, SpeciesId> = BTreeMap::new();
-        for (offset, kingdom) in floor_kingdoms.into_iter().enumerate() {
-            species_of.insert(kingdom, SpeciesId(2 + offset as u32));
+        //
+        // **A tier is a block of species ids now, not one** (DC4). The roster
+        // founds one lineage per archetype, so the shuffled order above lays
+        // out consecutive blocks rather than single ids, and every archetype
+        // gets a species before any founder picks one.
+        let mut species_of: BTreeMap<Kingdom, Vec<SpeciesId>> = BTreeMap::new();
+        let mut next_species = 2u32;
+        for kingdom in floor_kingdoms {
+            let block = (0..founding.lineages(kingdom))
+                .map(|_| {
+                    let id = SpeciesId(next_species);
+                    next_species += 1;
+                    id
+                })
+                .collect();
+            species_of.insert(kingdom, block);
         }
         // **Counts make the pyramid** (2026-08-29 TD7). A uniform species draw
         // founded equal thirds, which is an ecology standing on its point: the
@@ -190,6 +233,7 @@ impl World {
             development_seed: founder_seed(seed, OrganismId(0)),
         });
 
+        let mut seated: BTreeMap<Kingdom, usize> = BTreeMap::new();
         for index in 1..=organism_count {
             // Draws happen in a fixed order, so the scatter is reproducible.
             let x = rng.range_i32(-ENCLOSURE, ENCLOSURE);
@@ -197,9 +241,15 @@ impl World {
             let z = rng.range_i32(-ENCLOSURE, ENCLOSURE);
             let mass = 100 + rng.below(400);
             // A species has one inherited silhouette, so the tier this founder
-            // drew names the species rather than the other way round.
+            // drew names the species rather than the other way round. Within a
+            // tier the archetypes take turns, so every one of them founds in
+            // every seed and the tier splits evenly between them without
+            // spending a draw on it.
             let kingdom = kingdoms[(index - 1) as usize];
-            let species = species_of[&kingdom];
+            let block = &species_of[&kingdom];
+            let seat = seated.entry(kingdom).or_insert(0);
+            let species = block[*seat % block.len()];
+            *seat += 1;
             // Staggered ages, so the enclosure is mid-life rather than all
             // hatching on the same tick. Proportional to the founder's own
             // lifespan_for_mass rather than a flat 200: a flat stagger left
@@ -260,22 +310,32 @@ impl World {
         // and what the world reads afterwards is whatever the body says. The
         // symmetry below is the silhouette that tier opens with and nothing
         // reads it back.
-        for founder in &founders {
-            if lineages
-                .get(founder.species)
-                .is_some_and(|species| species.recipe.appendages() > 1)
-            {
-                continue;
-            }
+        //
+        // One recipe per founding *lineage*, drawn or authored, and the played
+        // critter's line beside them: it takes the first body of the consumer
+        // tier, which is §5's open question answered provisionally rather than
+        // ruled.
+        let assignments = std::iter::once((SpeciesId(1), Kingdom::Consumer, 0)).chain(
+            species_of.iter().flat_map(|(kingdom, block)| {
+                block
+                    .iter()
+                    .enumerate()
+                    .map(move |(slot, species)| (*species, *kingdom, slot))
+            }),
+        );
+        for (species, kingdom, slot) in assignments {
             // An authored tier does not draw at all. Each line has its own
             // salted stream, so a stream left unspent moves nothing else: the
-            // tiers that still draw develop bodies identical to the other arm's.
-            let recipe = founding.authored(founder.kingdom).unwrap_or_else(|| {
-                let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ u64::from(founder.species.0));
-                crate::axis::seed(&mut stream, founder.kingdom)
-            });
-            lineages.set_recipe(founder.species, recipe);
-            lineages.set_symmetry(founder.species, founder.kingdom.symmetry());
+            // tiers that still draw develop bodies identical to another arm's.
+            let recipe = match founding.tier(kingdom).get(slot) {
+                Some(authored) => authored(),
+                None => {
+                    let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ u64::from(species.0));
+                    crate::axis::seed(&mut stream, kingdom)
+                }
+            };
+            lineages.set_recipe(species, recipe);
+            lineages.set_symmetry(species, kingdom.symmetry());
         }
 
         // A founder's selected mass is a lower bound. Genesis has no parent
