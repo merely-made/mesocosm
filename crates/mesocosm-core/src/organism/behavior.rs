@@ -44,6 +44,13 @@ impl FaunaDrive {
 }
 
 /// Body-derived affordances that gated a fauna decision.
+///
+/// Every field is a reading of the body, and since DC1.5 that is true of
+/// `feeding_mode` too — it used to arrive by way of `body.plan.symmetry`, which
+/// no decision could ever change. This trace is serialized inside
+/// `last_fauna_decision` and so inside `state_hash`, which is why the unbinding
+/// moved every replay hash: the same body now reports a mode read off its
+/// mouth. Priced in and accepted by the DC1.5 ruling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FaunaTraits {
     pub feeding_mode: FeedingMode,

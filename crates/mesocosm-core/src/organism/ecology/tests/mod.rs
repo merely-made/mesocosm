@@ -119,7 +119,9 @@ fn allometric_rates_cross_three_orders_without_flat_steps() {
 }
 
 #[test]
-fn trophic_role_is_read_from_body_symmetry() {
+fn trophic_role_is_read_from_feeding_anatomy() {
+    // The fixture bodies carry the organ their kingdom names since DC1.5 — a
+    // frond, a crop, or nothing at all — and the reading comes back off it.
     let producer = organism(Kingdom::Producer, 100);
     let consumer = organism(Kingdom::Consumer, 100);
     let decomposer = organism(Kingdom::Decomposer, 100);

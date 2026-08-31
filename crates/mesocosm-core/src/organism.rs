@@ -18,19 +18,21 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::body::BodyDocument;
+use crate::body::{Attachment, BodyDocument, Provenance, Yaw};
 use crate::places::{Tier, WalkerShape};
-use crate::plan::Symmetry;
+use crate::plan::{Role, classify};
 use crate::process::{FeedingMode, Process};
 
 mod behavior;
 pub mod ecology;
+mod kingdom;
 
 pub use behavior::{
     FaunaDecisionTrace, FaunaDrive, FaunaDriveScores, FaunaPolicy, FaunaSenses, FaunaTraits,
 };
 pub use ecology::step;
 use ecology::{OFFSPRING_COST, STARVATION_MG};
+pub use kingdom::Kingdom;
 
 use crate::body::{SpeciesId, VolumeRef};
 
@@ -45,38 +47,6 @@ pub struct LastSeen {
     pub target: OrganismId,
     pub position: [i32; 3],
     pub ticks_left: u8,
-}
-
-/// Trophic role. Not a character class: these are the three ways of making a
-/// living, and a lineage may combine them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum Kingdom {
-    /// Fixes energy from the world itself. The base of every chain.
-    Producer,
-    /// Must eat. Pays upkeep and starves without a meal.
-    Consumer,
-    /// Lives on the dead, returning locked matter to circulation.
-    Decomposer,
-}
-
-impl Kingdom {
-    /// The anatomical signature that makes the role a reading rather than a
-    /// second ecology field.
-    pub fn symmetry(self) -> Symmetry {
-        match self {
-            Self::Producer => Symmetry::Radial,
-            Self::Consumer => Symmetry::Bilateral,
-            Self::Decomposer => Symmetry::None,
-        }
-    }
-
-    pub fn from_symmetry(symmetry: Symmetry) -> Self {
-        match symmetry {
-            Symmetry::Radial => Self::Producer,
-            Symmetry::Bilateral => Self::Consumer,
-            Symmetry::None => Self::Decomposer,
-        }
-    }
 }
 
 /// What an organism advertises about itself.
@@ -186,11 +156,36 @@ pub struct Organism {
     /// contract on purpose: roles are read from geometry, so the game teaches
     /// that form tells you function, and a simulacrum violates exactly that
     /// lesson.
+    ///
+    /// **Since DC1.5 the claim is about anatomy.** It used to be a claim about
+    /// silhouette, because that is what a kingdom was; it is now a claim to
+    /// carry the organs of a way of making a living — "there is a leaf on me" —
+    /// told by a body that does not. What tells the lie is unchanged and no
+    /// reader of it moved; what the lie is *about* did.
     pub guise: Kingdom,
 }
 
+/// The smallest part of each role a founding body can be given a feeding organ
+/// out of: a frond, a crop, a jaw. Smallest because a fixture's organ should
+/// make the reading and nothing else — a larger one would move the body's mass
+/// ceiling, and with it every rate derived from it.
+const FROND: [i32; 3] = [3, 2, 1];
+const CROP: [i32; 3] = [2, 1, 1];
+const JAW: [i32; 3] = [3, 1, 1];
+
 impl Organism {
-    /// A minimal organism: one root part, and the scalars the ecology moves.
+    /// A minimal organism: a root part, the feeding organ that makes it the
+    /// kingdom it is asked for, and the scalars the ecology moves.
+    ///
+    /// **The organ is not decoration.** Since DC1.5 a kingdom is a reading of
+    /// feeding anatomy, so a body that was handed a kingdom has to carry the
+    /// anatomy that reads as one; a bare root reads `Decomposer` whatever it
+    /// was asked for. A consumer built out of long thin bulk gets a jaw and one
+    /// built out of any other shape gets a crop, which keeps a fixture the
+    /// feeding mode its caller's half-extent has always asked for.
+    ///
+    /// The organ's milligram comes out of the root, so the body still weighs
+    /// exactly what it was given.
     #[allow(clippy::too_many_arguments)]
     pub fn founding(
         id: OrganismId,
@@ -202,8 +197,31 @@ impl Organism {
         mass_mg: u64,
     ) -> Self {
         let development_seed = u64::from(id.0) << 32 | u64::from(species.0);
-        let mut body = BodyDocument::new(species, volume, mass_mg, half_extent);
+        let organ = match kingdom {
+            Kingdom::Producer => Some((FROND, 1)),
+            Kingdom::Consumer if classify(half_extent) == Role::Limb => Some((JAW, -1)),
+            Kingdom::Consumer => Some((CROP, -1)),
+            Kingdom::Decomposer => None,
+        };
+        let organ_mg = u64::from(organ.is_some()).min(mass_mg);
+        let mut body = BodyDocument::new(species, volume, mass_mg - organ_mg, half_extent);
         body.plan.symmetry = kingdom.symmetry();
+        if let Some((shape, side)) = organ {
+            let root = body.root;
+            let offset = [0, side * (half_extent[1].abs() + shape[1].abs()), 0];
+            body.attach(
+                volume,
+                organ_mg,
+                shape,
+                Attachment {
+                    parent: root,
+                    offset,
+                    yaw: Yaw::Zero,
+                },
+                Provenance::founding(),
+            )
+            .expect("the organ attaches to a root that was just built");
+        }
         Self {
             id,
             species,
@@ -272,22 +290,17 @@ impl Organism {
         }
     }
 
-    /// Trophic role read from the body's symmetry, not retained as a genesis
-    /// decree. A reshaped body therefore changes the role the ecology sees.
+    /// Trophic role read from the organs this body feeds with, not retained as
+    /// a genesis decree. A reshaped body therefore changes the role the ecology
+    /// sees. See [`kingdom`] for the rules and why they replaced symmetry.
     pub fn kingdom(&self) -> Kingdom {
-        Kingdom::from_symmetry(self.body.plan.symmetry)
+        Kingdom::of_body(&self.body)
     }
 
-    /// The living-feeding mode is a second reading over the role and the
-    /// actual processes expressed by the body. A contractile part turns a
-    /// consumer into a predator; a bare consumer remains a grazer.
+    /// What this body does with matter: the same anatomy, read one level
+    /// finer. A jaw at the head makes a predator; a crop makes a grazer.
     pub fn feeding_mode(&self) -> FeedingMode {
-        match self.kingdom() {
-            Kingdom::Producer => FeedingMode::Producer,
-            Kingdom::Decomposer => FeedingMode::Scavenger,
-            Kingdom::Consumer if self.body.performs(Process::Contract) => FeedingMode::Predator,
-            Kingdom::Consumer => FeedingMode::Grazer,
-        }
+        FeedingMode::of_body(&self.body)
     }
 
     /// How far this body's actuators swing, in voxels: each living
@@ -494,6 +507,12 @@ impl Organism {
     /// gain mass in open ground, because it is not fixing anything. Watch it
     /// for a while and the lie shows. Unfair is fine here; unknowable is not,
     /// so every mimic leaves something a second encounter can find.
+    ///
+    /// **The claim got sharper at DC1.5**, and stayed true. It used to mean "a
+    /// producer's silhouette over a body the symmetry field says is not one";
+    /// it now means "a producer's claim over a body that carries no part
+    /// performing [`Process::Fix`]" — which is precisely why the tell exists,
+    /// rather than being a coincidence of two enums lining up.
     pub fn betrays_itself(&self) -> bool {
         self.guise == Kingdom::Producer && self.kingdom() != Kingdom::Producer
     }

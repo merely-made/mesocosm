@@ -14,8 +14,10 @@
 //! The plan's stop rule is *do not add a broad process catalog before one path
 //! is played*, and this is that one path. A process vocabulary authored ahead
 //! of any consumer becomes a catalog, which is the Spore failure at a smaller
-//! scale. Three processes exist here because one capability needs them; the
-//! fourth arrives when something asks.
+//! scale. Three processes existed here because one capability needed them; the
+//! fourth arrived when something asked, and [`Process::Fix`] is that fourth —
+//! the default creatures plan's DC1.5 needed a producer to be readable from
+//! anatomy rather than from symmetry.
 //!
 //! # Processes are read, not stored
 //!
@@ -43,14 +45,37 @@ pub enum Process {
     Intake,
     /// Receives a signal from outside.
     Sense,
+    /// Makes substance out of the world itself rather than out of a meal. A
+    /// leaf, a frond, a mat.
+    ///
+    /// **The word is provisional.** `Fix` is biology's plain working verb for
+    /// it (carbon fixation) and this crate coins nothing mid-slice; the
+    /// in-product name is a naming round Mark owns. Renaming the variant moves
+    /// no rule, only [`ProcessId::name`] and this identifier.
+    Fix,
+}
+
+impl Process {
+    /// Every native binding, so a new variant cannot be added without the
+    /// parity receipt below noticing.
+    ///
+    /// There is no exhaustive match anywhere else on this enum: without this
+    /// list a fifth process would compile clean and panic inside
+    /// [`Registry::of_native`] at runtime.
+    pub const ALL: [Process; 4] = [
+        Process::Contract,
+        Process::Intake,
+        Process::Sense,
+        Process::Fix,
+    ];
 }
 
 impl Role {
     /// What a part of this shape contributes.
     ///
     /// A long thin part is an actuator, a bulky one admits material, a small
-    /// one senses, and a flat one does neither while still being armour. That
-    /// mapping is the whole vocabulary today.
+    /// one senses, and a flat one spreads itself against the world and fixes.
+    /// That mapping is the whole vocabulary today.
     pub fn processes(self) -> &'static [Process] {
         // The registry is the definition of record (PD1b); this remains the
         // fast native view of it, and the parity receipt below keeps the two
@@ -59,9 +84,11 @@ impl Role {
             Role::Limb => &[Process::Contract],
             Role::Mass => &[Process::Intake],
             Role::Sensor => &[Process::Sense],
-            // A plate resists things. Resisting is not yet a process because
-            // nothing reads it; it becomes one when damage does.
-            Role::Plate => &[],
+            // "Fins, plates, leaves": two long axes and one short is the shape
+            // that presents area to the world, which is what fixing needs. A
+            // plate also resists things, and resisting is still not a process
+            // because nothing reads it; it becomes one when damage does.
+            Role::Plate => &[Process::Fix],
         }
     }
 }
@@ -184,6 +211,15 @@ const NATIVE_DEFS: &[ProcessDef] = &[
         },
         native: Process::Sense,
         expressed_by: &[Role::Sensor],
+    },
+    ProcessDef {
+        id: ProcessId {
+            namespace: "mesocosm",
+            // Provisional, with the variant: the naming round is Mark's.
+            name: "fix",
+        },
+        native: Process::Fix,
+        expressed_by: &[Role::Plate],
     },
 ];
 
@@ -463,7 +499,7 @@ mod tests {
         // PD1b slice 1's load-bearing receipt: expression is defined by
         // registry data, and the enum fast-path may never drift from it.
         let registry = Registry::native();
-        for role in [Role::Limb, Role::Mass, Role::Sensor, Role::Plate] {
+        for role in Role::ALL {
             let via_registry: Vec<Process> =
                 registry.expressed_by(role).map(|def| def.native).collect();
             assert_eq!(
@@ -475,12 +511,17 @@ mod tests {
         // The binding is a bijection: every native resolves, and ids are
         // qualified and distinct.
         let mut ids = std::collections::BTreeSet::new();
-        for process in [Process::Contract, Process::Intake, Process::Sense] {
+        for process in Process::ALL {
             let def = registry.of_native(process);
             assert_eq!(def.native, process);
             assert!(ids.insert(def.id), "duplicate id {:?}", def.id);
             assert_eq!(def.id.namespace, "mesocosm");
         }
+        assert_eq!(
+            registry.all().count(),
+            Process::ALL.len(),
+            "the registry and the native list hold different numbers of processes"
+        );
     }
 
     #[test]
@@ -521,5 +562,8 @@ mod tests {
         assert_eq!(classify([4, 4, 1]), Role::Plate);
         assert!(!body.performs(Process::Contract));
         assert_eq!(body.reach(), BULK_REACH + 1, "a plate bought no reach");
+        // It bought the other thing, which is the DC1.5 half: area against the
+        // world is what fixing is, and it is still not an arm.
+        assert!(body.performs(Process::Fix), "and a plate fixes");
     }
 }

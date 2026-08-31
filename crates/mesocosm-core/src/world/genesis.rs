@@ -185,8 +185,16 @@ impl World {
             lineages.found(founder.species);
         }
         // Each line draws its recipe from its own stream, so body generation
-        // never advances the ecology stream. Producers stay simple; anything
-        // that moves gets stretches and limbs.
+        // never advances the ecology stream.
+        //
+        // **The pyramid now picks a body, not a field** (DC1.5). It used to
+        // author a `Kingdom` onto the founder and write the matching symmetry,
+        // and `Organism::kingdom()` read that symmetry straight back — the tier
+        // was a decree wearing a body. A kingdom is read off feeding anatomy
+        // now, so the tier's only job is to say which anatomy this line draws,
+        // and what the world reads afterwards is whatever the body says. The
+        // symmetry below is the silhouette that tier opens with and nothing
+        // reads it back.
         for founder in &founders {
             if lineages
                 .get(founder.species)
@@ -195,8 +203,10 @@ impl World {
                 continue;
             }
             let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ u64::from(founder.species.0));
-            let limbed = founder.kingdom != Kingdom::Producer;
-            lineages.set_recipe(founder.species, crate::axis::seed(&mut stream, limbed));
+            lineages.set_recipe(
+                founder.species,
+                crate::axis::seed(&mut stream, founder.kingdom),
+            );
             lineages.set_symmetry(founder.species, founder.kingdom.symmetry());
         }
 
@@ -376,6 +386,78 @@ mod tests {
     // it to the enclosure's area, and a test that kept saying 60 would stop
     // being about the world that ships.
     use super::super::FOUNDERS;
+
+    // **The DC1.5 census.** The pyramid no longer authors a kingdom onto a
+    // founder; it picks which body that founder draws, and the world reads the
+    // kingdom back off the body's feeding organs. So the transitional draw owes
+    // a receipt that the two agree for *every* founder — one body that read the
+    // wrong tier would be a producer that cannot fix or a consumer that cannot
+    // eat, and the whole ecology stands on the pyramid being real.
+    #[test]
+    fn every_founding_body_reads_the_kingdom_its_tier_drew() {
+        for seed in 1u64..=10 {
+            let world = World::new(seed, FOUNDERS);
+            let intended = intended_kingdoms(seed, FOUNDERS);
+            let mut census: BTreeMap<Kingdom, u32> = BTreeMap::new();
+            for organism in &world.organisms {
+                let drew = intended[organism.id.0 as usize];
+                assert_eq!(
+                    organism.kingdom(),
+                    drew,
+                    "seed {seed}: founder {:?} drew {drew:?} and its body reads {:?}",
+                    organism.id,
+                    organism.kingdom()
+                );
+                *census.entry(drew).or_default() += 1;
+            }
+            assert_eq!(
+                census.values().sum::<u32>(),
+                FOUNDERS + 1,
+                "seed {seed} censused {census:?} of {} founders",
+                FOUNDERS + 1
+            );
+        }
+    }
+
+    /// The tiers genesis drew, in founder order, replaying the same seeded
+    /// draws `World::with_development_palette` makes above them. Kept beside
+    /// the code it mirrors so the census asserts against the *intent* rather
+    /// than against the reading it is checking.
+    fn intended_kingdoms(seed: u64, organism_count: u32) -> Vec<Kingdom> {
+        let mut rng = Rng::from_seed(seed);
+        let mut floor = [Kingdom::Producer, Kingdom::Consumer, Kingdom::Decomposer];
+        for i in (1..floor.len()).rev() {
+            floor.swap(i, rng.below(i as u64 + 1) as usize);
+        }
+        let mut kingdoms = pyramid(organism_count as usize);
+        for i in (1..kingdoms.len()).rev() {
+            kingdoms.swap(i, rng.below(i as u64 + 1) as usize);
+        }
+        // The played critter founds first and is always a consumer.
+        std::iter::once(Kingdom::Consumer).chain(kingdoms).collect()
+    }
+
+    // Both readings of a consumer must be reachable at founding. Under the
+    // symmetry bijection they were not: every founding consumer drew a limbed
+    // recipe and read Predator, and Grazer was only a state a line fell into by
+    // losing its limbs. Mouth geometry is what makes them two bodies.
+    #[test]
+    fn founding_reaches_both_a_jaw_and_a_crop() {
+        let mut modes: std::collections::BTreeSet<crate::process::FeedingMode> = Default::default();
+        for seed in 1u64..=10 {
+            let world = World::new(seed, FOUNDERS);
+            for organism in &world.organisms {
+                if organism.kingdom() == Kingdom::Consumer {
+                    modes.insert(organism.feeding_mode());
+                }
+            }
+        }
+        assert_eq!(
+            modes.len(),
+            2,
+            "ten seeds founded only {modes:?} of the two consumer readings"
+        );
+    }
 
     #[test]
     fn every_seed_founds_all_three_kingdoms() {

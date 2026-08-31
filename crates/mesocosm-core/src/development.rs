@@ -446,10 +446,12 @@ fn attach_appendages(
 ) -> Result<(), DevelopmentError> {
     let appendage = tagma.appendage;
     let per_segment = tagma.per_segment;
-    let Some(role) = appendage.role() else {
+    let Some(role) = appendage.role(tagma.appendage_shape) else {
         return Ok(());
     };
-    let template = palette.template_at(role, tagma.appendage_shape);
+    // A mouth's selector picks its *role* as well as its shape, so it is mapped
+    // back into that role's own bank before the palette sees it. (DC1.5)
+    let template = palette.template_at(role, appendage.shape_index(tagma.appendage_shape));
     let segment_half = body
         .part(segment)
         .expect("development only addresses attached segments")

@@ -1,6 +1,6 @@
 # Default Creatures Plan (2026-08-30)
 
-**Status: in progress (2026-08-30). DC1 landed; DC1.5 next.** Founded on the ruling that closed
+**Status: in progress (2026-08-31). DC1 and DC1.5 landed; DC2 next.** Founded on the ruling that closed
 the TD series in
 [`2026-08-29_terrarium_dynamics_plan.md`](2026-08-29_terrarium_dynamics_plan.md)
 §"The series closes here". This plan owns the *body* half of that ruling; the
@@ -533,6 +533,25 @@ the receipt); `validate` refuses a Limb template whose build price exceeds 6.25
 and a Sensor above 4.76, with a test for each; conservation exact; workspace
 tests and `clippy -D warnings` clean.
 
+### DC1.5 — kingdom unbinds from symmetry
+
+Added by §6.5's second ruling, and ordered before any archetype because every
+archetype's recipe depends on which anatomy makes it what it is. A fourth
+`Process` expressed by `Role::Plate`; `Kingdom` and `FeedingMode` read off
+feeding organs; `Kingdom::from_symmetry` retired and `Symmetry` left as pure
+body-plan geometry; `axis::seed` drawing a body that reads as the tier it was
+asked for, since the pyramid no longer authors a `Kingdom` field.
+
+**Done when:** every founding body in seeds 1–10 reads the kingdom its tier
+drew, asserted as a test rather than probed; both consumer readings are
+reachable at founding; conservation exact; the ten-seed instrument verdicts no
+worse than DC1's (0 breathes / 10 thins / 0 boil / 0 collapse), with movement in
+either direction reported rather than absorbed; fixtures re-recorded (hashes
+move by design) and `--replay` exiting 0 against a re-recorded trace and 1
+against a falsified one; workspace tests, `clippy -D warnings` and `fmt` clean;
+and the decomposer's anatomical reading either found and stated, or returned to
+Mark unbuilt rather than shipped as a stat flag.
+
 ### DC2 — one archetype, measured against the economy
 
 The `consumer_browser` archetype of §2.4's carving B, authored as a `Recipe`
@@ -746,7 +765,198 @@ recipe depends on which anatomy makes it what it is.
   simulation computes moved with it. `dc1_palette.json` against
   `td11_chain.json`.
 
+- **2026-08-31 (DC1.5): the unbinding leaves the verdicts alone and leaves more
+  of the world alive.** Ten seeds, same horizon, same constants: **0 breathes /
+  10 thins / 0 boil / 0 collapse**, identical to DC1's, control all collapse,
+  matter conserved to the milligram in every sample and identical per seed, zero
+  escapees. What moved is underneath the verdict. **Decomposers survive to the
+  10,000-tick horizon in 9 of 10 seeds against DC1's 5**, and standing biomass
+  is up in 8 of 10 (seed 8: 370,074 -> 1,131,018 mg; seed 9: 381,867 ->
+  864,135; seed 2 is the one that fell, 691,333 -> 389,601). Consumers still die
+  out in 9 of 10, unchanged. The likely mechanism is that a fixing part brings
+  its own ceiling, so the stand is made of bigger producers that hold more
+  matter in bodies rather than in the ground — the second-order effect the forms
+  brief's §A predicted, landing in the direction it hoped for. `dc15_kingdom.json`
+  against `dc1_palette.json`.
+
+- **2026-08-31 (DC1.5): the decomposer's anatomy is the *absence* of a feeding
+  organ, and that is an honest reading rather than a shrug.** §6.5 named this
+  the open design question. There is no positive saprotroph organ to read and
+  inventing one would have been a stat flag with a shape on it, but the reading
+  was already in the tree: `Process::Intake`'s own doc comment is "a mouth, a
+  gut, **an absorbing surface**", and every body's bulk segments perform it. A
+  saprotroph digests outside itself and takes the result in across its whole
+  surface — no ingesting organ, which is exactly what the real ones do. So
+  producer and consumer are positive readings (a part that performs `Fix`; a
+  mouth borne under the head) and **decomposer is what a body reads as when it
+  carries neither**. It costs no machinery and it is stated as precedence rather
+  than discovered. The consequence to watch is that the residual is also what a
+  body reads as after it *loses* its mouth: `organism/kingdom.rs`.
+
+- **2026-08-31 (DC1.5): expressing the fixing process by `Role::Plate` makes
+  every flat part a leaf.** The role's doc reads "Fins, plates, leaves" and the
+  ruling took it as the named geometry, but the three are now one process:
+  armour fixes, and a fin fixes. The founding consumer draw therefore had to
+  drop its plate arm — a consumer that grew one would be the deferred mixotroph
+  — so **founding consumers can no longer be armoured at all**. That is a
+  standing constraint on DC4's roster: no archetype can carry a shell without
+  reading as a producer until either the reading separates a frond from a plate
+  (a second geometry, or a position rule) or the mixotroph question is ruled.
+  `process.rs`, `axis.rs::seed`.
+
+- **2026-08-31 (DC1.5): developmental absence could take a mouth, and with it a
+  kingdom.** `Soma::develop` drew a 1-in-12 absence per appendage-bearing tagma,
+  and the mouth sits on the head tagma, which the founding draw gives one
+  segment. Under the new reading that was a 1-in-12 chance for **every consumer
+  lineage** of realizing a body with no mouth — a founder born a decomposer into
+  a consumer's tier, and the census failing at ~8%. Guarded: absence may not
+  take a feeding organ, because an individual missing one limb is variation and
+  an individual missing its mouth is a stillbirth. `axis.rs::Soma::develop`.
+
+- **2026-08-31 (DC1.5): a bare root reads Decomposer, so the fixture
+  constructor had to grow anatomy.** `Organism::founding` is called from 44
+  sites across tests, examples and the lens fixtures, every one of them handing
+  it a `Kingdom` and expecting the body to be one. Post-unbinding a single root
+  part reads Decomposer whatever it was asked for, so the constructor now
+  attaches the smallest organ of the role its kingdom names — a `[3,2,1]` frond
+  above, a `[2,1,1]` crop or a `[3,1,1]` jaw below — with the milligram taken
+  out of the root, so the body still weighs what it was given. **A consumer gets
+  a jaw when its own root is Limb-classified and a crop otherwise**, which
+  reproduces every existing fixture's feeding mode exactly, since the old rule
+  was "does any part perform `Contract`" and a fixture's only part was its root.
+  Two fixtures still moved measurably and are updated in place: a hunter's
+  walker height (a jaw hangs below the head) and a metabolize test whose literal
+  `[5,0,0]` offset no longer cleared the body the seed draws. `organism.rs`.
+
+- **2026-08-31 (DC1.5): founding *mobile grazers* costs three seeds in ten —
+  measured, not argued.** The first cut of the transitional draw took the
+  consumer head's geometry from an independent coin flip, which founds something
+  the world has never had. Before DC1.5, `Grazer` meant "no living part performs
+  `Contract`", which also meant **sessile**: a grazer could not cross the
+  enclosure, so its pressure was local by construction. A crop-mouthed line that
+  draws limbs can, and a grazer eats *only* producers (`movement.rs:68`), so all
+  230 consumers' appetite lands on the stand and nothing eats them back. Ten
+  seeds under the coin flip: **1 breathes / 6 thins / 0 boil / 3 collapse**,
+  against DC1's 0/10/0/0. The correlation is clean — the three collapses (seeds
+  4, 6, 7) are all grazer-tier worlds, and the two predator-tier worlds (1 and
+  2) read *breathes* and *thins*, seed 1 being the only breathes in the set.
+  Collapsed worlds empty into the ground: seed 4 ends 6/12/0 P/C/D with soil at
+  2,079,663 mg of 2,202,302 total, against DC1's 1430/0/0 and 71,814 mg of soil.
+  The draw was therefore changed to the null-change rule — **the mouth follows
+  the legs** — and founding a mobile grazer is left for DC2 to do deliberately
+  with the instrument watching. This is the number a grazer archetype has to
+  beat, and it is the first hard evidence that §4.3's first blocker was not only
+  a legibility problem.
+
+- **2026-08-31 (DC1.5): incorporation can now mint a mouth, and severing can
+  take one.** `growth::resolve` places a Mass-classified part at the plan's Mass
+  preference, which defaults to `Below`, nearest the root first — precisely the
+  attachment the reading calls a mouth. So a body that eats something bulky
+  grows a feeding organ and changes kingdom, and a body whose mouth is severed
+  or arrives severed through a `Chronicle` loses one. Both are the point of a
+  reading rather than a field, and both are **latent in the shipping loop**: no
+  ecology rule severs a part, and only the played critter incorporates. The
+  fuller kleptoplasty payoff the forms brief's §A wants is *not* reachable yet —
+  `land` grafts the eaten organism as one part shaped like its **root**, and
+  every root in a founded world is the Mass template, so nothing can be eaten
+  into a fixing part. `growth.rs`, `world/act.rs::land`, `chronicle.rs`.
+
 ## Progress
+
+- **2026-08-31 (DC1.5): kingdom unbinds from symmetry.** Landed against §6's
+  DC1.5 done-conditions and both of §6.5's rulings.
+
+  **The reading.** `Kingdom::from_symmetry` is gone. `Kingdom::of_body` and
+  `FeedingMode::of_body` (`organism/kingdom.rs`) read four rules off the parts a
+  body feeds with:
+
+  | reading | anatomy |
+  | --- | --- |
+  | `Producer` | a living part performs `Process::Fix` — a plate, a frond, a leaf |
+  | `Consumer` | no fixing part, and the head bears a mouth |
+  | `Predator` | that mouth is `Limb`-classified: a jaw, which swings |
+  | `Grazer` | that mouth is bulk: a crop, which does not |
+  | `Decomposer` | neither organ — it absorbs across its own surface |
+
+  **A mouth is a living part attached to the root and hung below it.** Both
+  halves carry weight. Without *below*, the next segment along the axis reads as
+  a mouth, since a spine is `Mass`-classified parts attached to `Mass`-classified
+  parts; without *the root*, any bulk hanging anywhere off a body makes it a
+  consumer. The root is the axis' front-most segment by construction of
+  `develop_body`, so "at the head" is a fact of the pipeline rather than a
+  convention this reading invents. Fixing is checked first, so a body carrying
+  both organs reads `Producer` — the deferred mixotroph pinned by stated
+  precedence rather than found by accident.
+
+  **A fourth process.** `Process::Fix`, expressed by `Role::Plate`, wired in all
+  four places the forms brief's §A listed — the variant, `NATIVE_DEFS`,
+  `Role::processes()` and the parity test. `Process::ALL` is new and the parity
+  test iterates it, so the trap that brief named (a fifth variant compiles clean
+  and panics at runtime inside `Registry::of_native`) cannot recur. **The word
+  is provisional**: `Fix` is biology's plain working verb and `CLAUDE.md` forbids
+  coining mid-session, so the identifier and `ProcessId`'s `"fix"` are both
+  placeholders awaiting a naming round. Renaming moves no rule.
+
+  **`Symmetry` is geometry.** It keeps its three variants and its one job,
+  deciding what `BodyPlan::mirrors`; `Kingdom::symmetry()` survives only as the
+  silhouette a founding tier opens with, and nothing reads it back.
+
+  **The transitional founding.** The pyramid no longer authors a `Kingdom` onto
+  a founder for the body to wear — it picks which body that founder's line
+  draws, and the world reads the kingdom back off the body. `axis::seed` takes a
+  `Kingdom` instead of a `limbed: bool`: a producer draw gets a guaranteed
+  fronded stretch and nothing that contracts, a consumer draw a mouth on its
+  head, a decomposer draw neither. Consumers lost their plate arm, because a
+  consumer that grew one would be the deferred mixotroph. **The mouth follows
+  the legs** — a line that draws pursuit machinery draws the jaw to use it —
+  which is both the natural authoring rule and the null change, since the old
+  reading was "any part performs `Contract`". Drawing it independently instead
+  is a different ecology and it is measured in the findings above.
+
+  **The four bindings, each handled.** `LivingTarget.kingdom` keeps reading
+  `o.kingdom()` and the grazer filter is unchanged in code — what a body earns
+  by and what it is edible as are now one reading of one anatomy, and the
+  register's §13 mixotroph case stays deferred because no body can honestly do
+  both. `CohortKey` is unchanged mechanically and documented: it is an anatomy
+  class now, so a body can leave it by growing or losing an organ. Hashes moved
+  as priced: `FaunaTraits.feeding_mode` reaches `state_hash` through the fauna
+  decision trace, and the demo fixture is re-recorded below. `guise` and
+  `betrays_itself` keep every line of their logic and get sharper referents —
+  the lie is a claim to carry a way of making a living's organs, and the tell is
+  "a producer's claim over a body with no part performing `Fix`", which is why
+  the tell exists at all rather than a coincidence of two enums lining up.
+
+  **Receipts.** `cargo test -p mesocosm-core --test matter --release` green (5
+  tests, 53 s). **The census is a test, not a probe**
+  (`world::genesis::tests::every_founding_body_reads_the_kingdom_its_tier_drew`):
+  it replays genesis' own seeded tier draws and asserts every one of the 917
+  founding bodies in each of seeds 1-10 reads back the kingdom its tier drew —
+  9,170 of 9,170 — and a sibling test asserts ten seeds reach both consumer
+  readings. The pyramid (610/229/77) and the TD2b kingdom floor still hold, now
+  as readings rather than as fields. `population_instrument --release`: **0
+  breathes / 10 thins / 0 boil / 0 collapse**, control all collapse, zero
+  escapees, matter conserved and per-seed identical to DC1's; per-kingdom end
+  states in the findings above. Demo fixture re-recorded — same 120 intents,
+  hash `e2aca9bb40e7b0ea` -> `86af868ebb97e90b`; `--replay` at the default path
+  exits 0 and reports the match, and a trace with one bit flipped in its
+  recorded hash exits 1. `cargo test --workspace` green (537 tests,
+  mesocosm-lens at `--test-threads=1`), `clippy --workspace --all-targets -D
+  warnings` clean, `cargo fmt --all --check` clean, `cargo check -p
+  paredros-room --features r1-proof` clean. Receipt at
+  `Code/testing/mesocosm/dc15_kingdom.json`; DC1's file is untouched.
+
+  **Split, per the ceiling.** `organism/kingdom.rs` is new (269 lines) and
+  `organism.rs` came down to 556. `process.rs` is 569, `axis.rs` 540,
+  `world/genesis.rs` 576 — that last one is close enough that DC2 should expect
+  to split it rather than add to it.
+
+  **Left for Mark.** Three things, none of them blocking DC2. **The process
+  word** — `Fix` is a placeholder and wants a naming round. **Whether founding
+  should reach a mobile grazer at all**, now that the number is measured: the
+  draw here declines to, deliberately, and DC2 can take it up with the
+  instrument watching. And **the armour collision**: `Role::Plate` is now the
+  fixing geometry, so nothing can be armoured without also being a producer, and
+  the roster will hit that on its first shelled archetype.
 
 - **2026-08-30 (DC1): the palette learns more than four shapes.** Landed
   against §6's done-conditions.

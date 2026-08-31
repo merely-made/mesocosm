@@ -262,6 +262,10 @@ fn metabolize_grows_mass_and_collision() {
         .find(|organism| organism.id == target)
         .unwrap()
         .clone();
+    // Far enough out to be outside whatever envelope this seed's body drew,
+    // rather than a literal that happened to clear the body it used to draw.
+    // (Bodies moved at DC1.5: a consumer's head now bears a jaw or a crop.)
+    let out = world.body().unwrap().aabb().extent()[0] + eaten.half_extent()[0].abs() + 1;
     let mut preview = world.body().unwrap().clone();
     preview
         .attach(
@@ -270,7 +274,7 @@ fn metabolize_grows_mass_and_collision() {
             eaten.half_extent(),
             Attachment {
                 parent: preview.root,
-                offset: [5, 0, 0],
+                offset: [out, 0, 0],
                 yaw: Yaw::Zero,
             },
             Provenance::founding(),
@@ -296,7 +300,7 @@ fn metabolize_grows_mass_and_collision() {
         organism: target,
         placement: Placement::Explicit {
             parent: world.body().unwrap().root,
-            offset: [5, 0, 0],
+            offset: [out, 0, 0],
             yaw: Yaw::Zero,
         },
     });
@@ -633,7 +637,11 @@ fn live_height_changes_perception_and_behavior_over_the_same_ground() {
     let tall_shape = tall_hunter.walker_shape();
     assert_eq!(compact_hunter.feeding_mode(), tall_hunter.feeding_mode());
     assert_eq!((compact_shape.radius(), compact_shape.height()), (0, 1));
-    assert_eq!((tall_shape.radius(), tall_shape.height()), (0, 3));
+    // Four rather than three since DC1.5: a founding consumer carries the jaw
+    // that makes it one, and a jaw hangs below the head. The point of the test
+    // is the *difference* between the two shapes over one ground, which is
+    // unchanged.
+    assert_eq!((tall_shape.radius(), tall_shape.height()), (0, 4));
 
     let terrain = World::new(SEED, 0);
     let (observer, target) =

@@ -164,7 +164,7 @@ fn development_is_reproducible() {
 fn seeded_recipes_vary_and_stay_buildable() {
     // Worldgen draws creatures, not catalogue entries.
     let recipes: Vec<Recipe> = (0..40)
-        .map(|s| seed(&mut Rng::from_seed(s), true))
+        .map(|s| seed(&mut Rng::from_seed(s), Kingdom::Consumer))
         .collect();
 
     let shapes: BTreeSet<String> = recipes.iter().map(|r| format!("{:?}", r.tagmata)).collect();
@@ -188,10 +188,69 @@ fn seeded_recipes_vary_and_stay_buildable() {
     );
 }
 
+// A drawn line has to *read* as the kingdom it was drawn for, because that is
+// all a kingdom is now (DC1.5). The three draws are checked at the recipe
+// level here and against real founded bodies in `world::genesis`.
 #[test]
-fn a_producer_stays_simple() {
-    let simple = seed(&mut Rng::from_seed(5), false);
-    assert_eq!(simple.appendages(), 1, "a mouth and nothing else");
+fn each_draw_carries_the_anatomy_of_the_kingdom_it_was_asked_for() {
+    for s in 0..40 {
+        let producer = seed(&mut Rng::from_seed(s), Kingdom::Producer);
+        assert!(
+            producer
+                .tagmata
+                .iter()
+                .any(|t| t.appendage == Appendage::Plate),
+            "a producer draw with nothing to fix with: {producer:?}"
+        );
+        assert!(
+            !producer
+                .tagmata
+                .iter()
+                .any(|t| t.appendage == Appendage::Mouth
+                    || t.appendage == Appendage::Limb
+                    || t.appendage == Appendage::Vane),
+            "a producer draw that eats or moves: {producer:?}"
+        );
+
+        let consumer = seed(&mut Rng::from_seed(s), Kingdom::Consumer);
+        assert_eq!(
+            consumer.tagmata.first().map(|t| t.appendage),
+            Some(Appendage::Mouth),
+            "a consumer draw with no mouth on its head: {consumer:?}"
+        );
+        assert!(
+            !consumer
+                .tagmata
+                .iter()
+                .any(|t| t.appendage == Appendage::Plate),
+            "a consumer draw that also fixes -- the deferred mixotroph: {consumer:?}"
+        );
+
+        let decomposer = seed(&mut Rng::from_seed(s), Kingdom::Decomposer);
+        assert!(
+            !decomposer
+                .tagmata
+                .iter()
+                .any(|t| matches!(t.appendage, Appendage::Mouth | Appendage::Plate)),
+            "a decomposer draw with a feeding organ: {decomposer:?}"
+        );
+    }
+}
+
+// Both mouth geometries have to be drawable, or the grazer/predator split the
+// slice was ruled to make is a distinction the generator cannot express.
+#[test]
+fn consumer_draws_reach_both_a_jaw_and_a_crop() {
+    let roles: BTreeSet<Option<Role>> = (0..40)
+        .map(|s| seed(&mut Rng::from_seed(s), Kingdom::Consumer))
+        .filter_map(|r| r.tagmata.first().copied())
+        .map(|head| head.appendage.role(head.appendage_shape))
+        .collect();
+    assert_eq!(
+        roles,
+        BTreeSet::from([Some(Role::Mass), Some(Role::Limb)]),
+        "forty consumer draws reached {roles:?}"
+    );
 }
 
 #[test]

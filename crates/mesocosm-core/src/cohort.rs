@@ -15,6 +15,14 @@ use crate::process::FeedingMode;
 
 const MASS_BAND_MG: u64 = 64;
 
+/// What makes two far bodies the same body for the far tier's purposes.
+///
+/// **The kingdom and mode terms are anatomy now** (DC1.5). They used to be a
+/// species-wide silhouette wearing two names, so grouping on them was grouping
+/// on the lineage twice over; a body can now leave its class by growing or
+/// losing a feeding organ, and the key follows it. A cohort therefore still
+/// means "these earn and are eaten the same way", but it is a statement about
+/// the bodies rather than about the line they came from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct CohortKey {
     pub species: crate::body::SpeciesId,

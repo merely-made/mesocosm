@@ -32,6 +32,13 @@ pub(in crate::organism::ecology) struct LivingTarget {
     pub(in crate::organism::ecology) id: OrganismId,
     pub(in crate::organism::ecology) position: [i32; 3],
     pub(in crate::organism::ecology) organism_index: usize,
+    /// What this body is edible *as*, read off its own feeding anatomy since
+    /// DC1.5 rather than off its silhouette. A grazer takes what fixes, so the
+    /// question "is there a leaf on it" is now the same question in both
+    /// directions: what a body earns by and what it can be eaten as are one
+    /// reading of one anatomy. The rulings register's mixotroph case (§13)
+    /// stays deferred — no body can honestly do both yet, so nothing is hidden
+    /// from a grazer that ought to be visible to it.
     pub(in crate::organism::ecology) kingdom: Kingdom,
     /// Which line it belongs to, so an eater can tell kin from a stranger.
     /// (TD10)

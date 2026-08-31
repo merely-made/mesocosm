@@ -51,8 +51,17 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::development::PALETTE_SHAPES;
+use crate::organism::Kingdom;
 use crate::plan::Role;
 use crate::rng::Rng;
+
+/// The mouth selector at which a mouth stops being bulk and becomes a jaw.
+///
+/// One shape bank up: selectors `0..JAW_SHAPE` name `Mass` shapes and
+/// `JAW_SHAPE..` name `Limb` shapes. Sized from the palette so the two banks
+/// cannot overlap when the palette widens.
+pub const JAW_SHAPE: u8 = PALETTE_SHAPES as u8;
 
 /// What a stretch of segments grows.
 ///
@@ -86,13 +95,30 @@ impl Appendage {
     ];
 
     /// The part role this appendage becomes when it grows.
-    pub fn role(self) -> Option<Role> {
+    ///
+    /// **A mouth has two geometries and every other appendage has one.** A
+    /// cropping mouth is bulk and a jaw is an actuator, and which one a stretch
+    /// grows is what makes a grazer and a predator different bodies rather than
+    /// different flags (DC1.5). The selector carries it: below [`JAW_SHAPE`] a
+    /// mouth is drawn from the `Mass` bank, at or above it from the `Limb`
+    /// bank, and [`Appendage::shape_index`] maps it back into that bank. Zero
+    /// is still the default a recipe naming no shape develops.
+    pub fn role(self, shape: u8) -> Option<Role> {
         match self {
             Appendage::None => None,
             Appendage::Limb | Appendage::Vane => Some(Role::Limb),
             Appendage::Feeler => Some(Role::Sensor),
             Appendage::Plate => Some(Role::Plate),
+            Appendage::Mouth if shape >= JAW_SHAPE => Some(Role::Limb),
             Appendage::Mouth => Some(Role::Mass),
+        }
+    }
+
+    /// The selector within its role's own shape bank.
+    pub fn shape_index(self, shape: u8) -> u8 {
+        match self {
+            Appendage::Mouth => shape % JAW_SHAPE,
+            _ => shape,
         }
     }
 
@@ -374,9 +400,17 @@ impl Soma {
 
         // A rare developmental absence, drawn per tagma so a long stretch is
         // likelier to lose one than a short one.
+        //
+        // **Never the mouth** (DC1.5). An individual missing one limb is
+        // variation; an individual missing the organ it feeds with is a
+        // stillbirth, and since a kingdom is read off that organ it would also
+        // be an individual born into a different kingdom from its own line.
         let mut absent = Vec::new();
         for (index, tagma) in lineage.tagmata.iter().enumerate() {
-            if tagma.appendage == Appendage::None || tagma.per_segment == 0 {
+            if tagma.appendage == Appendage::None
+                || tagma.appendage == Appendage::Mouth
+                || tagma.per_segment == 0
+            {
                 continue;
             }
             let realised = segments[index];
@@ -397,8 +431,9 @@ impl Soma {
 /// **Worldgen's job, not the catalogue's.** A seeded world's lines are not
 /// centipedes and insects; they are their own creatures drawn from the same
 /// rules, which is the difference between a generator and a bestiary. Kingdom
-/// shapes the draw: producers stay simple and radial-ish, consumers get
-/// stretches and limbs, decomposers stay small and many-segmented.
+/// shapes the draw: producers grow long fronded stands and nothing that
+/// contracts, consumers get a mouth and stretches and limbs, decomposers get
+/// the limbs without the mouth.
 ///
 /// **Plants are big** (2026-08-29 TD7). An unlimbed line draws more stretches
 /// and longer ones, because determinate growth derives an adult mass from the
@@ -407,29 +442,66 @@ impl Soma {
 /// its own food's adult size by four times, an inverted pyramid written into
 /// the body plans. Nothing new is invented to fix it — the same axial rules,
 /// asked for a larger stand.
-pub fn seed(rng: &mut Rng, limbed: bool) -> Recipe {
-    let stretches = 1 + rng.below(if limbed { 4 } else { 3 }) as usize;
+///
+/// # The draw has to make the kingdom it was asked for (DC1.5)
+///
+/// A kingdom is read off feeding anatomy now, so this generator is the thing
+/// that decides one: the tier no longer authors a `Kingdom` field that a body
+/// then wears. A producer draw must carry a fixing part and no mouth, a
+/// consumer draw a mouth of one geometry or the other, and a decomposer draw
+/// neither — a body that absorbs across its bulk. **Transitional**: this is
+/// worldgen's own lottery, kept until DC2's archetypes replace it, and it is
+/// what keeps genesis founding a real pyramid in the meantime.
+///
+/// **The mouth follows the legs, and that is deliberate.** A line that draws
+/// pursuit machinery draws the mouth to use it; one that draws none crops. It
+/// is the natural authoring rule — an animal that chases has jaws and an animal
+/// that does not has a crop — and it is also the *null change*: the pre-DC1.5
+/// world read predator from "any part performs `Contract`", so a founding world
+/// keeps exactly the feeding modes it always had while the *reason* moves from
+/// the legs to the mouth. Drawing the mouth independently instead is a real
+/// ecology change — it founds mobile grazers, which never existed — and the
+/// instrument says what that costs; see the plan's DC1.5 findings.
+pub fn seed(rng: &mut Rng, kingdom: Kingdom) -> Recipe {
+    let rooted = kingdom == Kingdom::Producer;
+    let stretches = 1 + rng.below(if rooted { 3 } else { 4 }) as usize;
     let mut tagmata = Vec::with_capacity(stretches + 1);
 
-    // A head, always: something has to be the front.
-    tagmata.push(Tagma::new(1, Appendage::Mouth));
+    // A producer needs its fixing stretch, so the draw is told which one it is
+    // rather than asked to roll for it. Everything else about the stretch is
+    // still drawn.
+    let fixing = if rooted {
+        rng.below(stretches as u64) as usize
+    } else {
+        usize::MAX
+    };
 
     for index in 0..stretches {
-        let segments = if limbed {
-            1 + rng.below(6)
-        } else {
+        let segments = if rooted {
             4 + rng.below(8)
+        } else {
+            1 + rng.below(6)
         } as u8;
-        let appendage = if !limbed {
-            Appendage::None
+        let appendage = if rooted {
+            // Fronds and bare stretches, and nothing that contracts: a stand
+            // that grew an actuator would stop being sessile, which is the
+            // rent asymmetry TD7 founded. The draw is taken either way so the
+            // stream advances the same amount per stretch.
+            let drawn = rng.below(3) == 0;
+            if index == fixing || drawn {
+                Appendage::Plate
+            } else {
+                Appendage::None
+            }
         } else {
             // Most stretches are bare; the ones that are not carry limbs,
             // and rarely something else. Sparse assignment is what makes a
-            // silhouette read rather than bristle.
+            // silhouette read rather than bristle. **No plates**: a plate
+            // fixes now, and a body that both fixed and ate would be the
+            // mixotroph the rulings register defers.
             match rng.below(6) {
                 0 | 1 => Appendage::Limb,
                 2 if index == 0 => Appendage::Feeler,
-                3 if index + 1 == stretches => Appendage::Plate,
                 _ => Appendage::None,
             }
         };
@@ -440,6 +512,22 @@ pub fn seed(rng: &mut Rng, limbed: bool) -> Recipe {
         };
         tagmata.push(tagma);
     }
+
+    // A head, always: something has to be the front. What it bears is what the
+    // world will read this line as — a mouth for a consumer, nothing for the
+    // two kingdoms that do not take a living meal through one.
+    tagmata.insert(
+        0,
+        match kingdom {
+            Kingdom::Consumer => {
+                let pursues = tagmata
+                    .iter()
+                    .any(|t| matches!(t.appendage, Appendage::Limb | Appendage::Vane));
+                Tagma::new(1, Appendage::Mouth).with_shapes(0, if pursues { JAW_SHAPE } else { 0 })
+            }
+            Kingdom::Producer | Kingdom::Decomposer => Tagma::bare(1),
+        },
+    );
 
     let mut recipe = Recipe::of(tagmata);
     recipe.variance = 1 + rng.below(2) as u8;

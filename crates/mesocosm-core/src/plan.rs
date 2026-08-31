@@ -83,7 +83,8 @@ pub enum Role {
     Mass,
     /// One long axis. Limbs, stalks, tails.
     Limb,
-    /// Two long axes and one short. Fins, plates, leaves.
+    /// Two long axes and one short. Fins, plates, leaves — the shape that
+    /// presents area to the world, and so the one that fixes. (DC1.5)
     Plate,
     /// Small in every axis. Sensors, nodes, detail.
     Sensor,
@@ -129,17 +130,22 @@ pub fn classify(half_extent: [i32; 3]) -> Role {
 /// How a body repeats itself.
 ///
 /// Symmetry is the cheapest legibility there is: a mirrored heap reads as a
-/// creature and an unmirrored one does not. It is also a **kingdom
-/// signature**, so a kingdom is visible in silhouette rather than being a
-/// number on a sheet.
+/// creature and an unmirrored one does not.
+///
+/// **Geometry only, since DC1.5.** It used to be a kingdom signature as well,
+/// and `Kingdom::from_symmetry` made the two a bijection — so a body's whole
+/// trophic life was decided by a field that decides where a limb's twin goes.
+/// A kingdom is now read from feeding anatomy
+/// ([`Kingdom::of_body`](crate::organism::Kingdom::of_body)); this says which
+/// growth mirrors, and nothing else.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Symmetry {
-    /// Consumers. Paired left and right.
+    /// Paired left and right, so lateral growth grows a twin.
     #[default]
     Bilateral,
-    /// Producers. Repeated around the vertical axis.
+    /// Repeated around the vertical axis. Nothing mirrors.
     Radial,
-    /// Decomposers. Networked, no plane of symmetry.
+    /// Networked, no plane of symmetry. Nothing mirrors.
     None,
 }
 
