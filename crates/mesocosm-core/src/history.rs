@@ -5,7 +5,7 @@
 
 //! What happened, and what it followed from.
 //!
-//! A [`Codicil`] of [`Event`]s, with causality. Until now `World::apply`
+//! A [`Journal`] of [`Event`]s, with causality. Until now `World::apply`
 //! returned an outcome and dropped it, so the world had a present and no past,
 //! and every proposal that reads history had nothing to read.
 //!
@@ -29,8 +29,8 @@
 //! histories, so eating *joins* two causal lines that were independent until
 //! they met.
 //!
-//! That is the structure significance is made of. `codicil`'s
-//! [`effects`](Codicil::effects) then answers what followed from an event,
+//! That is the structure significance is made of. `muniment`'s
+//! [`effects`](Journal::effects) then answers what followed from an event,
 //! which is the retroactive definition of significance: a thing mattered
 //! because of what later depended on it.
 //!
@@ -47,7 +47,7 @@
 
 use std::collections::BTreeMap;
 
-use codicil::{Codicil, Seq};
+use muniment::{Journal, Seq};
 use serde::{Deserialize, Serialize};
 
 use crate::body::{PartId, SpeciesId};
@@ -294,7 +294,7 @@ pub struct Ending {
 /// ticks*, which is what the first ecology reading is made of.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct History {
-    log: Codicil<RecordedEvent>,
+    log: Journal<RecordedEvent>,
     /// The most recent event about each organism, which is how a new one finds
     /// its causes. Ordered, so recording is deterministic.
     latest: BTreeMap<OrganismId, Seq>,
@@ -336,7 +336,7 @@ impl History {
     }
 
     /// The log itself, for causal queries.
-    pub fn log(&self) -> &Codicil<RecordedEvent> {
+    pub fn log(&self) -> &Journal<RecordedEvent> {
         &self.log
     }
 

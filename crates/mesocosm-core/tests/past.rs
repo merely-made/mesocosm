@@ -79,7 +79,7 @@ fn feeding_joins_lines_that_were_independent() {
         .entries()
         .iter()
         .position(|e| matches!(e.record, Event::Fed { .. }))
-        .map(|i| codicil::Seq(i as u64))
+        .map(|i| muniment::Seq(i as u64))
         .expect("something fed");
 
     let Some(Event::Fed { eater, from, .. }) = history.event(meal).copied() else {
@@ -105,7 +105,7 @@ fn most_of_what_happens_is_concurrent() {
     for a in 0..history.len().min(40) {
         for b in a + 1..history.len().min(40) {
             compared += 1;
-            if history.concurrent(codicil::Seq(a as u64), codicil::Seq(b as u64)) {
+            if history.concurrent(muniment::Seq(a as u64), muniment::Seq(b as u64)) {
                 concurrent += 1;
             }
         }
@@ -128,7 +128,7 @@ fn a_death_follows_from_what_drained_it() {
         .entries()
         .iter()
         .position(|e| matches!(e.record, Event::Died { .. }))
-        .map(|i| codicil::Seq(i as u64))
+        .map(|i| muniment::Seq(i as u64))
         .expect("something died");
 
     let before = history.antecedents(died);

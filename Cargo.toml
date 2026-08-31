@@ -28,9 +28,9 @@ members = [
 ]
 
 [workspace.dependencies]
-# The append-only log, from mere's eidetic family. Branch-tracked rather
+# The append-only journal, from mere's eidetic family. Branch-tracked rather
 # than pinned; its causal shape landed 2026-08-01 for exactly this use.
-codicil = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+muniment = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 # Shared voxel value mechanics. Mesocosm keeps `Ground` as the durable
 # authority; its product adapter consumes revisioned chunk and patch machinery
 # as a derived view over accepted ground revisions without acquiring a physics

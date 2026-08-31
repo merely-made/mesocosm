@@ -40,14 +40,14 @@
 //! *that* threshold as a set. Ties union, a higher mark replaces, and the set
 //! stays small on its own without an arbitrary cap. Remembering every past
 //! holder forever is the unbounded version, and it is the tulpa selector's
-//! problem rather than this type's: codicil holds everything, tulpa holds what
+//! problem rather than this type's: the journal holds everything, tulpa holds what
 //! is retold. Same rule, world scale.
 //!
 //! # What this does not answer
 //!
 //! Abnormality is a lookup: *has anyone reached this*. Significance in the
 //! fuller sense is a traversal: *what later depended on this*, which is
-//! `codicil`'s causal graph. Two questions, two structures, deliberately.
+//! the journal's causal graph. Two questions, two structures, deliberately.
 
 use std::collections::{BTreeMap, BTreeSet};
 

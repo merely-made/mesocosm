@@ -13,8 +13,7 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 postcard = { workspace = true }
-codicil = { workspace = true }
+muniment = { workspace = true }
 nisus = { workspace = true }
 
 [dev-dependencies]
-codicil = { workspace = true }
