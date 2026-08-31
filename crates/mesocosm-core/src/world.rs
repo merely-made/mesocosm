@@ -27,6 +27,8 @@ mod act;
 mod genesis;
 mod read;
 
+pub use genesis::Founding;
+
 /// How far the enclosure reaches from its middle, in voxels.
 ///
 /// **Sixty-four since S1** (scale plan, 2026-08-29): a 129-voxel span, 15.3x

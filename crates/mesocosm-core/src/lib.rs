@@ -91,6 +91,6 @@ pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use species::{Lineages, Species};
 pub use wire::{WireError, frame, unframe};
 pub use world::{
-    INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement, Rejection, Route,
+    Founding, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement, Rejection, Route,
     STARVED_UPKEEP_TICKS, World,
 };

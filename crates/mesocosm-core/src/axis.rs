@@ -534,6 +534,7 @@ pub fn seed(rng: &mut Rng, kingdom: Kingdom) -> Recipe {
     recipe
 }
 
+pub mod archetype;
 pub mod catalogue;
 
 #[cfg(test)]

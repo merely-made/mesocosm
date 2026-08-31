@@ -15,7 +15,8 @@
 //! ```
 
 use mesocosm_core::{
-    PartPalette, PartTemplate, RoleShapes, Soma, SpeciesId, VolumeRef, axis::catalogue,
+    PartPalette, PartTemplate, Recipe, RoleShapes, Soma, SpeciesId, VolumeRef,
+    axis::{archetype, catalogue},
     develop_body,
 };
 use mesocosm_lens::{BodyLensProjection, BodyPlacement, Flight, Grade, Lens, maps};
@@ -92,12 +93,37 @@ fn main() {
         }
     }
 
-    let subjects = [
-        ("centipede", catalogue::centipede(14), 1.1),
-        ("insect", catalogue::insect(), 1.5),
-        ("spider", catalogue::spider(), 1.6),
-        ("tetrapod", catalogue::tetrapod(6), 1.6),
-        ("snake", catalogue::snake(16), 1.2),
+    // The catalogue's reference animals, and — since DC2 — the first *authored*
+    // body, framed identically so the two are comparable at a glance. The
+    // archetype brings its own palette entries; nothing else's shapes move.
+    let subjects: [(&str, Recipe, f32, PartPalette, u64); 6] = [
+        (
+            "18_plan_centipede",
+            catalogue::centipede(14),
+            1.1,
+            palette(),
+            9,
+        ),
+        ("18_plan_insect", catalogue::insect(), 1.5, palette(), 9),
+        ("18_plan_spider", catalogue::spider(), 1.6, palette(), 9),
+        (
+            "18_plan_tetrapod",
+            catalogue::tetrapod(6),
+            1.6,
+            palette(),
+            9,
+        ),
+        ("18_plan_snake", catalogue::snake(16), 1.2, palette(), 9),
+        // Development seed 1 rather than 9: the archetype's receipt should show
+        // the whole authored body, and seed 9 is one of the individuals a
+        // developmental absence takes an appendage pair from.
+        (
+            "dc2_browser",
+            archetype::consumer_browser(),
+            1.6,
+            archetype::palette(),
+            1,
+        ),
     ];
     let look = Grade::clay();
     // This receipt compares anatomy, not terrain placement. Lift the subjects
@@ -110,16 +136,10 @@ fn main() {
         .max()
         .map_or(16.0, |height| f32::from(height) + 16.0);
 
-    for (species, (name, plan, scale)) in subjects.into_iter().enumerate() {
-        let soma = Soma::develop(&plan, 9);
-        let body = develop_body(
-            SpeciesId(species as u32 + 1),
-            &plan,
-            &soma,
-            10_000,
-            palette(),
-        )
-        .expect("catalogue plan develops into a body graph");
+    for (species, (name, plan, scale, palette, soma_seed)) in subjects.into_iter().enumerate() {
+        let soma = Soma::develop(&plan, soma_seed);
+        let body = develop_body(SpeciesId(species as u32 + 1), &plan, &soma, 10_000, palette)
+            .expect("catalogue plan develops into a body graph");
         let placed = BodyPlacement {
             ground: [origin[0], presentation_floor, origin[1]],
             scale,
@@ -148,7 +168,7 @@ fn main() {
         };
 
         let pixels = lens.render_with(&world, &flight, &look, Some(&pose));
-        let path = out.join(format!("18_plan_{name}.png"));
+        let path = out.join(format!("{name}.png"));
         write_png(&path, width, height, &pixels);
         println!(
             "captured {} ({} parts, {} segments, {} appendages, complexity {})",

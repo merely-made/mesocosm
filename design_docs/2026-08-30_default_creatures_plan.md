@@ -1,6 +1,7 @@
 # Default Creatures Plan (2026-08-30)
 
-**Status: in progress (2026-08-31). DC1 and DC1.5 landed; DC2 next.** Founded on the ruling that closed
+**Status: in progress (2026-08-31). DC1, DC1.5 and DC2 landed; DC3 next, and
+§7's first question now has evidence behind it.** Founded on the ruling that closed
 the TD series in
 [`2026-08-29_terrarium_dynamics_plan.md`](2026-08-29_terrarium_dynamics_plan.md)
 §"The series closes here". This plan owns the *body* half of that ruling; the
@@ -675,6 +676,73 @@ recipe depends on which anatomy makes it what it is.
 
 ## Findings
 
+- **2026-08-31 (DC2): carving B's exactness came from its six dorsal plates,
+  and post-DC1.5 a consumer cannot wear them.** `Role::Plate` performs
+  `Process::Fix` now, so §2.4's "6 dorsal plates `[3,3,0]`" would make the
+  browser read **Producer** rather than Consumer — the armour collision DC1.5
+  named as a standing constraint, hit on the very first archetype exactly as it
+  predicted. Replacing them is not free arithmetic either. Holding *both* of
+  carving B's totals (1,611 voxels **and** 1,284 mg) requires some part whose
+  voxel count is not a multiple of five, because `part_ceiling_mg` is
+  `voxels * 4 / 5` floored and 4 x 1,611 / 5 is not an integer; the plates were
+  the only fine-grained parts doing that. **The smallest `Mass` shape whose
+  volume is not a multiple of five is `[3,3,3]` — 343 voxels, 274 mg**, a
+  seventh of the whole body in one block, because every smaller candidate
+  (`[3,1,1]`, `[3,3,1]`, `[1,1,1]`, `[3,3,0]`) classifies as Limb, Plate or
+  Sensor rather than Mass. So the choice was 1,284 mg with a chunky body or a
+  fine-grained body one or two voxels off the volume, and the slice took the
+  milligram: every *rate* in §2.4's column reads off the ceiling and the spans,
+  and none reads off the voxel count directly. `axis/archetype.rs`, §2.2.
+
+- **2026-08-31 (DC2): a decorative sense voxel is also an arithmetic tool.**
+  §2.2 named `[0,0,0]` as a legal one-voxel `Sensor` contributing span **zero**,
+  and it turns out to be the one part in the vocabulary that can move a body's
+  ceiling by a single milligram without moving any span. Two of them are what
+  land the browser on 1,284 mg exactly at 33 parts; without them the same
+  ceiling forces a `[3,3,3]` block and the part count falls to 15, which is
+  carving A's. `archetype::SPECK`.
+
+- **2026-08-31 (DC2): the authored grazer is not worse than the naive one; the
+  *tier* is.** Ten seeds with the consumer tier founding the browser:
+  **1 breathes / 5 thins / 0 boil / 4 collapse**, against DC1.5's naive mobile
+  grazer at 1/6/0/3 and the standing baseline's 0/10/0/0 — the same regime, one
+  seed either way, and it is a regime the body cannot leave. Measured beside it,
+  the reason: **DC1.5's transitional draw founds a *predator* tier in nine of
+  ten seeds** (ceiling 1,420-3,148, actuator span 20-128, sensor span **zero**
+  — the drawn consumer is blind), and the tenth (seed 2) is a *sessile* grazer,
+  which is the one baseline seed where consumers survive to the horizon. The
+  archetype arm founds 230 mobile grazers in *every* seed, at a breeding gate of
+  423 mg against the drawn consumer's 468-1,038, with a working eye (sight 9
+  against 8) and the whole 610-strong stand as food. A tier that is one
+  interbreeding species (TD10) therefore cannot hold both readings, so DC2's arm
+  is an all-grazer world by construction. **This is a roster question, not a
+  body question**, and it is DC4's to answer: §4.2's consumer tier is three
+  archetypes, and a founding that installs the browser without the pursuit form
+  beside it is measuring half a roster. `dc2_browser.json`.
+
+- **2026-08-31 (DC2): what a collapsed world does is empty into the ground.**
+  Seed 4 under the arm decides at tick 500 and ends 0/2/15 P/C/D with soil at
+  2,184,886 mg of a 2,202,302 mg total — **99.2% of the world's matter in the
+  ground** — against the same seed's baseline 1158/0/71 and 93,651 mg of soil.
+  Seed 9 is the same shape (2,184,330 of 2,209,340). Matter is conserved to the
+  milligram in every sample of every run, both arms, so the collapse is a
+  redistribution rather than a leak: the grazers strip the stand faster than it
+  regrows, die, and nothing is left to lift the matter back out of the soil.
+
+- **2026-08-31 (DC2): the lens flattens the whole widened palette to one
+  radius.** `BodyLensProjection::capsule_for` (`lens/src/body.rs:174`) reduces a
+  part to an axis, a run, and **one radius — the smaller of the two cross-axis
+  half-extents, floored at 1**. Every shape the archetype uses (`[2,1,1]`,
+  `[2,2,1]`, `[2,1,0]`, `[3,1,1]`, `[1,1,1]`, `[0,0,0]`) has a cross-section of
+  1, so all six project to radius-1 capsules differing only in length, and the
+  one-voxel decorative speck draws exactly as large as a working eye. The
+  primitive `[2,2,2]` segment projects at radius 2, which is why a
+  many-small-parts body reads *thinner* than the blocks it replaced rather than
+  more detailed. **DC1's shape vocabulary cannot reach the eye through this
+  projection**, and neither can DC4's roster: this belongs beside DC3's render
+  work and DC5's colour question, and it is cheaper than either (the radius rule
+  is four lines). `lens/src/body.rs`, `dc2_browser.png`.
+
 - **2026-08-30 (founding): part count appears nowhere in the body economy.**
   `mass_ceiling_mg` is total voxel volume × 0.8; the build multiple is a span
   sum over Limb and Sensor parts only; Mass has no span term and Plate has no
@@ -862,6 +930,153 @@ recipe depends on which anatomy makes it what it is.
   into a fixing part. `growth.rs`, `world/act.rs::land`, `chronicle.rs`.
 
 ## Progress
+
+- **2026-08-31 (DC2): one archetype, measured against the economy.** Landed
+  against §6's DC2 done-conditions. **The verdict moved and is reported rather
+  than absorbed** — see the third finding above; nothing here is a claim that
+  the arm should ship.
+
+  **The body, as authored.** `axis::archetype` is new (286 lines) and is the
+  catalogue's sibling and its opposite: the catalogue says "reference points,
+  not content", and this module is content. `consumer_browser` is eight tagmata
+  and **33 parts**, the same count §2.4's carving B has:
+
+  | tagma | segments | segment shape | bears | shape |
+  | --- | ---: | --- | --- | --- |
+  | head | 1 | `[2,1,1]` | Mouth x1 | crop `[2,1,0]` |
+  | face | 1 | `[2,1,1]` | Feeler x1 | eye `[1,1,1]` (mirrored: 2) |
+  | nares | 1 | `[2,1,1]` | Feeler x1 | speck `[0,0,0]` (mirrored: 2) |
+  | neck | 5 | `[2,1,1]` | — | — |
+  | shoulder | 1 | `[2,2,1]` | Limb x1 | leg `[3,1,1]` (2) |
+  | chest | 1 | `[2,2,2]` | — | — |
+  | haunches | 2 | `[2,2,1]` | Limb x1 | leg `[3,1,1]` (4) |
+  | tail | 10 | `[2,1,1]` | — | — |
+
+  Six distinct shapes, as carving B has. Four of them are new palette entries in
+  **spare slots** — `[2,1,1]`, `[2,2,1]` and `[2,1,0]` in `Mass`, `[3,1,1]` in
+  `Limb`, `[0,0,0]` in `Sensor` — so `PALETTE_SHAPES` stays four and
+  `PartPalette::primitive`'s defaults do not move, which is what makes the arm
+  isolable. It reads **Consumer** because the head bears a mouth and nothing on
+  it fixes, and **Grazer** because that mouth is a `Mass`-classified crop.
+  `variance` is **0**, per §5 ("a hexapod with a varying leg count is a
+  different creature"); kin are still not clones because `Soma::develop`'s
+  developmental absence survives, so ~30% of founders are born short a leg pair,
+  an eye pair or their specks. Absence cannot take the mouth (DC1.5's guard) and
+  the body carries no `Plate` at all, so **no individual can develop out of its
+  kingdom** — asserted over 256 development seeds.
+
+  **The measurement, against §2.4's table.**
+
+  | reading | §2.4 carving B | DC2 measured | |
+  | --- | ---: | ---: | --- |
+  | parts | 33 | **33** | ✓ |
+  | distinct part shapes | 6 | **6** | ✓ |
+  | `mass_ceiling_mg` | 1,284 | **1,284** | ✓ |
+  | `actuator_span` | 18 | **18** | ✓ |
+  | `sensor_span` | 2 | **2** | ✓ |
+  | build multiple | 2.40 | **3,084 / 1,284 = 2.40** | ✓ |
+  | rent at adult mass | 9 mg/tick | **9** | ✓ |
+  | bite at adult mass | 49 mg | **49** | ✓ |
+  | sight horizon | 9 voxels | **9** | ✓ |
+  | breeding gate | 423 mg | **423** | ✓ |
+  | birth floor | parent >= 132 mg | **132** | ✓ |
+  | ticks of reserve at full | 142 | **142** | ✓ |
+  | total voxel volume | 1,611 | **1,609** | **-2** |
+
+  **One divergence, and it is arithmetic rather than judgement.** The body is
+  two voxels short of carving B's volume. The cause is the first finding above:
+  the six dorsal plates cannot be worn by a consumer now that a plate fixes, and
+  they were also the only parts absorbing the fractional loss that lets 1,611
+  voxels floor to 1,284 mg. Holding the milligram was the choice, because every
+  other row in the table reads off the ceiling and the spans and none reads off
+  the voxel count. The plates' 294 voxels and 234 mg went back into `Mass`
+  bulk — the chest and the broad leg-bearing segments — so the silhouette keeps
+  a deep body without claiming armour it cannot have.
+
+  **The instrument, both arms, ten seeds each.**
+
+  | arm | breathes | thins | boil | collapse |
+  | --- | ---: | ---: | ---: | ---: |
+  | baseline (`Founding::Drawn`, DC1.5's founding) | 0 | 10 | 0 | 0 |
+  | archetype (`Founding::BrowsingConsumer`) | **1** | 5 | 0 | **4** |
+  | DC1.5's naive mobile grazer, for comparison | 1 | 6 | 0 | 3 |
+
+  The baseline arm is **identical to DC1.5's receipt**, per seed and to the
+  milligram (seed 8 ends at 1,131,018 mg, seed 9 at 864,135, seed 2 at 389,601 —
+  DC1.5's own numbers), which is the proof that installing the archetype changed
+  nothing for the tiers that still draw. Control all collapse, zero escapees,
+  matter conserved in every sample of every run.
+
+  The archetype arm is **one seed worse than DC1.5's naive grazer on collapse
+  and one better on thins** — the same regime, and the third finding above says
+  why it is a regime the body cannot leave: a tier is one interbreeding species,
+  so founding the browser founds 230 mobile grazers with a 423 mg breeding gate,
+  a working eye, the whole 610-strong stand as food, and nothing eating them
+  back, in every seed. The baseline's consumer tier is a *predator* tier in nine
+  of ten seeds and consumers die out anyway; the archetype's is the only
+  founding in the series that ends with all three kingdoms alive (seed 8,
+  453/6/5 — the only `breathes` the baseline instrument has ever read at this
+  cohort). **The reading is that DC4 cannot install one consumer archetype: it
+  has to install the pursuit form beside the browser, or the tier has to stop
+  being one species.** That is §7's first open question and it is Mark's.
+
+  **Receipts.** `cargo test -p mesocosm-core --test matter --release` green (5
+  tests, 86 s). Nine new tests: five in `axis::archetype` (the carving-B column
+  measured off a developed body, palette admissibility, a speck seeing nothing,
+  no individual developing out of Grazer over 256 seeds, and kin resembling
+  without cloning) and three in `world::genesis` (the authored tier founds 230
+  mobile grazers in seeds 1-10, a founded organism reads the carving-B column,
+  and **the arm is isolable** — 687 producer and decomposer bodies per seed
+  encode byte-identically under both foundings, with identical positions).
+  `cargo test --workspace` green (545 passed, 1 pre-existing ignored;
+  mesocosm-lens at `--test-threads=1`), `clippy --workspace --all-targets -D
+  warnings` clean,
+  `cargo fmt --all --check` clean, `cargo check -p paredros-room --features
+  r1-proof` clean. **No `REFERENCE_*` or `*_BASE` constant was touched** — no
+  file under `organism/` or `process.rs` is in the diff at all.
+
+  **The fixtures did not move, and that is the receipt.** The demo trace
+  re-records to the same 120 intents and the same hash `86af868ebb97e90b` DC1.5
+  left it at, because the arm is off by default and no snapshot field changed;
+  `--replay` at the default path exits 0 and reports the match, and a trace with
+  one bit flipped in its recorded hash exits 1. This is the first slice in the
+  series that did not break a hash. Instrument receipt at
+  `Code/testing/mesocosm/dc2_browser.json`; DC1's and DC1.5's files are
+  untouched. Capture at `Code/testing/mesocosm/dc2_browser.png`, from
+  `mesocosm-lens`'s `menagerie` example at the same framing the catalogue's
+  reference animals use, so the authored body and the generated ones are
+  comparable at a glance.
+
+  **What the capture actually shows, honestly.** Not a browsing hexapod. A
+  segmented green bead-chain, closer to a caterpillar: uniform capsules with a
+  slightly thicker cluster at the middle and small blobs at the head end. The
+  legs are present and read as bumps rather than legs. Two causes, and the
+  smaller one is the framing (the camera looks nearly along the lateral axis, so
+  the mirrored legs foreshorten into the silhouette). The larger one is the
+  fifth finding above: **the lens projects every part to a capsule with one
+  radius, the smaller cross-axis half-extent floored at 1**, and all six of the
+  archetype's shapes have a cross-section of 1 — so the shape vocabulary DC1
+  widened is invisible, a one-voxel decorative speck draws the same size as a
+  working eye, and a many-small-parts body reads *thinner* than the `[2,2,2]`
+  blocks it replaced. One tint over the whole body (§3.3's open colour question)
+  finishes the job. DC4 is the bar and this is not it; the good news is that the
+  two things standing between here and there are already scheduled (DC3, DC5)
+  and the radius rule is four lines.
+
+  **Split, per the ceiling.** `world/genesis.rs` was 576 and is now 446, with
+  its tests in `world/genesis/tests.rs` (308). `axis.rs` is 541 and
+  `axis/archetype.rs` 286. `population_instrument.rs` is **598** — it grew a
+  third batch and is now the file the next round has to split before adding.
+
+  **Left for Mark.** Four. **Whether the consumer tier founds one archetype or
+  three** — DC2's number says one is not viable and §4.2 already proposes three;
+  this is §7's question 1 and it now has evidence. **Whether `Founding` stays a
+  two-variant enum** or becomes a per-tier set once DC4 has a roster. **The
+  capsule radius rule**, which is the cheapest legibility this plan has found
+  and belongs somewhere between DC3 and DC5. And **whether the played critter
+  should carry the archetype** — DC2's arm gives it to `SpeciesId(1)` along with
+  the rest of the consumer tier, which is §5's open question answered
+  provisionally rather than ruled.
 
 - **2026-08-31 (DC1.5): kingdom unbinds from symmetry.** Landed against §6's
   DC1.5 done-conditions and both of §6.5's rulings.

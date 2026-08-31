@@ -12,11 +12,12 @@
 //! verdict is read off the curve by simple, stated arithmetic: no fitted
 //! models, no significance tests. See `design_docs/2026-08-29_terrarium_dynamics_plan.md`, TD1.
 //!
-//! Two batches run: a **baseline** at today's constants, and a **control**
-//! founded with a single organism and no producer to feed it (expected to
-//! collapse). The control is what proves the verdict logic can say something
-//! other than the baseline's answer — an instrument that only ever reads one
-//! way has not shown anything.
+//! Three batches run: a **baseline** at today's constants, an **archetype
+//! arm** founding the consumer tier from the authored browsing hexapod
+//! (`Founding::BrowsingConsumer`, DC2), and a **control** founded with a single
+//! organism and no producer to feed it (expected to collapse). The control is
+//! what proves the verdict logic can say something other than the baseline's
+//! answer — an instrument that only ever reads one way has not shown anything.
 //!
 //! A count inside its band is not enough to pass. [`Verdict::Thins`] catches
 //! the world that holds its numbers by becoming a producer stand; TD2b's
@@ -31,7 +32,7 @@
 //! cargo run -p mesocosm-core --example population_instrument --release
 //! ```
 //!
-//! Writes `Code/testing/mesocosm/dc15_kingdom.json` (curves + verdicts
+//! Writes `Code/testing/mesocosm/dc2_browser.json` (curves + verdicts
 //! per seed) and prints a terminal summary; each earlier round's receipt
 //! keeps its own filename and none is overwritten. `Code/testing/<repo>/` is this
 //! workspace's standing receipts convention; the path is found by walking up
@@ -44,7 +45,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use mesocosm_core::world::{ENCLOSURE, FOUNDERS};
-use mesocosm_core::{Intent, Kingdom, World};
+use mesocosm_core::{Founding, Intent, Kingdom, World};
 
 /// `lifespan_for_mass(1000mg)` — the starter mass every `World::new` founds
 /// its played critter with — is 3,000 ticks after the 2026-08-29 retune
@@ -224,9 +225,10 @@ fn sample_of(world: &World, tick: u32, cum_born: u64, cum_died: u64) -> Sample {
 /// recover with. **Breathes is the one verdict that cannot be read early**:
 /// no sample can prove a population stays bounded for ticks it has not
 /// reached yet, so that path always watches the full horizon.
-fn run(seed: u64, organism_count: u32) -> RunResult {
+fn run(seed: u64, organism_count: u32, founding: Founding) -> RunResult {
     let started = Instant::now();
-    let mut world = World::new(seed, organism_count);
+    let mut world =
+        World::founded(seed, organism_count, founding).expect("the founding palette is admissible");
     let founders = world.organisms.len() as u32;
 
     let mut cum_born = 0u64;
@@ -368,28 +370,38 @@ fn main() {
     println!("== baseline (current constants, {BASELINE_ORGANISM_COUNT} extra founders) ==");
     let baseline: Vec<RunResult> = BASELINE_SEEDS
         .iter()
-        .map(|&seed| run(seed, BASELINE_ORGANISM_COUNT))
+        .map(|&seed| run(seed, BASELINE_ORGANISM_COUNT, Founding::Drawn))
+        .inspect(report)
+        .collect();
+
+    println!("\n== archetype arm (the consumer tier founds the browsing hexapod) ==");
+    let archetype: Vec<RunResult> = BASELINE_SEEDS
+        .iter()
+        .map(|&seed| run(seed, BASELINE_ORGANISM_COUNT, Founding::BrowsingConsumer))
         .inspect(report)
         .collect();
 
     println!("\n== control (single founder, no producer to feed it) ==");
     let control: Vec<RunResult> = CONTROL_SEEDS
         .iter()
-        .map(|&seed| run(seed, CONTROL_ORGANISM_COUNT))
+        .map(|&seed| run(seed, CONTROL_ORGANISM_COUNT, Founding::Drawn))
         .inspect(report)
         .collect();
 
     let tally =
         |runs: &[RunResult], verdict: Verdict| runs.iter().filter(|r| r.verdict == verdict).count();
     let control_all_collapse = control.iter().all(|r| r.verdict == Verdict::Collapse);
-    println!(
-        "\nbaseline: {} breathes, {} thins, {} boil, {} collapse (of {})   control all collapse: {control_all_collapse}",
-        tally(&baseline, Verdict::Breathes),
-        tally(&baseline, Verdict::Thins),
-        tally(&baseline, Verdict::Boil),
-        tally(&baseline, Verdict::Collapse),
-        baseline.len(),
-    );
+    for (label, runs) in [("baseline ", &baseline), ("archetype", &archetype)] {
+        println!(
+            "\n{label}: {} breathes, {} thins, {} boil, {} collapse (of {})",
+            tally(runs, Verdict::Breathes),
+            tally(runs, Verdict::Thins),
+            tally(runs, Verdict::Boil),
+            tally(runs, Verdict::Collapse),
+            runs.len(),
+        );
+    }
+    println!("control all collapse: {control_all_collapse}");
     // TD2b's wall proof: any nonzero count here is a body standing where
     // `Ground::grow` never laid terrain.
     let max_outside = baseline
@@ -401,7 +413,7 @@ fn main() {
     println!("max escapees observed across baseline (any sample, any seed): {max_outside}");
 
     let path = receipt_path();
-    let json = render_json(&baseline, &control);
+    let json = render_json(&baseline, &archetype, &control);
     fs::create_dir_all(path.parent().expect("receipt path has a parent")).expect(
         "Code/testing/mesocosm already exists in this workspace; create_dir_all is just insurance",
     );
@@ -465,7 +477,7 @@ fn report(run: &RunResult) {
     println!("            {}", run.reason);
 }
 
-/// Finds `Code/testing/mesocosm/dc15_kingdom.json` by walking up from
+/// Finds `Code/testing/mesocosm/dc2_browser.json` by walking up from
 /// this crate to the `repos` ancestor documented in `Code/CLAUDE.md`'s layout
 /// section, rather than counting `../` — the crate's depth under `repos/`
 /// is not this example's business to hardcode. Each round's receipt keeps its
@@ -473,7 +485,8 @@ fn report(run: &RunResult) {
 /// `td2_retune.json`, `td2b_walls.json`, `td2c_persistence.json`,
 /// `td2d_scavengers.json`, `td5_economy.json`, `td5b_midlife.json`,
 /// `td6_matter.json`, `td7_priced.json`, `s1_wide_instrument.json`,
-/// `td11_chain.json`, and now this. (2026-08-29 TD8; renamed per round)
+/// `td11_chain.json`, `dc1_palette.json`, `dc15_kingdom.json`, and now this.
+/// (2026-08-29 TD8; renamed per round)
 fn receipt_path() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repos_ancestor = manifest_dir
@@ -483,10 +496,10 @@ fn receipt_path() -> PathBuf {
     let workspace_root = repos_ancestor
         .parent()
         .expect("`repos/` has a parent — the `Code` workspace root");
-    workspace_root.join("testing/mesocosm/dc15_kingdom.json")
+    workspace_root.join("testing/mesocosm/dc2_browser.json")
 }
 
-fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {
+fn render_json(baseline: &[RunResult], archetype: &[RunResult], control: &[RunResult]) -> String {
     let mut out = String::new();
     out.push_str("{\n");
     out.push_str(&format!("  \"ticks\": {TICKS},\n"));
@@ -495,6 +508,8 @@ fn render_json(baseline: &[RunResult], control: &[RunResult]) -> String {
     out.push_str(&format!("  \"collapse_fraction\": {COLLAPSE_FRACTION},\n"));
     out.push_str("  \"baseline\": ");
     render_batch(&mut out, baseline, 2);
+    out.push_str(",\n  \"archetype\": ");
+    render_batch(&mut out, archetype, 2);
     out.push_str(",\n  \"control\": ");
     render_batch(&mut out, control, 2);
     out.push('\n');
