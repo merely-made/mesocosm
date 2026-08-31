@@ -331,6 +331,7 @@ impl BrickTracer {
         let roster = params::roster_of(input);
         diagnostics.roster_members = roster.len() as u32;
         diagnostics.roster_dropped = input.roster.len().saturating_sub(MAX_ROSTER) as u32;
+        diagnostics.roster_capsules_dropped = params::roster_capsules_dropped(input);
         if self.last_roster == roster {
             return;
         }

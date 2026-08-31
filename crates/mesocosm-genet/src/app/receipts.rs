@@ -86,6 +86,14 @@ impl Host {
                 None => String::new(),
             }
         );
+        // Loud, because the alternative this replaces was a body that was
+        // simply not there.
+        if receipt.body_capsules_dropped > 0 {
+            println!(
+                "body: {} of {} parts past the lens capsule budget, drawn truncated to its widest",
+                receipt.body_capsules_dropped, receipt.body_parts
+            );
+        }
         // The only route to a nonzero exit: a replay that landed elsewhere.
         if receipt.state_hash_matches == Some(false) {
             self.code = 1;
@@ -126,10 +134,15 @@ impl Host {
             trace_len: self.runtime.trace().len(),
             ground_revision: world.ground().revision(),
             body_parts: world.body().map(|body| body.len()).unwrap_or(0),
+            body_capsules_dropped: self.body_capsules_dropped,
             section_roster: self
                 .gpu
                 .as_ref()
                 .map_or(0, |gpu| gpu.section.last_roster_members()),
+            roster_capsules_dropped: self
+                .gpu
+                .as_ref()
+                .map_or(0, |gpu| gpu.section.last_roster_capsules_dropped()),
             slab_half_height: self
                 .gpu
                 .as_ref()

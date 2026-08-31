@@ -145,6 +145,10 @@ pub struct Host {
     /// How much of a replay's trace has been fed in.
     cursor: usize,
     finished: bool,
+    /// Parts of the played body the lens's capsule budget could not carry on
+    /// the last drawn frame. Nonzero means a truncated player, which the
+    /// receipt says out loud — before DC3 it meant no player at all.
+    body_capsules_dropped: u32,
     /// Process exit code. Nonzero only when a replay landed on a different
     /// hash than the one its trace recorded.
     code: i32,
@@ -186,6 +190,7 @@ impl Host {
             steps: 0,
             cursor: 0,
             finished: false,
+            body_capsules_dropped: 0,
             code: 0,
         }
     }
@@ -300,7 +305,11 @@ impl Host {
             .world()
             .controlled()
             .map_or([0.42, 0.62, 0.46], |organism| look_of(organism).0);
-        let pose = section::pose_of(self.runtime.world(), tint);
+        let (pose, dropped) = match section::pose_of(self.runtime.world(), tint) {
+            Some((pose, dropped)) => (Some(pose), dropped),
+            None => (None, 0),
+        };
+        self.body_capsules_dropped = dropped;
         // An ant farm needs the ants: everything else alive in the slab the
         // camera already cuts, posed the same way and coloured by its own
         // guise. Nothing here reaches an intent.

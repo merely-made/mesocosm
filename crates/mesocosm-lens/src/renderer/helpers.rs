@@ -304,10 +304,10 @@ pub(super) fn write_changed<T: Pod + PartialEq + Copy>(
 }
 
 pub(super) fn critter_params(pose: Option<&CritterPose>) -> CritterParams {
-    let mut pairs = [[0.0f32; 4]; 192];
+    let mut pairs = [[0.0f32; 4]; MAX_CAPSULES * 2];
     let (mut bounds, mut tint_count, mut eyes) = ([0.0f32; 4], [0.0f32; 4], [[0.0f32; 4]; 2]);
     if let Some(pose) = pose {
-        for (index, capsule) in pose.capsules.iter().take(96).enumerate() {
+        for (index, capsule) in pose.capsules.iter().take(MAX_CAPSULES).enumerate() {
             pairs[2 * index] = [capsule.a[0], capsule.a[1], capsule.a[2], capsule.ra];
             pairs[2 * index + 1] = [capsule.b[0], capsule.b[1], capsule.b[2], capsule.rb];
         }
@@ -321,7 +321,7 @@ pub(super) fn critter_params(pose: Option<&CritterPose>) -> CritterParams {
             pose.tint[0],
             pose.tint[1],
             pose.tint[2],
-            pose.capsules.len().min(96) as f32,
+            pose.capsules.len().min(MAX_CAPSULES) as f32,
         ];
         eyes = pose.eyes;
     }

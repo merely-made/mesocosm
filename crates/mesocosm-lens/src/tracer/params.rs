@@ -114,11 +114,17 @@ impl CritterParams {
 
 impl RosterPose {
     /// Capsules past [`crate::MAX_ROSTER_CAPSULES`] are dropped rather than
-    /// refused.
+    /// refused, and the ones kept are the **widest**.
+    ///
+    /// Document order is the axial chain from the root outward, so taking the
+    /// first N kept a body's head end rather than its silhouette — and a
+    /// silhouette is the whole job of a background member. Ties keep the
+    /// earlier capsule, so the choice is deterministic at equal radius.
     pub(super) fn from_pose(pose: &CritterPose) -> Self {
         let mut pairs = [[0.0; 4]; MAX_ROSTER_CAPSULES * 2];
         let count = pose.capsules.len().min(MAX_ROSTER_CAPSULES);
-        for (index, capsule) in pose.capsules.iter().take(count).enumerate() {
+        for (index, kept) in widest(&pose.capsules).into_iter().enumerate() {
+            let capsule = &pose.capsules[kept];
             pairs[index * 2] = [capsule.a[0], capsule.a[1], capsule.a[2], capsule.ra];
             pairs[index * 2 + 1] = [capsule.b[0], capsule.b[1], capsule.b[2], capsule.rb];
         }
@@ -133,6 +139,32 @@ impl RosterPose {
             pairs,
         }
     }
+}
+
+/// Indices of the [`MAX_ROSTER_CAPSULES`] widest capsules, back in document
+/// order so the upload is stable. The common case is a body inside the budget,
+/// which costs one comparison and no allocation.
+fn widest(capsules: &[crate::critter::Capsule]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..capsules.len()).collect();
+    if order.len() > MAX_ROSTER_CAPSULES {
+        // Radius is per-endpoint; a capsule's contribution to a silhouette is
+        // its fatter end.
+        let girth = |index: &usize| capsules[*index].ra.max(capsules[*index].rb);
+        order.sort_by(|a, b| girth(b).total_cmp(&girth(a)).then(a.cmp(b)));
+        order.truncate(MAX_ROSTER_CAPSULES);
+        order.sort_unstable();
+    }
+    order
+}
+
+/// Capsules the frame's roster could not carry, over every member it drew.
+pub(super) fn roster_capsules_dropped(input: BrickFrameInput<'_>) -> u32 {
+    input
+        .roster
+        .iter()
+        .take(MAX_ROSTER)
+        .map(|pose| pose.capsules.len().saturating_sub(MAX_ROSTER_CAPSULES))
+        .sum::<usize>() as u32
 }
 
 /// The roster the frame actually carries, capped and laid out for upload.
@@ -170,6 +202,61 @@ pub(super) fn validates_change(input: BrickFrameInput<'_>) -> Result<(), BrickTr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::critter::Capsule;
+
+    /// DC-R1, read off the uniform: the budget goes to the silhouette.
+    ///
+    /// The fat capsules are last in document order on purpose — that is the
+    /// case the old `take(10)` got wrong, since document order is the axial
+    /// chain from the root outward.
+    #[test]
+    fn a_truncated_member_keeps_its_widest_capsules() {
+        let capsules: Vec<Capsule> = (0..MAX_ROSTER_CAPSULES * 2)
+            .map(|index| {
+                let radius = if index < MAX_ROSTER_CAPSULES {
+                    0.1
+                } else {
+                    0.6
+                };
+                Capsule {
+                    a: [index as f32, 0.0, 0.0],
+                    ra: radius,
+                    b: [index as f32, 1.0, 0.0],
+                    rb: radius,
+                }
+            })
+            .collect();
+        let pose = CritterPose::from_capsules(capsules, [[0.0; 4]; 2], [0.0; 3]);
+        let uploaded = RosterPose::from_pose(&pose);
+        assert_eq!(uploaded.tint_count[3], MAX_ROSTER_CAPSULES as f32);
+        for index in 0..MAX_ROSTER_CAPSULES {
+            assert_eq!(uploaded.pairs[index * 2][3], 0.6, "capsule {index} is fat");
+        }
+        // Kept in document order, so the upload is stable frame to frame.
+        let xs: Vec<f32> = (0..MAX_ROSTER_CAPSULES)
+            .map(|index| uploaded.pairs[index * 2][0])
+            .collect();
+        assert!(xs.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    /// Equal radii are a real case — a body of one repeated template — and the
+    /// tie-break has to be the same every frame or the roster churns.
+    #[test]
+    fn equal_radii_truncate_to_document_order() {
+        let capsules: Vec<Capsule> = (0..MAX_ROSTER_CAPSULES + 5)
+            .map(|index| Capsule {
+                a: [index as f32, 0.0, 0.0],
+                ra: 0.5,
+                b: [index as f32, 1.0, 0.0],
+                rb: 0.5,
+            })
+            .collect();
+        let pose = CritterPose::from_capsules(capsules, [[0.0; 4]; 2], [0.0; 3]);
+        let uploaded = RosterPose::from_pose(&pose);
+        for index in 0..MAX_ROSTER_CAPSULES {
+            assert_eq!(uploaded.pairs[index * 2][0], index as f32);
+        }
+    }
 
     /// The cap arithmetic documented on [`crate::MAX_ROSTER`], asserted
     /// against the limit that actually binds — the downlevel WebGL2 one.
@@ -177,16 +264,28 @@ mod tests {
     fn the_roster_binding_fits_the_downlevel_uniform_limit() {
         let limit = wgpu::Limits::downlevel_webgl2_defaults().max_uniform_buffer_binding_size;
         assert_eq!(limit, 16_384);
-        assert_eq!(size_of::<CritterParams>(), 3136);
-        assert_eq!(size_of::<RosterPose>(), 352);
-        assert_eq!(ROSTER_BUFFER_BYTES, 14_096);
+        // The played pose at DC3's 256: 16 + 16 + 32 + 32 · 256.
+        assert_eq!(size_of::<CritterParams>(), 8256);
+        // A roster member at DC3's 11: 16 + 16 + 32 · 11.
+        assert_eq!(size_of::<RosterPose>(), 384);
+        assert_eq!(ROSTER_BUFFER_BYTES, 15_376);
         assert!(ROSTER_BUFFER_BYTES < limit);
         assert!((size_of::<TraceParams>() as u64) < limit);
+        // Both bindings are live at once, and each has to fit the same limit
+        // on its own. The frame uniform (header 208 B + pose) spends 51.7%,
+        // the roster 93.8%.
+        assert_eq!(size_of::<TraceParams>(), 8464);
+        assert_eq!(ROSTER_BUFFER_BYTES * 100 / limit, 93);
+        // The budget §3 writes as `M × (C + 1) ≤ 511`, checked rather than
+        // recited: 40 members at 11 capsules is 480, and one more capsule each
+        // would be 520.
+        assert_eq!(MAX_ROSTER * (MAX_ROSTER_CAPSULES + 1), 480);
+        assert_eq!(MAX_ROSTER * (MAX_ROSTER_CAPSULES + 2), 520);
         // What the reduced budget buys off: at `MAX_CAPSULES` per member the
-        // same binding would hold five bodies.
+        // same binding would hold one body.
         assert_eq!(
             (limit - ROSTER_HEADER_BYTES) / size_of::<CritterParams>() as u64,
-            5
+            1
         );
     }
 }

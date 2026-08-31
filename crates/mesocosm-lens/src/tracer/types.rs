@@ -299,6 +299,11 @@ pub struct BrickDiagnostics {
     pub roster_members: u32,
     /// Roster members the frame named past [`crate::MAX_ROSTER`].
     pub roster_dropped: u32,
+    /// Capsules the drawn roster members carried past
+    /// [`crate::MAX_ROSTER_CAPSULES`]. The widest are kept, so this is how much
+    /// of the ecology's detail the budget spent rather than how many bodies
+    /// went missing.
+    pub roster_capsules_dropped: u32,
     pub resource_creations: u32,
     pub bind_group_rebuilds: u32,
     pub map_recreated: bool,

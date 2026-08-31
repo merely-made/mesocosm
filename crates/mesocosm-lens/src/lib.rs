@@ -40,7 +40,15 @@ pub use tracer::{
 };
 
 /// Hard admission limit imposed by the baseline uniform layout.
-pub const MAX_CAPSULES: usize = 96;
+///
+/// **256, and the number is the budget rather than the hardware.** A pose costs
+/// `bounds 16 + tint_count 16 + eyes 32 + 32 · capsules` bytes, so this pose is
+/// 8 256 B and the whole of [`BrickTracer`]'s frame uniform is 8 464 B —
+/// **51.7% of the 16 384 B downlevel WebGL2 binding** the tracer has to fit. The
+/// previous 96 spent 21% and was never a hardware ceiling; the headroom runs to
+/// roughly 500. Raised for DC3 so a played body carrying an authored archetype
+/// plus a long career of meals stays on screen.
+pub const MAX_CAPSULES: usize = 256;
 
 /// Bodies the brick tracer's pose roster admits beside the single
 /// [`BrickFrameInput::pose`](crate::BrickFrameInput). Members past this are
@@ -55,15 +63,16 @@ pub const MAX_CAPSULES: usize = 96;
 ///
 /// A pose costs `bounds 16 + tint_count 16 + 32 · capsules` bytes:
 ///
-/// - at [`MAX_CAPSULES`] a pose is 3 136 B (eyes included), so a
-///   full-fidelity roster would admit `(16384 − 16) / 3136 = 5` members. Five
-///   is not an ecology.
+/// - at [`MAX_CAPSULES`] a pose is 8 256 B (eyes included), so a
+///   full-fidelity roster would admit `(16384 − 16) / 8256 = 1` member. One is
+///   not an ecology.
 /// - roster members are background silhouettes rather than the played body,
-///   so they drop the eyes and carry [`MAX_ROSTER_CAPSULES`]: 352 B each.
-/// - the binding is then `16 + 40 · 352 = 14 096` B, 86.0% of the downlevel
-///   limit (21.5% of the desktop one).
+///   so they drop the eyes and carry [`MAX_ROSTER_CAPSULES`]: 384 B each.
+/// - the binding is then `16 + 40 · 384 = 15 376` B, 93.8% of the downlevel
+///   limit (23.5% of the desktop one). That is all 40 members can be given:
+///   the budget is `M × (C + 1) ≤ 511` and `40 × 12 = 480`.
 ///
-/// Why 40 and 10 rather than some other split of the same bytes: a genesis
+/// Why 40 and 11 rather than some other split of the same bytes: a genesis
 /// enclosure of 60 organisms puts 26–34 of them inside the section's slab
 /// (measured across seeds), and a developed body carries a median of 8–19
 /// living parts. So the member cap clears observed occupancy with margin, and
@@ -74,10 +83,11 @@ pub const MAX_CAPSULES: usize = 96;
 /// its full [`MAX_CAPSULES`], which is why the split exists at all.
 pub const MAX_ROSTER: usize = 40;
 
-/// Capsules — living parts — a roster member carries. Extra ones are dropped;
-/// the member's bounds sphere still covers the whole pose, so a truncated
-/// body is smaller than its bounds and never larger.
-pub const MAX_ROSTER_CAPSULES: usize = 10;
+/// Capsules — living parts — a roster member carries. Extra ones are dropped
+/// **widest first kept**, so a truncated member is its silhouette rather than
+/// its head end; the member's bounds sphere still covers the whole pose, so a
+/// truncated body is smaller than its bounds and never larger.
+pub const MAX_ROSTER_CAPSULES: usize = 11;
 
 /// A look, as data. Worldgen can emit one of these per world or per biome
 /// the way it emits a heightmap.

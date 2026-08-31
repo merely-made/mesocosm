@@ -44,7 +44,7 @@ struct CritterParams {
     bounds: [f32; 4],
     tint_count: [f32; 4],
     eyes: [[f32; 4]; 2],
-    pairs: [[f32; 4]; 192],
+    pairs: [[f32; 4]; MAX_CAPSULES * 2],
 }
 
 #[repr(C)]
@@ -172,10 +172,17 @@ impl Lens {
             label: Some("lens grade layout"),
             entries: &[texture(0), sampling(1), texture(2), uniform(3)],
         });
+        // The pose array size is the Rust cap, injected rather than written
+        // twice: a drift between the two layouts is a silent misread.
+        let march_source = format!(
+            "const POSE_PAIRS = {};\n{}",
+            MAX_CAPSULES * 2,
+            include_str!("march.wgsl")
+        );
         let march = pipeline(
             &device,
             "lens march",
-            include_str!("march.wgsl"),
+            &march_source,
             &march_layout,
             FRAME_FORMAT,
         );

@@ -72,9 +72,21 @@ pub struct PlayedReceipt {
     /// receipt shows whether the section had anything to re-upload.
     pub ground_revision: u64,
     pub body_parts: usize,
+    /// Parts of the played body the lens's capsule budget could not carry on
+    /// the last drawn frame.
+    ///
+    /// **This number exists because a body used to vanish instead.** The host
+    /// swallowed the lens's refusal with `.ok()`, so a critter that grew past
+    /// the cap simply stopped being drawn while alive. Since DC3 the widest
+    /// capsules are kept, the body is drawn truncated, and the loss is
+    /// reported here rather than shown as an absence.
+    pub body_capsules_dropped: u32,
     /// Bodies the last traced frame drew beside the played one: every alive
     /// organism the slab window held, capped by the lens's roster limit.
     pub section_roster: u32,
+    /// Capsules the drawn roster members carried past their own smaller
+    /// budget, widest kept.
+    pub roster_capsules_dropped: u32,
     /// How much world the section framed, in voxels of slab half-height. A
     /// capture that does not say what it framed cannot be compared with the
     /// next one. (S1; the number was ruled at 28 on 2026-08-29.)

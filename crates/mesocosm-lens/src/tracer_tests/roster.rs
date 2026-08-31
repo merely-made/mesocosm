@@ -135,4 +135,52 @@ fn a_roster_past_the_cap_is_truncated_and_counted() {
         .expect("crowded frame");
     assert_eq!(crowded.diagnostics.roster_members, MAX_ROSTER as u32);
     assert_eq!(crowded.diagnostics.roster_dropped, 6);
+    assert_eq!(crowded.diagnostics.roster_capsules_dropped, 0);
+}
+
+/// DC-R1: a member over its capsule budget spends the budget on its
+/// silhouette. Document order is the axial chain, so the old rule kept the
+/// head end; the fat parts here are last on purpose.
+#[test]
+fn a_member_over_its_capsule_budget_keeps_its_widest_capsules() {
+    let ground = ground();
+    let map = BrickMap::from_ground(&ground).expect("atlas capacity");
+    let Some(mut tracer) = BrickTracer::headless(64, 64) else {
+        eprintln!("no adapter; skipping roster truncation receipt");
+        return;
+    };
+    let top = ground.surface(4, 4).expect("ground column") as f32;
+    // Twenty capsules: the first ten thin, the last ten fat.
+    let capsules: Vec<Capsule> = (0..20)
+        .map(|index| {
+            let y = top + 3.0 + index as f32 * 0.2;
+            let radius = if index < 10 { 0.1 } else { 0.6 };
+            Capsule {
+                a: [4.5, y, 4.5],
+                ra: radius,
+                b: [4.5, y + 0.1, 4.5],
+                rb: radius,
+            }
+        })
+        .collect();
+    let member = CritterPose::from_capsules(capsules, [[0.0; 4]; 2], [0.4, 0.6, 0.5]);
+    let roster = [member];
+    let frame = tracer
+        .capture(
+            BrickFrameInput::new(
+                &map,
+                BrickRevision(ground.revision()),
+                &flight(&ground),
+                &Grade::clay(),
+            )
+            .with_roster(&roster),
+        )
+        .expect("truncated frame");
+    assert_eq!(frame.diagnostics.roster_members, 1);
+    assert_eq!(
+        frame.diagnostics.roster_capsules_dropped,
+        20 - crate::MAX_ROSTER_CAPSULES as u32
+    );
+    // Which capsules survive is asserted against the uniform itself, in
+    // `tracer::params`, where the layout is in scope.
 }

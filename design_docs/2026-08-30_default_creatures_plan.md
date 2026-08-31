@@ -676,6 +676,42 @@ recipe depends on which anatomy makes it what it is.
 
 ## Findings
 
+- **2026-08-31 (DC3): the vanish is confirmed, on a live body, by
+  counterfactual.** §3.2 called it a candidate. A headed run grew the played
+  critter to **349 living parts** and the trace of it replays exactly
+  (`dc3_vanish.trace.json`, `97bf29f3ca1fd587`). At `df2a741` that replay draws
+  **no body at all** while the receipt says `body_parts: 349` and the minimap
+  shows the critter alive; after DC3 the same replay draws it truncated and
+  reports the 93 parts it could not carry. Cause and cure both proven on the
+  same trace. `dc3_vanish_before.png`, `dc3_vanish_after.png`.
+
+- **2026-08-31 (DC3): the `mark_playtest2` trace no longer grows the body it
+  grew.** DC1, DC1.5 and DC2 all moved founding, so the preserved trace
+  diverges from its recorded hash immediately; its critter reaches 58 parts by
+  frame 10 and is dead by frame 30, ending `body_parts: 0`. It is still a good
+  world driver — the roster capture pair uses it — but it is no longer evidence
+  about *that* body, and the vanish had to be re-grown to be shown. Playtest
+  traces are worth re-recording when founding moves.
+
+- **2026-08-31 (DC3): descending radius keeps the bulk and drops the fronds,
+  and on a stand of producers that is not obviously prettier.** DC-R1 landed
+  exactly as §3.3 specifies and the change is unambiguous — at one seed and
+  frame the visible stalks go from about 25 to about 13 — but the parts it
+  drops are the tall thin `[4,4,1]` fronds and the parts it keeps are the round
+  root masses. Silhouette *area* is what the argument asks for and what it
+  delivers; silhouette *reading* may want **extent** (`radius² × length`) as
+  the key instead, which is the same four lines. Ordering key returned to Mark
+  rather than substituted. `dc3_roster_before.png`, `dc3_roster_after.png`.
+
+- **2026-08-31 (DC3): one capsule cannot carry the primitive `Plate`.** The
+  radius rule fixed the archetype's six shapes but `[4,4,1]` is 4:1
+  anisotropic, and the mean takes it from radius 1 to **2.5** — the standing
+  crop goes from thin blades to thick columns. A geometric mean gives 2.0 and
+  is no better; there is no single radius that represents a 9×9×3 slab. The
+  honest answer is a second capsule for plate-shaped parts, which is a
+  projection redesign and belongs with DC5's colour question rather than in
+  DC3. `lens/src/body.rs::capsule_for`.
+
 - **2026-08-31 (DC2): carving B's exactness came from its six dorsal plates,
   and post-DC1.5 a consumer cannot wear them.** `Role::Plate` performs
   `Process::Fix` now, so §2.4's "6 dorsal plates `[3,3,0]`" would make the
@@ -930,6 +966,120 @@ recipe depends on which anatomy makes it what it is.
   into a fixing part. `growth.rs`, `world/act.rs::land`, `chronicle.rs`.
 
 ## Progress
+
+- **2026-08-31 (DC3): the render budget, and the radius rule with it.** Landed
+  against §6's DC3 done-conditions. DC-R1 and DC-R2 from §3.3; **DC-R3 is
+  untouched and still Mark's**. `mesocosm-core` was not opened.
+
+  **DC-R1, truncation by descending radius.** `RosterPose::from_pose`
+  (`lens/src/tracer/params.rs`) picked a member's first ten capsules in
+  document order, which is the axial chain from the root outward, so a
+  truncated body was its head end. It now keeps the widest capsules — ordered
+  by the fatter of the two endpoint radii, ties going to the earlier capsule,
+  then re-sorted back into document order so the upload is stable frame to
+  frame. Bodies inside the budget take a length comparison and no allocation.
+  Capsules the budget could not carry are counted in a new
+  `BrickDiagnostics::roster_capsules_dropped` beside the existing
+  `roster_dropped`, and the host puts both in its receipt.
+
+  **DC-R2, the numbers.** `MAX_CAPSULES` 96 → **256** and
+  `MAX_ROSTER_CAPSULES` 10 → **11**, exactly §3.3. Measured rather than
+  recited, and the binding test in `tracer/params.rs` now asserts each one:
+  `CritterParams` 3 136 → **8 256 B**, the whole frame uniform **8 464 B =
+  51.7%** of the 16 384 B downlevel binding (§3.3 estimated 52%); `RosterPose`
+  352 → **384 B**, the roster binding 14 096 → **15 376 B = 93.8%**; and
+  `M × (C + 1)` is 480 against the 511 ceiling, where 12 capsules each would be
+  520. The heightmap lane's hardcoded `192` in `renderer.rs`, `helpers.rs` and
+  `march.wgsl` is gone: the array size is injected from `MAX_CAPSULES` the way
+  the tracer already injects the roster's, so the two layouts cannot drift.
+  `g2_glprobe` accepts the new binding at `downlevel_webgl2_defaults`, byte for
+  byte the same receipt it wrote before.
+
+  **The vanish, retired, and caught in the act.** `BodyLensProjection` gained
+  `project_truncated` — additive, `project` refuses past the cap exactly as it
+  did, so `paredros-room --features r1-proof` still checks clean. The host's
+  `pose_at` (`genet/src/section.rs`) uses it: a body past the budget is drawn
+  truncated to its widest parts and the overflow is reported, where the old
+  `.ok()` turned the refusal into no body at all. **The receipt is a
+  counterfactual on one trace.** A headed `--auto-eat` run grew the played body
+  to **349 living parts** (`dc3_vanish.trace.json`, hash `97bf29f3ca1fd587`,
+  replays exactly). Replayed at `df2a741`: hash matches, `body_parts: 349`, the
+  minimap shows the critter alive — and the section draws **nothing**
+  (`dc3_vanish_before.png`, 211 body-tint pixels, all of them the minimap dot).
+  Replayed after: same hash, same 349 parts, the body on screen
+  (`dc3_vanish_after.png`, 2 092 pixels) and the run says out loud "body: 93 of
+  349 parts past the lens capsule budget, drawn truncated to its widest". That
+  is §3.2's candidate mechanism confirmed on a live body, not a hypothesis.
+
+  **The preserved `mark_playtest2` trace no longer reaches 304 parts**, and
+  this is worth recording rather than working around. Replayed today it
+  diverges at once (DC1, DC1.5 and DC2 all moved founding), the played critter
+  reaches 58 parts by frame 10 and is dead by frame 30, and the run ends
+  `body_parts: 0`. The trace is still a good *world* driver — it is what the
+  roster capture pair below uses — but it can no longer grow the body it grew,
+  so the vanish had to be demonstrated on a trace recorded today.
+
+  **The capsule radius rule** — DC2's finding, the four lines it called the
+  cheapest legibility here. `capsule_for` took the *smaller* of the two
+  cross-axis half-extents and floored it at 1; it now takes their **mean**,
+  floored at half a voxel, and the run is measured from that. On the
+  archetype's six shapes that is three radii where there was one: speck
+  `[0,0,0]` and crop `[2,1,0]` at 0.5, eye `[1,1,1]` / slim `[2,1,1]` / leg
+  `[3,1,1]` at 1.0, broad `[2,2,1]` at 1.5. The primitive `[2,2,2]` segment is
+  unchanged at 2.0, so nothing the palette already drew got fatter — except one
+  thing, below.
+
+  **What the two capture pairs actually show, honestly.**
+
+  *The radius rule* (`dc3_radius_before.png` / `dc3_radius_after.png`, the
+  `menagerie` example's DC2 arm at the same framing). It is still a segmented
+  bead-chain, still one tint, and the legs still read as bumps — DC2's verdict
+  stands and DC4's bar is not met. But two things changed and both are the
+  right direction: the cropping mouth was a bead the same size as the trunk and
+  is now a thin flat blade lying under the head, so it reads as a *different
+  organ*; and the broad segments now bulge against the slim ones, so the body
+  has a thorax instead of a constant diameter. The decorative specks shrank to
+  nubs and no longer draw as working eyes, which was the finding's sharpest
+  complaint. So: more legible, not yet a creature.
+
+  *The truncation order* (`dc3_roster_before.png` / `dc3_roster_after.png`,
+  `mark_playtest2` replayed to frame 400, DC-R1 alone with nothing else
+  changed). The change is unambiguous and **its aesthetic sign is not.** These
+  forty roster members are producers: a root mass at ground level with tall
+  thin `[4,4,1]` fronds above it. Descending radius keeps the fat root blobs
+  and drops the fronds, so the stand goes from about twenty-five visible
+  stalks to about thirteen and reads lower and rounder. The plan's argument is
+  about silhouette *area* and area is what it delivers; whether a stand of
+  bulbs reads better than a stand of blades is a judgement, and on this
+  particular frame I would not claim it does. **A candidate refinement for
+  Mark: order by capsule *extent* (`radius² × length`) rather than radius**,
+  which keeps a long thin frond over a small fat bead and is the same four
+  lines. §3.3 says radius, so radius is what landed.
+
+  **One shape got fatter, and it is the same frond.** The primitive `Plate`
+  `[4,4,1]` has a 4:1 cross-section, and the mean takes it from radius 1 to
+  **2.5**. In the section that turns the standing crop from thin blades into
+  thick columns (visible in `dc3_roster_after.png`, which carries both
+  changes). A geometric mean would give 2.0 and is no better. A single capsule
+  cannot represent a 9×9×3 slab, and giving the plate two capsules is a
+  projection redesign this slice was told not to do. **Mark's**, alongside the
+  ordering key above.
+
+  **The load-bearing receipt: the demo trace replays to its hash unchanged.**
+  `ps1_played.trace.json` replays to `86af868ebb97e90b` and exits 0. DC3 is all
+  presentation and reached no trace, exactly as §6 predicted — this is the
+  second slice in the series not to break a hash.
+
+  **Files and ceilings.** `lens/src/body.rs` 349 → 495, `tracer/params.rs`
+  192 → 291, `genet/src/section.rs` 525 → 569. All under the 600 ceiling;
+  `body.rs` is the one to watch next. Receipts in `Code/testing/mesocosm/`:
+  `dc3_radius_{before,after}.png`, `dc3_roster_{before,after}.png`,
+  `dc3_vanish_{before,after}.{png,json}`, `dc3_vanish.trace.json`. The
+  preserved `mark_playtest2.*` files are untouched.
+
+  **Left for Mark.** Three. **DC-R3**, unchanged and still the ruling §3.3
+  asks for. **The roster ordering key** — radius, as landed, or extent.
+  **The `[4,4,1]` plate**, which one capsule cannot carry at any radius rule.
 
 - **2026-08-31 (DC2): one archetype, measured against the economy.** Landed
   against §6's DC2 done-conditions. **The verdict moved and is reported rather

@@ -67,14 +67,45 @@ impl BodyLensProjection {
         body: &BodyDocument,
         placement: BodyPlacement,
     ) -> Result<Self, BodyProjectionError> {
+        let living = body.living().count();
+        if living > MAX_CAPSULES {
+            return Err(BodyProjectionError::TooManyCapsules {
+                actual: living,
+                maximum: MAX_CAPSULES,
+            });
+        }
+        Ok(Self::project_all(body, placement)?.0)
+    }
+
+    /// The same projection, except that a body past [`MAX_CAPSULES`] is
+    /// **truncated rather than refused**: the widest capsules are kept, and the
+    /// count of the ones dropped is returned so a host can say so.
+    ///
+    /// A body that outgrew the budget used to vanish, because the only reading
+    /// of the refusal a host had was "no pose this frame". Losing detail is a
+    /// presentation cost; losing the player is a bug.
+    pub fn project_truncated(
+        body: &BodyDocument,
+        placement: BodyPlacement,
+    ) -> Result<(Self, usize), BodyProjectionError> {
+        Self::project_all(body, placement)
+    }
+
+    /// Every living part projected, then trimmed to the capsule budget.
+    fn project_all(
+        body: &BodyDocument,
+        placement: BodyPlacement,
+    ) -> Result<(Self, usize), BodyProjectionError> {
         if !placement.scale.is_finite() || placement.scale <= 0.0 {
             return Err(BodyProjectionError::InvalidScale);
         }
         let living: Vec<_> = body.living().collect();
-        if living.len() > MAX_CAPSULES {
+        // The truncating path admits any budget overrun, but a part address is
+        // a u16 and that is a format limit rather than a policy one.
+        if living.len() > u16::MAX as usize {
             return Err(BodyProjectionError::TooManyCapsules {
                 actual: living.len(),
-                maximum: MAX_CAPSULES,
+                maximum: u16::MAX as usize,
             });
         }
 
@@ -141,11 +172,15 @@ impl BodyLensProjection {
         }
 
         let eyes = eyes_for(body, placement.scale, realize)?;
-        Ok(Self {
-            revision,
-            pose: CritterPose::from_capsules(capsules, eyes, placement.tint),
-            parts,
-        })
+        let dropped = keep_widest(&mut capsules, &mut parts);
+        Ok((
+            Self {
+                revision,
+                pose: CritterPose::from_capsules(capsules, eyes, placement.tint),
+                parts,
+            },
+            dropped,
+        ))
     }
 
     /// Parts whose Lens dependencies differ between two body projections.
@@ -171,6 +206,39 @@ impl BodyLensProjection {
     }
 }
 
+/// Trims a projection to [`MAX_CAPSULES`], keeping the widest capsules, and
+/// says how many it dropped.
+///
+/// Document order is the axial chain from the root outward, so keeping the
+/// first N would keep a head end rather than a shape. Ties keep the earlier
+/// part, so the trim is deterministic. Parts that lost their capsule leave the
+/// part list with it — every capsule still points back to exactly one part.
+fn keep_widest(capsules: &mut Vec<Capsule>, parts: &mut Vec<LensPart>) -> usize {
+    let dropped = capsules.len().saturating_sub(MAX_CAPSULES);
+    if dropped == 0 {
+        return 0;
+    }
+    let girth = |capsule: &Capsule| capsule.ra.max(capsule.rb);
+    let mut order: Vec<usize> = (0..capsules.len()).collect();
+    order.sort_by(|a, b| {
+        girth(&capsules[*b])
+            .total_cmp(&girth(&capsules[*a]))
+            .then(a.cmp(b))
+    });
+    let kept: std::collections::BTreeSet<usize> = order.into_iter().take(MAX_CAPSULES).collect();
+    let mut index = 0;
+    capsules.retain(|_| {
+        let keep = kept.contains(&index);
+        index += 1;
+        keep
+    });
+    parts.retain(|part| kept.contains(&(part.capsule as usize)));
+    for (slot, part) in parts.iter_mut().enumerate() {
+        part.capsule = u16::try_from(slot).expect("the kept set is at most MAX_CAPSULES");
+    }
+    dropped
+}
+
 fn capsule_for(
     body: &BodyDocument,
     part: &Part,
@@ -181,12 +249,15 @@ fn capsule_for(
     let mut cross = (0..3)
         .filter(|other| *other != axis)
         .map(|other| half[other]);
-    let radius_voxels = cross
-        .next()
-        .unwrap_or(1)
-        .min(cross.next().unwrap_or(1))
-        .max(1);
-    let run = (half[axis] - radius_voxels).max(0);
+    // **The radius is the mean of the two cross half-extents, floored at half
+    // a voxel.** The old rule took the *smaller* of them and floored it at 1,
+    // which collapsed every thin-sectioned shape to the same fat capsule: a
+    // one-voxel speck drew as large as a working eye, and a `[2,2,1]` trunk as
+    // thin as a `[2,1,1]` leg. Half a voxel is a one-voxel ball, which is
+    // exactly what a one-voxel part is.
+    let (first, second) = (cross.next().unwrap_or(0), cross.next().unwrap_or(0));
+    let radius_voxels = ((first + second) as f32 / 2.0).max(0.5);
+    let run = ((half[axis] as f32 - radius_voxels).max(0.0)).round() as i32;
     let mut local_a = part.pivot;
     let mut local_b = part.pivot;
     local_a[axis] -= run;
@@ -197,7 +268,7 @@ fn capsule_for(
     let b = body
         .place(part.id, local_b)
         .ok_or(BodyProjectionError::Unplaceable(part.id))?;
-    Ok((a, b, radius_voxels as f32 * scale))
+    Ok((a, b, radius_voxels * scale))
 }
 
 fn eyes_for(
@@ -345,5 +416,80 @@ mod tests {
         recoloured.tint = [0.8, 0.2, 0.3];
         let after = BodyLensProjection::project(&body, recoloured).unwrap();
         assert_eq!(after.changed_parts(&before), vec![PartId(0), PartId(1)]);
+    }
+
+    /// One part per shape, projected, so the rule is read off the numbers
+    /// rather than off a capture. Before DC3 every one of these was radius 1.
+    #[test]
+    fn different_cross_sections_project_to_different_radii() {
+        let radius = |half: [i32; 3]| {
+            let body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, half);
+            BodyLensProjection::project(&body, placement())
+                .unwrap()
+                .pose
+                .capsules[0]
+                .ra
+        };
+        // Placement scale is 0.5, so a voxel of radius reads as 0.5 here.
+        let speck = radius([0, 0, 0]);
+        let plate = radius([2, 1, 0]);
+        let eye = radius([1, 1, 1]);
+        let leg = radius([2, 1, 1]);
+        let trunk = radius([2, 2, 1]);
+        let block = radius([2, 2, 2]);
+        assert!(speck < eye, "a one-voxel speck no longer draws as an eye");
+        assert!(plate < leg, "a flat plate is thinner than a square limb");
+        assert!(leg < trunk, "a trunk is fatter than a leg");
+        assert!(trunk < block, "and the primitive block is fattest");
+        // Three radii over the archetype's six shapes, where there was one.
+        // A flat plate and a speck share a radius and differ by their run.
+        assert_eq!(
+            [speck, plate, eye, leg, trunk, block],
+            [0.25, 0.25, 0.5, 0.5, 0.75, 1.0]
+        );
+    }
+
+    /// The vanish, retired: a body past the budget is smaller, never absent.
+    #[test]
+    fn a_body_past_the_capsule_budget_is_truncated_rather_than_refused() {
+        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, [2, 2, 2]);
+        // Alternating fat and thin parts, so "widest kept" is testable.
+        for index in 0..MAX_CAPSULES as i32 + 40 {
+            let half = if index % 2 == 0 { [2, 2, 2] } else { [1, 1, 0] };
+            body.attach(
+                VolumeRef::from_tag(2),
+                10,
+                half,
+                Attachment {
+                    parent: body.root,
+                    offset: [index + 4, 0, 0],
+                    yaw: Yaw::Zero,
+                },
+                Provenance::founding(),
+            )
+            .unwrap();
+        }
+        assert!(matches!(
+            BodyLensProjection::project(&body, placement()),
+            Err(BodyProjectionError::TooManyCapsules { .. })
+        ));
+        let (projected, dropped) =
+            BodyLensProjection::project_truncated(&body, placement()).unwrap();
+        assert_eq!(projected.pose.capsules.len(), MAX_CAPSULES);
+        assert_eq!(dropped, 41);
+        assert_eq!(projected.parts.len(), MAX_CAPSULES);
+        // Every kept capsule still addresses its own part, renumbered.
+        for (slot, part) in projected.parts.iter().enumerate() {
+            assert_eq!(part.capsule as usize, slot);
+        }
+        // The thin ones are what went: the fat half of the body is 149 parts,
+        // all of which fit, so nothing wide was dropped for something narrow.
+        let widest = projected
+            .pose
+            .capsules
+            .iter()
+            .filter(|capsule| capsule.ra > 0.9)
+            .count();
+        assert_eq!(widest, 149);
     }
 }

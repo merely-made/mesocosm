@@ -202,6 +202,14 @@ impl Section {
             .map_or(0, |diagnostics| diagnostics.roster_members)
     }
 
+    /// Capsules the last frame's roster members carried past their budget. The
+    /// widest are kept, so this is detail spent rather than bodies lost.
+    pub fn last_roster_capsules_dropped(&self) -> u32 {
+        self.tracer
+            .last_diagnostics()
+            .map_or(0, |diagnostics| diagnostics.roster_capsules_dropped)
+    }
+
     /// Traces one frame and composites it into `surface`.
     pub fn draw(
         &mut self,
@@ -429,7 +437,9 @@ impl SlabWindow {
 /// It stays the tracer's single pose rather than a roster member, because a
 /// member's capsule budget is smaller than the played body's: see
 /// [`mesocosm_lens::MAX_ROSTER`].
-pub fn pose_of(world: &World, tint: [f32; 3]) -> Option<CritterPose> {
+/// The pose comes back with the count of parts the capsule budget dropped, so
+/// a truncated player is reported rather than merely smaller.
+pub fn pose_of(world: &World, tint: [f32; 3]) -> Option<(CritterPose, u32)> {
     pose_at(world.body()?, world.position()?, tint)
 }
 
@@ -453,28 +463,34 @@ pub fn roster_of(
                 && Some(organism.id) != controlled
                 && window.holds(organism.position)
         })
-        .filter_map(|organism| pose_at(&organism.body, organism.position, tint(organism)))
+        .filter_map(|organism| {
+            pose_at(&organism.body, organism.position, tint(organism)).map(|(pose, _)| pose)
+        })
         .take(MAX_ROSTER)
         .collect()
 }
 
-/// One body placed where it stands.
+/// One body placed where it stands, and the parts its capsule budget could
+/// not carry.
 ///
 /// Body space is world voxels — the raster lane draws a part's voxels at
 /// `position + v` — so the scale is 1 and the projection's floor subtraction
 /// is undone, or the two views would disagree about where the same voxel is.
-/// A body past the lens's capsule limit yields `None` and the section traces
-/// without it rather than refusing the frame.
-fn pose_at(body: &BodyDocument, at: [i32; 3], tint: [f32; 3]) -> Option<CritterPose> {
+///
+/// **A body past the lens's capsule limit is drawn truncated, never dropped.**
+/// Until DC3 this swallowed the refusal with `.ok()` and the frame simply had
+/// no body in it, which is how a played critter could disappear while alive.
+/// The overflow is now a number the host puts in its receipt.
+fn pose_at(body: &BodyDocument, at: [i32; 3], tint: [f32; 3]) -> Option<(CritterPose, u32)> {
     let floor = body.aabb().min[1] as f32;
     let placement = BodyPlacement {
         ground: [at[0] as f32, at[1] as f32 + floor, at[2] as f32],
         scale: 1.0,
         tint,
     };
-    BodyLensProjection::project(body, placement)
+    BodyLensProjection::project_truncated(body, placement)
         .ok()
-        .map(|projected| projected.pose)
+        .map(|(projected, dropped)| (projected.pose, dropped as u32))
 }
 
 #[cfg(test)]
@@ -521,5 +537,33 @@ mod tests {
         assert_eq!(half_height_or_default(0.0), SLAB_HALF_HEIGHT);
         assert_eq!(half_height_or_default(-1.0), SLAB_HALF_HEIGHT);
         assert_eq!(half_height_or_default(36.3), 36.3);
+    }
+
+    /// The vanish, retired at the boundary that used to swallow it. Mark's
+    /// second playtest reached 304 living parts; the host now poses that body
+    /// and says what it could not carry.
+    #[test]
+    fn a_body_of_the_playtest_size_is_still_posed() {
+        use mesocosm_core::{Attachment, Provenance, SpeciesId, VolumeRef, Yaw};
+
+        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, [2, 2, 2]);
+        for index in 0..303 {
+            body.attach(
+                VolumeRef::from_tag(2),
+                10,
+                [2, 1, 1],
+                Attachment {
+                    parent: body.root,
+                    offset: [index + 4, 0, 0],
+                    yaw: Yaw::Zero,
+                },
+                Provenance::founding(),
+            )
+            .unwrap();
+        }
+        assert_eq!(body.living().count(), 304);
+        let (pose, dropped) = pose_at(&body, [0, 8, 0], [0.4, 0.6, 0.4]).expect("a posed body");
+        assert_eq!(pose.capsules.len(), mesocosm_lens::MAX_CAPSULES);
+        assert_eq!(dropped, 48);
     }
 }
