@@ -381,10 +381,14 @@ fn step_inner(
             continue;
         }
         let from = organisms[meal.prey].id;
-        let venom_mg = organisms[meal.prey].venom_mg;
-        let prey = Subject::of(&organisms[meal.prey]);
         let prey_at = organisms[meal.prey].position;
         let prey_column = soil.column_at(prey_at);
+        // PD2: the inherited toxin plus whatever the prey's glands are making
+        // on the ground it is standing on. Read before the deposits below,
+        // because charging the gland is a question about the column as it was
+        // when the bite landed.
+        let venom_mg = organisms[meal.prey].bite_mg(soil.matter_mg(prey_column));
+        let prey = Subject::of(&organisms[meal.prey]);
         let column = soil.column_at(organisms[meal.eater].position);
         let eater = &mut organisms[meal.eater];
         let eater_id = eater.id;

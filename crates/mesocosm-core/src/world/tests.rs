@@ -1,5 +1,5 @@
 use super::*;
-use crate::body::{Attachment, Origin, Provenance, VolumeRef};
+use crate::body::{Attachment, Origin, PartId, Provenance, VolumeRef, Yaw};
 use crate::history::History;
 use crate::organism::{Kingdom, LastSeen, Stage};
 use crate::places::{

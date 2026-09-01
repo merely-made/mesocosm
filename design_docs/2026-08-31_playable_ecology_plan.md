@@ -419,6 +419,22 @@ on anatomy, paid for, useful under one condition, dormant under another, and
 lost when its dependency is severed; direct and automatic fixtures use the
 same validator even if NPC acquisition itself remains an open ruling.
 
+**Prerequisites met, 2026-09-01.** PD1b's allocation half and PD2's one
+native, visible process both landed the same day (processdef plan §9,
+2026-09-01 Progress entries), so this gate's own located/paid/useful/
+dormant/severed clause is already satisfied by `Process::Secrete` and does
+not need separate PE2 work — `world.gland()` and the two vitals lanes are the
+reading surface PE2's inspector can build on rather than invent. What PE2
+still owns and this landing does not touch: the condition evaluator, the
+evidence-bearing discovery record, the observation/incorporation/
+availability/expression/inheritance distinction, and the bounded part-level
+eating proof (a severed or corpse part settling its own matter and donor
+evidence). `Intent::Rearrange` remains PD2's temporary editor door — direct
+and automatic fixtures already share `BodyPhenotype::develop`'s one
+validator (PD1b), so PE2's NPC-acquisition ruling has a proposal source to
+plug into whenever it is made, but that ruling itself is still open. This
+note dispatches no PE2 work.
+
 ### PE3: the lineage checkpoint turns discovery into a descendant
 
 Follow the owning phenotype and ProcessDef order through P3 branch transfer,

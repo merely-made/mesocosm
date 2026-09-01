@@ -15,7 +15,7 @@
 //! panel *is*, and the host says where its raster lands.
 
 use cambium::{AnyView, DetailRow, DetailSection, GenetCtx, GenetElement, detail_panel, el, text};
-use mesocosm_core::{Ineligible, Outcome, Rejection, Trend, World};
+use mesocosm_core::{Gland, Ineligible, Outcome, Refusal, Rejection, Trend, World};
 
 /// A view in the vitals tree. Inert: nothing here takes a click, because
 /// during an epoch you act on the world, not on a panel.
@@ -52,6 +52,57 @@ pub struct Vitals {
     /// percentage, and it never repeats the population instrument's test
     /// verdicts, which are not player language.
     pub warning: Option<String>,
+    /// PD2's process, when this body has one. Absent for every body a world
+    /// founds, because nothing grows a gland.
+    pub gland: Option<GlandWords>,
+}
+
+/// The three sentences a gland is owed, one per question a player asks of it:
+/// where is it, is it working, and what is it costing me.
+///
+/// Separate rows rather than one paragraph because they change on different
+/// clocks: the tissue moves only at a development, the sting turns on and off
+/// as the body walks, and the rent is the same every tick until one of the
+/// other two changes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GlandWords {
+    /// Where the tissue is, or where it was.
+    pub tissue: String,
+    /// What a bite of this body costs right now, and why when it costs
+    /// nothing.
+    pub sting: String,
+    /// What carrying it costs per tick.
+    pub rent: String,
+}
+
+/// The gland's three readings, in plain words.
+///
+/// **States, not numbers with adjectives.** A dry gland says what the ground
+/// holds and what the gland holds, because the difference is the thing a
+/// player can act on — walk to better ground, or enrich this one.
+pub fn gland_words(gland: &Gland) -> GlandWords {
+    let tissue = match (gland.sites.first(), gland.lost.first()) {
+        (Some((part, cells)), _) => format!("{cells} cells of part {}", part.0),
+        // Severing took the tissue and the consequence together; the branch
+        // can still say what it used to do.
+        (None, Some(part)) => format!("gone with part {}", part.0),
+        (None, None) => "none".to_string(),
+    };
+    let sting = if gland.sites.is_empty() {
+        "nothing left to sting with".to_string()
+    } else if gland.charged {
+        format!("{} mg a bite", gland.potency_mg)
+    } else {
+        format!(
+            "dry: this ground holds {} mg, the gland needs {}",
+            gland.ground_mg, gland.potency_mg
+        )
+    };
+    GlandWords {
+        tissue,
+        sting,
+        rent: format!("{} mg a tick", gland.rent_mg),
+    }
 }
 
 impl Vitals {
@@ -70,12 +121,14 @@ pub fn vitals_of(
     notice: Option<&'static str>,
     trend: Option<&Trend>,
 ) -> Vitals {
-    reading(
+    let mut vitals = reading(
         world.controlled().map(|critter| critter.energy_mg),
         high_water,
         notice,
         trend,
-    )
+    );
+    vitals.gland = world.gland().as_ref().map(gland_words);
+    vitals
 }
 
 /// The reading itself, off the world. Separated so the disembodied case is
@@ -101,6 +154,8 @@ fn reading(
         // these two survive losing a body.
         replacement: trend.map(replacement_words),
         warning: trend.and_then(warning_words),
+        // Filled by `vitals_of`, which has the world the ground is in.
+        gland: None,
     }
 }
 
@@ -152,6 +207,19 @@ pub fn refusal_words(rejection: &Rejection) -> &'static str {
         Rejection::Ineligible(Ineligible::NotAlive) => "that one is dead",
         Rejection::Ineligible(Ineligible::AboveTheFrontier { .. }) => "beyond you",
         Rejection::Ineligible(Ineligible::NoSuchOrganism) => "nothing there",
+        // The development refusals a hand can actually produce get their own
+        // words; the rest say that it did not develop. The exact boundary is
+        // in the outcome either way, because PD1b made the refusal order part
+        // of the contract and a receipt has to be able to name it.
+        Rejection::Refused(refusal) => match refusal {
+            Refusal::SiteMismatch { .. } => "that shape does not do that",
+            Refusal::Disconnected(_) => "an organ is one piece of tissue",
+            Refusal::Overlap { .. } => "that tissue is taken",
+            Refusal::SeveredPart(_) => "that branch is gone",
+            Refusal::UnknownProcess(_) => "nothing here knows that process",
+            Refusal::Stale { .. } => "the body moved under it",
+            _ => "it would not develop",
+        },
     }
 }
 
@@ -170,6 +238,10 @@ pub fn notice_in(outcomes: &[Outcome]) -> Option<&'static str> {
         Outcome::Rejected(rejection) => Some(refusal_words(rejection)),
         Outcome::Burned { .. } => Some("burned"),
         Outcome::Incorporated { .. } | Outcome::IncorporatedPair { .. } => Some("grew"),
+        // PD2's verb. "Rebuilt" rather than "rearranged": what happened to the
+        // body is that an organ now does something else, and the tissue it was
+        // made of was paid for again.
+        Outcome::Rearranged { .. } => Some("rebuilt"),
         _ => None,
     })
 }
@@ -186,6 +258,13 @@ pub fn vitals_root(vitals: &Vitals) -> VitalsChild {
     };
     if let Some(replacement) = &vitals.replacement {
         rows.push(DetailRow::new("replacement", replacement.clone()));
+    }
+    // Only when the body has one, which is never unless somebody built it.
+    // A row that is always on screen saying "no gland" would be decoration.
+    if let Some(gland) = &vitals.gland {
+        rows.push(DetailRow::new("gland", gland.tissue.clone()));
+        rows.push(DetailRow::new("sting", gland.sting.clone()));
+        rows.push(DetailRow::new("gland rent", gland.rent.clone()));
     }
     children.push(Box::new(detail_panel::<Vitals, ()>(&[DetailSection::new(
         "vitals", rows,
@@ -342,6 +421,84 @@ mod tests {
                 "the instrument's verdicts are not player language: {words}"
             );
         }
+    }
+
+    /// PD2's four states, in the words a player reads. Each says what is true
+    /// and, when something is not working, what would change it.
+    #[test]
+    fn the_gland_reads_differently_in_each_of_its_four_states() {
+        let part = mesocosm_core::PartId(3);
+        let allocated = Gland {
+            sites: vec![(part, 5)],
+            cells: 5,
+            potency_mg: 115,
+            ground_mg: 206,
+            charged: true,
+            rent_mg: 2,
+            lost: Vec::new(),
+        };
+        let words = gland_words(&allocated);
+        assert_eq!(words.tissue, "5 cells of part 3", "located, and how much");
+        assert_eq!(words.sting, "115 mg a bite", "and it is working");
+        assert_eq!(words.rent, "2 mg a tick", "and this is what it costs");
+
+        // Dormant: the two numbers side by side, because their difference is
+        // the thing a player can do something about.
+        let dry = Gland {
+            ground_mg: 100,
+            charged: false,
+            ..allocated.clone()
+        };
+        let words = gland_words(&dry);
+        assert_eq!(
+            words.sting,
+            "dry: this ground holds 100 mg, the gland needs 115"
+        );
+        assert_eq!(words.rent, "2 mg a tick", "and it is still being paid for");
+
+        // Severed: the consequence is gone, and the branch still says what it
+        // used to do.
+        let lost = Gland {
+            sites: Vec::new(),
+            cells: 0,
+            potency_mg: 0,
+            rent_mg: 0,
+            lost: vec![part],
+            ..allocated
+        };
+        let words = gland_words(&lost);
+        assert_eq!(words.tissue, "gone with part 3");
+        assert_eq!(words.sting, "nothing left to sting with");
+        assert_eq!(words.rent, "0 mg a tick");
+    }
+
+    /// A refusal a hand can actually produce is answered in words, not in a
+    /// variant name. The boundary itself stays in the outcome.
+    #[test]
+    fn a_development_that_would_not_validate_says_why_in_plain_words() {
+        assert_eq!(
+            refusal_words(&Rejection::Refused(Refusal::SiteMismatch {
+                part: mesocosm_core::PartId(0),
+                process: mesocosm_core::ProcessRef {
+                    definition: mesocosm_core::DefinitionDigest(1),
+                },
+            })),
+            "that shape does not do that"
+        );
+        assert_eq!(
+            refusal_words(&Rejection::Refused(Refusal::Disconnected(
+                mesocosm_core::PartId(3)
+            ))),
+            "an organ is one piece of tissue"
+        );
+        assert_eq!(
+            notice_in(&[Outcome::Rearranged {
+                part: mesocosm_core::PartId(3),
+                cost_mg: 115,
+                revision: 1,
+            }]),
+            Some("rebuilt")
+        );
     }
 
     /// TD4's half of the feedback: the player no longer chooses what a meal

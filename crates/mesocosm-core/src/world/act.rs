@@ -168,6 +168,11 @@ impl World {
                 placement,
             } => self.metabolize(organism, placement),
 
+            // The developmental verb (PD2). It lives next door in
+            // `world::rearrange`, which owns the price, the payment and the
+            // record; the validator under it is the phenotype's.
+            Intent::Rearrange { part, ref sites } => self.rearrange(part, sites),
+
             // **Enriching the ground**, since TD6. It used to spawn a carcass
             // — a scrap of loose matter waiting for a decomposer — which was
             // the only detritus the enclosure had. Now the enclosure has a
@@ -311,10 +316,16 @@ impl World {
         // The floor itself remains: energy is unsigned, so venom beyond what a
         // critter has is forgiven rather than owed. A debt or damage model is a
         // later decision, recorded in the phenotype plan.
+        //
+        // PD2: what the bite costs is the meal's inherited toxin plus whatever
+        // its glands were making on the ground it died on. Read before the
+        // deposits below, so charging the gland asks about the column as it
+        // was when the bite landed.
+        let bite_mg = eaten.bite_mg(self.soil.matter_mg(self.soil.column_at(eaten.position)));
         let mut spilled = 0;
         if let Some(me) = self.controlled_mut() {
             let before = me.energy_mg + landed.budget_mg;
-            me.energy_mg = before.saturating_sub(eaten.venom_mg);
+            me.energy_mg = before.saturating_sub(bite_mg);
             spilled = before - me.energy_mg;
         }
         // Everything the meal was that the eater did not keep goes into the

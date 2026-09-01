@@ -95,7 +95,7 @@ pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use process::{
     BULK_REACH, Capability, DefinitionDigest, FeedingMode, Process, ProcessDef, ProcessId,
-    ProcessRef, Registry, Unmet,
+    ProcessRef, Registry, Seeding, Unmet,
 };
 pub use record::{Feat, Mark, Scale, WorldRecord};
 pub use rng::Rng;
@@ -104,6 +104,6 @@ pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use species::{Lineages, Species};
 pub use wire::{WireError, frame, unframe};
 pub use world::{
-    Founding, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement, Rejection, Route,
-    STARVED_UPKEEP_TICKS, World,
+    Allocate, Founding, Gland, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement,
+    Rejection, Route, STARVED_UPKEEP_TICKS, World,
 };

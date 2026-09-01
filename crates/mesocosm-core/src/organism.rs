@@ -318,13 +318,13 @@ impl Organism {
     /// a genesis decree. A reshaped body therefore changes the role the ecology
     /// sees. See [`kingdom`] for the rules and why they replaced symmetry.
     pub fn kingdom(&self) -> Kingdom {
-        Kingdom::of_body(self.body())
+        Kingdom::of(&self.phenotype)
     }
 
     /// What this body does with matter: the same anatomy, read one level
     /// finer. A jaw at the head makes a predator; a crop makes a grazer.
     pub fn feeding_mode(&self) -> FeedingMode {
-        FeedingMode::of_body(self.body())
+        FeedingMode::of(&self.phenotype)
     }
 
     /// How far this body's actuators swing, in voxels: each living
@@ -373,6 +373,38 @@ impl Organism {
                     .unwrap_or(0)
             })
             .sum::<u32>()
+    }
+
+    /// What a bite of this body costs whatever took it, on the ground this
+    /// body is standing on. (PD2)
+    ///
+    /// **Two toxins, one number.** [`Self::venom_mg`] is what this line was
+    /// born with and passes on; the rest is what its glands are making right
+    /// now, which is [`Self::charged_mg`] and depends on where it is standing.
+    /// Every eater — the played one and the ecology's — asks this, so a gland
+    /// deters the same way whoever is holding the mouth.
+    pub fn bite_mg(&self, ground_mg: u64) -> u64 {
+        self.venom_mg.saturating_add(self.charged_mg(ground_mg))
+    }
+
+    /// The dose this body's glands hold, or zero when they are dry.
+    ///
+    /// **The dormancy rule, and it is a world condition.** A gland makes its
+    /// toxin out of the ground it stands over, so it is charged only where
+    /// that column could replace what the gland holds. A big gland needs
+    /// richer ground than a small one, which is the whole of the rule and is
+    /// derived rather than tuned: the threshold *is* the potency.
+    ///
+    /// Allocation does not move when a gland goes dry (plan §4: a changing
+    /// environment does not rewrite the mosaic). The tissue is still there,
+    /// still costs its rent, and starts working again on better ground.
+    pub fn charged_mg(&self, ground_mg: u64) -> u64 {
+        let held = self.phenotype.secretory_mg();
+        if held > 0 && ground_mg >= held {
+            held
+        } else {
+            0
+        }
     }
 
     /// A compact locomotion reading used by the drive selector. It is based

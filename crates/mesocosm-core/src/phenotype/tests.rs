@@ -463,7 +463,7 @@ fn the_mosaic_and_the_geometry_reading_agree() {
     }
     for role in Role::ALL {
         let expected: Vec<ProcessRef> = Registry::native()
-            .expressed_by(role)
+            .seeds(role)
             .map(|def| def.reference())
             .collect();
         for part in phenotype.body().living() {

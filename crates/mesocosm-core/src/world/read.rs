@@ -320,6 +320,53 @@ impl World {
         self.controlled().map(|o| o.body())
     }
 
+    /// The played critter's anatomy **and its allocation**.
+    ///
+    /// Added for PE2's inspector and PD2's receipt: `body()` answers what a
+    /// creature is made of, and this answers what that tissue is doing.
+    pub fn phenotype(&self) -> Option<&crate::phenotype::BodyPhenotype> {
+        self.controlled().map(|o| &o.phenotype)
+    }
+
+    /// PD2's process, in the four states a receipt has to tell apart.
+    ///
+    /// `None` when the played critter has never had one, which is every body
+    /// a world founds — nothing seeds a gland. The other three states are all
+    /// `Some`, and are told apart by the fields: allocated (`sites` non-empty),
+    /// charged or dry (`charged`), and lost with its branch (`sites` empty and
+    /// `lost` not).
+    pub fn gland(&self) -> Option<Gland> {
+        let me = self.controlled()?;
+        let sites = me.phenotype.glands();
+        let lost = me.phenotype.lost_glands();
+        if sites.is_empty() && lost.is_empty() {
+            return None;
+        }
+        let potency_mg = me.phenotype.secretory_mg();
+        let ground_mg = self.soil.matter_mg(self.soil.column_at(me.position));
+        Some(Gland {
+            // What carrying it costs every tick: the difference between this
+            // body's rent and the rent the same body would pay without it.
+            // A difference rather than a term, because the term is inside one
+            // integer division and a player is owed the number they actually
+            // pay.
+            rent_mg: me
+                .upkeep_mg()
+                .saturating_sub(crate::organism::ecology::upkeep_for_body(
+                    me.biomass_mg(),
+                    me.actuator_span(),
+                    me.mass_ceiling_mg(),
+                    0,
+                )),
+            cells: sites.iter().map(|(_, cells)| cells).sum(),
+            sites,
+            lost,
+            potency_mg,
+            ground_mg,
+            charged: me.charged_mg(ground_mg) > 0,
+        })
+    }
+
     /// Where the played critter is.
     pub fn position(&self) -> Option<[i32; 3]> {
         self.controlled().map(|o| o.position)
@@ -384,4 +431,30 @@ impl World {
     pub fn total_mass_mg(&self) -> u64 {
         self.body().map(|b| b.total_mass_mg()).unwrap_or(0)
     }
+}
+
+/// PD2's played process, read off a body and the ground it is standing on.
+///
+/// **A reading, not state.** Nothing here is stored, enters the trace, or
+/// reaches the state hash: the tissue is in the mosaic, the ground is in the
+/// soil, and this is what you get when you ask both at once.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Gland {
+    /// The living parts carrying secretory tissue, and how many cells each.
+    /// Empty once the branch is gone.
+    pub sites: Vec<(crate::body::PartId, u32)>,
+    /// Cells across all of them: the tissue this body is spending on poison
+    /// instead of on what the part used to do.
+    pub cells: u32,
+    /// What a bite costs an eater when the gland is charged, in milligrams.
+    pub potency_mg: u64,
+    /// What the column under this body holds.
+    pub ground_mg: u64,
+    /// Whether the ground can supply what the gland holds. **Dormancy**: a dry
+    /// gland has lost none of its tissue and none of its cost.
+    pub charged: bool,
+    /// The standing rent this gland adds, per tick, charged or not.
+    pub rent_mg: u64,
+    /// Parts that carried a gland and were severed.
+    pub lost: Vec<crate::body::PartId>,
 }

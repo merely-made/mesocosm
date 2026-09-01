@@ -92,7 +92,11 @@ pub struct Development {
 }
 
 /// Why a proposal was refused. Every variant names the boundary that failed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+///
+/// Serialized since PD2, because a refusal now reaches a player through
+/// [`Outcome::Rejected`](crate::world::Outcome::Rejected) and a recorded
+/// outcome has to be able to say which boundary it was.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Refusal {
     /// The phenotype moved under the proposal.
     Stale {

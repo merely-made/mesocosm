@@ -34,6 +34,13 @@ fn authored(recipe: &Recipe, mass_mg: u64) -> BodyDocument {
         .expect("an archetype develops at its own adult mass")
 }
 
+/// A body as it would actually be born: anatomy with its allocation seeded.
+/// Since PD2 the kingdom readings ask what tissue is doing, so a bare document
+/// is not something the ecology ever sees.
+fn grown(body: &BodyDocument) -> crate::phenotype::BodyPhenotype {
+    crate::phenotype::BodyPhenotype::seed(body.clone())
+}
+
 fn ceiling(body: &BodyDocument) -> u64 {
     body.living()
         .map(|part| ecology::part_ceiling_mg(part.half_extent))
@@ -174,8 +181,8 @@ fn every_archetype_develops_the_body_it_was_authored_as() {
         let recipe = recipe();
         let body = authored(&recipe, ceiling_of(&recipe));
         assert_eq!(body.living().count(), parts, "{name}: part count");
-        assert_eq!(Kingdom::of_body(&body), kingdom, "{name}: kingdom");
-        assert_eq!(FeedingMode::of_body(&body), mode, "{name}: feeding mode");
+        assert_eq!(Kingdom::of(&grown(&body)), kingdom, "{name}: kingdom");
+        assert_eq!(FeedingMode::of(&grown(&body)), mode, "{name}: feeding mode");
     }
 }
 
@@ -225,8 +232,8 @@ fn a_covered_body_reads_by_its_mouth_rather_than_as_a_producer() {
         let recipe = recipe();
         let body = authored(&recipe, ceiling_of(&recipe));
         assert!(body.performs(Process::Fix), "{name}: wears plates");
-        assert!(!body.canopy(), "{name}: none of them is held up");
-        assert_ne!(Kingdom::of_body(&body), Kingdom::Producer, "{name}");
+        assert!(!grown(&body).canopy(), "{name}: none of them is held up");
+        assert_ne!(Kingdom::of(&grown(&body)), Kingdom::Producer, "{name}");
     }
 }
 
@@ -240,7 +247,7 @@ fn every_producer_archetype_holds_a_lit_frond() {
         }
         let recipe = recipe();
         let body = authored(&recipe, ceiling_of(&recipe));
-        assert!(body.canopy(), "{name}");
+        assert!(grown(&body).canopy(), "{name}");
     }
 }
 
@@ -255,8 +262,8 @@ fn development_cannot_change_an_archetypes_kingdom() {
         let mass = ceiling_of(&recipe);
         for seed in 0u64..256 {
             let body = develop(&recipe, mass, seed);
-            assert_eq!(Kingdom::of_body(&body), kingdom, "{name}, seed {seed}");
-            assert_eq!(FeedingMode::of_body(&body), mode, "{name}, seed {seed}");
+            assert_eq!(Kingdom::of(&grown(&body)), kingdom, "{name}, seed {seed}");
+            assert_eq!(FeedingMode::of(&grown(&body)), mode, "{name}, seed {seed}");
         }
     }
 }
@@ -346,7 +353,7 @@ fn the_browser_still_reads_the_carving_b_column() {
     // assertion is the formula rather than a rounded copy of it.
     assert_eq!(BROWSER_CEILING_MG + 18 * 100, 3_084);
 
-    let rent = ecology::upkeep_for_body(BROWSER_CEILING_MG, 18, BROWSER_CEILING_MG);
+    let rent = ecology::upkeep_for_body(BROWSER_CEILING_MG, 18, BROWSER_CEILING_MG, 0);
     assert_eq!(rent, 9, "rent at adult mass, mg/tick");
     assert_eq!(
         ecology::feeding_rate_for_body(BROWSER_CEILING_MG, 18, BROWSER_CEILING_MG),

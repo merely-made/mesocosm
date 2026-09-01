@@ -133,6 +133,18 @@ pub enum Event {
         species: SpeciesId,
         appendage: crate::axis::Appendage,
     },
+    /// A creature rebuilt one of its organs, and paid for it. (PD2)
+    ///
+    /// The first event about a body changing what it *does* rather than what
+    /// it is made of. Growing and severing are already here; this is the third
+    /// way a body becomes different, and PD1a ruled it must never happen
+    /// except through a discrete event with a cost and a cause — so it is as
+    /// biographical as a meal, and recorded like one.
+    Rearranged {
+        organism: OrganismId,
+        part: PartId,
+        cost_mg: u64,
+    },
 }
 
 impl Event {
@@ -156,6 +168,7 @@ impl Event {
             | Event::Died { organism, .. }
             | Event::Returned { organism }
             | Event::Inhabited { organism }
+            | Event::Rearranged { organism, .. }
             | Event::Carved { organism, .. } => vec![organism],
             // The founder's line continues through the split, which is what
             // makes a speciation visible in its own history rather than only

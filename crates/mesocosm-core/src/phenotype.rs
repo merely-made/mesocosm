@@ -139,6 +139,113 @@ impl BodyPhenotype {
             .any(|(_, mosaic)| mosaic.sites().iter().any(|site| site.process == process))
     }
 
+    /// Whether one living part has tissue allocated to a definition.
+    ///
+    /// The part-scoped form of [`Self::expresses`], and the question PD2's
+    /// anatomy readings ask: "is this plate actually fixing" is a different
+    /// question from "does this body have a plate", and the two only diverge
+    /// once a development can take the tissue away.
+    pub fn expresses_on(&self, part: PartId, process: ProcessRef) -> bool {
+        self.body.is_living(part)
+            && self
+                .mosaic(part)
+                .is_some_and(|mosaic| mosaic.sites().iter().any(|site| site.process == process))
+    }
+
+    /// What one cell of a part's tissue is worth, in milligrams.
+    ///
+    /// **Derived twice over, and no new constant.** The numerator is the
+    /// adult mass this part's own voxel volume implies — TD6's
+    /// [`part_ceiling_mg`](crate::organism::ecology::part_ceiling_mg), the
+    /// same number rent, breeding and intake room are all measured against —
+    /// and the denominator is the part's living cell count, which is the
+    /// mosaic's own structural capacity. So a cell is *this part's adult mass
+    /// divided by the tissue it is divided into*, which is what a cell has
+    /// always meant; nothing here picks a price.
+    ///
+    /// Floored at one, for the reason `part_ceiling_mg` is: a legal part must
+    /// not have worthless tissue.
+    pub fn cell_mg(&self, part: PartId) -> u64 {
+        let Some(found) = self.body.part(part) else {
+            return 0;
+        };
+        let Some(mosaic) = self.mosaic(part) else {
+            return 0;
+        };
+        (crate::organism::ecology::part_ceiling_mg(found.half_extent)
+            / u64::from(mosaic.capacity()).max(1))
+        .max(1)
+    }
+
+    /// The toxin this body carries: every living cell allocated to
+    /// [`Process::Secrete`](crate::process::Process::Secrete), priced as the
+    /// tissue it is.
+    ///
+    /// **The first quantitative consumer of the mosaic.** Everything before
+    /// PD2 asked allocation a yes-or-no question; this asks *how much*, which
+    /// is what makes taking one more cell off a frond a decision with a
+    /// magnitude rather than a flag to flip.
+    pub fn secretory_mg(&self) -> u64 {
+        let gland = Self::gland_reference();
+        self.allocations()
+            .map(|(part, mosaic)| {
+                let cells: u64 = mosaic
+                    .sites()
+                    .iter()
+                    .filter(|site| site.process == gland)
+                    .map(|site| site.cells.iter().filter(|c| mosaic.is_living(**c)).count() as u64)
+                    .sum();
+                cells * self.cell_mg(part)
+            })
+            .sum()
+    }
+
+    /// The living parts carrying secretory tissue, and how many cells each.
+    ///
+    /// Plain working vocabulary: the process is `secrete` and the organ is a
+    /// gland. Neither word is a product name, and the in-product naming round
+    /// is Mark's, as it is for `fix`.
+    pub fn glands(&self) -> Vec<(PartId, u32)> {
+        let gland = Self::gland_reference();
+        self.allocations()
+            .filter_map(|(part, mosaic)| {
+                let cells: u32 = mosaic
+                    .sites()
+                    .iter()
+                    .filter(|site| site.process == gland)
+                    .map(|site| site.cells.iter().filter(|c| mosaic.is_living(**c)).count() as u32)
+                    .sum();
+                (cells > 0).then_some((part, cells))
+            })
+            .collect()
+    }
+
+    /// The parts that carried secretory tissue and were severed.
+    ///
+    /// **The fourth state, and why the mosaics of dead parts stay
+    /// addressable.** Severing takes the consequence away — a lost gland
+    /// expresses nothing and costs nothing — and a player is still owed the
+    /// sentence "that branch is where your sting was".
+    pub fn lost_glands(&self) -> Vec<PartId> {
+        let gland = Self::gland_reference();
+        self.body
+            .parts
+            .iter()
+            .filter(|part| part.severed)
+            .filter(|part| {
+                self.mosaic(part.id)
+                    .is_some_and(|m| m.sites().iter().any(|site| site.process == gland))
+            })
+            .map(|part| part.id)
+            .collect()
+    }
+
+    fn gland_reference() -> ProcessRef {
+        Registry::native()
+            .of_native(crate::process::Process::Secrete)
+            .reference()
+    }
+
     /// Every living part that expresses a definition, in part order.
     pub fn expressing(&self, process: ProcessRef) -> impl Iterator<Item = PartId> + '_ {
         self.allocations().filter_map(move |(part, mosaic)| {

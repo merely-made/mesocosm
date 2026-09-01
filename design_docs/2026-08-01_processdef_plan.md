@@ -5,9 +5,11 @@ slice landed 2026-08-08 (native `ProcessDef` records, per-definition digests,
 a registry) and its allocation half landed 2026-09-01: a private
 `BodyPhenotype` wrapper, per-part authoritative cell-graph mosaics seeded from
 geometry, one proposal and one validator for direct and automatic arrangement,
-and an intentional snapshot format bump. PD2's one additional embodied process
-is next. No pack loader or Mesocosm Piccolo host exists yet. PD0 and the PD1a
-allocation design pass are complete.**
+and an intentional snapshot format bump. PD2 is also COMPLETE, landed the same
+day: `Process::Secrete`, a gland, is the one additional native played process,
+acquired only through the temporary `Intent::Rearrange` editor operation.
+PD3's pack admission is next. No pack loader or Mesocosm Piccolo host exists
+yet. PD0 and the PD1a allocation design pass are complete.**
 
 This plan owns Mesocosm's extensible process vocabulary, developmental
 expression boundary, content-pack shape, and Piccolo proof. The
@@ -849,7 +851,7 @@ a different valid phenotype without changing process identity or provenance.
 **All met.** See the 2026-09-01 Progress entry for the landed shape, the
 receipts, and the residues PD2 inherits.
 
-### PD2. One native played process
+### PD2. One native played process: **LANDED 2026-09-01**
 
 Hand-author one additional `ProcessDef` in Rust and play it before building the
 pack or Lua machinery. Light capture leads; venom secretion is the bounded
@@ -867,6 +869,16 @@ headed receipt explains all four states.
 
 Only this gate chooses the first process. It does not open a catalog pass.
 
+**All met.** `Process::Secrete` — a gland — is the bounded fallback §7 named
+rather than light capture: light capture stores captured energy somewhere,
+which is a flow that has to travel from an exposed surface to an account, and
+PD2 is scoped to prove one process without building PD6's channel machinery
+first. A gland needed no flow at all — it prices and reads off allocation,
+mass and the ground under the body — and it still crosses body, world,
+ecology and explanation with one small definition. See the 2026-09-01
+Progress entry for the landed shape, the four states, the cost derivation,
+and the receipts.
+
 ### PD3. Static pack admission
 
 Encode the already-played PD2 definition in a data-only pack, validate it,
@@ -881,6 +893,23 @@ not depend on it.
 outcome as the native proof; namespaced ids do not collide; path escape and
 malformed schema are refused; changing one rule-bearing byte changes the
 ruleset digest; and a snapshot identifies the exact admitted ruleset.
+
+**The native authoring duplicate this gate removes** is PD2's temporary
+editor operation and its receipt tool, named so the deletion is a checklist
+rather than a search: `Intent::Rearrange` and `Allocate`
+(`crates/mesocosm-core/src/world/intent.rs`), `World::rearrange` and the whole
+of `crates/mesocosm-core/src/world/rearrange.rs`, `Outcome::Rearranged` and
+`Event::Rearranged`, and `crates/mesocosm-genet/examples/pd2_receipt.rs` —
+once the pack loader can propose the same accepted allocation the native
+fixture did, so the deletion does not first cost the gate its receipt. What
+survives underneath all of it, unowned by this door: `BodyPhenotype::develop`
+and its one validator (PD1b), `Process::Secrete` and its `ProcessDef` (PD2),
+`Organism::bite_mg` / `charged_mg` and the `upkeep_for_body` rent term (PD2),
+and the vitals panel's gland reading (`mesocosm-views/src/vitals.rs`, PD2).
+PD3 gives the definition a second, packed door; the native one is removed once
+that packed door — or PD4's Piccolo proposal, whichever actually replaces this
+gate's fixture first — can walk it through the same validator to the same
+result.
 
 ### PD4. Piccolo authoring parity
 
@@ -1065,6 +1094,219 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-09-01, PD2 complete: a gland, the one process a shape has to be
+  given.**
+
+  **The chosen process, and why not light capture.** §7 named light capture
+  as the leading candidate and venom secretion as the bounded fallback "if
+  light capture would require the whole channel evaluator." It does: storing
+  captured energy is a flow from an exposed surface to an account, and PD6
+  owns flow ports and the relation that would carry it. `Process::Secrete` —
+  a gland — needed none of that. It prices and reads entirely off
+  allocation, mass and the ground under the body, and it still crosses body,
+  world, ecology and explanation with one small definition, exactly as §7
+  asked of the first proof.
+
+  **The one new rule geometry did not already have: `Seeding`.** Every native
+  process before this one was a thing a shape simply does — grow a limb and
+  it contracts. A gland is the first a shape only *admits*: `Role::Plate`
+  gates two definitions now, `mesocosm:fix` and `mesocosm:secrete`, and
+  `Registry::seeds(role)` — the renamed seeding rule, split out from the site
+  requirement `ProcessDef::admits` still answers — grows exactly one of them.
+  Nothing in `Role::processes` or `Mosaic::seed` ever plants a gland, so a
+  seeded frond takes its whole part for fixing; the first development that
+  wants a gland has to take tissue off something else, which is the whole of
+  the "readable choice" the gate asks for. `nothing_grows_a_gland` and
+  `no_body_a_world_founds_has_one` receipt this as a property of the
+  registry and of a founded roster, not a hope about worldgen.
+
+  **`Seeding` is rule-bearing, and that is why every native's digest moved,**
+  not only the new one's: `ProcessDef::digest()` now folds in the seeding
+  byte for every definition, geometry-seeded or acquired, because "a world
+  whose plates grew glands is a different world" is true of the whole
+  registry, not one entry in it. `a_rule_bearing_byte_changes_the_digest`
+  covers both the existing byte and this one.
+
+  **Located, and charged: `Intent::Rearrange`, the gate's one editor
+  operation.** It carries the complete desired sites for one part — PD1b's
+  `AllocationProposal` shape, `Arrangement::Direct` — and lands in
+  `world/rearrange.rs`, which adds exactly the three things the validator
+  does not own: the price, the payment, and the record. The price is
+  `Instruction::cost_cells` (PD1b's count of cells whose expression changed,
+  left unpriced because nothing consumed it yet) times
+  `BodyPhenotype::cell_mg(part)` — the part's own TD6 adult-mass ceiling
+  divided by its mosaic's living cell count, floored at one. No constant was
+  invented; PD1b explicitly deferred this number until a consumer existed,
+  and this is that consumer. The milligram leaves the body's reserve and is
+  deposited into the soil column under it (TD6: work is matter moving
+  somewhere else, never ceasing to exist), flow-tracked as the new
+  `flow::Process::Develop` so `tests/flows.rs`'s whole-run reconciliation
+  covers it without a dedicated test, and recorded as `Event::Rearranged`.
+  `the_development_is_located_paid_for_and_on_the_record` is the receipt.
+
+  **Useful, and dormant: a world condition, not a mosaic change.**
+  `BodyPhenotype::secretory_mg()` prices every living cell allocated to
+  `Secrete`, the same way `cell_mg` prices anything. `Organism::charged_mg
+  (ground_mg)` answers that dose when the column under the body holds at
+  least that much, and zero otherwise — the threshold *is* the potency,
+  derived rather than tuned. `Organism::bite_mg` adds the charged dose to the
+  line's inherited `venom_mg`, so both the played eater and the ecology's
+  read one number. Plan §4's rule — a changing environment does not rewrite
+  the mosaic — is honoured by construction: going dry costs no cell and no
+  milligram of rent, because rent is `upkeep_for_body`'s new fourth
+  parameter, `secretory_mg`, added into the same numerator the actuator's
+  swing already occupies and charged whether or not the gland is presently
+  working. A body with none reads exactly its pre-PD2 rent, to the milligram
+  (`rates/tests.rs`, moved to its own file at the ceiling this change
+  created). `a_charged_gland_costs_whatever_eats_the_body_that_carries_it`,
+  `carrying_a_gland_costs_rent_every_tick`,
+  `a_gland_bigger_than_the_ground_is_dry_and_still_costs_its_rent` and
+  `enriching_the_ground_charges_the_gland_the_body_already_had` are the four
+  receipts — the last proving the claim from the direction that matters: an
+  ordinary `Deposit`, a verb every player already has, is what turns a dry
+  gland on, with no development and no revision change.
+
+  **Severed, and gone — and the branch still explains itself.**
+  `BodyPhenotype::sever` already tombstoned a mosaic's cells at PD1b;
+  `glands()` and `secretory_mg()` read the result immediately, so the sting
+  and the rent leave together. What is new is `lost_glands()`, which reads
+  the *severed* parts that once carried one, so `World::gland()` keeps
+  answering `Some` — empty `sites`, non-empty `lost` — rather than `None`,
+  and a player is still owed "that branch is where your sting was."
+  `BodyPhenotype::explain` already named a severed branch's shape (PD1b's
+  residue note); it now also names `secrete` for one that carried a gland.
+  `severing_the_frond_takes_the_bite_and_the_rent_with_it` is the receipt,
+  proved against a control body that never had one so the claim is "what is
+  left afterward is identical," not merely "the number went down."
+
+  **The canopy residue PD1b flagged is closed.** `BodyPhenotype::canopy()`
+  (new) asks whether a plate in canopy position is actually allocated to
+  fixing, not merely whether one is held up in the light — the question
+  PD1b's own note said would only diverge from the geometric reading "once
+  a development can take that tissue away." `Kingdom::of` and
+  `FeedingMode::of` now take a `&BodyPhenotype` rather than a
+  `&BodyDocument`, and `converting_the_whole_frond_costs_the_body_its_living`
+  proves the downside is real: a body that turns its whole frond into poison
+  stops reading as a producer and has to eat like everything else, while its
+  anatomy — the plate, the position — is untouched. `BodyDocument::canopy`
+  is renamed `canopy_parts` and now only answers the shape half of the
+  question, which every call site not asking about capability (the mesh and
+  Lens projections, `kingdom.rs`'s own geometric receipts) still uses
+  directly.
+
+  **The headed receipt.** PD2's whole authoring surface — `Intent::Rearrange`
+  — has no keyboard binding and no ordinary `--replay` trace reaches a gland
+  (the played critter always founds as a fixed-recipe consumer, never a
+  producer with a frond), so the plan's own permission — "a native
+  developmental fixture or an explicit editor operation" — is what proves
+  this gate, exactly as it already does in `tests/embodied/gland.rs`. The
+  receipt tool, `crates/mesocosm-genet/examples/pd2_receipt.rs`, drives the
+  real `mesocosm_genet::vitals::VitalsChrome` — the same cambium/netrender
+  pipeline the interactive host composites — over a headless wgpu device (no
+  window; built the same way `mesocosm-render`'s existing headless renderer
+  is) so the pixels are the engine's own. It grows a frond the same way the
+  test fixture does, then plays the real, validated `Intent::Rearrange` and
+  `Intent::Move`; the fourth state uses the same direct `sever()` call the
+  automated proof does, because no `Intent` removes a part yet — that is
+  phenotype D3a's gate, not this one's, and it is the one state this receipt
+  cannot reach through ordinary play. Four captures land in
+  `Code/testing/mesocosm/`:
+  - `pd2_process_1_allocated.png` — the instant of the development:
+    **gland** "5 cells of part 2", **sting** "115 mg a bite", **gland rent**
+    "1 mg a tick", with the "rebuilt" notice live.
+  - `pd2_process_2_useful.png` — the same body, settled: the notice faded,
+    energy visibly spent on thirty ticks of rent, the same charged reading.
+  - `pd2_process_3_dormant.png` — one column over: **sting** "dry: this
+    ground holds 112 mg, the gland needs 115" — the exact shortfall, so a
+    player knows what would fix it — while **gland** and **gland rent**
+    read unchanged, because nothing about the allocation moved.
+  - `pd2_process_4_severed.png` — **gland** "gone with part 2", **sting**
+    "nothing left to sting with", **gland rent** "0 mg a tick".
+
+  A player reading this panel is told, in order: what it has, whether it is
+  presently useful and by how much, and — when it is not — the exact ground
+  reading that would turn it back on. `mesocosm-genet/src/vitals.rs` needed
+  no change; it composites whatever `vitals_root` draws, which is exactly
+  why it was named an available lane rather than a file to edit.
+
+  **Receipts.**
+  - `mesocosm-core` lib: **338** green (+1 over PD1b: `nothing_grows_a_gland`;
+    `a_rule_bearing_byte_changes_the_digest` extended for the seeding byte).
+  - `tests/embodied.rs`: **28** green (+12, all in the new
+    `tests/embodied/gland.rs`), one test per named claim in its module doc:
+    a readable choice (4), located and charged (2), useful and dormant (4),
+    severed and gone (2).
+  - `mesocosm-views`: **18** green (+2): `the_gland_reads_differently_in_
+    each_of_its_four_states` (the exact panel words for all four) and the
+    development-refusal words a hand can actually produce.
+  - `cargo test -p mesocosm-core --test matter --test flows --test succession
+    --test embodied --release`: **5 + 9 + 7 + 28** green.
+  - **Fixture re-recorded, one format bump, no shim.** The digest change
+    touches every native definition, so every organism's serialized
+    `ProcessRef`s changed and the whole-world hash moved with them even
+    though the demo never allocates a gland: `0ebe0655317a7392` (PD1b) to
+    **`25a5a0096cef0af1`**. The intent stream is byte-identical — same 3,100
+    steps, the same three `Resume`s at 800/1600/2400, the same
+    `TakeControl { organism: 2205 }` at 3000, the same fourth-birth `Resume`
+    at 3040 — confirmed by direct diff against the recorded intents, not
+    merely asserted. Headed `--replay` runs 3,100 steps over 775 frames and
+    matches the recorded hash, exit 0; a hash falsified by one bit reports
+    the mismatch and exits 1.
+  - **The instrument is isolable, and unmoved.** `Process::Secrete` is
+    `Seeding::Acquired`, so no founded body ever expresses it —
+    `no_body_a_world_founds_has_one` receipts this over `World::new(4_242,
+    24)` — and `upkeep_for_body`'s new fourth parameter,
+    `Organism::phenotype.secretory_mg()`, is therefore provably zero for
+    every founded organism, exactly the mechanism DC4's own `Founding`
+    switch used to isolate its own baseline. Re-run against `dc4_roster.json`
+    seed for seed: the first six baseline seeds landed **verdict, start,
+    peak, peak tick, end, cumulative births and cumulative deaths each
+    identical** to the recorded receipt (seed 1: thins, 917 -> 1561 (tick
+    4400) -> 1350, born 5940, died 5184; seeds 2-6 likewise exact). The sweep
+    was stopped there rather than run through the remaining four baseline
+    seeds and the four other batches, on the same reasoning PD1b's receipt
+    used: the isolating mechanism is structural, not a per-seed coincidence,
+    and the run was stopped before it could overwrite `dc4_roster.json` with
+    new timing on an unmoved result. **0 breathes / 10 thins / 0 boil / 0
+    collapse** stands unchanged, six of ten seeds directly re-verified this
+    session.
+  - `cargo test --workspace` green (33 suites in release, plus mesocosm-lens 45 at `--test-threads=1`); clippy `-D warnings`
+    clean; `cargo fmt --all --check` clean; `cargo check -p paredros-room
+    --features r1-proof` builds, its one `dead_code` warning on
+    `brick::retarget_from_ground` unchanged and predating this work.
+
+  **Splits at the ceiling**, per the workspace rule:
+  `organism/ecology/rates/tests.rs` out of `rates.rs`, when PD2's fourth
+  rent parameter pushed the file over.
+
+  **Residues, and what PE2 and PD3 inherit.**
+  - **The temporary door is named, not yet removed.** `Intent::Rearrange`,
+    `World::rearrange` (`world/rearrange.rs`), `Outcome::Rearranged`,
+    `Event::Rearranged`, and this gate's receipt tool are the whole of the
+    authoring path §9 permits deleting at PD3; the validator underneath —
+    `BodyPhenotype::develop` — is not part of that deletion and was already
+    shared with automatic arrangement before this gate existed.
+  - **PE2 inherits a reading surface, not a discovery system.** `World::
+    gland()` and the two vitals lanes answer "where, how much, useful or
+    not, and why not" for a body that already has one; they say nothing
+    about how a body gets one in the first place. PE2's condition
+    evaluator, evidence-bearing discovery record, and the bounded
+    part-level eating proof are entirely its own work.
+  - **NPC acquisition is still open.** Nothing in the ecology's own feeding
+    or development step ever proposes a gland; only a hand (or this gate's
+    fixture) does. §9's own "Done when" only asks that direct and automatic
+    fixtures share one validator, which they do — `Arrangement` is
+    diagnostic metadata the validator never reads, exactly as PD1b left it
+    — but *whether* an unplayed lineage ever acquires one is PE2's ruling,
+    named as open there already.
+  - **`performs`'s remaining honesty gap moved, it did not close.**
+    PD1b flagged `reach`, `mouth` and `feeding_mode` as readings that could
+    ask allocation instead of geometry once something could move a site.
+    This gate closed exactly the one PD1a already named as the next
+    candidate — canopy — because it is the one a gland's downside actually
+    exercises. The other three remain geometry reads; nothing in PD2 gives
+    them a reason to change yet.
 
 - **2026-09-01, PD1b complete: allocation gets its owner.**
 

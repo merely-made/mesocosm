@@ -131,6 +131,14 @@ pub enum Process {
     /// What a body could not hold, and what a bite of venom cost, going back
     /// where it came from. Nothing evaporates. (TD6)
     Spill,
+    /// Rebuilding an organ: the tissue a development moved, paid out of the
+    /// reserve and into the ground under the body. (PD2)
+    ///
+    /// Distinct from [`Self::Upkeep`] on purpose. Rent is what carrying a
+    /// gland costs every tick; this is the one-off price of installing one,
+    /// and a reading that could not tell them apart could not say whether a
+    /// lineage is building or merely standing still.
+    Develop,
 }
 
 /// One side of a flow, when that side is a body.

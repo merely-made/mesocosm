@@ -19,6 +19,15 @@
 //! the default creatures plan's DC1.5 needed a producer to be readable from
 //! anatomy rather than from symmetry.
 //!
+//! # Grown and acquired are different (PD2)
+//!
+//! The first four are all things a shape simply *does*: grow the shape and the
+//! process is there. [`Process::Secrete`] is the first that a body has to be
+//! *given*, and that distinction is [`Seeding`]. Geometry seeds four
+//! definitions and admits five, so the fifth is only ever where a development
+//! put it — which is what makes expressing it a choice rather than a
+//! consequence of having grown a plate.
+//!
 //! # Geometry seeds allocation; nobody edits a number
 //!
 //! P2's rule was *processes are read, not stored*: a part's processes were
@@ -62,6 +71,17 @@ pub enum Process {
     /// in-product name is a naming round Mark owns. Renaming the variant moves
     /// no rule, only [`ProcessId::name`] and this identifier.
     Fix,
+    /// Makes a toxin out of the body's own substance and the ground under it.
+    /// A gland, a nettle's hair, a stinging cell. **PD2's played process.**
+    ///
+    /// The first process no shape grows: a plate *admits* a gland and never
+    /// seeds one, so the tissue has to be taken off whatever the plate was
+    /// already doing. What it costs is standing rent; what it buys is a bite
+    /// that the thing eating this body pays.
+    ///
+    /// **The word is provisional**, as [`Process::Fix`]'s is. `Secrete` is the
+    /// plain working verb; the in-product name is a naming round Mark owns.
+    Secrete,
 }
 
 impl Process {
@@ -69,13 +89,14 @@ impl Process {
     /// parity receipt below noticing.
     ///
     /// There is no exhaustive match anywhere else on this enum: without this
-    /// list a fifth process would compile clean and panic inside
+    /// list a sixth process would compile clean and panic inside
     /// [`Registry::of_native`] at runtime.
-    pub const ALL: [Process; 4] = [
+    pub const ALL: [Process; 5] = [
         Process::Contract,
         Process::Intake,
         Process::Sense,
         Process::Fix,
+        Process::Secrete,
     ];
 }
 
@@ -87,6 +108,11 @@ impl Role {
     /// That mapping is the whole vocabulary today, and since PD1b it is the
     /// **seeding rule**: it decides what a newly developed part expresses,
     /// not what a part is permanently obliged to be.
+    ///
+    /// **What a shape grows, not what it will tolerate** (PD2). A plate admits
+    /// [`Process::Secrete`] and does not seed it; the two questions are
+    /// [`Registry::seeds`] and [`ProcessDef::admits`], and only the first one
+    /// is this.
     pub fn processes(self) -> &'static [Process] {
         // The registry is the definition of record (PD1b); this remains the
         // fast native view of it, and the parity receipt in `process/tests.rs`
@@ -185,6 +211,22 @@ pub struct ProcessRef {
     pub definition: DefinitionDigest,
 }
 
+/// Whether a shape that admits a definition also **grows** it.
+///
+/// PD1b had only one answer, because all four natives were things a shape
+/// simply does. PD2 needs the other: a definition a part will carry but never
+/// develops on its own, so the only way to express it is a development that
+/// takes the tissue off something else. That is the difference between a
+/// consequence and a choice, and it is rule-bearing — a world whose plates
+/// grew glands is a different world — so it is in the digest.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum Seeding {
+    /// Growing an admitting shape expresses it. The four originals.
+    Geometry,
+    /// Only a validated development places it. Nothing grows one.
+    Acquired,
+}
+
 /// One process as a record: identity, the roles whose geometry expresses
 /// it, and a digest over its rule-bearing bytes.
 ///
@@ -196,13 +238,16 @@ pub struct ProcessRef {
 pub struct ProcessDef {
     pub id: ProcessId,
     pub native: Process,
-    /// The roles whose shape expresses this process. Geometry seeding:
-    /// today's whole allocation rule, carried as data.
+    /// The roles whose shape may express this process: the **site
+    /// requirement**, and what [`ProcessDef::admits`] answers.
     pub expressed_by: &'static [Role],
+    /// Whether growing one of those shapes also grows this process.
+    pub seeding: Seeding,
 }
 
 impl ProcessDef {
-    /// Digest over the rule-bearing bytes: identity plus expression rule.
+    /// Digest over the rule-bearing bytes: identity, site requirement, and
+    /// whether geometry grows it.
     pub fn digest(&self) -> DefinitionDigest {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(self.id.namespace.as_bytes());
@@ -212,7 +257,14 @@ impl ProcessDef {
         for role in self.expressed_by {
             bytes.push(*role as u8);
         }
+        bytes.push(0);
+        bytes.push(self.seeding as u8);
         DefinitionDigest(crate::snapshot::hash_bytes(&bytes))
+    }
+
+    /// Whether growing an admitting shape expresses this definition.
+    pub fn seeded(&self) -> bool {
+        self.seeding == Seeding::Geometry
     }
 
     /// What a phenotype stores when it expresses this definition.
@@ -251,6 +303,7 @@ const NATIVE_DEFS: &[ProcessDef] = &[
         },
         native: Process::Contract,
         expressed_by: &[Role::Limb],
+        seeding: Seeding::Geometry,
     },
     ProcessDef {
         id: ProcessId {
@@ -259,6 +312,7 @@ const NATIVE_DEFS: &[ProcessDef] = &[
         },
         native: Process::Intake,
         expressed_by: &[Role::Mass],
+        seeding: Seeding::Geometry,
     },
     ProcessDef {
         id: ProcessId {
@@ -267,6 +321,7 @@ const NATIVE_DEFS: &[ProcessDef] = &[
         },
         native: Process::Sense,
         expressed_by: &[Role::Sensor],
+        seeding: Seeding::Geometry,
     },
     ProcessDef {
         id: ProcessId {
@@ -276,6 +331,25 @@ const NATIVE_DEFS: &[ProcessDef] = &[
         },
         native: Process::Fix,
         expressed_by: &[Role::Plate],
+        seeding: Seeding::Geometry,
+    },
+    ProcessDef {
+        id: ProcessId {
+            namespace: "mesocosm",
+            // Provisional, with the variant: the naming round is Mark's.
+            name: "secrete",
+        },
+        native: Process::Secrete,
+        // **The same shape that fixes.** Area against the world is what a
+        // toxin surface needs too, which is why a nettle's sting is on its
+        // leaf; and it puts the tradeoff where PD1a wanted it, inside one
+        // organ. A plate on a consumer is armour rather than a frond, so the
+        // same rule lets an animal arm its shell without becoming a plant.
+        expressed_by: &[Role::Plate],
+        // **Nothing grows a gland.** This is the whole of PD2's first
+        // done-condition: expressing it is an act with a record, so a body
+        // that has one was given one.
+        seeding: Seeding::Acquired,
     },
 ];
 
@@ -313,11 +387,15 @@ impl Registry {
             .expect("every native process is registered")
     }
 
-    /// The processes a role's geometry expresses, per the registry.
-    pub fn expressed_by(&self, role: Role) -> impl Iterator<Item = &ProcessDef> {
+    /// **The seeding rule**: the definitions growing this shape expresses.
+    ///
+    /// Not the same question as [`ProcessDef::admits`], which is the site
+    /// requirement a proposal must satisfy. A plate is admitted for two
+    /// definitions and grows one.
+    pub fn seeds(&self, role: Role) -> impl Iterator<Item = &ProcessDef> {
         self.defs
             .iter()
-            .filter(move |def| def.expressed_by.contains(&role))
+            .filter(move |def| def.seeded() && def.expressed_by.contains(&role))
     }
 
     /// Digest over the whole admitted ruleset, order-sensitive.

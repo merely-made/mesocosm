@@ -162,12 +162,11 @@ fn the_registry_and_the_native_view_agree() {
     // registry data, and the enum fast-path may never drift from it.
     let registry = Registry::native();
     for role in Role::ALL {
-        let via_registry: Vec<Process> =
-            registry.expressed_by(role).map(|def| def.native).collect();
+        let via_registry: Vec<Process> = registry.seeds(role).map(|def| def.native).collect();
         assert_eq!(
             via_registry,
             role.processes().to_vec(),
-            "{role:?} expresses differently in data and in code"
+            "{role:?} grows differently in data and in code"
         );
     }
     // The binding is a bijection: every native resolves, and ids are
@@ -184,6 +183,34 @@ fn the_registry_and_the_native_view_agree() {
         Process::ALL.len(),
         "the registry and the native list hold different numbers of processes"
     );
+}
+
+#[test]
+fn nothing_grows_a_gland() {
+    // PD2's first done-condition, as a property of the registry rather than a
+    // hope about worldgen: the acquired definition is admitted on a shape and
+    // seeded by none, so no body arrives with one and every body that has one
+    // was given it by a development that is on the record.
+    let registry = Registry::native();
+    let gland = registry.of_native(Process::Secrete);
+    assert!(!gland.seeded(), "a gland is acquired, never grown");
+    assert!(
+        gland.admits(Role::Plate),
+        "and a plate is the shape that carries it"
+    );
+    for role in Role::ALL {
+        assert!(
+            !registry
+                .seeds(role)
+                .any(|def| def.native == Process::Secrete),
+            "{role:?} grows a gland"
+        );
+    }
+    // The two questions are genuinely different for exactly one shape today.
+    // If this ever reads equal again, the seeding split has been undone.
+    let admitted = registry.all().filter(|def| def.admits(Role::Plate)).count();
+    let grown = registry.seeds(Role::Plate).count();
+    assert_eq!((admitted, grown), (2, 1));
 }
 
 #[test]
@@ -220,8 +247,16 @@ fn a_rule_bearing_byte_changes_the_digest() {
         id: contract.id,
         native: contract.native,
         expressed_by: &[Role::Limb, Role::Plate],
+        seeding: contract.seeding,
     };
     assert_ne!(contract.digest(), tampered.digest());
+    // And the PD2 byte is rule-bearing too: a world whose plates grew glands
+    // is a different world, so it cannot answer to the same address.
+    let ungrown = ProcessDef {
+        seeding: crate::process::Seeding::Acquired,
+        ..contract.clone()
+    };
+    assert_ne!(contract.digest(), ungrown.digest());
     // And the ruleset digest is stable across constructions.
     assert_eq!(Registry::native().digest(), Registry::native().digest());
 }

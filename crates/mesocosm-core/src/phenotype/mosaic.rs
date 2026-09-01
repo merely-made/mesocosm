@@ -131,10 +131,10 @@ impl Mosaic {
 
         let mut sites = Vec::new();
         let mut next_site = 0u16;
-        let expressed: Vec<ProcessRef> = registry
-            .expressed_by(role)
-            .map(|def| def.reference())
-            .collect();
+        // The **seeding** rule, not the site requirement. Since PD2 a plate
+        // admits two definitions and grows one, so asking the wrong question
+        // here would hand every plate in the world a gland it never paid for.
+        let expressed: Vec<ProcessRef> = registry.seeds(role).map(|def| def.reference()).collect();
         // Even shares in registry order, front to back. A prefix of the
         // row-major order is always connected in a lattice, and so is each
         // whole-slab run of one while the shares divide it evenly; the

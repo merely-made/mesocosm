@@ -103,11 +103,17 @@ impl Organism {
     /// [`Self::mass_ceiling_mg`] — so the trophic asymmetry between a plant and
     /// an animal is anatomy rather than an authored constant. See
     /// [`ecology::upkeep_for_body`].
+    ///
+    /// PD2's third term is the same kind of number: the toxin this body's
+    /// allocation holds. A gland is standing machinery, so carrying one costs
+    /// every tick whether or not anything bites — which is what makes
+    /// installing one a decision rather than a free upgrade.
     pub fn upkeep_mg(&self) -> u64 {
         ecology::upkeep_for_body(
             self.biomass_mg(),
             self.actuator_span(),
             self.mass_ceiling_mg(),
+            self.phenotype.secretory_mg(),
         )
     }
 

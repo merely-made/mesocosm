@@ -301,7 +301,7 @@ fn the_roster_founds_a_predator_beside_the_grazers_and_an_armoured_body() {
         if organism.kingdom() != Kingdom::Producer && organism.body().performs(Process::Fix) {
             armoured += 1;
             assert!(
-                !organism.body().canopy(),
+                !organism.phenotype.canopy(),
                 "founder {:?} is lit",
                 organism.id
             );

@@ -57,9 +57,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::body::BodyDocument;
+use crate::body::{BodyDocument, PartId};
+use crate::phenotype::BodyPhenotype;
 use crate::plan::{Role, Symmetry, classify};
-use crate::process::{FeedingMode, Process};
+use crate::process::{FeedingMode, Process, Registry};
 
 /// Trophic role. Not a character class: these are the three ways of making a
 /// living, and a lineage may combine them.
@@ -88,14 +89,23 @@ impl Kingdom {
         }
     }
 
-    /// Reads a body's kingdom off the organs it feeds with.
+    /// Reads a body's kingdom off the organs it feeds with, **and off what
+    /// they are actually doing**.
     ///
     /// Fixing first, because a body that carries both organs is the deferred
     /// mixotroph and the tie has to be broken somewhere stated.
-    pub fn of_body(body: &BodyDocument) -> Self {
-        if body.canopy() {
+    ///
+    /// **A phenotype rather than a document, since PD2.** The canopy clause
+    /// used to ask whether a plate was held up; it now asks whether the plate
+    /// held up is allocated to fixing, because a development can take that
+    /// tissue away. PD1b named this reading as the one that only becomes a
+    /// different answer when something can move a site, and PD2 is that
+    /// something. Every body that has never developed answers exactly as
+    /// before, which is what the parity receipt asserts.
+    pub fn of(phenotype: &BodyPhenotype) -> Self {
+        if phenotype.canopy() {
             Self::Producer
-        } else if body.mouth().is_some() {
+        } else if phenotype.body().mouth().is_some() {
             Self::Consumer
         } else {
             Self::Decomposer
@@ -105,17 +115,34 @@ impl Kingdom {
 
 impl FeedingMode {
     /// What a body does with matter, read off the same anatomy.
-    pub fn of_body(body: &BodyDocument) -> Self {
-        match Kingdom::of_body(body) {
+    pub fn of(phenotype: &BodyPhenotype) -> Self {
+        match Kingdom::of(phenotype) {
             Kingdom::Producer => Self::Producer,
             Kingdom::Decomposer => Self::Scavenger,
             // A jaw swings, so it takes something that runs; a crop does not,
             // so it takes something that stands still.
-            Kingdom::Consumer => match body.mouth() {
+            Kingdom::Consumer => match phenotype.body().mouth() {
                 Some(Role::Limb) => Self::Predator,
                 _ => Self::Grazer,
             },
         }
+    }
+}
+
+impl BodyPhenotype {
+    /// Whether this body holds a surface up in the light **and is using it to
+    /// fix**.
+    ///
+    /// The geometric half is [`BodyDocument::canopy_parts`] and has not
+    /// changed. What PD2 adds is the second question: a plate whose tissue a
+    /// development moved onto something else is still held up, and is no
+    /// longer a canopy. That is the whole downside of the choice — a frond
+    /// converted entirely to a gland stops being how this body makes a living.
+    pub fn canopy(&self) -> bool {
+        let fixing = Registry::native().of_native(Process::Fix).reference();
+        self.body()
+            .canopy_parts()
+            .any(|part| self.expresses_on(part, fixing))
     }
 }
 
@@ -144,16 +171,16 @@ impl BodyDocument {
     ///    the sum of the `y` offsets up its attachment chain and no rotation
     ///    can move it.
     ///
-    /// The body fixes when it holds at least one such plate. A shelled body
-    /// whose plates are all covering therefore reads by its mouth, like any
-    /// other animal, which is what lets an archetype wear armour without
-    /// becoming a producer.
-    pub fn canopy(&self) -> bool {
-        // Most bodies carry no plate at all and this is read once per organism
-        // per tick, so the cheap question goes first.
-        if !self.performs(Process::Fix) {
-            return false;
-        }
+    /// The body fixes when it holds at least one such plate **that is
+    /// allocated to fixing**. A shelled body whose plates are all covering
+    /// therefore reads by its mouth, like any other animal, which is what lets
+    /// an archetype wear armour without becoming a producer.
+    ///
+    /// **The shape half only, since PD2.** This answers *which plates are in
+    /// a canopy position*; whether one of them is doing anything is
+    /// [`BodyPhenotype::canopy`], because allocation is not the anatomy
+    /// document's to know.
+    pub fn canopy_parts(&self) -> impl Iterator<Item = PartId> + '_ {
         // Heights in one forward pass: a part's parent always has the lower
         // id, so the chain resolves in document order without walking it once
         // per part.
@@ -163,7 +190,6 @@ impl BodyDocument {
                 height[part.id.0 as usize] = height[at.parent.0 as usize] + at.offset[1];
             }
         }
-        let top = |part: &crate::body::Part| height[part.id.0 as usize] + part.half_extent[1].abs();
         // The highest anything on this body starts. A plate whose own top
         // reaches it has nothing over it.
         let overhead = self
@@ -171,14 +197,14 @@ impl BodyDocument {
             .map(|part| height[part.id.0 as usize] - part.half_extent[1].abs())
             .max()
             .unwrap_or(0);
-        self.living().any(|part| {
-            let Some(at) = part.attachment else {
-                return false;
-            };
-            classify(part.half_extent) == Role::Plate
+        self.living().filter_map(move |part| {
+            let at = part.attachment?;
+            let top = height[part.id.0 as usize] + part.half_extent[1].abs();
+            (classify(part.half_extent) == Role::Plate
                 && at.offset[1] > 0
                 && at.offset[1] >= at.offset[0].abs()
-                && top(part) >= overhead
+                && top >= overhead)
+                .then_some(part.id)
         })
     }
 
@@ -221,6 +247,13 @@ mod tests {
     use super::*;
     use crate::body::{Attachment, Provenance, SpeciesId, VolumeRef, Yaw};
 
+    /// A body as it would actually be born: anatomy with its allocation
+    /// seeded. Since PD2 the kingdom readings ask what tissue is doing, so a
+    /// bare document is not something the ecology ever sees.
+    fn grown(body: &BodyDocument) -> BodyPhenotype {
+        BodyPhenotype::seed(body.clone())
+    }
+
     /// A bulk root, and whatever organs a test hangs off it.
     fn body() -> BodyDocument {
         BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2])
@@ -252,29 +285,29 @@ mod tests {
         // whose only feeding surface is its own bulk lives on the dead.
         let bare = body();
         assert!(bare.performs(Process::Intake), "bulk absorbs");
-        assert_eq!(Kingdom::of_body(&bare), Kingdom::Decomposer);
-        assert_eq!(FeedingMode::of_body(&bare), FeedingMode::Scavenger);
+        assert_eq!(Kingdom::of(&grown(&bare)), Kingdom::Decomposer);
+        assert_eq!(FeedingMode::of(&grown(&bare)), FeedingMode::Scavenger);
     }
 
     #[test]
     fn a_fixing_part_makes_a_producer() {
         let mut plant = body();
         bear(&mut plant, [4, 4, 1], [0, 5, 0]);
-        assert_eq!(Kingdom::of_body(&plant), Kingdom::Producer);
-        assert_eq!(FeedingMode::of_body(&plant), FeedingMode::Producer);
+        assert_eq!(Kingdom::of(&grown(&plant)), Kingdom::Producer);
+        assert_eq!(FeedingMode::of(&grown(&plant)), FeedingMode::Producer);
     }
 
     #[test]
     fn mouth_geometry_splits_the_consumer() {
         let mut grazer = body();
         bear(&mut grazer, [2, 1, 1], [0, -3, 0]);
-        assert_eq!(Kingdom::of_body(&grazer), Kingdom::Consumer);
-        assert_eq!(FeedingMode::of_body(&grazer), FeedingMode::Grazer);
+        assert_eq!(Kingdom::of(&grown(&grazer)), Kingdom::Consumer);
+        assert_eq!(FeedingMode::of(&grown(&grazer)), FeedingMode::Grazer);
 
         let mut predator = body();
         bear(&mut predator, [3, 1, 1], [0, -3, 0]);
-        assert_eq!(Kingdom::of_body(&predator), Kingdom::Consumer);
-        assert_eq!(FeedingMode::of_body(&predator), FeedingMode::Predator);
+        assert_eq!(Kingdom::of(&grown(&predator)), Kingdom::Consumer);
+        assert_eq!(FeedingMode::of(&grown(&predator)), FeedingMode::Predator);
     }
 
     #[test]
@@ -286,7 +319,7 @@ mod tests {
         bear(&mut grazer, [4, 1, 1], [5, 0, 0]);
         bear(&mut grazer, [4, 1, 1], [-5, 0, 0]);
         assert!(grazer.performs(Process::Contract), "it walks");
-        assert_eq!(FeedingMode::of_body(&grazer), FeedingMode::Grazer);
+        assert_eq!(FeedingMode::of(&grown(&grazer)), FeedingMode::Grazer);
     }
 
     #[test]
@@ -296,7 +329,7 @@ mod tests {
         let mut worm = body();
         bear(&mut worm, [2, 2, 2], [0, 0, 4]);
         assert_eq!(worm.mouth(), None);
-        assert_eq!(Kingdom::of_body(&worm), Kingdom::Decomposer);
+        assert_eq!(Kingdom::of(&grown(&worm)), Kingdom::Decomposer);
     }
 
     #[test]
@@ -305,9 +338,9 @@ mod tests {
         // could never do this, which is the thing the unbinding buys.
         let mut grazer = body();
         let mouth = bear(&mut grazer, [2, 1, 1], [0, -3, 0]);
-        assert_eq!(Kingdom::of_body(&grazer), Kingdom::Consumer);
+        assert_eq!(Kingdom::of(&grown(&grazer)), Kingdom::Consumer);
         grazer.sever(mouth);
-        assert_eq!(Kingdom::of_body(&grazer), Kingdom::Decomposer);
+        assert_eq!(Kingdom::of(&grown(&grazer)), Kingdom::Decomposer);
     }
 
     // **The DC4 position rule.** A plate is the fixing geometry; where it hangs
@@ -320,18 +353,21 @@ mod tests {
             bear(&mut shelled, [0, 3, 3], [side * 2, 0, 0]);
         }
         assert!(shelled.performs(Process::Fix), "the shells are plates");
-        assert!(!shelled.canopy(), "and no plate is held up to the light");
+        assert!(
+            !grown(&shelled).canopy(),
+            "and no plate is held up to the light"
+        );
         // So the body reads by its mouth, which is the whole point.
-        assert_eq!(Kingdom::of_body(&shelled), Kingdom::Consumer);
-        assert_eq!(FeedingMode::of_body(&shelled), FeedingMode::Grazer);
+        assert_eq!(Kingdom::of(&grown(&shelled)), Kingdom::Consumer);
+        assert_eq!(FeedingMode::of(&grown(&shelled)), FeedingMode::Grazer);
     }
 
     #[test]
     fn a_plate_under_the_body_is_not_a_canopy_either() {
         let mut belly = body();
         bear(&mut belly, [4, 4, 1], [0, -7, 0]);
-        assert!(!belly.canopy());
-        assert_eq!(Kingdom::of_body(&belly), Kingdom::Decomposer);
+        assert!(!grown(&belly).canopy());
+        assert_eq!(Kingdom::of(&grown(&belly)), Kingdom::Decomposer);
     }
 
     #[test]
@@ -342,7 +378,7 @@ mod tests {
         // and the reading has to survive them.
         let mut overhung = body();
         let frond = bear(&mut overhung, [4, 4, 1], [0, 7, 0]);
-        assert!(overhung.canopy(), "held up and clear, it fixes");
+        assert!(grown(&overhung).canopy(), "held up and clear, it fixes");
         // A mass hung above the frond's top (y = 11) shades it out.
         overhung
             .attach(
@@ -357,8 +393,8 @@ mod tests {
                 Provenance::founding(),
             )
             .expect("attaches");
-        assert!(!overhung.canopy(), "shadowed, it does not");
-        assert_eq!(Kingdom::of_body(&overhung), Kingdom::Decomposer);
+        assert!(!grown(&overhung).canopy(), "shadowed, it does not");
+        assert_eq!(Kingdom::of(&grown(&overhung)), Kingdom::Decomposer);
     }
 
     #[test]
@@ -379,8 +415,8 @@ mod tests {
                 Provenance::founding(),
             )
             .expect("attaches");
-        assert!(plant.canopy());
-        assert_eq!(Kingdom::of_body(&plant), Kingdom::Producer);
+        assert!(grown(&plant).canopy());
+        assert_eq!(Kingdom::of(&grown(&plant)), Kingdom::Producer);
     }
 
     #[test]
@@ -390,7 +426,7 @@ mod tests {
         let mut both = body();
         bear(&mut both, [4, 4, 1], [0, 5, 0]);
         bear(&mut both, [3, 1, 1], [0, -3, 0]);
-        assert_eq!(Kingdom::of_body(&both), Kingdom::Producer);
+        assert_eq!(Kingdom::of(&grown(&both)), Kingdom::Producer);
     }
 
     #[test]
@@ -400,7 +436,7 @@ mod tests {
         for symmetry in [Symmetry::Bilateral, Symmetry::Radial, Symmetry::None] {
             plant.plan.symmetry = symmetry;
             assert_eq!(
-                Kingdom::of_body(&plant),
+                Kingdom::of(&grown(&plant)),
                 Kingdom::Producer,
                 "{symmetry:?} moved the reading"
             );
