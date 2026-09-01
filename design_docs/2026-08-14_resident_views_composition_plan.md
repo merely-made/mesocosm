@@ -8,7 +8,8 @@ and headed-verified 2026-08-26; Mere's `conatus-brick` now owns the shared
 brick ABI and camera-neutral DDA; V1b closed incremental per-brick
 residency, allocator-observed bytes, and the tracer-validated lease epoch
 2026-08-26 (engine review §5 V1b); field-plane visualization remains
-open.** How the voxel world, Burn/CubeCL, the
+open; the consumer-specific field admission boundary was recorded
+2026-09-01.** How the voxel world, Burn/CubeCL, the
 tracer, the mesher, collision, and persistence compose on one device.
 Ratified direction (Mark, 2026-08-14): the voxel world
 is Burn-addressable state while remaining voxel-authoritative state.
@@ -100,6 +101,44 @@ time.
 - **Persistence and peers** exchange canonical chunk facts and deltas,
   never GPU allocation details.
 
+## Field admission boundary (2026-09-01)
+
+`ResidentChunk` is a carriage and revision contract for admitted planes. It is
+not a universal environmental simulator, and its spatial shape does not decide
+the semantic dimension of every field. Before a product field enters this
+path, its admission card names its authority class, consumer, domain,
+resolution, cadence,
+interpolation, sources and sinks, boundary conditions, numeric range,
+conservation rule, scale reduction, and acceptance evidence.
+
+That keeps different phenomena honest:
+
+- soil nutrient and moisture can remain authoritative columns or shallow
+  layers;
+- light can be a derived attenuation or occlusion plane rather than saved
+  photon state;
+- gas, clouds, or submerged chemistry can use full 3D when vertical transport
+  changes a process;
+- roots and mycelia remain explicit transport networks over fields when
+  direction, connection, and severing matter.
+
+A 2D or network consumer may use its own resident arrangement or a compatible
+view over chunk storage; it does not gain a dense 3D authoritative plane merely
+because the GPU carrier can express one. Every extra channel gets a measured
+resident-byte and update-cost receipt. The
+[VDB paper](https://doi.org/10.1145/2487228.2487235) remains a reference for a
+sparse, dynamic 3D consumer if one binds. Noita’s
+[technical overview](https://www.gdcvault.com/play/1025695/Exploring-the-Tech-and-DesignAt)
+shows that local material simulation can carry a roguelike, but its 2D
+falling-sand design does not choose this game’s field dimensions.
+
+Resident mips, clipmaps, and window retargets are sampling and presentation
+views. If a field later changes its authoritative simulation resolution, its
+admission contract separately defines restriction, refinement, conserved
+integrals, boundary flux, residual state, zero-tick round trips, and the
+comparison envelope for reduced evolution. Camera movement and allocation
+pressure cannot select that simulation path.
+
 ## The first proof (partially closed)
 
 Use one existing `Ground` region; invent no second chunk model.
@@ -117,6 +156,11 @@ Use one existing `Ground` region; invent no second chunk model.
    (facts reproduce the committed state with no simulation present);
    unchanged-frame silence (a static world causes no recomputation,
    gated on elapsed time, never frame counts).
+
+The `3x3x3` material-derived pass below proves carriage, proposal, commit,
+revision, and replay mechanics. It does not admit temperature or moisture as a
+product-wide 3D simulation. The first gameplay field still passes the admission
+boundary above.
 
 The feature-gated `mesocosm-lens` `resident_ground` example now closes the
 authority-shaped path through those pieces: a material-derived 3D Burn pass
@@ -725,3 +769,9 @@ allocator-observed resident and transition bytes is proven by the Paredros
   committed revisions do.
 - A view is promoted to a shared contract only after multiple real
   consumers prove it (the lease's promotion rule).
+- A field is admitted by a named simulation or presentation consumer; the
+  existence of a resident plane type is not sufficient demand.
+- A lower-dimensional or network phenomenon keeps its honest domain instead of
+  being inflated to dense 3D for storage uniformity.
+- Render mips, clipmaps, and residency windows remain views; any authoritative
+  field-resolution transition has its own conservation and fidelity contract.

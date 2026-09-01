@@ -1,6 +1,6 @@
 # Scale Plan (2026-08-29)
 
-**Status: active scale ladder, refreshed 2026-08-31. S1 landed 2026-08-29 on
+**Status: active scale ladder, refreshed 2026-09-01. S1 landed 2026-08-29 on
 top of TD7. The written ladder still places S2 next, while S1's measured
 findings argue for S3 first; that order remains unruled. This lane is not the
 next product slice. The [playable ecology plan](2026-08-31_playable_ecology_plan.md)
@@ -82,11 +82,50 @@ hash untouched by camera movement (residency is presentation).
 with the enclosure; `Places::at` gets a spatial index; far-tier perception
 gets a distance cap and bucketing (kill the O(far × N) scan); and `Cohort`
 becomes an actual execution path — far organisms simulated as cohorts with
-conserved totals, split back deterministically on promotion. This is what
-buys a big population instead of a big empty map. Receipt: the instrument
-at thousands of organisms; per-tick cost curves near vs far; conservation
-(TD6's invariant) holding across cohort merge/split — the matter cycle
-must survive compression.
+conserved totals, split back deterministically on materialization. This is what
+buys a big population instead of a big empty map.
+
+S3 uses one rule model with two storage/execution forms. The aggregate carries
+the sufficient state for every far-tier evaluator that actually runs: count,
+biomass, energy and reserve, age and lifecycle distribution, developmental and
+process distribution, relationship-flow totals, ecology-reading totals, and
+ordered residual/entropy state. A generated process or relationship either
+declares that reduction or pins its affected subjects to individual execution.
+The global trophic graph remains a reading of those totals and accepted flows,
+not a third population authority.
+
+Played, named, injured, chronicled, descent-significant, and
+relationship-bearing subjects retain pointable individual records even when
+their mesh, collider, local mind, and detailed field sampling are dormant.
+Ordinary equivalent subjects may aggregate. Crossing the boundary cannot
+resample a retained subject. Aggregate → materialize → aggregate with no
+intervening tick must restore byte-identical cohort state, including remainder
+and entropy position.
+
+That exact transition claim is separate from the fidelity of later cohort
+execution. Every far-tier evaluator declares which counts, stocks, flows, and
+lifecycle or relationship totals remain exact and which readings are reduced
+approximations. At the same world size and initial state, an all-individual
+reference arm and the hybrid arm run the same horizon; each approximated
+reading has an explicit comparison envelope rather than one global “close
+enough” tolerance. A tier transition itself emits no meal, birth, death,
+movement, discovery, or resource flow. Repeated boundary crossing cannot earn
+matter or advance lifecycle. A controlled subject’s position or another
+replayed world fact may select simulation detail;
+camera zoom and atlas residency remain presentation and cannot select it.
+
+Receipt: the instrument at thousands of organisms; per-tick cost curves near
+vs far; conservation (TD6's invariant) and bounded-reading equality across
+aggregate/materialize; a boundary-oscillation trace proving persistent
+identity and consequence silence; an all-individual reference versus hybrid
+comparison over every reduced reading; and a deliberately unsupported process
+proving the pin-to-individual fallback.
+[Rain World](https://candlesign.github.io/Rain-World-Devlog/Pages/057)
+is direct game precedent for realized, abstract, and super-abstract execution.
+The [super-individual method](https://doi.org/10.1016/0304-3800(94)00055-M)
+and [dynamic hybrid ecology](https://doi.org/10.1016/j.ecolmodel.2016.11.007)
+are the relevant model precedent; the latter’s finding that added aggregation
+need not improve performance is why the cost curve remains part of acceptance.
 
 **S4 — the magic of zoom.** Continuous pull-back from critter scale to
 whole-world scale: the section's orthographic extent as a zoom axis,
@@ -129,6 +168,14 @@ Superseded by this: PS1's note that "the right half-height is nearer 9-11".
 That was measured on a 32-voxel enclosure S1 has since grown to 129.
 
 ## Findings
+
+- **2026-09-01: the existing cohort is a conservation probe, not the S3
+  record.** `Cohort` currently stores species/place/kingdom/mode/mass band,
+  count, biomass, energy, and summed age. `split` distributes those totals by
+  stable ids, but the type has no reserve, lifecycle distribution,
+  developmental/process state, relationship state, reading totals, or entropy
+  cursor. S3 must grow from its real consumers rather than treating the present
+  tally shape as a future snapshot schema.
 
 - **2026-08-29 (S1, and it argues S3 is needed sooner than planned): the
   near/far line's tuning premise is gone.** `TierLine::default` documents
@@ -205,6 +252,11 @@ That was measured on a 32-voxel enclosure S1 has since grown to 129.
     systems-test one.
 
 ## Progress
+
+- **2026-09-01:** specified S3's materialize/aggregate identity, conservation,
+  residual-state, unsupported-process fallback, and acceptance receipts from
+  the playable-ecology refinement. The S2/S3 order remains open and no rung was
+  dispatched.
 
 - **2026-08-31:** clarified that S2-versus-S3 remains an open scale-order
   ruling and that the playable ecology plan consumes this lane at PE6. No rung

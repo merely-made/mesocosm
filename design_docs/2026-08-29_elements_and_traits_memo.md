@@ -1,6 +1,6 @@
 # Elements and Traits: How a Generated Vocabulary Becomes Real (2026-08-29)
 
-**Status: memo, material scheme unruled; refreshed 2026-08-31.** Mark has
+**Status: memo, material scheme unruled; refreshed 2026-09-01.** Mark has
 reaffirmed the direction that world criteria shape generated biology. The
 three schemes remain choices with costs and failure modes, not a recommendation.
 Section 7 lists the decisions that are Mark's. Companion to
@@ -73,6 +73,43 @@ code reads it?**
 
 Not exclusive. Each is presented as if it were the whole answer, because each
 can be.
+
+### Storage shape shared by all three
+
+The generated vocabulary rules out a compile-time Rust enum as material
+authority. The saved, immutable material table gives each admitted definition a
+world-local `MaterialId` and supplies its physical, visual, chemical, and
+process properties. A rule-bearing voxel stores either that id directly or a
+compact chunk/volume palette index into it. The current one-byte cell remains
+the baseline while the admitted vocabulary fits; if a world exceeds it, the
+gate compares a local palette with widening every cell under a measured memory
+and lookup-cost receipt.
+
+Dynamic quantities with their own spatial evolution remain separate planes.
+Moisture, nutrient concentration, toxins, temperature, conductivity, and
+charge have different update rates, dimensions, conservation laws, and
+consumers. Packing every possible scalar into every voxel would make dormant
+chemistry cost the same as active chemistry and would tie material identity to
+field resolution. Small per-cell flags remain appropriate only when they
+genuinely vary at cell frequency.
+
+Body authority stays coarser where the rules are coarser. Parts and phenotype
+records own mass, damage/integrity, material/composition references, process
+allocation, and provenance;
+field planes own spatial concentrations; rendering resolves ids to appearance.
+The same fact is not copied into all three stores. Material density may price a
+cell edit, but the accepted body transaction reconciles that integer transfer
+against the part and world mass ledgers; a render-volume sum does not become a
+second biomass authority.
+
+The current projection is already a small proof of the indirection:
+`mesocosm-mesh::Volume` stores one byte per cell, where zero is empty and every
+other value is a material id, while `BodyDocument` carries only a
+content-addressed `VolumeRef`. Teardown’s
+[one-byte material palette](https://blog.voxagon.se/2020/12/03/spraycan.html)
+is useful precedent for the memory shape and for the pressure created by
+runtime variation. Its per-object palettes and 255-entry limit are not adopted
+as Mesocosm rules.
 
 ### A — typed matter
 
@@ -274,6 +311,20 @@ divided by a crowding count; there is no per-column intensity for an absorption
 band to read. Element-selective light capture must first build a light field —
 Tier 1, with Tier 1's cost, on top of whatever it enables.
 
+### Field dimensionality is part of admission
+
+The 4-to-8 estimate above is
+for full per-column sweeps in the current terrarium. It does not authorize four
+to eight dense 3D volumes. Every field states its consumer, domain, resolution,
+cadence, interpolation, sources and sinks, boundary conditions, numeric range,
+conservation rule, far-tier reduction, and cost receipt. Soil nutrients and
+moisture can begin as columns or shallow layers; light can be a derived
+attenuation reading; gas, clouds, or submerged chemistry earn full 3D only when
+vertical transport changes play; roots and mycelia remain explicit transport
+networks when direction and connection matter. The
+[VDB paper](https://doi.org/10.1145/2487228.2487235) is a storage reference if
+a sparse, dynamic 3D field eventually binds, not a reason to introduce one.
+
 ## 5. Scoreboard
 
 | | A: typed matter | B: coefficients | C: exchange payloads |
@@ -333,3 +384,8 @@ slice in the repo is a function waiting for its first caller.
    sense — a field channel reacting with surfaces. This is a compositional
    precondition. Two mechanics, one word, one repo: **needs a naming round**
    before either is written down. No name coined here.
+8. **Sub-part body mutation.** If a bite or developmental change must alter
+   cells inside one part, does the body transaction write a new immutable
+   content-addressed volume or a deterministic per-body patch over its base?
+   Shared `VolumeRef` content cannot be edited in place. Whole-part severing
+   remains the cheaper incumbent until a played case proves it insufficient.

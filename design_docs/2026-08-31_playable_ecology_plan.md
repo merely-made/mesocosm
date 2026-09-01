@@ -1,6 +1,7 @@
 # Playable Ecology Architecture Plan (2026-08-31)
 
-**Status: plan, founded 2026-08-31. Nothing in this document claims new code.**
+**Status: plan, founded 2026-08-31 and refined 2026-09-01. Nothing in this
+document claims new code.**
 Mark ruled reproduction as an individual-scale micro-checkpoint and named
 trophic visibility as the primary design challenge. He reaffirmed the other
 load-bearing directions: body composition determines what a critter can do;
@@ -181,6 +182,22 @@ new generator and hope to recover the old world.
 type name. The existing `process::Registry` and its digest are its first proven
 component.
 
+### Simulation detail changes; authority does not
+
+Micro, meso, and macro are useful viewing and execution scales, not three
+competing simulations. Near play may realize bodies, local interaction, and
+tactile projections explicitly. Far play may execute equivalent anonymous
+subjects as cohorts over coarser spatial fields. The global trophic web and
+epoch nutrient graph are derived readings of those same stocks and accepted
+flows. A macro summary does not own an extra population counter or settle a
+resource transfer.
+
+Use the existing terms **materialize** and **aggregate** for individual/cohort
+transitions. “Hydration” already has an ecological meaning in this game and
+would make moisture and simulation detail unnecessarily ambiguous. Both
+representations remain canonical world state; rendering a body is a further
+projection from the materialized record.
+
 ---
 
 ## 3. The ecology readings contract
@@ -200,8 +217,9 @@ At minimum, by place and lineage where the data supports it:
 
 Windows are fixed-size and deterministic. Several resolutions may coexist,
 such as recent ticks, the current life stage, and the current epoch, but every
-retention length is explicit and tested. Cohort promotion and demotion must
-preserve the sufficient totals these readings need.
+retention length is explicit and tested. Cohort materialization and aggregation
+must preserve the sufficient totals these readings need. Near/far tier
+promotion may trigger that transition, but it is not the transition itself.
 
 ### Interpretable leading indicators
 
@@ -243,6 +261,15 @@ The first implementation uses current stocks, observed flows, and
 interpretable leading indicators. A later forecast may fork deterministic
 snapshots over a bounded horizon and label its assumptions. It is a projection
 and never a cheaper simulation authority.
+
+Generic early-warning research makes the same sequencing argument. Critical
+slowing, variance, and autocorrelation can precede some transitions, but their
+false-alarm and missed-alarm rates can remain severe even under favourable
+conditions. Mesocosm therefore starts with mechanistic stocks and flows, keeps
+an induced-stress arm and a neutral control, and labels uncertainty before it
+experiments with generic tipping-point indicators. See
+[Scheffer et al. 2009](https://doi.org/10.1038/nature08227) and
+[Boettiger and Hastings 2012](https://doi.org/10.1098/rsif.2012.0125).
 
 ---
 
@@ -363,7 +390,9 @@ reject vocabularies whose extra nouns do not reach independent formulas.
 evaluators but demand visibly different strategies; each has a reachable
 energy-capture path, matter-return path, reproductive route, and counterplay;
 the generated definitions and digests survive save and replay; changing a
-rule-bearing byte changes the digest; and a deliberately mechanically
+rule-bearing byte changes the digest; material ids resolve through the saved
+world-local definition table; every admitted scalar field names its consumer,
+dimension, cadence, and conservation rule; and a deliberately mechanically
 duplicate vocabulary is rejected by the anti-affix receipt.
 
 ### PE5: prove a second form before expanding the roster
@@ -391,11 +420,16 @@ silhouettes, region tint, and flow presentation over the same place and cohort
 facts.
 
 **Done when:** near individuals and far cohorts conserve matter and the
-sufficient ecology-reading totals across promotion and demotion; thousands of
-critters hold the configured tick budget; generated processes and relationships
-have explicit far-tier reductions or keep their subjects near for a measured
-reason; zoom remains out of the trace; and the far view reveals territories and
-flows rather than a clipped roster.
+sufficient ecology-reading totals across materialization and aggregation;
+thousands of critters hold the configured tick budget; generated processes and
+relationships have explicit far-tier reductions or keep their subjects near
+for a measured reason; zoom remains out of the trace; and the far view reveals
+territories and flows rather than a clipped roster. A materialized subject does
+not reroll when it crosses the boundary twice; an aggregate/materialize round
+trip with no intervening tick restores the same cohort bytes; and named, played,
+relationship-bearing, injured, or chronicled subjects retain pointable
+identity. Each far-tier evaluator passes its declared all-individual comparison
+envelope, and repeated boundary crossing produces no biological consequence.
 
 ### PE7: the collapse-and-recovery proof
 
@@ -466,7 +500,28 @@ None blocks founding PE0. Questions 1 and 2 block the full PE1/PE3 interaction;
 
 ---
 
-## 7. Findings
+## 7. Downstream architecture gates
+
+These are ownership assignments and integration checks, not extra phases. The
+detailed requirements and research live in the plan that owns each mechanism.
+
+| Concern | Owning record | First integration gate | Required before admission |
+| --- | --- | --- | --- |
+| Individual/cohort execution | [Scale](2026-08-29_scale_plan.md) and [place graph](2026-08-05_place_graph_engine_plan.md) | PE6 | Exact zero-tick aggregate/materialize round trip; persistent pointable subjects; named reductions; per-evaluator all-individual comparison envelope; unsupported-process fallback. |
+| Generated material vocabulary | [Elements and traits](2026-08-29_elements_and_traits_memo.md#storage-shape-shared-by-all-three) | PE4 | Saved world-local definitions and compact ids; exact mass reconciliation; measured local-palette versus wider-cell decision only when the one-byte baseline binds. |
+| Sub-part body mutation | [Phenotype D3a](2026-07-31_phenotype_plan.md#d3a-when-do-voxel-cells-become-body-state) | First played case in PE2 or PE3 that cannot use whole-part loss | New immutable volume or explicit body patch; atomic body revision; bounded revision-safe mesh/collider work; truthful fallback. |
+| Generated trait execution | [ProcessDef](2026-08-01_processdef_plan.md#one-displayed-trait-three-compiled-programs) and [acquisition](2026-08-29_traits_and_perception_brief.md) | PE2 then PE3 | Event-driven condition, discrete development program, and native repeated process remain separate; each is typed and bounded; the exact realized candidate and digest persist. |
+| Environmental fields | [Resident views](2026-08-14_resident_views_composition_plan.md#field-admission-boundary-2026-09-01) and [elements](2026-08-29_elements_and_traits_memo.md#field-dimensionality-is-part-of-admission) | First PE4 world rule that needs a new field | Named consumer, honest domain, cadence, sources/sinks, boundaries, units/range, conservation, scale rule, cost, and control. |
+
+Three cross-lane rules stay here. Representation changes are world
+transactions and cannot create events or resources. A derived mesh, collider,
+field view, warning, or trophic graph never becomes authority through
+convenience. New machinery enters through the first played consumer and its
+receipt; a platform-shaped possibility does not reorder PE0-PE7.
+
+---
+
+## 8. Findings
 
 - **2026-08-31, history seam:** `crates/mesocosm-core/src/history.rs` records
   causal subjects but carries no general tick, place, process, or resource-delta
@@ -495,10 +550,18 @@ None blocks founding PE0. Questions 1 and 2 block the full PE1/PE3 interaction;
   graph, an unbounded far-tier target scan, unwired cohort execution, and a
   population ceiling before the target roster. Flow and relationship designs
   must state their cohort reductions rather than assume individual storage.
+- **2026-09-01, downstream ownership audit:** each proposed subsystem already
+  has an owning plan and an incumbent seam. Section 7 routes their admission
+  gates without adding an engine layer or changing the product order.
 
 ---
 
-## 8. Progress
+## 9. Progress
+
+- **2026-09-01:** refined the downstream architecture from technical prior art,
+  routed multi-scale execution, materials, body mutation, generated-trait
+  execution, and fields into their owning plans, and summarized their admission
+  checks in §7. PE0-PE7 order is unchanged; documentation only.
 
 - **2026-08-31:** founded from Mark's first-principles Mesocosm review. The
   architecture, integration order, trophic-readings contract, done-conditions,

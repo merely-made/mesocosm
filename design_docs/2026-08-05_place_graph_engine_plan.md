@@ -1,6 +1,6 @@
 # Place-Graph Engine Plan (2026-08-05)
 
-**Status: active substrate record, corrected 2026-08-21.** Founded from the
+**Status: active substrate record, clarified 2026-09-01.** Founded from the
 2026-08-04/05 engine rumination. The G labels below record the order in which
 the substrate was assembled. They are historical indexing, not current
 acceptance gates. Sibling to the
@@ -8,7 +8,8 @@ acceptance gates. Sibling to the
 which owns renderer research and the V-gates, and subordinate to the
 [execution waves plan](2026-07-31_execution_waves_plan.md) for ordering.
 This plan owns the world substrate: the place graph, volumetric truth, the
-two-tier simulation, and the composed slice that proves them together.
+two-scale execution substrate, and the composed slice that proves them
+together.
 
 ## 0. Rulings this plan rests on (2026-08-05)
 
@@ -95,11 +96,28 @@ layers of meaning over it:
   bricks because they hash, diff, and serialize flat; SVO/DAG stay
   benchmark specimens (landscape §8.3 stands). Interiors are carved bricks
   in the same space.
-- **Two-tier simulation.** Places near the played body run embodied agents;
-  distant places run the existing statistical ecology.
-  `organism/ecology.rs` is the far tier, reframed rather than replaced.
-  Promotion and demotion happen at a hops-distance boundary with
-  hysteresis; the boundary is a scheduling problem, never geometry.
+- **Two-scale execution target.** Places near the played body run embodied
+  individuals; distant places may run deterministic cohorts once the
+  conversion and comparison receipts in the
+  [scale plan](2026-08-29_scale_plan.md)
+  land. The incumbent tick is not there yet: `organism/ecology.rs` still
+  advances every organism record and derives `Cohort` only as a conserved
+  summary. Promotion and demotion already happen at a hops-distance boundary
+  with hysteresis, but that line currently selects locomotion and perception
+  detail rather than changing canonical representation.
+
+**Scale names are not authorities (clarified 2026-09-01).** “Macro” and
+“micro” above describe the spatial index and voxel detail. They do not name
+separate simulations. The future individual and cohort forms are two
+canonical representations of one world; the trophic web is a derived reading
+of their stocks and flows. The standard transition verbs are **materialize**
+and **aggregate** because hydration already means water in this ecology. A
+zero-tick round trip must preserve the aggregate record exactly, while
+evolution over time is compared against an all-individual reference under a
+declared error envelope. Camera distance, render LOD, and cache residency
+cannot choose simulation detail. Recorded focus and other world facts may.
+The [playable ecology plan's downstream gates](2026-08-31_playable_ecology_plan.md#7-downstream-architecture-gates)
+route that scale-owned contract into PE6.
 
 Presentation stays a family of projections of one truth (landscape §8):
 a brick-map DDA raymarch grows out of the landed march for the
@@ -307,7 +325,8 @@ boundary with hysteresis.
 **Done when:** a hunter acquires, pursues, loses, and re-acquires the
 player across a place boundary and a burrow threshold without stutter or
 teleportation; per-tick agent cost is recorded at the target population;
-the far tier's aggregate outcomes stay within its existing receipts.
+the individual far-body path stays within its existing receipts and its
+derived cohort projection conserves the recorded scalars.
 
 **2026-08-14, V0 player closure.** Genesis now puts every founder on real
 brick footing. `Intent::Move` resolves one `near::step` toward its requested
@@ -322,8 +341,10 @@ and replays to an identical hash. This is deliberately not G3 completion:
 `ecology::step_with_ground`: near-tier food and carrion acquisition uses
 `spot`, pursuit takes one or more bounded `near::step`s under the existing
 locomotion budget, and exhausted near bodies wander by a legal grounded step.
-Far cohorts retain their place-graph movement and perception, while graph
-traversal and near-tier birth keep embodied bodies on valid surface footing. The receipt
+Far bodies retain their place-graph movement and perception, while graph
+traversal and near-tier birth keep embodied bodies on valid surface footing.
+`Cohort` remains a derived conservation projection here, not the executing
+far-tier record. The receipt
 finds a generated occluding wall, proves an autonomous predator does not steer
 through it, records a carve, then proves it enters the opened doorway and
 replays identically. Population-cost and full burrow-run receipts remain open.
@@ -546,6 +567,11 @@ standing rule: after two real consumers, never declared in advance.
   design is wrong, not the tuning.
 - No second authority. Caches, meshes, SDFs, occupancy planes, and DAGs
   never become world truth.
+- No camera, render LOD, clipmap, or cache-residency decision may select the
+  authoritative simulation representation.
+- No cohort execution claim lands on projection-only evidence. It needs an
+  exact zero-tick round trip and a measured evolution envelope against the
+  all-individual reference.
 - No chunk machinery by availability; admit acceleration structures by
   trace against real mutation workloads (V4 discipline).
 - No graph ships without its distinctness receipts.
@@ -555,6 +581,13 @@ standing rule: after two real consumers, never declared in advance.
 
 ## Findings
 
+- 2026-09-01, **the shipped cohort is a projection, not an execution tier.**
+  `step_inner` advances the individual organism roster, then calls
+  `cohort::from_organisms` to populate conservation tallies. `Cohort` carries
+  count, biomass, energy, and summed age, but not enough state to execute
+  lifecycle, reserves, process, relationship, or evidence semantics. S3 must
+  therefore promote a second canonical representation deliberately rather
+  than treating the current summary as one.
 - 2026-08-07, **three directions adopted from the bonsai reading**
   (landscape §8.3 carries the donor row and the unverified-claim caveat):
   1. **The relief lab.** Worldgen tuning becomes an instrument: live seed
@@ -642,6 +675,11 @@ standing rule: after two real consumers, never declared in advance.
 
 ## Progress
 
+- 2026-09-01: reconciled the substrate record with the scale and playable
+  ecology plans. The current Near/Far flag selects execution detail over an
+  individual roster; future individual/cohort materialization is now stated
+  as a gated target. Macro trophic state remains derived, and simulation
+  fidelity is explicitly independent of per-view render residency.
 - 2026-08-05: plan founded from the engine rumination. Fundamentals
   rulings recorded in §0 and amended into the founding record, `CLAUDE.md`,
   and the landscape doc the same session. V1 and V2 landed 2026-08-04

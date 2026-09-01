@@ -1,8 +1,9 @@
 # Phenotype: what a body is for
 
-**Status: decisions and proof plan, revised 2026-08-03. Anatomy descent,
-depth, severing, derived reach, and the axial developmental recipe are built;
-the phenotype bridge described here is not.** This document owns Mesocosm's body rules. The
+**Status: decisions and proof plan, revised 2026-08-03; downstream body-volume
+boundary refreshed 2026-09-01. Anatomy descent, depth, severing, derived reach,
+and the axial developmental recipe are built; the phenotype bridge described
+here is not.** This document owns Mesocosm's body rules. The
 cross-vessel boundary lives in the
 [wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md), and
 ordering remains with the
@@ -366,6 +367,64 @@ its source volume.
 **Rules: implementation boundary.** Reopen only with a phenotype the box model
 cannot distinguish.
 
+### D3a. When do voxel cells become body state?
+
+Today a body is already composed from voxel parts without putting cell bytes in
+the core. `BodyDocument` owns the dependency tree, mass, extent, attachment,
+loss, and provenance; each part cites an immutable content address through
+`VolumeRef`. `mesocosm-mesh::Volume` resolves that address to a one-byte
+material grid, greedily meshes each distinct volume once, and reuses it for
+every placement. Attachment adds a placement and severing tombstones a subtree,
+so neither operation requires a mutable micro-grid per organism.
+
+**Rule: whole-part damage remains the incumbent.** Cell-level mutation enters
+authoritative phenotype state only when a played bite, injury, repair, or
+development case cannot be expressed honestly as part loss, mass change, or a
+new part. That proof chooses between:
+
+1. a newly admitted immutable volume with a new content address; or
+2. a deterministic per-body patch over an immutable base volume.
+
+The world transaction updates the patch/reference, part mass and integrity,
+validated geometry summaries, and body revision atomically. It cannot mutate a
+shared content-addressed volume behind every body that cites it.
+
+Meshes, capsule poses, colliders, and GPU buffers remain revision-tagged
+projections. Async work names the exact body and volume revision it consumed;
+the host discards a stale result. The queue is bounded and deduplicated by
+subject, projection kind, and revision; configurable priority favors the
+played and visible bodies, while backpressure keeps a truthful fallback rather
+than stalling the ecology tick. Collision or tactile proposals carry the same
+revision and the world refuses one computed from an older body. While detailed
+work is pending, the host uses a truthful lower-detail projection and a
+conservative current-revision collider, such as the existing capsule path or
+direct voxels. The Sapling’s
+[lazy organism-model strategy](https://thesaplinggame.com/devlogs/optimization.html)
+shows the value of rate-limited projection work, but substituting an ancestor’s
+appearance would conflict with Mesocosm’s rule that visible anatomy explains
+capability.
+
+Greedy meshing is the measured incumbent. Instanced voxels, direct raymarching,
+Surface Nets, and Dual Contouring are candidates only after a body binds their
+tradeoff. [Dual Contouring](https://doi.org/10.1145/566570.566586) starts from
+signed-grid Hermite samples and emits a surface, which may suit smooth tissue
+and may also erase the categorical block character of a voxel body. A fixed
+`16^3` edit tile is a benchmark candidate rather than a phenotype law.
+
+The structural body graph also remains the right animation source. Spore’s
+[morphology-independent retargeting](https://www.chrishecker.com/Real-time_Motion_Retargeting_to_Highly_Varied_User-Created_Morphologies)
+demonstrates that authored motion can preserve structural relationships while
+being applied to previously unseen skeletons. Mesocosm can derive pose goals
+from its part graph without making the mesh or a fixed skeleton authoritative.
+A related developmental precedent is Karl Sims’
+[directed graph genotype](https://doi.org/10.1145/192161.192167), which grows
+body and controller together; Mesocosm retains stronger matter, replay,
+descent, and legibility constraints rather than its scalar fitness target.
+A pose used only for animation remains a projection. If joint motion changes
+occupied space, reach, damage, or collision, its quantized frame state is part
+of `BodyPhenotype` and advances through the deterministic world transaction;
+physics may propose it but cannot keep the consequential pose privately.
+
 ### D4. What happens to the trait array?
 
 `BodyPlan` currently describes symmetry, role-facing preferences, and
@@ -697,6 +756,19 @@ real consumer.
   a compatibility table.
 - Do not share an evaluator between the body and the ecology before each
   has independently proven the same mechanism.
+- Do not mutate bytes behind a shared content-addressed `VolumeRef`; body-local
+  cell change produces a new immutable reference or an explicit body patch.
+- Do not let an async mesh or collider result publish after its source body or
+  volume revision has changed.
+- Do not let projection work queue without a cap, deduplication, or a truthful
+  fallback under backpressure.
+- Do not commit a collision or tactile proposal against a different body
+  revision than the one it queried.
+- Do not use a visually different ancestor as the fallback for a body whose
+  current anatomy changes capability; lower fidelity stays truthful.
+- Do not let a renderer- or physics-private joint pose change reach, occupancy,
+  damage, or another capability; consequential pose is quantized phenotype
+  state.
 
 ---
 
@@ -1014,6 +1086,14 @@ rather than part of it.
 
 ## Findings
 
+- **2026-09-01:** the existing body geometry path already has the useful
+  granularity the downstream proposal was seeking: immutable micro-voxel
+  volumes per distinct part, a content address in the body, greedy mesh reuse,
+  and a separate revision-tagged capsule projection. What it lacks is
+  body-local cell mutation and the atomic invalidation contract that mutation
+  would require. A fixed local-grid size or new mesher is not yet the missing
+  authority.
+
 - **2026-08-01:** making upkeep scale with the body changed what play can
   reach. A hunting critter grew to 36 parts under flat upkeep and to 14 once
   growth cost something, which **re-created the Law C size tell in the other
@@ -1117,6 +1197,11 @@ rather than part of it.
   part origins. Neither carries the current anatomy tree.
 
 ## Progress
+
+- **2026-09-01:** recorded the admission gate for sub-part voxel mutation,
+  immutable-volume versus per-body-patch alternatives, revision-safe async
+  projections, truthful fallback requirement, and morphology-independent
+  animation boundary. Proof order is unchanged; documentation only.
 
 - **2026-08-03:** confirmed that direct and automatic adaptation arrange a
   founder preview while committing a heritable developmental program. The

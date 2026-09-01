@@ -1,6 +1,6 @@
 # ProcessDef: authored biology without ability flags
 
-**Status: in progress, refreshed 2026-08-31. PD1b's identity slice landed
+**Status: in progress, refreshed 2026-09-01. PD1b's identity slice landed
 2026-08-08: native `ProcessDef` records, per-definition digests, and a registry
 exist. PD1b's `BodyPhenotype` allocation half remains open, followed by PD2's
 one additional embodied process. No pack loader or Mesocosm Piccolo host exists
@@ -111,6 +111,53 @@ not hundreds of bespoke booleans. Illustrative families include:
 
 A new process is useful only when a game rule consumes its inputs and outputs.
 Names in a catalog do not create mechanics.
+
+### One displayed trait, three compiled programs
+
+The epoch UI may present a generated trait as one coherent biological idea.
+That presentation does not imply one runtime representation. A candidate
+lowers into the mechanisms that own its consequences:
+
+1. A **condition program** evaluates newly admitted evidence or a bounded
+   reading when a relevant event arrives. It governs discovery eligibility.
+2. A **development program** runs at founding, filial growth, paid remodeling,
+   repair, or another named discrete trigger. It proposes anatomy, allocation,
+   channels, regulation, or lifecycle instructions through the existing atomic
+   validator.
+3. A **`ProcessDef`** is consumed by an authored native evaluator during the
+   repeated world work that actually transforms matter, energy, signal, force,
+   or medium.
+
+The first two are not variants of `ProcessDef`, and none is a universal
+per-tick trait AST. All three use versioned typed data, integer or fixed-point
+values, explicit input facts, and hard bounds on node count, edge count, depth,
+evaluation work, and output size. Same-tick dependencies form an acyclic graph.
+Feedback requires named state and a later tick, so a generated cycle cannot
+recurse inside one evaluation.
+
+Combination semantics belong to native consumers. A consumer declares whether
+multiple contributions gate, add with saturation, take a minimum or maximum,
+or compete for one exclusive slot. The generator chooses admitted definitions,
+parameters, placements, and combination laws; it cannot coin an operator that
+the validator and explanation path do not understand.
+
+A realized generated candidate persists the exact component definition
+references, parameters, placements, condition, generator provenance, and
+digest. Its player-facing name is presentation. Save, replay, and peers do not
+reconstruct mechanics by rerunning the generator from that name or a seed.
+
+[Kappa’s rule language and tools](https://tools.kappalanguage.org/docs/KaSim-manual-master/KaSim_manual.htm)
+are useful prior art for handling combinatorial structured state through local
+typed patterns, signatures, static reachability and influence analysis, and
+causal traces. Mesocosm can borrow those admission questions while retaining
+its deterministic fixed-step transaction path. It does not adopt Kappa’s
+stochastic event scheduler or turn anatomy, lifecycle, relationships, and
+presentation into one graph-rewrite engine.
+
+This split changes no phase order. PD2 first proves one repeated process; PE2
+then composes it with one event-driven discovery condition. PE3 proves a
+discrete development program that expresses the admitted option in a
+descendant.
 
 ---
 
@@ -923,6 +970,12 @@ process system does not answer whether burn or grow is worth choosing again.
 - Do not project Mesocosm capability authority into another vessel.
 - Do not retire `epoch::Trait` until the phenotype plan's five deletion
   conditions pass.
+- Do not evaluate discovery conditions by polling every organism every tick;
+  route relevant accepted evidence to bounded condition evaluators.
+- Do not admit an instantaneous dependency cycle. Biological feedback crosses
+  an explicit state boundary and a later tick.
+- Do not leave stacking to iteration order. Every repeated evaluator declares
+  and tests its combination law.
 
 ---
 
@@ -950,6 +1003,14 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 13. Findings
+
+- **2026-09-01, generated-trait execution:** the existing plan already has the
+  correct representation split: `ProcessDef` for transformations, discrete
+  expression triggers for development, and acquisition evidence outside both.
+  A universal trait AST would erase that ownership. Kappa supports typed local
+  rules, reachability, influence, and causal analysis as validation precedent;
+  its stochastic scheduler is not compatible with Mesocosm's authoritative
+  fixed-step transaction path.
 
 - **2026-08-01, Mesocosm P2.** `crates/mesocosm-core/src/process.rs` has a
   closed three-variant native `Process` enum. Geometry classifies each process;
@@ -992,6 +1053,11 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-09-01:** recorded the condition/development/process compilation split,
+  hard graph and work bounds, delayed-cycle rule, explicit stacking laws, and
+  the Kappa research boundary. Existing PD and PE ordering is unchanged;
+  documentation only.
 
 - **2026-08-31:** reconciled the status with the landed PD1b identity slice.
   The playable ecology plan consumes PD1b allocation and PD2 in PE2, then

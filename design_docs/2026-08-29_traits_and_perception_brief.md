@@ -1,7 +1,8 @@
 # Traits, Incorporation Cost, and Trait-Relative Perception — Design Brief (2026-08-29)
 
-**Status: design brief recording Mark's direction, refreshed 2026-08-31. Two
-directions in it are ruled: organism-to-organism edges are the carrier for
+**Status: design brief recording Mark's direction, refreshed 2026-08-31 with
+the acquisition-execution boundary added 2026-09-01. Two directions in it are
+ruled: organism-to-organism edges are the carrier for
 durable pair relations, and unlock conditions extend beyond a linear eating
 tree. Their shape, key, cost, schedule, and NPC reach remain open.** Companion to
 [the forms-of-life brief](2026-08-29_forms_of_life_brief.md), written the same
@@ -21,6 +22,24 @@ rules remains an open question. The
 [playable ecology plan](2026-08-31_playable_ecology_plan.md) owns the first
 condition-to-descendant proof; this brief retains the unresolved pricing and
 perception choices.
+
+**2026-09-01 execution boundary.** A discovery condition is an event-driven,
+bounded program over accepted evidence and deterministic reading state. A meal,
+injury, relationship change, threshold crossing, or epoch fact routes only to
+conditions that declared that input. Survival through a sustained stress uses
+an authoritative bounded accumulator or the same replay-derived reducer the
+world rule consumes; a view-only trend cannot unlock anything. The evaluator
+records the matched evidence, realized candidate component references,
+parameters, generator provenance, and digest. It does not poll every organism
+on every ecology tick, rerun world generation from a trait name, or become a
+`ProcessDef`.
+
+A condition that can fire for anonymous far subjects declares a cohort
+reduction; otherwise it pins only the affected subjects to individual
+execution. This boundary settles execution shape, not acquisition price, NPC
+reach, or the player's information access. The
+[ProcessDef plan](2026-08-01_processdef_plan.md#one-displayed-trait-three-compiled-programs)
+owns the condition/development/process split.
 
 **Verification.** Code claims are checked against committed `HEAD 89d09aa` via
 `git show HEAD:...`, not the working tree, because TD7 is live. Seven
