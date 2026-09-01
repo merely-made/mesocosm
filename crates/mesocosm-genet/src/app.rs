@@ -26,6 +26,7 @@ use crate::played::PlayedTrace;
 use crate::section::{self, Pan, Section, SectionFrame};
 
 mod receipts;
+mod setup;
 
 #[derive(Clone, Debug)]
 pub struct HostConfig {
@@ -166,12 +167,14 @@ struct Gpu {
     chrome: Option<Lanes>,
 }
 
-/// The two chrome lanes over one netrender instance and one blend pass: the
-/// painted minimap, and the cambium vitals panel.
+/// The three chrome lanes over one netrender instance and one blend pass: the
+/// painted minimap, the cambium vitals panel, and the individual checkpoint,
+/// which draws only while the world is holding at a question.
 pub(crate) struct Lanes {
     device: Chrome,
     hud: crate::hud::Hud,
     vitals: crate::vitals::VitalsChrome,
+    checkpoint: crate::succession::SuccessionChrome,
 }
 
 impl Host {
@@ -256,9 +259,16 @@ impl Host {
                 self.runtime.queue(intent.clone());
             }
             self.cursor = end;
-            self.runtime.step(batch as u64);
-            self.steps += batch as u64;
-            return self.cursor >= replay.intents.len();
+            // A checkpoint may hold part of a batch, so count what actually
+            // ran. The recording answered its own questions, so the answer is
+            // already the next intent in the queue and the hold lifts on the
+            // step it is reached.
+            let ran = self.runtime.step(batch as u64);
+            self.steps += ran;
+            // A trace that ends still holding at a question ends there, and the
+            // frame that ends it is the question on screen.
+            return self.cursor >= replay.intents.len()
+                && (ran == 0 || self.runtime.queued_len() == 0);
         }
 
         let now = Instant::now();
@@ -269,7 +279,10 @@ impl Host {
         self.last = Some(now);
 
         // Auto-eat lets a capture run grow a body with nobody at the keyboard.
+        // It stops at a checkpoint like a hand would: an unattended run reaches
+        // the question and stays there, which is how a capture of one is taken.
         if let Some(every) = self.config.auto_eat_every
+            && self.runtime.checkpoint().is_none()
             && self.steps / every > (self.steps.saturating_sub(1)) / every
             && self.runtime.queued_len() == 0
         {
@@ -332,6 +345,10 @@ impl Host {
         // Presentation only: the panel shows what the reducer found and writes
         // nothing back, so the trace and the hash never learn it exists.
         let trend = self.runtime.trend();
+        // The question the driver is holding at, if it is holding at one.
+        // Cloned off the driver so the world can be borrowed below; presentation
+        // only, like everything else on this side of the frame.
+        let checkpoint = self.runtime.checkpoint().cloned();
 
         let world = self.runtime.world();
         let Some(gpu) = &mut self.gpu else { return };
@@ -392,6 +409,12 @@ impl Host {
             lanes
                 .vitals
                 .composite(&lanes.device, &mut encoder, &view, frame);
+            // Last, and over everything: while this is up the world is not
+            // running, and it should look that way.
+            lanes.checkpoint.refresh(&lanes.device, checkpoint.as_ref());
+            lanes
+                .checkpoint
+                .composite(&lanes.device, &mut encoder, &view, frame);
         }
         gpu.queue.submit(Some(encoder.finish()));
         // wgpu 30 moved presentation from SurfaceTexture to Queue.
@@ -407,114 +430,7 @@ impl Host {
 
 impl ApplicationHandler for Host {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.window.is_some() {
-            return;
-        }
-
-        let attributes = Window::default_attributes()
-            .with_title("Mesocosm")
-            .with_inner_size(winit::dpi::LogicalSize::new(
-                self.config.width,
-                self.config.height,
-            ));
-        let window = Arc::new(
-            event_loop
-                .create_window(attributes)
-                .expect("a window is available"),
-        );
-
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let surface = instance
-            .create_surface(window.clone())
-            .expect("a surface for this window");
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::default(),
-            force_fallback_adapter: false,
-            apply_limit_buckets: false,
-            compatible_surface: Some(&surface),
-        }))
-        .expect("an adapter that can present to this surface");
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("mesocosm host"),
-            ..Default::default()
-        }))
-        .expect("a device");
-        self.adapter = Some(adapter.get_info());
-
-        let size = window.inner_size();
-        self.config.width = size.width.max(1);
-        self.config.height = size.height.max(1);
-
-        let caps = surface.get_capabilities(&adapter);
-        let format = caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(caps.formats[0]);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format,
-            width: self.config.width,
-            height: self.config.height,
-            present_mode: caps.present_modes[0],
-            // wgpu 30 made surface color space explicit; Auto keeps the
-            // pre-30 platform-chosen behavior.
-            color_space: wgpu::SurfaceColorSpace::Auto,
-            alpha_mode: caps.alpha_modes[0],
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-        surface.configure(&device, &config);
-
-        // The section binds the live Ground at genesis and refreshes from the
-        // world's own dirty drain thereafter.
-        let section = match Section::new(
-            device.clone(),
-            queue.clone(),
-            self.config.width,
-            self.config.height,
-            format,
-            self.runtime.world().ground(),
-            self.config.slab_half_height,
-        ) {
-            Ok(section) => section,
-            Err(error) => {
-                eprintln!("section: {error}");
-                self.code = 1;
-                event_loop.exit();
-                return;
-            }
-        };
-
-        // The chrome shares the game's device rather than creating a second
-        // one, which is the arrangement the workspace's wgpu pin exists for.
-        // One netrender instance carries both lanes.
-        let chrome = Chrome::new(
-            netrender::WgpuHandles {
-                instance,
-                adapter,
-                device: device.clone(),
-                queue: queue.clone(),
-            },
-            format,
-            crate::hud::SIDE,
-        )
-        .map(|device| Lanes {
-            hud: crate::hud::Hud::new(&device, self.runtime.world()),
-            vitals: crate::vitals::VitalsChrome::new(&device),
-            device,
-        });
-
-        self.gpu = Some(Gpu {
-            device,
-            queue,
-            surface,
-            config,
-            section,
-            chrome,
-        });
-        self.window = Some(window);
+        self.boot(event_loop);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -540,9 +456,14 @@ impl ApplicationHandler for Host {
                     // key contributes its initial keydown and nothing more
                     // while it stays down.
                     key if self.config.replay.is_none() && !event.repeat => {
-                        if let Some(intent) =
-                            input::intent_for(self.runtime.world(), &self.volumes, key)
-                        {
+                        // At a checkpoint the keyboard narrows to the two
+                        // answers: the world is stopped, so a move has nothing
+                        // to move and would only go stale in the queue.
+                        let intent = match self.runtime.checkpoint() {
+                            Some(checkpoint) => input::answer_for(checkpoint, key),
+                            None => input::intent_for(self.runtime.world(), &self.volumes, key),
+                        };
+                        if let Some(intent) = intent {
                             let urgency = input::urgency_of(&intent);
                             if input::admits(urgency, self.runtime.queued_len()) {
                                 self.runtime.queue(intent);

@@ -24,12 +24,22 @@ impl World {
     pub(super) fn resolve(&mut self, intent: Intent) -> Outcome {
         // Every acting intent needs somebody to act. Nobody home is a
         // refusal, not a panic: a world can outlive whoever was in it.
-        if !matches!(intent, Intent::Idle | Intent::TakeControl { .. }) && !self.is_embodied() {
+        if !matches!(
+            intent,
+            Intent::Idle | Intent::Resume | Intent::TakeControl { .. }
+        ) && !self.is_embodied()
+        {
             return Outcome::Rejected(Rejection::Disembodied);
         }
 
         match intent {
             Intent::Idle => Outcome::Idled,
+
+            // Answering costs nothing and moves nothing. What it does is reset
+            // the idle run — a hand that says "carry on" is a hand on the
+            // critter, and the ecology must not take the body back for having
+            // been asked a question. (PE1.)
+            Intent::Resume => Outcome::Resumed,
 
             Intent::Carve { at, radius } => {
                 // Reach is anatomy's, same as eating: a stubby body digs at

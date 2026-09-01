@@ -13,7 +13,9 @@
 //!
 //! Controls: WASD moves, E or Space metabolizes what is in reach, Q deposits,
 //! C digs, the arrow keys pan the section, Escape writes the receipts and
-//! quits.
+//! quits. At a checkpoint — a birth involving your critter, or its death — the
+//! world stops and the keys narrow to Enter (carry on) and T (take the body on
+//! offer).
 
 use std::path::PathBuf;
 
@@ -24,6 +26,7 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let mut replay: Option<PathBuf> = None;
     let mut record_demo = false;
+    let mut seed_given = false;
     let mut trace = None;
     let mut receipt = None;
     let mut capture = None;
@@ -46,6 +49,7 @@ fn main() {
             "--seed" => {
                 if let Some(seed) = args.next().and_then(|v| v.parse().ok()) {
                     config.seed = seed;
+                    seed_given = true;
                 }
             }
             "--help" | "-h" => {
@@ -63,8 +67,18 @@ fn main() {
 
     if record_demo {
         // Headless: the demo trace exists so the headed receipt below needs
-        // nobody at the keyboard.
-        let recorded = played::record_demo(config.seed, config.organisms, config.ticks_per_second);
+        // nobody at the keyboard. It records in its own world unless told
+        // otherwise, because the loop it has to demonstrate does not happen in
+        // every enclosure — see `played::DEMO_SEED`.
+        if !seed_given {
+            config.seed = played::DEMO_SEED;
+        }
+        let recorded = played::record_demo(
+            config.seed,
+            config.organisms,
+            config.ticks_per_second,
+            played::DEMO_STEPS,
+        );
         if let Err(error) = played::write_json(&trace_path, &recorded) {
             eprintln!("record-demo: {error}");
             std::process::exit(1);
@@ -119,4 +133,7 @@ mesocosm-genet: run Mesocosm in a window
   --seed N        world seed
   --slab H        section slab half-height in voxels (presentation only, default 28)
 
-controls: WASD move, E/Space eat, Q deposit, C dig, arrows pan, Esc quit";
+controls: WASD move, E/Space eat, Q deposit, C dig, arrows pan, Esc quit
+at a checkpoint the world stops and the keys narrow to two:
+  Enter  carry on unchanged
+  T      take the body on offer (the newborn, or your eldest descendant)";

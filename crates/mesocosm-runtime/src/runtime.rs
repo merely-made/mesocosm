@@ -16,6 +16,7 @@ use mesocosm_core::{History, Intent, Outcome, Reading, Trend, World, state_hash}
 
 use crate::clock::Clock;
 use crate::readings::FlowWindows;
+use crate::succession::Checkpoint;
 
 /// Default ceiling on steps authorised by one `advance` call. A stalled host
 /// resuming after a long pause catches up over several frames rather than in
@@ -43,6 +44,13 @@ pub struct Runtime {
     /// put a presentation reading inside the replay hash. `Runtime::replayed`
     /// rebuilds it, which is that claim made executable.
     readings: FlowWindows,
+    /// The question the world is holding at, if it is holding at one.
+    ///
+    /// **The pause lives here and nowhere else.** Stepping is the driver's job,
+    /// so not stepping is too; the world stays a pure function of its seed and
+    /// its trace and never learns that anybody stopped to think. See
+    /// [`crate::succession`].
+    checkpoint: Option<Checkpoint>,
     last: Vec<Outcome>,
     max_steps: u64,
     seed: u64,
@@ -58,6 +66,7 @@ impl Runtime {
             trace: Vec::new(),
             history: History::new(),
             readings: FlowWindows::new(),
+            checkpoint: None,
             last: Vec::new(),
             max_steps: DEFAULT_MAX_STEPS_PER_ADVANCE,
             seed,
@@ -83,41 +92,106 @@ impl Runtime {
     }
 
     /// Runs whatever steps the elapsed time authorises. Returns how many ran.
+    ///
+    /// **A held world does not bank time.** While a [`checkpoint`] stands and
+    /// nothing queued answers it, the elapsed microseconds are dropped rather
+    /// than accumulated in the clock — otherwise a player who took ten seconds
+    /// over the question would be answered by ten seconds of ecology sprinting
+    /// past in one frame.
+    ///
+    /// [`checkpoint`]: Self::checkpoint
     pub fn advance(&mut self, elapsed_us: u64) -> u64 {
+        if self.held_at_a_question() {
+            self.last.clear();
+            return 0;
+        }
         let advance = self.clock.advance(elapsed_us, self.max_steps);
         self.last.clear();
+        let mut taken = 0;
         for _ in 0..advance.steps {
-            let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
-            let outcome = self.world.apply(intent.clone());
-            self.trace.push(intent);
-            self.absorb();
-            self.last.push(outcome);
+            if !self.step_once() {
+                break;
+            }
+            taken += 1;
         }
-        advance.steps
+        taken
     }
 
-    /// Runs exactly `steps` steps, ignoring the clock. For tests and for a
-    /// host that wants to step manually.
-    pub fn step(&mut self, steps: u64) {
+    /// Whether the world is stopped at a question nothing queued answers.
+    fn held_at_a_question(&self) -> bool {
+        self.checkpoint.as_ref().is_some_and(|checkpoint| {
+            !self
+                .queued
+                .front()
+                .is_some_and(|intent| checkpoint.answers(intent))
+        })
+    }
+
+    /// Runs up to `steps` steps, ignoring the clock. Returns how many ran, which
+    /// is fewer than asked when a checkpoint holds the world.
+    pub fn step(&mut self, steps: u64) -> u64 {
         self.last.clear();
+        let mut taken = 0;
         for _ in 0..steps {
-            let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
-            let outcome = self.world.apply(intent.clone());
-            self.trace.push(intent);
-            self.absorb();
-            self.last.push(outcome);
+            if !self.step_once() {
+                break;
+            }
+            taken += 1;
         }
+        taken
+    }
+
+    /// One tick, unless the world is holding at a question this tick's intent
+    /// does not answer. `false` means nothing happened and nothing was consumed.
+    fn step_once(&mut self) -> bool {
+        if let Some(checkpoint) = &self.checkpoint {
+            // An unanswered question is not a slow tick; it is a stopped world.
+            // Note what is *queued* rather than substituting an answer: putting
+            // one in on the player's behalf is exactly what "one recorded
+            // choice" rules out.
+            match self.queued.front() {
+                Some(intent) if checkpoint.answers(intent) => self.checkpoint = None,
+                _ => return false,
+            }
+        }
+        // The hand, read before the tick: a critter that dies this tick is held
+        // by nobody after it — and if it was *eaten* it is not even in the
+        // roster to be asked what lineage it was. That is the moment the
+        // question matters most, so both facts are taken while they still exist.
+        let hand = self
+            .world
+            .held()
+            .and_then(|id| self.world.controlled().map(|held| (id, held.species)));
+        let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
+        let outcome = self.world.apply(intent.clone());
+        self.trace.push(intent);
+        self.absorb(hand);
+        self.last.push(outcome);
+        true
     }
 
     /// Takes the tick's two records: the causal half into the past, both halves
-    /// into the windows. One call, because they are one tick's worth and a
+    /// into the windows, and both again to see whether this tick asked the
+    /// player something. One call, because they are one tick's worth and a
     /// caller that drained one and forgot the other would have a past and a
     /// reading that disagreed.
-    fn absorb(&mut self) {
+    fn absorb(&mut self, hand: Option<(mesocosm_core::OrganismId, mesocosm_core::SpeciesId)>) {
         let events = self.world.drain_events();
         let flows = self.world.drain_flows();
         self.readings.absorb(&events, &flows);
-        self.history.record_all(events);
+        // Recorded before the question is put, so a line that gained a
+        // descendant on the same tick it lost its body can still be continued
+        // through that descendant.
+        self.history.record_all(events.iter().copied());
+        if self.checkpoint.is_none() {
+            self.checkpoint =
+                crate::succession::opened(&self.world, &self.history, hand, &events, &flows);
+        }
+    }
+
+    /// The question the world is holding at, if any.
+    pub fn checkpoint(&self) -> Option<&Checkpoint> {
+        self.checkpoint.as_ref()
     }
 
     pub fn world(&self) -> &World {
@@ -183,7 +257,11 @@ impl Runtime {
         Receipt {
             seed: self.seed,
             organisms: self.organisms,
-            steps: self.clock.steps_taken().max(self.trace.len() as u64),
+            // The trace is one entry per step actually applied, so it is the
+            // step count whether the run was clocked or stepped by hand — and
+            // it stays honest across a checkpoint, where the clock may have
+            // authorised steps the held world never took.
+            steps: self.trace.len() as u64,
             state_hash: self.state_hash(),
         }
     }

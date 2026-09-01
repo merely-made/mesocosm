@@ -8,25 +8,41 @@
 //! A run is a seed, an organism count, and an ordered trace; the hash is what
 //! two runs compare. The trace file carries all four so `--replay` can assert
 //! rather than merely re-run, and so the assertion needs no second file.
+//!
+//! The recorded demo answers its own checkpoints, because a checkpoint holds the
+//! world and a recording that ignored one would simply stop advancing. Those
+//! answers are ordinary intents, so they sit in the trace beside the moves and
+//! the meals and replay with them.
 
 use std::path::{Path, PathBuf};
 
 use mesocosm_core::{Intent, Placement, World};
 use mesocosm_mesh::VolumeMap;
-use mesocosm_runtime::Runtime;
+use mesocosm_runtime::{Checkpoint, Occasion, Runtime};
 use serde::{Deserialize, Serialize};
 
-/// Steps the recorded demo runs for. Long enough to grow a body, dig, deposit
-/// and spend a stretch on its own instincts; short enough that the headed
-/// replay finishes in seconds — **and short enough to end alive**.
+/// Steps the recorded demo runs for.
 ///
-/// Two hundred, at the TD2 constants and under TD4's hand, ended in a corpse
-/// every time: a held critter cannot flee, and by tick 100 this one is the
-/// fattest body in the enclosure with six predators feeding on it at once. A
-/// receipt of a dead world shows neither the roster nor the vitals, so the run
-/// stops while there is still somebody in it. The death is a real finding, not
-/// a bug — it is recorded in the terrarium dynamics plan.
-pub const DEMO_STEPS: u64 = 120;
+/// **Long enough for the loop the game is named around** (PE1). It was 120 —
+/// enough to grow a body, dig, deposit and spend a stretch on instincts, and
+/// far short of a critter that lives long enough to breed. A demo that never
+/// reaches a birth or a death cannot receipt the checkpoint, so the recording
+/// now runs to the far side of both: three births under one hand, the parent's
+/// own death at the end of its natural life, and the line continued through a
+/// descendant. It still stops while somebody is alive, because a receipt of a
+/// corpse shows neither the roster nor the vitals.
+pub const DEMO_STEPS: u64 = 3_100;
+
+/// The world the demo is recorded in.
+///
+/// **A fixture picks the world that shows the thing.** The interactive default
+/// seed is untouched; this one is chosen because its played critter survives
+/// its own lifespan and leaves exactly one living descendant behind, so a
+/// recorded run reaches both halves of the individual checkpoint instead of
+/// being eaten in the first twenty seconds (which is what most seeds do — a
+/// real finding, and the terrarium dynamics plan's, not this one's). A replay
+/// reads the seed out of the trace, so nothing downstream needs to know it.
+pub const DEMO_SEED: u64 = 7;
 
 /// Move deltas the demo walks, in the order WASD produces them.
 const CARDINALS: [[i32; 3]; 4] = [[0, 0, -2], [0, 0, 2], [-2, 0, 0], [2, 0, 0]];
@@ -37,7 +53,7 @@ const CARDINALS: [[i32; 3]; 4] = [[0, 0, -2], [0, 0, 2], [-2, 0, 0], [2, 0, 0]];
 /// cross the threshold and keep going, so the receipt covers both halves of
 /// TD4 — the hand holding a body, and the ecology taking it back. Four seconds
 /// of nothing at the canonical tempo.
-const HANDS_OFF: std::ops::Range<u64> = 60..100;
+const HANDS_OFF: std::ops::Range<u64> = 300..340;
 
 /// A recorded run, complete enough to reproduce and to judge.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -153,12 +169,19 @@ pub fn write_png(path: &Path, width: u32, height: u32, pixels: &[u8]) -> Result<
 /// keyboard. Every verb the slice claims appears in it: moves in each
 /// direction, metabolize, deposit, carve — and a stretch of doing nothing at
 /// all, which since TD4 is a verb too.
-pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32) -> PlayedTrace {
+pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32, steps: u64) -> PlayedTrace {
     let volumes = crate::fixture::volumes();
     let mut runtime = Runtime::new(seed, organisms, ticks_per_second);
     let mut meals = 0u32;
-    for step in 0..DEMO_STEPS {
-        let intent = demo_intent(runtime.world(), &volumes, step, &mut meals);
+    for step in 0..steps {
+        // A checkpoint holds the world, so a recording that ignored one would
+        // simply stop advancing. Answering it is the demo's whole point: the
+        // choice is an ordinary intent, so it lands in the trace beside the
+        // moves and the meals and replays with them.
+        let intent = match runtime.checkpoint() {
+            Some(checkpoint) => answer(checkpoint),
+            None => demo_intent(runtime.world(), &volumes, step, &mut meals),
+        };
         runtime.queue(intent);
         // One intent per step, off the clock: a recording has no frame rate.
         runtime.step(1);
@@ -166,9 +189,29 @@ pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32) -> PlayedTr
     PlayedTrace {
         seed,
         organisms,
-        steps: DEMO_STEPS,
+        steps,
         state_hash: runtime.state_hash(),
         intents: runtime.trace().to_vec(),
+    }
+}
+
+/// How the recorded demo answers a checkpoint: **continue at a birth, succeed
+/// at a death.**
+///
+/// Continuing is the world default and it is what a birth checkpoint is for —
+/// the offspring is alive in the enclosure either way, and the body the run
+/// spent nine hundred ticks growing is not thrown away by a script. A death is
+/// the other half of the same choice, and taking a descendant there is the
+/// whole claim PE1 makes: the line goes on, and the session does not end.
+fn answer(checkpoint: &Checkpoint) -> Intent {
+    match checkpoint.occasion {
+        Occasion::Birth(_) => checkpoint.default_answer(),
+        Occasion::Loss(_) => match checkpoint.heir() {
+            Some(organism) => Intent::TakeControl { organism },
+            // Nothing survived to carry it. Declining is still an answer, and
+            // it is the honest one.
+            None => checkpoint.default_answer(),
+        },
     }
 }
 
@@ -216,20 +259,44 @@ fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, meals: &mut u32) -
     if let Some(delta) = crate::fixture::toward_prey(world) {
         return Intent::Move { delta };
     }
+    // **A march, not a shuffle.** This used to turn every three steps, which
+    // walks a critter in a small circle: it re-crossed ground it had already
+    // eaten and starved inside a couple of hundred ticks in every seed
+    // measured. Holding a heading covers new enclosure, which is what finding
+    // the next meal actually takes.
     Intent::Move {
-        delta: CARDINALS[(step / 3) as usize % 4],
+        delta: CARDINALS[(step / 200) as usize % 4],
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
     use super::*;
-    use mesocosm_core::INSTINCT_IDLE_TICKS;
+    use mesocosm_core::{INSTINCT_IDLE_TICKS, OrganismId, SpeciesId};
+    use mesocosm_runtime::{Birth, Loss};
+
+    /// Steps and founders the assertions below record with.
+    ///
+    /// **Not the shipped demo's.** Recording 3,100 steps of the shipping cohort
+    /// takes minutes unoptimized, and a workspace test run should not. These
+    /// tests are about the *script* — that it walks, eats, digs, deposits, puts
+    /// its hands down, and replays — and a few hundred ticks says all of that.
+    /// The claim the shipped length exists for, that the run reaches a birth
+    /// and a death, is receipted by the recording itself and by
+    /// `mesocosm-runtime`'s checkpoint tests.
+    const TEST_STEPS: u64 = 400;
+    const TEST_FOUNDERS: u32 = 60;
+
+    /// One recording, shared. Each of these tests used to pay for its own.
+    static TRACE: LazyLock<PlayedTrace> =
+        LazyLock::new(|| record_demo(DEMO_SEED, TEST_FOUNDERS, 10, TEST_STEPS));
 
     #[test]
     fn the_demo_trace_exercises_every_verb_the_slice_claims() {
-        let trace = record_demo(0x00A7_7AC4, 60, 10);
-        assert_eq!(trace.intents.len(), DEMO_STEPS as usize);
+        let trace = &*TRACE;
+        assert_eq!(trace.intents.len(), TEST_STEPS as usize);
 
         let moves: std::collections::BTreeSet<_> = trace
             .intents
@@ -258,7 +325,7 @@ mod tests {
     /// seed and the trace alone, with no host in the loop.
     #[test]
     fn the_demo_trace_replays_to_its_recorded_hash() {
-        let trace = record_demo(0x00A7_7AC4, 60, 10);
+        let trace = &*TRACE;
         let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
         assert_eq!(mesocosm_core::state_hash(&world), trace.state_hash);
     }
@@ -267,7 +334,7 @@ mod tests {
     /// the fixture proves nothing about instincts under idleness.
     #[test]
     fn the_demo_trace_puts_its_hands_down_long_enough_to_lose_the_body() {
-        let trace = record_demo(0x00A7_7AC4, 60, 10);
+        let trace = &*TRACE;
         let longest = trace
             .intents
             .iter()
@@ -293,11 +360,57 @@ mod tests {
         );
     }
 
+    /// The script's whole answer to a checkpoint, in one place: continue at a
+    /// birth, succeed at a death, decline only when there is nothing left to
+    /// continue through. Pure, so it is asserted directly rather than fished
+    /// out of a long recording.
+    #[test]
+    fn the_demo_continues_at_a_birth_and_succeeds_at_a_death() {
+        let heirless = Checkpoint {
+            tick: 10,
+            occasion: Occasion::Loss(Loss {
+                organism: OrganismId(4),
+                lineage: SpeciesId(1),
+            }),
+            heirs: Vec::new(),
+        };
+        assert_eq!(answer(&heirless), Intent::Resume);
+
+        let carried = Checkpoint {
+            heirs: vec![OrganismId(9), OrganismId(12)],
+            ..heirless.clone()
+        };
+        assert_eq!(
+            answer(&carried),
+            Intent::TakeControl {
+                organism: OrganismId(9)
+            },
+            "the eldest descendant, and only it"
+        );
+
+        let birth = Checkpoint {
+            tick: 20,
+            occasion: Occasion::Birth(Birth {
+                parent: OrganismId(4),
+                offspring: OrganismId(9),
+                lineage: SpeciesId(1),
+                substance_mg: 500,
+                reserve_mg: 500,
+            }),
+            heirs: vec![OrganismId(9)],
+        };
+        assert_eq!(
+            answer(&birth),
+            Intent::Resume,
+            "a birth keeps the body the run has been growing"
+        );
+    }
+
     /// A carve that removed nothing would leave the section with no dirty
     /// bricks to drain, and the whole refresh path untested by the receipt.
     #[test]
     fn the_demo_trace_changes_the_ground() {
-        let trace = record_demo(0x00A7_7AC4, 60, 10);
+        let trace = &*TRACE;
         let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
         assert!(world.ground().revision() > 0, "the digging removed voxels");
     }

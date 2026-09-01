@@ -135,6 +135,31 @@ impl World {
         }
     }
 
+    /// Who could carry the line on from `of`: its living descendants, eldest
+    /// first, that this world would let anyone inhabit.
+    ///
+    /// **The succession path's one new question**, and it is answered by the
+    /// two authorities that already exist rather than a third. Descent comes
+    /// out of the past, because `Event::Born` has always carried its parent;
+    /// eligibility comes out of [`Self::eligibility`], because control has one
+    /// gate and a descendant does not get a private one. The past is a
+    /// parameter for the reason [`end_epoch`] takes one: a world can say what
+    /// is, never what happened.
+    ///
+    /// This is a **reading**, not a roster: it names living organisms that go
+    /// on eating, breeding and dying whether or not anyone looks at them, and
+    /// nothing here reserves, removes or freezes one. Siblings stay in the
+    /// ecology. (PE1.)
+    ///
+    /// [`end_epoch`]: World::end_epoch
+    pub fn heirs(&self, history: &crate::history::History, of: OrganismId) -> Vec<OrganismId> {
+        history
+            .descendants(of)
+            .into_iter()
+            .filter(|heir| self.is_eligible(*heir))
+            .collect()
+    }
+
     /// The most elaborate thing the player has ever held.
     ///
     /// The ceiling a new lineage must sit below, and it only goes up.

@@ -276,6 +276,49 @@ impl History {
         line
     }
 
+    /// Everyone descended from an organism, nearest generation first.
+    ///
+    /// **Descent is already written down.** `Event::Born` has carried its
+    /// parent since the breeding transaction existed, so PE1 needs no second
+    /// link on the body and no lineal table beside the world: the question is a
+    /// walk over the record that answers it. Transitive, because a line
+    /// continues through a grandchild when the child is gone, and the visited
+    /// set is what keeps a walk over a log finite.
+    ///
+    /// Ids within a generation come out ascending, so "the eldest" is a
+    /// deterministic thing to ask for rather than whatever iteration found
+    /// first.
+    pub fn descendants(&self, of: OrganismId) -> Vec<OrganismId> {
+        let mut children: BTreeMap<OrganismId, Vec<OrganismId>> = BTreeMap::new();
+        for recorded in self.log.entries() {
+            if let Event::Born {
+                organism,
+                parent: Some(parent),
+                ..
+            } = recorded.record
+            {
+                children.entry(parent).or_default().push(organism);
+            }
+        }
+
+        let mut found = Vec::new();
+        let mut seen = std::collections::BTreeSet::from([of]);
+        let mut generation = children.get(&of).cloned().unwrap_or_default();
+        while !generation.is_empty() {
+            generation.sort_unstable();
+            let mut next = Vec::new();
+            for child in generation {
+                if !seen.insert(child) {
+                    continue;
+                }
+                found.push(child);
+                next.extend(children.get(&child).into_iter().flatten().copied());
+            }
+            generation = next;
+        }
+        found
+    }
+
     fn touches(&self, seq: Seq, organism: OrganismId) -> bool {
         self.event(seq)
             .is_some_and(|event| event.subjects().contains(&organism))

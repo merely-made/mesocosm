@@ -18,9 +18,11 @@
 //! live world (PS1). Camera motion is presentation only and never enters the
 //! trace, which is what lets a recorded session replay to the same hash.
 
-//! Two chrome lanes ride the frame, both through [`chrome`]: the painted
-//! minimap ([`hud`]) and the cambium vitals panel ([`vitals`], landed
-//! 2026-08-29). Neither touches the world, so neither can reach the trace.
+//! Three chrome lanes ride the frame, all through [`chrome`]: the painted
+//! minimap ([`hud`]), the cambium vitals panel ([`vitals`], landed 2026-08-29)
+//! and the individual checkpoint ([`succession`], PE1), which is drawn only
+//! while the driver is holding the world at a question. None of them touches
+//! the world, so none can reach the trace.
 
 pub mod app;
 pub mod chrome;
@@ -29,6 +31,7 @@ pub mod hud;
 pub mod input;
 pub mod played;
 pub mod section;
+pub mod succession;
 pub mod vitals;
 
 pub use app::{Host, HostConfig};

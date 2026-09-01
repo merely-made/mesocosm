@@ -51,6 +51,7 @@
 
 use mesocosm_core::{Intent, Placement, World};
 use mesocosm_mesh::VolumeMap;
+use mesocosm_runtime::Checkpoint;
 use winit::keyboard::{Key, NamedKey};
 
 use crate::fixture;
@@ -96,6 +97,25 @@ pub fn admits(urgency: Urgency, queued_len: usize) -> bool {
         Urgency::Deliberate => DELIBERATE_QUEUE_CAP,
     };
     queued_len < cap
+}
+
+/// Turns a key into an answer while a checkpoint stands. `None` for every
+/// other key.
+///
+/// **The keyboard narrows to the question.** A checkpoint is the world holding
+/// still, so the ordinary verbs have nothing to act on and a stray W would
+/// only sit in the queue going stale. Two keys, matching the two lines the
+/// panel shows: Enter carries on, T takes the body on offer. Both produce
+/// ordinary recorded intents — the choice enters the trace and replays like
+/// any other.
+pub fn answer_for(checkpoint: &Checkpoint, key: &Key) -> Option<Intent> {
+    match key {
+        Key::Named(NamedKey::Enter) => Some(checkpoint.default_answer()),
+        Key::Character(c) if matches!(c.as_str(), "t" | "T") => checkpoint
+            .heir()
+            .map(|organism| Intent::TakeControl { organism }),
+        _ => None,
+    }
 }
 
 /// Turns a key into an intent. Pure, given the world state it needs to

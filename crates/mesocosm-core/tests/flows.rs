@@ -305,6 +305,109 @@ fn a_worlds_snapshot_does_not_carry_the_flow_stream() {
     assert_eq!(holding, empty);
 }
 
+/// **A birth reconciles to the milligram** (PE1).
+///
+/// The tick as a whole already has to, and `stepped` asserts that. What this
+/// adds is the birth's own two records read against the body they made: a
+/// newborn's entire substance and entire budget came out of its parent's
+/// matching accounts and are in the stream as such, so the number the
+/// checkpoint puts on the screen is the number the ledger reconciled. A spawn
+/// that minted matter — which is what a birth was before TD6 — would fail both
+/// the tick and this.
+#[test]
+fn a_birth_reconciles_to_the_milligram() {
+    let mut world = World::new(11, 60);
+    world.apply(Intent::Idle);
+    world.drain_events();
+
+    // Somebody the ordinary gate will let breed on the next tick. The gate
+    // itself is untouched: the mass condition below is the ecology's.
+    let roster: Vec<OrganismId> = world.living().map(|o| o.id).collect();
+    let parent = roster
+        .into_iter()
+        .find(|id| {
+            let Some(candidate) = world.organisms.iter_mut().find(|o| o.id == *id) else {
+                return false;
+            };
+            let was = (candidate.stage, candidate.since_offspring);
+            candidate.stage = mesocosm_core::Stage::Mature;
+            candidate.since_offspring = u32::MAX;
+            if candidate.can_reproduce() {
+                true
+            } else {
+                (candidate.stage, candidate.since_offspring) = was;
+                false
+            }
+        })
+        .expect("some founder is ready to breed");
+
+    for tick in 0..40 {
+        let flows = stepped(&mut world, Intent::Idle, &format!("on birth tick {tick}"));
+        let born: Vec<OrganismId> = world
+            .drain_events()
+            .into_iter()
+            .filter_map(|recorded| match recorded.record {
+                mesocosm_core::history::Event::Born {
+                    organism,
+                    parent: Some(who),
+                    ..
+                } if who == parent => Some(organism),
+                _ => None,
+            })
+            .collect();
+        let Some(child) = born.first().copied() else {
+            continue;
+        };
+
+        let paid: Vec<(Account, u64)> = flows
+            .iter()
+            .map(|flow| &flow.record)
+            .filter(|record| {
+                record.process == Process::Birth && record.to.map(|to| to.organism) == Some(child)
+            })
+            .map(|record| {
+                assert_eq!(
+                    record.from.map(|from| from.organism),
+                    Some(parent),
+                    "a birth is a transfer out of the parent, not a spawn"
+                );
+                assert_eq!(
+                    record.source, record.destination,
+                    "body pays for body and reserve for reserve"
+                );
+                (record.destination, record.amount_mg)
+            })
+            .collect();
+        assert_eq!(paid.len(), 2, "one record per account: {paid:?}");
+
+        let substance = paid
+            .iter()
+            .find(|(account, _)| *account == Account::Substance)
+            .expect("the body it was given")
+            .1;
+        let reserve = paid
+            .iter()
+            .find(|(account, _)| *account == Account::Reserve)
+            .expect("the budget it was given")
+            .1;
+        let newborn = world
+            .living()
+            .find(|o| o.id == child)
+            .expect("the child is in the enclosure");
+        assert_eq!(
+            newborn.biomass_mg(),
+            substance,
+            "every milligram the child weighs is in the stream"
+        );
+        assert_eq!(
+            newborn.energy_mg, reserve,
+            "and so is every milligram it can spend"
+        );
+        return;
+    }
+    panic!("no birth in forty ticks");
+}
+
 #[test]
 fn the_check_catches_a_mutation_the_stream_did_not_record() {
     // **The positive control.** A seam that moves matter without emitting is

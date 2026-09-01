@@ -41,6 +41,9 @@ impl Host {
                 lanes
                     .vitals
                     .capture_composite(&lanes.device, format, encoder, target, frame);
+                lanes
+                    .checkpoint
+                    .capture_composite(&lanes.device, format, encoder, target, frame);
             }
         });
         let Some((width, height, pixels)) = shot else {
@@ -108,7 +111,17 @@ impl Host {
 
     fn receipt(&self) -> PlayedReceipt {
         let run = self.runtime.receipt();
-        let expected = self.config.replay.as_ref().map(|trace| trace.state_hash);
+        // Only a replay that reached the end of its trace has a hash to be held
+        // to. A capture run cut short by `--frames` stopped somewhere in the
+        // middle of the recording on purpose, and comparing its world against
+        // the recording's *final* hash would report a determinism failure for
+        // having taken a photograph.
+        let expected = self
+            .config
+            .replay
+            .as_ref()
+            .filter(|trace| self.cursor >= trace.intents.len())
+            .map(|trace| trace.state_hash);
         let world = self.runtime.world();
         PlayedReceipt {
             mode: if self.config.replay.is_some() {

@@ -202,6 +202,24 @@ pub enum Intent {
     TakeControl { organism: OrganismId },
     /// Advance one tick without acting.
     Idle,
+    /// Answer a checkpoint by continuing as you are.
+    ///
+    /// **The other half of [`TakeControl`], and the reason the pair is a
+    /// choice.** At a reproduction checkpoint the two answers are *take the
+    /// offspring* and *stay in the parent*; at a control loss they are *continue
+    /// through a descendant* and *let the line go*. Staying is a decision, and a
+    /// decision has to be sayable, or the record cannot tell a hand that chose
+    /// to carry on from a hand that was not there.
+    ///
+    /// To the world it is [`Idle`] that admits to being a hand: nothing moves,
+    /// but the idle run resets, because somebody answered. Everything a
+    /// checkpoint *is* — when one opens, what it says, how long it holds — lives
+    /// in the driver, since a bounded pause is a question about when to step and
+    /// the world only ever knows what is. (PE1.)
+    ///
+    /// [`TakeControl`]: Intent::TakeControl
+    /// [`Idle`]: Intent::Idle
+    Resume,
     /// Carve a pocket of air around a nearby point. Recorded like every
     /// mutation, so a burrow is part of the world's replayable history.
     /// The energetics of digging await the metabolize-earth ruling; for
@@ -286,6 +304,8 @@ pub enum Outcome {
         founder: OrganismId,
     },
     Idled,
+    /// A checkpoint was answered by carrying on unchanged.
+    Resumed,
     Rejected(Rejection),
 }
 

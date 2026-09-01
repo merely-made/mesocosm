@@ -1,8 +1,8 @@
 # Playable Ecology Architecture Plan (2026-08-31)
 
-**Status: plan, founded 2026-08-31 and refined 2026-09-01. PE0 is built as of
-2026-09-01 (see §9); PE1-PE7 remain plan, and nothing outside PE0 claims new
-code.**
+**Status: plan, founded 2026-08-31 and refined 2026-09-01. PE0 and PE1 are
+built as of 2026-09-01 (see §9); PE2-PE7 remain plan, and nothing outside PE0
+and PE1 claims new code.**
 Mark ruled reproduction as an individual-scale micro-checkpoint and named
 trophic visibility as the primary design challenge. He reaffirmed the other
 load-bearing directions: body composition determines what a critter can do;
@@ -546,7 +546,11 @@ have measured receipts.
 
 1. At the reproduction checkpoint, does the player continue the parent, take
    the offspring, or choose between them? Is there a world-configurable
-   default?
+   default? **Still open.** PE1 implements the *choice* — both answers are
+   recorded intents (`Intent::Resume` and `Intent::TakeControl`) — and stands a
+   placeholder default in for the ruling: `Checkpoint::default_answer` continues
+   the parent, because that is the only answer that can be taken back. It is one
+   function, and ruling otherwise is a one-line change there.
 2. What deterministic condition ends an epoch? Timer, world condition,
    lineage event, configurable rule, or a composition of them?
 3. Are fungal networks, clonal stands, and microbial colonies genuine
@@ -675,6 +679,52 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
   whose kingdom is an anatomy read — already taken once per organism per tick in
   the hot loop, and cacheable on the body if the ecology ever wants it there.
 
+- **2026-09-01, a pause is a question about *when to step*, so it belongs to the
+  driver.** Reading §8's reproduction-seam finding literally — host, control and
+  presentation composition, not a second breeding system — puts the whole
+  checkpoint in `mesocosm-runtime` and leaves `World` with one added intent.
+  Three consequences follow that a world-side `checkpoint` field would have
+  cost. The state hash of an unchanged trace does not move, so nothing that
+  merely *stopped to ask* has to be re-recorded. The population instrument
+  drives `World::apply` directly and never builds a `Runtime`, so "verdicts
+  unchanged" is structural rather than a measurement anybody has to trust. And
+  "replay lands the same state hash" is true by construction: the world never
+  learns that anybody stopped, so there is nothing for a replay to reproduce.
+
+- **2026-09-01, `held()` is the gate, and it is why nothing else moved.** TD4
+  already separated *control* from *holding*, and `idle_run` makes the
+  difference world state rather than a host timer. A checkpoint therefore opens
+  only for a hand actually on the critter, so an idle terrarium runs on and
+  every all-idle fixture in the workspace keeps its exact timing. The window is
+  not even reachable by accident: `held()` lapses after 30 idle ticks and the
+  played critter's gestation is at least 480, so no headless run can meet a
+  birth checkpoint at all.
+
+- **2026-09-01, nobody is observably ready to breed between ticks.** The aging
+  pass carries an organism over its gestation and the breed pass in the *same*
+  tick spends it, so `Organism::can_reproduce` is only ever true inside
+  `World::apply`. Anything that wants to *find* a breeder — a test, a tool, a
+  future scheduler — has to ask the gate about a clone with its clock wound
+  forward, and bisect if it wants the tick. Worth knowing before something tries
+  to plan around reproduction.
+
+- **2026-09-01, the recorded demo's own locomotion was killing it.** The demo's
+  fallback move turned every three steps, which walks a critter in a circle over
+  ground it has already eaten; it starved between ticks 75 and 320 on **every**
+  seed measured, which is why the old 120-step demo could never have reached a
+  birth however long it ran. Holding a heading instead makes a 3,100-step
+  recording survivable. This is a fixture finding, not an ecology one — but it
+  means the played-slice plan's "a held critter dies fast" reading was partly a
+  script artifact and should not be spent as evidence about the terrarium.
+
+- **2026-09-01, a line usually does not outlive its founder.** A newborn is food
+  like anything else, and in 60-founder enclosures the first offspring was
+  eaten before its parent's death in several seeds; the runtime's death test has
+  to try a handful. At the shipping cohort, seed 7's third offspring survived.
+  The checkpoint says "none living" honestly when it happens, which is right —
+  but it means succession is an *opportunity* the ecology grants, not a
+  guarantee the checkpoint makes.
+
 - **2026-09-01, the causal log had no tick until now.** PE0's envelope is what
   makes a bounded window over births, maturations and deaths possible at all:
   `History` stored bare `Event`s, so "how many died in the last two hundred
@@ -685,6 +735,130 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
 ---
 
 ## 9. Progress
+
+- **2026-09-01, PE1 landed: reproduction and succession as the individual
+  checkpoint.** Death stops being a wall.
+
+  **Where it lives, and why that is the whole design.** §8's reproduction-seam
+  finding says the missing checkpoint is *host, control and presentation
+  composition rather than a second breeding system*. Taken literally that puts
+  the pause in `Runtime` — which already owns the clock, the step cap and the
+  queue, so **not** stepping is its job too — and leaves `World` with one new
+  intent and nothing else. `mesocosm-runtime/src/succession.rs` holds
+  `Checkpoint { tick, occasion, heirs }` over `Occasion::Birth(Birth)` and
+  `Occasion::Loss(Loss)`; `Runtime::step_once` refuses to advance while one
+  stands and nothing queued answers it. The breeding transaction is untouched:
+  the adult-mass gate, filial realization, the matter debit, the parent link and
+  `Event::Born` are exactly what they were, and this reads their records.
+
+  **What opens one.** A birth whose parent is the critter **under your hand**,
+  or that critter's body ending. `World::held` — TD4's already-ruled distinction
+  between *control* (whose body a key would move) and *holding* (whether anyone
+  has moved it lately) — is the gate, read before the tick because a critter
+  that dies this tick is held by nobody after it. An ant farm nobody is touching
+  is never interrupted, which is the ruling and also the reason no existing
+  fixture's timing moved.
+
+  **What answers one.** `Intent::TakeControl` or the new `Intent::Resume` —
+  take, or carry on. Both are ordinary recorded intents through the ordinary
+  eligibility gate, so the choice is in the trace, replays with everything else,
+  and grows no second control path. `Resume` is `Idle` that admits to being a
+  hand: nothing moves, but the idle run resets, because somebody answered.
+
+  **The default, and the ruling it is standing in for.** §6 ruling 1 is open and
+  is **not** answered here. `Checkpoint::default_answer` is `Resume` — continue
+  the parent, stay disembodied — for one reason: **it is the only answer that
+  can be taken back.** The offspring stays alive in the enclosure and
+  `TakeControl` still reaches it, whereas a default that moved control would
+  silently discard a body a run spent nine hundred ticks growing and nothing
+  undoes that. Flagged for Mark; the implementation records the choice either
+  way, so ruling it later is a one-line change to one function.
+
+  **Descent needed no new link.** `History::descendants` walks the parent
+  `Event::Born` has always carried, transitively and eldest-first;
+  `World::heirs(&history, of)` filters it through `World::eligibility`, the same
+  gate `TakeControl` uses. No parent field on `Organism`, no lineal table beside
+  the world, nothing to keep in step. The past is a parameter for the reason
+  `end_epoch` takes one.
+
+  **Not a lineage editor.** Four facts, two answers, out. The panel offers **one**
+  body — the offspring just born, or the eldest living descendant — never the
+  brood as a numbered roster, and `mesocosm-views`' own test asserts the words
+  never mention a program, a trait, a budget, an epoch, a revision or a founder.
+
+  **Presentation.** `mesocosm-views/src/succession.rs` is the second cambium
+  consumer and the first that appears because the world is *waiting*:
+  centre-frame, 468x208, headline plus the pointable facts plus the two keys.
+  `mesocosm-genet/src/succession.rs` is its lane, third over the same netrender
+  instance and blend pass. At a checkpoint the keyboard narrows to Enter and T,
+  because the world is stopped and a move would only go stale in the queue.
+
+  **Receipts.**
+  - `mesocosm-core/tests/succession.rs` (7): descent off the existing link, a
+    grandchild is a descendant, **death continues through an eligible
+    descendant**, siblings persist without becoming inventory, the choice is in
+    the trace and a run that answered is distinguishable from one that never
+    did, answering is a hand and not an idle, and a dead heir is not offered.
+  - `mesocosm-runtime/tests/checkpoint.rs` (8): **an idle terrarium is never
+    asked anything** (1,200 ticks, no checkpoint, every step ran); a birth under
+    the hand opens a bounded checkpoint whose cost is the ledger's; the world
+    holds — `step(10)` runs **0**, no tick, no trace entry, no intent consumed;
+    one recorded choice resumes play; taking the offspring is the other answer
+    and leaves the parent an organism; a paused run replays to the same hash,
+    control holder, body, history and **byte-identical readings**; a death under
+    the hand offers the line and the run continues in it; declining resumes
+    disembodied.
+  - `mesocosm-core/tests/flows.rs` gains **a birth reconciles to the milligram**:
+    two `Process::Birth` records, parent to child, body for body and reserve for
+    reserve, and the newborn's entire substance and entire budget are exactly
+    those two numbers. PE0's tick-level reconciliation runs over the same tick.
+  - `cargo test -p mesocosm-core --test matter --test flows --release`: 5 + 9
+    green. `cargo test -p mesocosm-runtime`: green.
+  - **The demo trace exercises both loops.** Recorded at `DEMO_SEED = 7`,
+    `DEMO_STEPS = 3_100`, 916 founders: `Resume` at steps 800, 1600 and 2400
+    (three births continued, the first costing 1,766 mg — 883 of body, 883 of
+    reserve), **`TakeControl { organism: 2205 }` at step 3000** — the played
+    critter died at the end of its natural life and the run continued in its
+    surviving descendant — and `Resume` at 3040 for a fourth birth, from the new
+    body. It ends alive. Hash `f90123db6f2a5ac5`; the headed `--replay` runs
+    3,100 steps over 775 frames and matches, exit 0, and a hash falsified by one
+    bit exits 1.
+  - **Captures.** `Code/testing/mesocosm/pe1_succession.png` (frame 750, the
+    death): *the body is gone / was critter 0, line 1 / descendants one living /
+    [T] continue as critter 2205, your eldest / [Enter] let the line go*, with
+    the vitals panel reading `state dead` and PE0's warning live beside it.
+    `pe1_birth.png` (frame 200, the birth): *a birth / parent critter 0 /
+    offspring critter 1253 / cost 1766 mg — 883 of body, 883 of reserve /
+    descent child of critter 0, line 1*, over a living critter at 1,073 mg.
+    `pe1_replay_end.png` is the frame the demo finishes on: no panel, the world
+    running again, and the vitals reading `energy 1283 mg` on a full bar — the
+    run alive in the descendant it succeeded into.
+  - **The population instrument cannot observe this phase.** It drives
+    `World::apply` directly and never constructs a `Runtime`, so the checkpoint
+    is structurally invisible to it; `World`'s only change is an intent variant
+    nothing headless sends. Re-run anyway, and the drawn baseline came back
+    **identical** — all ten seeds, and not merely the verdict: start, peak, peak
+    tick, end, cumulative births and cumulative deaths each equal to the DC4
+    receipt's, seed for seed. **0 breathes / 10 thins / 0 boil / 0 collapse.**
+    The other three batches were not re-run, since the argument for them is the
+    same structural one; `dc4_roster.json` is byte-identical to what DC4
+    recorded, because the run was stopped after the baseline rather than left to
+    overwrite it.
+  - `cargo test --workspace` green — **612** tests, the lens crate's 45 taken at
+    `--test-threads=1`. Clippy `-D warnings` clean, `cargo fmt --all --check`
+    clean, `cargo check -p paredros-room --features r1-proof` builds.
+
+  **Split at the ceiling**, per the workspace rule: `app/setup.rs` out of
+  `app.rs` (window, device, surface, section and chrome bring-up) when the third
+  lane pushed it to 602.
+
+  **Residues.** The host still has no general "inhabit that one" key — T at a
+  checkpoint takes the *eldest* heir and nothing else, deliberately, so a player
+  who wants a particular descendant has no input for it yet. A loss offers
+  descendants only, not the wider lineage the played-slice plan's PS2 also
+  allowed. And PE0's place stamp is still unread: the reading stays
+  enclosure-wide, and §8 routes it to the first phase with a player standing
+  somewhere specific — PE1 did not take it, so it falls to PE2.
 
 - **2026-09-01, PE0 landed: one flow record, one useful warning.**
 

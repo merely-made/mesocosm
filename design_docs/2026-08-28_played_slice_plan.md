@@ -132,9 +132,15 @@ now explicitly different checkpoints.
 
 PE0's first flow reading precedes both so the birth and the epoch review have
 the ecological evidence this game's interface requires. The trait-board review
-screen stays with Views route B. Core machinery exists for birth, control loss,
-`TakeControl`, readings, and `end_epoch`; the host composition and real
-developmental adaptation remain unwired.
+screen stays with Views route B.
+
+**The individual half is wired as of 2026-09-01** (playable ecology plan §9,
+PE1). `Runtime` holds the world at a birth involving the critter under your hand
+and at the moment that critter's body ends; the host draws the question as a
+third chrome lane; `Intent::Resume` and `Intent::TakeControl` are the two
+answers and both enter the trace. The lineage half — an explicit epoch rule
+driving `Runtime::end_epoch`, the world review, and real developmental
+adaptation — remains unwired and is PE3's.
 
 ## Findings
 
@@ -210,6 +216,14 @@ developmental adaptation remain unwired.
   the bare lineage roster.
 
 ## Progress
+
+- **2026-09-01:** PS2's individual half landed as PE1 — the reproduction
+  checkpoint, the succession path, and the host composition around both. The
+  detail and its receipts live in the playable ecology plan §9; nothing about
+  the lineage half moved. The recorded demo is now seed 7 over 3,100 steps
+  (hash `f90123db6f2a5ac5`), replacing the 120-step PS1 recording at the same
+  path: the old one could not reach a birth or a death, which is what the
+  checkpoint needed to demonstrate.
 
 - **2026-08-31:** reconciled PS2 with the playable ecology architecture.
   Reproduction is the individual checkpoint, the epoch boundary is the lineage

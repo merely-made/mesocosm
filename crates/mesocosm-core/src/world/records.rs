@@ -62,7 +62,14 @@ pub(super) fn event_for(
             from,
             founder,
         }),
-        Outcome::Moved | Outcome::Deposited { .. } | Outcome::Idled | Outcome::Rejected(_) => None,
+        // Resuming is a decision, and the ordered trace is where decisions are
+        // kept. A history records what happened to a creature, and carrying on
+        // unchanged did not happen to one.
+        Outcome::Moved
+        | Outcome::Deposited { .. }
+        | Outcome::Idled
+        | Outcome::Resumed
+        | Outcome::Rejected(_) => None,
     }
 }
 
