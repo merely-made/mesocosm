@@ -52,11 +52,13 @@ use crate::body::{
 use crate::process::{ProcessRef, Registry};
 
 pub mod develop;
+pub mod graft;
 pub mod mosaic;
 
 pub use develop::{
     Aim, AllocationProposal, Arrangement, Development, Instruction, ProposedSite, Refusal, arrange,
 };
+pub use graft::{Branch, Cutting, Graftage, Lowering};
 pub use mosaic::{CellId, Expressed, MAX_CELLS, MAX_SITES, Mosaic, Site, SiteId};
 
 /// One critter's anatomy and its process allocation, as one transactional
@@ -426,6 +428,7 @@ impl BodyPhenotype {
                 parts: proposal.parts.clone(),
                 sites,
                 cost_cells: validated.cost_cells,
+                cost_by_part: validated.cost_by_part,
                 digest: self.digest(),
             },
             source: proposal.source,

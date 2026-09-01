@@ -10,7 +10,8 @@
 //! carries content addresses and knows nothing about what a volume looks like.
 
 use mesocosm_core::{
-    Founding, Intent, OrganismId, Placement, Role, VolumeRef, World, world::organism_extent,
+    Crossing, Founding, Intent, OrganismId, PartId, Placement, Role, Verdict, VolumeRef, World,
+    world::organism_extent,
 };
 use mesocosm_mesh::{Volume, VolumeMap};
 
@@ -83,6 +84,48 @@ pub fn toward_prey(world: &World) -> Option<[i32; 3]> {
 
     let step = [0, 1, 2].map(|a| (at[a] - here[a]).signum());
     if step == [0, 0, 0] { None } else { Some(step) }
+}
+
+/// The smallest branch worth taking off a carcass within reach. (P3)
+///
+/// A **branch**, not an organ: a living non-root part with something still
+/// hanging off it, so the transfer the demo records is the one the gate is
+/// about. The *smallest* such subtree, because a body that has been eating has
+/// little room left and the whole of a segmented corpse below its root is a
+/// branch by the letter and a second creature by the look of it. Ties break on
+/// ids, so the script is determinate rather than dependent on iteration order.
+pub fn branch_donor(world: &World) -> Option<(OrganismId, PartId, [i32; 3])> {
+    let mut best: Option<(usize, OrganismId, PartId, [i32; 3])> = None;
+    for carcass in world
+        .organisms
+        .iter()
+        .filter(|o| !o.is_alive() && world.in_reach(o.position))
+    {
+        let body = carcass.body();
+        for part in body.living().map(|part| part.id) {
+            if part == body.root || body.children(part).next().is_none() {
+                continue;
+            }
+            let size = body.descendants(part).len();
+            let candidate = (size, carcass.id, part, carcass.position);
+            if best.is_none_or(|(found, id, at, _)| (size, carcass.id, part) < (found, id, at)) {
+                best = Some(candidate);
+            }
+        }
+    }
+    best.map(|(_, id, part, at)| (id, part, at))
+}
+
+/// The crossing to take with that donor's tissue: carry it when this world's
+/// affinity permits, and regrow it here when it does not.
+///
+/// The verdict is the world's and the choice is the player's, which is exactly
+/// what a script has to model to be a fair demo of the verb.
+pub fn crossing_for(world: &World, donor: OrganismId) -> Crossing {
+    match world.verdict_for(donor) {
+        Some(Verdict::Refused) | None => Crossing::Regrow,
+        Some(_) => Crossing::Carry,
+    }
 }
 
 pub fn reachable(world: &World) -> Option<OrganismId> {

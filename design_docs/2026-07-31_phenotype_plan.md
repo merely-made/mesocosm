@@ -691,7 +691,7 @@ the ledger section above. `organism.rs` was split first, into types and
 `organism/ecology.rs`, because it had passed this repo's line ceiling and the
 rule is to split before adding.
 
-### P3. Branch transfer
+### P3. Branch transfer — **LANDED 2026-09-01**
 
 Harvest or receive a source subtree, remap its local ids, and preserve its
 source addresses and parent relations.
@@ -699,6 +699,202 @@ source addresses and parent relations.
 **Done when:** the source loses the branch, the recipient gains a functioning
 or visibly incompatible branch according to the chosen route, severing the
 graft cascades, and snapshot/replay agree.
+
+**All met.** `Intent::Graft { organism, part, crossing }` takes a living
+subtree off a carcass and sets it on the played body. Four steps, and each of
+them is a named operation rather than an assembled call site:
+
+- **harvest.** `BodyPhenotype::harvest` lifts the subtree without changing
+  anything, as a `Branch` of `Cutting`s: each carries its donor-local id, its
+  donor-local parent, its joint, and what the donor had allocated on it.
+  Reading and taking are separate on purpose — the world resolves where the
+  branch would land, and whether the recipient can hold it, before the donor
+  loses a milligram.
+- **remap.** `BodyPhenotype::receive` attaches every part through the ordinary
+  allocator, rewriting each internal parent onto the freshly allocated id and
+  preserving the joint exactly. The branch arrives shaped the way it grew.
+- **graft.** One `AllocationProposal` over exactly the arriving parts, lowered
+  by `BodyPhenotype::develop`. **There is no second attachment authority and no
+  second developmental authority**: a carried arrangement this body's rules
+  would refuse is refused by the same validator that would refuse it from the
+  editor, and it is never substituted.
+- **the terms.** The world's affinity table returns the verdict, before
+  anything moves.
+
+**Where the route comes from, and why there are two of them.** The wing
+contract separates *carry this body* from *regrow here* for an individual
+crossing vessels; a branch crossing between bodies is that question one scale
+down, and `Crossing::{Carry, Regrow}` is it. The ProcessDef plan's three graft
+verdicts then decide which routes are feasible, exactly as the contract
+requires — *the destination declares compatibility; an incompatible carry is
+refused or redirected to regrowth rather than silently rewritten*:
+
+| Verdict | `Carry` | `Regrow` |
+| --- | --- | --- |
+| `Native` (same domain) | the donor's arrangement, cell for cell | this body's own seeding |
+| `Adapter` (a favoured edge) | attached, and **expressing nothing** until an adapter is grown | this body's own seeding |
+| `Refused` (a disfavoured edge) | `Rejection::Incompatible { from, into }` | still feasible |
+
+That answers the ProcessDef plan's open question — *is a disfavoured edge a
+hard gate or an expensive recoverable graft* — only for **carrying**: it is a
+hard gate, and regrowth is what remains. Whether regrowth should itself be
+gated or priced across a disfavoured edge is still Mark's.
+
+**Visibly incompatible is a mechanical state, not a label.** An adapted branch
+is on the body, weighs what it weighed, and pays rent for that weight, and
+every cell of it is free: `explain` reports `free == capacity` with no sites,
+`expresses_on` is false, and PD2's gland does not come across, so the same
+branch that makes a body sting on a native carry makes nothing on an adapted
+one. Growing the adapter afterwards is an ordinary `Intent::Rearrange` on
+ordinary free tissue.
+
+**Affinity is a table, not an enum.** `mesocosm-core::graft` holds `Domain`,
+`Verdict`, `Crossing` and `Affinity`; a world holds one `Affinity` and each
+lineage carries a `Domain` drawn from its own salted stream and inherited by a
+fork. The default is the ruling's three-domain favoured cycle. The domains are
+**numbers**, deliberately: the ruling's animal-like/fungal-like/plant-like is
+English for a default world, and naming them is a naming round rather than an
+implementation decision. `Affinity::digest` is over the rule-bearing bytes, so
+two worlds that agree about a domain number and disagree about its edges cannot
+agree about a graft.
+
+**Provenance is per part.** Every arriving part's `Origin::Incorporated`
+names *its own* donor id — not the branch root's and not the donor's root,
+which is the correction PE2 made one part at a time and this one makes for a
+whole subtree. `Origin` itself is unchanged, so the body-only bytes mesh, Lens
+and Isometry consume did not move; the richer source address the wing contract
+V1 wants (subject, body revision, acquisition event) is still V1's, and the
+transaction-level half of it is on the world's `Graft` record.
+
+**Two things the implementation surfaced that the design pass did not
+predict.**
+
+1. **The plan has to be asked about the branch, not about its root.** The first
+   cut resolved a site for the graft root's own half-extent, which is the wrong
+   question: a branch keeps its internal joints, so a site with room for the
+   part at the top of it is not a site with room for the thing. Every graft in
+   the recorded demo was refused `NoRoom`. `Branch::bounds` now reports the box
+   the whole branch occupies in its own frame, the plan sites *that*, and the
+   root is placed by the offset between the two. `Yaw::rotate` and
+   `Yaw::compose` became public for it, because working the box out before
+   anything is attached is the same arithmetic `world_pivot` does and must not
+   be a second copy of it.
+2. **A world outlives a body, and the record has to know that.** The world
+   keeps one `Graft` — the `last_observation` arrangement, and for the same
+   reason — but the branch belongs to the creature that took it, and the demo
+   succeeds into a descendant. A panel reading the record against whoever is
+   played *now* would name parts of somebody else's anatomy. The record carries
+   its `recipient`, and `World::carried_branch` is the reading that respects it.
+
+**The price is PD2's, applied per part.** `Instruction::cost_cells` is one
+count across every part a proposal names, and a cell is worth what its own
+part's tissue is worth, so a multi-part development cannot be priced at one
+part's rate without inventing one. The graft asks the same question the
+validator asks — which cells end up expressing something other than what they
+express now — one part at a time. No new number, and the ordering falls out
+rather than being chosen: a regrowth costs nothing, a native carry costs the
+difference, and an adapted carry costs every occupied cell, so the awkward
+graft is the expensive one. Mark's acquisition-cost formula, which PE2 recorded
+as still open, is untouched by this.
+
+**Receipts.** Eight tests in `tests/embodied/graft.rs`, one per clause: the
+source loses the branch and the recipient gains every part of it; every
+transferred part names the part it came off and keeps its joint; a native carry
+lands a functioning branch; a cross-domain carry lands a visibly incompatible
+one and it can be repaired; a disfavoured carry is refused and regrowth is the
+route that remains; severing the graft takes the whole imported branch and
+still explains it; a transfer survives a snapshot and replays to the same hash;
+and the whole of a body is not a branch. Seven more in `graft.rs` for the
+table, and one in `species.rs` for a fork inheriting what its parent is made
+of. `tests/matter.rs` conserves through both routes **and** through a refused
+one; `tests/flows/transfers.rs` reconciles the transfer as one
+`Process::Graft` record naming both subjects, beside PE0's whole-tick
+reconciliation. Two in `mesocosm-views` for the panel's two rows in the exact
+words a player reads, and for the two refusals. Splits at the ceiling:
+`tests/flows/transfers.rs` out of `flows.rs`, and
+`mesocosm-genet/src/played/tests.rs` out of `played.rs`.
+
+**The recorded demo gains one.** At tick 340, the step after the endurance
+window closes, the demo takes a two-part branch off a carcass of line 2 — a
+`Carry` over a favoured cross-domain edge, so it lands **needing an adapter**
+and doing nothing, which is the more interesting of the two landings to have in
+the loop. It was tried at step 40 first and the recording came out with no heir
+at the death checkpoint: three extra parts early enough changes what a critter
+eats for three thousand ticks. The trace still comes through the PE2 discovery
+at 219, continues at three births, and succeeds into a descendant at 3000.
+Hash `652c5bcfdc6013c1`.
+
+**The instrument did not move, and it could not have.** It drives
+`World::apply` with nothing but `Intent::Idle`, and a graft is a played verb,
+so no run of it can reach one. Nor did founding move underneath it: a lineage's
+tissue domain is drawn from its own `GRAFT_SALT` stream, exactly as its recipe
+is, so no ecology draw shifted. Re-run anyway against the drawn baseline, and
+all ten seeds came back **identical** to what DC4 recorded — verdict, start,
+peak, peak tick, end, decided tick, cumulative births and deaths, end kingdom
+counts and end biomass, seed for seed and to the milligram. **0 breathes /
+10 thins / 0 boil / 0 collapse** stands unchanged. Stopped after the baseline
+batch, for PE2's reason: the isolating mechanism is structural rather than a
+per-seed coincidence, and finishing the other five batches would have
+overwritten `dc4_roster.json` with new timing on an unmoved result. That file
+is byte-identical to what DC4 recorded.
+
+**Capture:** `Code/testing/mesocosm/p3_graft.png`, written by
+`mesocosm-genet/examples/p3_receipt.rs`. Two real pipelines on one sheet — the
+anatomy through `mesocosm-render`, the panel through the cambium chrome —
+because a mid-run host frame buries a digging critter in its own burrow and
+shows the transfer to nobody. The body wears a pink frond and a cream limb the
+recipient's own palette does not use; underneath, *branch: 2 parts from part 2
+of line 5* and *terms: carried on part 2 — needs an adapter, doing nothing
+yet*.
+
+**Residues, and what PD3/PD4 and PE3 inherit.**
+
+- **The affinity table has no door yet.** It is native data with a digest, the
+  way `discovery::conditions()` is, and PD3's pack admission is where a world
+  gets to hold a different one. The shape is already right for it — a domain
+  count and a list of favoured directed edges — and `Affinity::digest` is what
+  stops a packed table's meaning drifting under its own label. Nothing here
+  reruns a generator from a name.
+- **The domains are unnamed on purpose**, so a panel says what the *verdict*
+  was and never what the tissue is called. Naming them is a naming round and
+  Mark's; until then a receipt that wanted to say "fungal-like" cannot.
+- **The adapter is free tissue, not an organ.** The ProcessDef ruling describes
+  an adapter that occupies cells near the graft boundary, consumes upkeep, or
+  reduces throughput, and that a learned compatibility process can shrink. What
+  landed is the first of those and only the first: the branch arrives with its
+  tissue free, and what the player grows on it is an ordinary process, not an
+  adapter with its own identity. A real adapter definition is a `ProcessDef`,
+  which is PD3's door.
+- **Nothing carries channel links across, because there are none.** The wing
+  contract's clause about internal functional links crossing with a branch and
+  cut-boundary links being re-established is inert until PD6 builds the channel
+  graph. The structural half is done and the functional half has nothing to do.
+- **`Rearranged` still does not know it came from a discovery**, and now
+  neither does it know it came from a graft: a graft's development is an
+  ordinary `Instruction` and the only thing tying it to the transfer is the
+  revision on the world's `Graft` record. PE2 flagged the first half of this;
+  PE3's review is where a join would earn its keep.
+- **A graft is not a feat.** `score.rs` reads meals and ignores
+  `Event::Grafted`, which is right for now — wearing somebody is not eating
+  them — but PE3's lineage review is the first place a reading might want to
+  say a line is building itself out of its neighbours.
+- **NPC lineages never graft.** The verb is the played body's, exactly as the
+  ecology's own behaviour never proposes a development. That is PE2's open NPC
+  acquisition ruling, unchanged and now one verb wider.
+
+**What live transfer would still need**, since this proof deliberately harvests
+from a corpse. Three things, and only the first is small. A donor-side
+consequence model, because taking a branch off something alive is an injury and
+the ecology has no notion of one: today `sever` is the whole vocabulary and
+nothing decides whether the donor dies, flees, or fights. A refusal or a
+contest, because a living donor is an agent and helping yourself to its arm
+cannot be an unopposed reach check. And **the milligrams of the cut itself** —
+phenotype D3a's gate — because the boundary between two parts is where a live
+cut lands, and whole-part loss cannot express "half of this segment came away"
+without either creating or destroying matter. PE2 refused to eat a severed part
+for exactly that reason and the refusal still stands: a severed branch's mass
+has already left the account. None of that is P3's, and none of it is needed
+for what P3 claims.
 
 ### P4. Adaptation bridge
 
@@ -1086,6 +1282,18 @@ rather than part of it.
 
 ## Findings
 
+- **2026-09-01:** a graft's placement is decided by the branch, not by the part
+  at the top of it. Siting the graft root alone refused every graft in the
+  recorded demo with `NoRoom`, because a branch keeps its own joints and a site
+  with room for one part is not a site with room for a subtree. This is the
+  same corner-versus-pivot family of mistake the body pipeline plan records:
+  measuring the wrong extent of the right thing.
+- **2026-09-01:** the world's record of a transfer outlives the body that took
+  it. `last_graft` is world state and survives succession; the branch does not,
+  because it was on the creature that died. A reading that spoke about "the
+  branch" without checking whose it was would name parts of a descendant's
+  anatomy. `World::carried_branch` is the scoped reading, and the record
+  carries its `recipient` so the scoping is a fact rather than a convention.
 - **2026-09-01:** the existing body geometry path already has the useful
   granularity the downstream proposal was seeking: immutable micro-voxel
   volumes per distinct part, a content address in the body, greedy mesh reuse,
@@ -1197,6 +1405,19 @@ rather than part of it.
   part origins. Neither carries the current anatomy tree.
 
 ## Progress
+
+- **2026-09-01, P3 landed: a branch changes bodies.** `Intent::Graft` harvests
+  a living subtree off a carcass, remaps its ids, preserves its joints and its
+  per-part source addresses, and lowers its allocation through the one
+  validator. The crossing is the wing contract's carry-or-regrow; the world's
+  affinity table returns the ProcessDef plan's three verdicts and they decide
+  which crossings are feasible. See the P3 gate above for the landed shape, the
+  two findings, the price derivation and the receipts. `crates/mesocosm-core`
+  lib **354** green (+8: the affinity table's own claims, and a fork
+  inheriting what its parent is made of), `tests/embodied`
+  **49** (+8), the standing gates `matter/flows/succession/embodied`
+  **6 + 11 + 7 + 49**, `mesocosm-views` **22** (+2), `mesocosm-genet` lib
+  **18** (+1), workspace green, clippy and fmt clean.
 
 - **2026-09-01:** recorded the admission gate for sub-part voxel mutation,
   immutable-volume versus per-body-patch alternatives, revision-safe async

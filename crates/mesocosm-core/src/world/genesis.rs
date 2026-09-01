@@ -18,7 +18,7 @@ use crate::organism::{Kingdom, Organism, OrganismId, Signal, Stage};
 use crate::rng::Rng;
 use crate::species::Lineages;
 
-use super::{DEVELOPMENT_SALT, ENCLOSURE, PLACE_SALT, PLACE_SIDE, RECIPE_SALT, World};
+use super::{DEVELOPMENT_SALT, ENCLOSURE, GRAFT_SALT, PLACE_SALT, PLACE_SIDE, RECIPE_SALT, World};
 
 /// Matter in one voxel column when the enclosure is founded.
 ///
@@ -293,6 +293,9 @@ impl World {
             });
         }
 
+        // The world's graft affinity, before any lineage is assigned a domain:
+        // the table is what gives a domain number meaning, so it exists first.
+        let affinity = crate::graft::Affinity::native();
         // Everything the world began with is a founding lineage: no parent,
         // no name, because nobody was there to give it one.
         let mut lineages = Lineages::new();
@@ -336,6 +339,10 @@ impl World {
             };
             lineages.set_recipe(species, recipe);
             lineages.set_symmetry(species, kingdom.symmetry());
+            // What this line's flesh is, as this world numbers domains. Its own
+            // salted stream, so the assignment moves nothing else. (P3)
+            let mut stream = Rng::from_seed(seed ^ GRAFT_SALT ^ u64::from(species.0));
+            lineages.set_domain(species, affinity.draw(&mut stream));
         }
 
         // A founder's selected mass is a lower bound. Genesis has no parent
@@ -434,6 +441,9 @@ impl World {
             discoveries: Vec::new(),
             last_observation: None,
             hunger_run: 0,
+            // The table a default world holds, and no branch taken yet. (P3)
+            affinity,
+            last_graft: None,
             unlocked: std::collections::BTreeSet::from([SpeciesId(1)]),
             // The starting body already counts: the player is holding it, so
             // the frontier begins where they begin rather than at nothing.

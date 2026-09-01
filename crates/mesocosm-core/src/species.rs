@@ -71,6 +71,16 @@ pub struct Species {
     pub parent: Option<SpeciesId>,
     /// The tick it was founded on.
     pub founded: u64,
+    /// Which tissue domain this line's flesh belongs to, as this world numbers
+    /// them. (P3)
+    ///
+    /// **Heritable, and world data rather than a fact about biology.** The
+    /// world's [`Affinity`](crate::graft::Affinity) table is what gives a
+    /// domain meaning, and it decides whether a branch off this line can be
+    /// carried into another one's body. A fork inherits it, because splitting a
+    /// line does not change what it is made of.
+    #[serde(default)]
+    pub domain: crate::graft::Domain,
 }
 
 impl Species {
@@ -122,6 +132,7 @@ impl Lineages {
             name: None,
             parent: None,
             founded: 0,
+            domain: crate::graft::Domain::default(),
         })
     }
 
@@ -139,6 +150,9 @@ impl Lineages {
         // founder does not forget what its line had learned to grow.
         let recipe = self.species[&parent].recipe.clone();
         let symmetry = self.species[&parent].symmetry;
+        // A fork inherits what its parent is made of. Splitting a line is a
+        // commitment, not a change of tissue.
+        let domain = self.species[&parent].domain;
         self.species.insert(
             id,
             Species {
@@ -148,6 +162,7 @@ impl Lineages {
                 name: Some(name),
                 parent: Some(parent),
                 founded: at,
+                domain,
             },
         );
         Some(id)
@@ -172,6 +187,26 @@ impl Lineages {
         if let Some(species) = self.species.get_mut(&id) {
             species.symmetry = symmetry;
         }
+    }
+
+    /// Assigns a lineage's tissue domain, which worldgen does when it seeds
+    /// one. (P3)
+    pub fn set_domain(&mut self, id: SpeciesId, domain: crate::graft::Domain) {
+        if let Some(species) = self.species.get_mut(&id) {
+            species.domain = domain;
+        }
+    }
+
+    /// What a lineage is made of, as this world numbers domains.
+    ///
+    /// A line this world has never heard of answers with the default domain
+    /// rather than with nothing, because every graft needs both ends of the
+    /// edge and an absent donor line is already refused upstream.
+    pub fn domain(&self, id: SpeciesId) -> crate::graft::Domain {
+        self.species
+            .get(&id)
+            .map(|species| species.domain)
+            .unwrap_or_default()
     }
 
     pub fn len(&self) -> usize {
@@ -399,6 +434,26 @@ mod tests {
         assert_eq!(
             crate::snapshot::decode::<Lineages>(&bytes).unwrap(),
             lineages
+        );
+    }
+
+    #[test]
+    fn a_fork_inherits_what_its_parent_is_made_of() {
+        // A tissue domain is heritable for the same reason a recipe is:
+        // splitting a line is a commitment, not a change of flesh. P3's graft
+        // affinity reads it, so a fork that forgot it would become graftable
+        // with things its parent was not.
+        let mut lineages = Lineages::new();
+        let root = SpeciesId(1);
+        lineages.found(root);
+        lineages.set_domain(root, crate::graft::Domain(2));
+
+        let forked = lineages.fork(root, "a".into(), 10).unwrap();
+        assert_eq!(lineages.domain(forked), crate::graft::Domain(2));
+        assert_eq!(
+            lineages.domain(SpeciesId(99)),
+            crate::graft::Domain::default(),
+            "a line this world has never heard of answers with the default"
         );
     }
 }

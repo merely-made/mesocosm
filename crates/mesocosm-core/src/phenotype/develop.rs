@@ -80,6 +80,15 @@ pub struct Instruction {
     /// A countable unit rather than an invented milligram. PD2 prices it when
     /// a played process gives the price a consumer.
     pub cost_cells: u32,
+    /// The same count, split by part, in `parts` order. (P3)
+    ///
+    /// **Because a cell is worth what its own part's tissue is worth.** One
+    /// total is enough to price a single-part development and cannot price a
+    /// multi-part one without inventing a rate; a graft is the first
+    /// development that names several parts at once, and this is the validator
+    /// answering that question rather than a caller running the comparison a
+    /// second time.
+    pub cost_by_part: Vec<(PartId, u32)>,
     /// The phenotype digest after the commit.
     pub digest: u64,
 }
@@ -205,6 +214,7 @@ pub(super) type Rewrite = Vec<(ProcessRef, Vec<CellId>)>;
 pub(super) struct Validated {
     pub(super) rewrites: Vec<(PartId, Rewrite)>,
     pub(super) cost_cells: u32,
+    pub(super) cost_by_part: Vec<(PartId, u32)>,
 }
 
 /// **The one validator.** Direct and automatic arrangement both land here.
@@ -248,6 +258,7 @@ pub(super) fn validate(
 
     let mut rewrites: Vec<(PartId, Rewrite)> = Vec::new();
     let mut cost_cells = 0u32;
+    let mut cost_by_part: Vec<(PartId, u32)> = Vec::new();
     for part in &proposal.parts {
         let mosaic = phenotype
             .mosaic(*part)
@@ -306,6 +317,7 @@ pub(super) fn validate(
         // What changed hands: every cell that ends up expressing something
         // other than what it expressed in the mosaic this proposal was
         // authored against — freed and newly occupied tissue included.
+        let mut changed = 0u32;
         for cell in mosaic.cells() {
             let was = mosaic.site_of(cell).map(|site| site.process);
             let now = desired
@@ -313,14 +325,17 @@ pub(super) fn validate(
                 .find(|(_, cells)| cells.contains(&cell))
                 .map(|(process, _)| *process);
             if was != now {
-                cost_cells += 1;
+                changed += 1;
             }
         }
+        cost_cells += changed;
+        cost_by_part.push((*part, changed));
         rewrites.push((*part, desired));
     }
 
     Ok(Validated {
         rewrites,
         cost_cells,
+        cost_by_part,
     })
 }

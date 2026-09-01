@@ -131,6 +131,14 @@ pub enum Process {
     /// What a body could not hold, and what a bite of venom cost, going back
     /// where it came from. Nothing evaporates. (TD6)
     Spill,
+    /// A branch crossing from one body to another: the exact substance of a
+    /// transferred subtree, out of the source and into the recipient. (P3)
+    ///
+    /// Distinct from [`Self::Feeding`] on purpose. A meal is matter a body
+    /// took apart; a graft is matter that arrived still shaped like what it
+    /// was, and a reading that could not tell them apart could not say whether
+    /// a lineage is eating its neighbours or wearing them.
+    Graft,
     /// Rebuilding an organ: the tissue a development moved, paid out of the
     /// reserve and into the ground under the body. (PD2)
     ///

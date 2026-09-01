@@ -152,6 +152,23 @@ pub enum Event {
         part: PartId,
         cost_mg: u64,
     },
+    /// A branch left one body and arrived on another. (P3)
+    ///
+    /// **One event with two subjects**, which is what the wing contract asks
+    /// for: the source's loss and the destination's acquisition are one
+    /// causally linked fact, not two unrelated ones that happen to agree about
+    /// a tick. `Fed` is the only other event shaped this way, for the same
+    /// reason.
+    Grafted {
+        organism: OrganismId,
+        from: OrganismId,
+        /// The branch root's new id on the recipient.
+        part: PartId,
+        /// The donor-local id it came off.
+        from_part: PartId,
+        /// How many parts came with it.
+        parts: u32,
+    },
 }
 
 impl Event {
@@ -167,6 +184,9 @@ impl Event {
                 .map(|p| vec![p, organism])
                 .unwrap_or_else(|| vec![organism]),
             Event::Fed { eater, from, .. } => vec![eater, from],
+            // Both ends, for `Fed`'s reason: a transfer that named only one of
+            // them would fork the other one's history.
+            Event::Grafted { organism, from, .. } => vec![organism, from],
             Event::Matured { organism }
             | Event::Grew { organism, .. }
             | Event::Burned { organism, .. }

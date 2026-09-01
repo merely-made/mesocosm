@@ -47,6 +47,7 @@ pub mod cohort;
 pub mod development;
 pub mod discovery;
 pub mod flow;
+pub mod graft;
 pub mod growth;
 pub mod history;
 pub mod organism;
@@ -86,6 +87,7 @@ pub use flow::{
     Account, Carrier, Envelope, FlowEvent, Ledger, RecordedEvent, RecordedFlow, Subject, Trend,
     WARN_AFTER_TICKS,
 };
+pub use graft::{Affinity, Crossing, Domain, Verdict};
 pub use growth::{Growth, resolve};
 pub use history::{Event, History, MealKind};
 pub use organism::{
@@ -93,8 +95,9 @@ pub use organism::{
     Kingdom, Organism, OrganismId, Signal, Stage, Tally,
 };
 pub use phenotype::{
-    Aim, AllocationProposal, Arrangement, BodyPhenotype, CellId, Development, Explanation,
-    Expressed, Instruction, Mosaic, ProposedSite, Refusal, Site, SiteId, SiteReading, arrange,
+    Aim, AllocationProposal, Arrangement, BodyPhenotype, Branch, CellId, Cutting, Development,
+    Explanation, Expressed, Graftage, Instruction, Lowering, Mosaic, ProposedSite, Refusal, Site,
+    SiteId, SiteReading, arrange,
 };
 pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
@@ -109,6 +112,6 @@ pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
 pub use species::{Lineages, Species};
 pub use wire::{WireError, frame, unframe};
 pub use world::{
-    Allocate, Founding, Gland, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement,
+    Allocate, Founding, Gland, Graft, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement,
     Rejection, Route, STARVED_UPKEEP_TICKS, World,
 };

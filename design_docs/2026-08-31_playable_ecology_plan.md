@@ -450,6 +450,11 @@ itself.
 
 ### PE3: the lineage checkpoint turns discovery into a descendant
 
+**P3 landed 2026-09-01**, so this gate now waits on PD3 and PD4 alone; PE2's
+residue that live subtree transfer was P3's is discharged for the corpse case,
+and what a *live* one would still need is written down in the phenotype plan's
+P3 entry.
+
 Follow the owning phenotype and ProcessDef order through P3 branch transfer,
 PD3 static pack admission, PD4 authoring parity, P4's adaptation bridge, and
 PD5 filial expression. Give `Runtime::end_epoch` a production caller and open
@@ -619,7 +624,7 @@ detailed requirements and research live in the plan that owns each mechanism.
 | --- | --- | --- | --- |
 | Individual/cohort execution | [Scale](2026-08-29_scale_plan.md) and [place graph](2026-08-05_place_graph_engine_plan.md) | PE6 | Exact zero-tick aggregate/materialize round trip; persistent pointable subjects; named reductions; per-evaluator all-individual comparison envelope; unsupported-process fallback. |
 | Generated material vocabulary | [Elements and traits](2026-08-29_elements_and_traits_memo.md#storage-shape-shared-by-all-three) | PE4 | Saved world-local definitions and compact ids; exact mass reconciliation; measured local-palette versus wider-cell decision only when the one-byte baseline binds. |
-| Sub-part body mutation | [Phenotype D3a](2026-07-31_phenotype_plan.md#d3a-when-do-voxel-cells-become-body-state) | First played case in PE2 or PE3 that cannot use whole-part loss | New immutable volume or explicit body patch; atomic body revision; bounded revision-safe mesh/collider work; truthful fallback. |
+| Sub-part body mutation | [Phenotype D3a](2026-07-31_phenotype_plan.md#d3a-when-do-voxel-cells-become-body-state) | First played case in PE2 or PE3 that cannot use whole-part loss | New immutable volume or explicit body patch; atomic body revision; bounded revision-safe mesh/collider work; truthful fallback. **P3 (2026-09-01) named the first candidate case and did not open it:** a live cut lands on the boundary between two parts, and whole-part loss cannot express it without creating or destroying matter. |
 | Generated trait execution | [ProcessDef](2026-08-01_processdef_plan.md#one-displayed-trait-three-compiled-programs) and [acquisition](2026-08-29_traits_and_perception_brief.md) | PE2 then PE3 | Event-driven condition, discrete development program, and native repeated process remain separate; each is typed and bounded; the exact realized candidate and digest persist. |
 | Environmental fields | [Resident views](2026-08-14_resident_views_composition_plan.md#field-admission-boundary-2026-09-01) and [elements](2026-08-29_elements_and_traits_memo.md#field-dimensionality-is-part-of-admission) | First PE4 world rule that needs a new field | Named consumer, honest domain, cadence, sources/sinks, boundaries, units/range, conservation, scale rule, cost, and control. |
 

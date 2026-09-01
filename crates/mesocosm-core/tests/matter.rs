@@ -33,7 +33,7 @@
 //! [`conserved`] — the exact check the long runs use — is also handed a world
 //! with a conjured milligram and a leaked one, and must report both.
 
-use mesocosm_core::{Intent, Placement, World};
+use mesocosm_core::{Crossing, Intent, OrganismId, Placement, World};
 
 /// The ledger, or what is wrong with it. `Ok` is silence; `Err` is the message
 /// a failing conservation assertion prints.
@@ -200,4 +200,109 @@ fn the_check_catches_a_leak() {
         complaint.contains("leaked"),
         "the check must name the direction: {complaint}"
     );
+}
+
+#[test]
+fn matter_is_conserved_through_a_branch_transfer() {
+    // P3. A branch leaving one body for another is the seam most able to make
+    // matter vanish: severing takes a subtree out of the conservation account,
+    // and the whole claim is that it arrives somewhere in the same transaction.
+    // Both routes, and a refused one, because a refusal that leaked would be
+    // the worse defect.
+    for crossing in [Crossing::Regrow, Crossing::Carry] {
+        let mut world = World::new(11, 40);
+        world.apply(Intent::Idle);
+        let opening = world.total_matter_mg();
+        let donor = OrganismId(9_700);
+        let line = mesocosm_core::SpeciesId(6);
+        let here = world.position().expect("a played critter");
+        let mut corpse = mesocosm_core::Organism {
+            stage: mesocosm_core::Stage::Carrion,
+            ..mesocosm_core::Organism::founding(
+                donor,
+                line,
+                mesocosm_core::Kingdom::Producer,
+                mesocosm_core::VolumeRef::from_tag(1),
+                [2, 2, 2],
+                [here[0] + 1, here[1], here[2]],
+                900,
+            )
+        };
+        let root = corpse.body().root;
+        let frond = corpse
+            .phenotype
+            .attach(
+                mesocosm_core::VolumeRef::from_tag(7),
+                400,
+                [6, 4, 1],
+                mesocosm_core::Attachment {
+                    parent: root,
+                    offset: [0, 7, 0],
+                    yaw: mesocosm_core::Yaw::Zero,
+                },
+                mesocosm_core::Provenance::founding(),
+            )
+            .expect("a frond attaches");
+        corpse
+            .phenotype
+            .attach(
+                mesocosm_core::VolumeRef::from_tag(9),
+                150,
+                [7, 1, 1],
+                mesocosm_core::Attachment {
+                    parent: frond,
+                    offset: [13, 0, 0],
+                    yaw: mesocosm_core::Yaw::Zero,
+                },
+                mesocosm_core::Provenance::founding(),
+            )
+            .expect("and a limb hangs off it");
+        world.organisms.push(corpse);
+        // A corpse carries matter, so the enclosure's total moved when it was
+        // conjured onto the roster; the claim under test is about the transfer.
+        let opening = opening.max(world.total_matter_mg());
+
+        // The disfavoured edge first: a refused carry must leave the ledger
+        // exactly where it found it.
+        let mine = world.controlled().expect("embodied").species;
+        {
+            let lineages = world.lineages_mut();
+            lineages.found(line);
+            lineages.set_domain(line, mesocosm_core::Domain(2));
+            lineages.set_domain(mine, mesocosm_core::Domain(1));
+        }
+        world.apply(Intent::Graft {
+            organism: donor,
+            part: frond,
+            crossing: Crossing::Carry,
+        });
+        conserved(&world, opening, "after a refused carry").expect("conserved");
+
+        // Then the landing one.
+        world
+            .lineages_mut()
+            .set_domain(line, mesocosm_core::Domain(1));
+        let outcome = world.apply(Intent::Graft {
+            organism: donor,
+            part: frond,
+            crossing,
+        });
+        assert!(
+            matches!(outcome, mesocosm_core::Outcome::Grafted { .. }),
+            "{crossing:?} was refused: {outcome:?}"
+        );
+        conserved(&world, opening, &format!("after a {crossing:?} transfer")).expect("conserved");
+
+        // And the ticks after it, because a transfer that balanced once and
+        // left a body holding tissue nobody accounts for would show up here.
+        for tick in 1..=40 {
+            world.apply(Intent::Idle);
+            conserved(
+                &world,
+                opening,
+                &format!("on tick {tick} after a {crossing:?}"),
+            )
+            .expect("conserved");
+        }
+    }
 }

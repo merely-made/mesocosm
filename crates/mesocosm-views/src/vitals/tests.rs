@@ -263,3 +263,83 @@ fn a_landed_meal_says_which_way_the_body_took_it() {
         Some("took the organ")
     );
 }
+
+/// P3's two rows: whose branch it was, and what it is doing here.
+#[test]
+fn a_transferred_branch_says_where_it_came_from_and_what_it_is_doing() {
+    let carried = Graft {
+        tick: 340,
+        recipient: mesocosm_core::OrganismId(0),
+        donor: mesocosm_core::OrganismId(759),
+        donor_line: mesocosm_core::SpeciesId(2),
+        donor_part: mesocosm_core::PartId(31),
+        root: mesocosm_core::PartId(41),
+        parts: vec![mesocosm_core::PartId(41), mesocosm_core::PartId(42)],
+        mass_mg: 20,
+        crossing: Crossing::Carry,
+        verdict: mesocosm_core::Verdict::Adapter,
+        cost_mg: 72,
+        revision: 1,
+    };
+
+    // Provenance first, because it is the fact a graft has that growing does
+    // not: the parts, the part they came off, and the line.
+    let words = graft_words(&carried, false);
+    assert_eq!(words.taken, "2 parts from part 31 of line 2");
+    assert_eq!(
+        words.terms, "carried on part 41 — needs an adapter, doing nothing yet",
+        "the crossing, the verdict, and the consequence in one line"
+    );
+
+    // Whether it works is read off the body, not inferred from the verdict:
+    // an adapted branch that has since been given an adapter stops calling
+    // itself idle without the table changing its mind.
+    let repaired = graft_words(&carried, true);
+    assert_eq!(
+        repaired.terms,
+        "carried on part 41 — needs an adapter, working"
+    );
+
+    let regrown = graft_words(
+        &Graft {
+            crossing: Crossing::Regrow,
+            verdict: mesocosm_core::Verdict::Refused,
+            parts: vec![mesocosm_core::PartId(41)],
+            ..carried
+        },
+        true,
+    );
+    assert_eq!(regrown.taken, "1 part from part 31 of line 2");
+    assert_eq!(regrown.terms, "regrown on part 41 — refused, working");
+}
+
+#[test]
+fn a_landed_branch_says_which_crossing_it_took() {
+    let landed = |crossing| {
+        notice_in(&[Outcome::Grafted {
+            root: mesocosm_core::PartId(41),
+            parts: 2,
+            from: mesocosm_core::OrganismId(759),
+            from_part: mesocosm_core::PartId(31),
+            mass_mg: 20,
+            crossing,
+            verdict: mesocosm_core::Verdict::Native,
+        }])
+    };
+    assert_eq!(landed(Crossing::Carry), Some("carried the branch"));
+    assert_eq!(landed(Crossing::Regrow), Some("regrew the branch"));
+
+    // And the two refusals P3 added, in words that say what would make it
+    // possible rather than naming an error.
+    assert_eq!(
+        refusal_words(&Rejection::WholeBody(mesocosm_core::PartId(0))),
+        "that is the whole of it"
+    );
+    assert_eq!(
+        refusal_words(&Rejection::Incompatible {
+            from: mesocosm_core::Domain(2),
+            into: mesocosm_core::Domain(1),
+        }),
+        "that tissue will not go in you"
+    );
+}

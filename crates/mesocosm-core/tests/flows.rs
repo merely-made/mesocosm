@@ -27,6 +27,12 @@ use std::collections::BTreeMap;
 use mesocosm_core::flow::{Account, Process, RecordedFlow};
 use mesocosm_core::{Intent, OrganismId, Placement, World, state_hash};
 
+// An integration test's crate root resolves `mod` against `tests/`, and a bare
+// `tests/transfers.rs` would become a second test binary. The explicit path
+// keeps the split file beside the suite it belongs to.
+#[path = "flows/transfers.rs"]
+mod transfers;
+
 /// Every compartment TD6's conserved sum is made of.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Books {
@@ -183,73 +189,6 @@ fn the_stream_accounts_for_the_played_verbs_too() {
     for (step, intent) in trace.into_iter().enumerate() {
         stepped(&mut world, intent, &format!("after played step {step}"));
     }
-}
-
-#[test]
-fn a_consumed_part_moves_exactly_its_own_milligrams_and_says_so() {
-    // PE2's part-level meal, through the same instrument. One organ off a
-    // carcass is one transfer of one number, and "settles that part's exact
-    // matter" is the reconciliation passing on that tick rather than a claim
-    // in a comment.
-    let mut world = World::new(11, 40);
-    world.apply(Intent::Idle);
-    let here = world.position().expect("a played critter");
-    let id = OrganismId(9_600);
-    let mut corpse = mesocosm_core::Organism {
-        stage: mesocosm_core::Stage::Carrion,
-        ..mesocosm_core::Organism::founding(
-            id,
-            mesocosm_core::SpeciesId(6),
-            mesocosm_core::Kingdom::Producer,
-            mesocosm_core::VolumeRef::from_tag(1),
-            [2, 2, 2],
-            [here[0] + 1, here[1], here[2]],
-            900,
-        )
-    };
-    let root = corpse.body().root;
-    let plate = corpse
-        .phenotype
-        .attach(
-            mesocosm_core::VolumeRef::from_tag(7),
-            400,
-            [6, 4, 1],
-            mesocosm_core::Attachment {
-                parent: root,
-                offset: [0, 7, 0],
-                yaw: mesocosm_core::Yaw::Zero,
-            },
-            mesocosm_core::Provenance::founding(),
-        )
-        .expect("a plate attaches");
-    world.organisms.push(corpse);
-
-    let flows = stepped(
-        &mut world,
-        Intent::Consume {
-            organism: id,
-            part: plate,
-        },
-        "after taking one organ off a carcass",
-    );
-    // The carcass's own side of the ledger. The enclosure is eating around it
-    // on the same tick, which is why this asks about the donor rather than
-    // about every meal that happened.
-    let taken: Vec<_> = flows
-        .iter()
-        .map(|recorded| recorded.record)
-        .filter(|flow| {
-            flow.process == Process::Feeding && flow.from.map(|from| from.organism) == Some(id)
-        })
-        .collect();
-    assert_eq!(taken.len(), 1, "one organ, one transfer: {taken:?}");
-    assert_eq!(taken[0].amount_mg, 400);
-    assert_eq!(taken[0].source, Account::Substance);
-    assert_eq!(
-        taken[0].destination,
-        Account::Substance,
-        "an organ becomes body, never budget"
-    );
 }
 
 #[test]

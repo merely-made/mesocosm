@@ -70,6 +70,33 @@ const HANDS_OFF: std::ops::Range<u64> = 300..340;
 /// recording depends on it.
 const ENDURING: std::ops::Range<u64> = 120..340;
 
+/// Steps the demo will try to take a branch off a carcass in. (P3)
+///
+/// **After the hunger window closes**, so it disturbs nothing the recording
+/// already receipts: the critter has grown, gone hungry on purpose, come
+/// through the discovery at tick 219, and put its hands back on. It is a window
+/// rather than one step because whether a carcass with a branch is within reach
+/// is the enclosure's business and not the script's — the attempt repeats until
+/// one lands, and then never again.
+///
+/// It was tried at 40..120 first and the recording came out with no heir at the
+/// death checkpoint: three extra parts early enough changes what the critter
+/// eats for three thousand ticks. A fixture picks the window that shows the
+/// thing, the same way `DEMO_SEED` picks the world.
+const GRAFTING: std::ops::Range<u64> = 340..420;
+
+/// What the script is keeping count of.
+///
+/// One value rather than a widening argument list: the demo's decisions depend
+/// on what it has already done, and two of them do now.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Script {
+    /// Meals taken, so the critter grows before it goes hungry on purpose.
+    pub meals: u32,
+    /// Branches taken. One is the receipt; a second would be a habit.
+    pub grafts: u32,
+}
+
 /// A recorded run, complete enough to reproduce and to judge.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PlayedTrace {
@@ -187,7 +214,7 @@ pub fn write_png(path: &Path, width: u32, height: u32, pixels: &[u8]) -> Result<
 pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32, steps: u64) -> PlayedTrace {
     let volumes = crate::fixture::volumes();
     let mut runtime = Runtime::new(seed, organisms, ticks_per_second);
-    let mut meals = 0u32;
+    let mut script = Script::default();
     for step in 0..steps {
         // A checkpoint holds the world, so a recording that ignored one would
         // simply stop advancing. Answering it is the demo's whole point: the
@@ -195,11 +222,15 @@ pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32, steps: u64)
         // moves and the meals and replays with them.
         let intent = match runtime.checkpoint() {
             Some(checkpoint) => answer(checkpoint),
-            None => demo_intent(runtime.world(), &volumes, step, &mut meals),
+            None => demo_intent(runtime.world(), &volumes, step, &mut script),
         };
+        let grafting = matches!(intent, Intent::Graft { .. });
         runtime.queue(intent);
         // One intent per step, off the clock: a recording has no frame rate.
         runtime.step(1);
+        if grafting && runtime.world().last_graft().is_some() {
+            script.grafts += 1;
+        }
     }
     PlayedTrace {
         seed,
@@ -230,7 +261,7 @@ fn answer(checkpoint: &Checkpoint) -> Intent {
     }
 }
 
-fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, meals: &mut u32) -> Intent {
+fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, script: &mut Script) -> Intent {
     // Open with a lap in every direction, so each movement key is in the
     // trace whether or not the hunt below happens to use it.
     if step < 16 {
@@ -261,6 +292,21 @@ fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, meals: &mut u32) -
             };
         }
     }
+    // **Taking a branch** (P3). One, and only where the enclosure has actually
+    // left a carcass carrying one within reach — which it does, because things
+    // die here and what they leave behind still has a shape. The crossing is
+    // chosen the way a player would choose it: carry the tissue where this
+    // world's affinity permits, and regrow it here where it does not.
+    if GRAFTING.contains(&step)
+        && script.grafts == 0
+        && let Some((donor, part, _)) = crate::fixture::branch_donor(world)
+    {
+        return Intent::Graft {
+            organism: donor,
+            part,
+            crossing: crate::fixture::crossing_for(world, donor),
+        };
+    }
     // Digging at your own feet: reach is anatomy, and one voxel down is
     // inside the shortest reach a starting critter has.
     if step % 40 == 19
@@ -283,10 +329,10 @@ fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, meals: &mut u32) -
     // line; a script that stopped eating at its quota simply starved to death
     // partway through the run, and a receipt of a corpse shows nothing.
     if !ENDURING.contains(&step)
-        && (*meals < 10 || world.is_starved())
+        && (script.meals < 10 || world.is_starved())
         && let Some(target) = crate::fixture::reachable(world)
     {
-        *meals += 1;
+        script.meals += 1;
         return crate::fixture::metabolize(world, target, volumes, Placement::Planned);
     }
     if let Some(delta) = crate::fixture::toward_prey(world) {
@@ -303,216 +349,4 @@ fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, meals: &mut u32) -
 }
 
 #[cfg(test)]
-mod tests {
-    use std::sync::LazyLock;
-
-    use super::*;
-    use mesocosm_core::{INSTINCT_IDLE_TICKS, OrganismId, SpeciesId};
-    use mesocosm_runtime::{Birth, Loss};
-
-    /// Steps and founders the assertions below record with.
-    ///
-    /// **Not the shipped demo's.** Recording 3,100 steps of the shipping cohort
-    /// takes minutes unoptimized, and a workspace test run should not. These
-    /// tests are about the *script* — that it walks, eats, digs, deposits, puts
-    /// its hands down, and replays — and a few hundred ticks says all of that.
-    /// The claim the shipped length exists for, that the run reaches a birth
-    /// and a death, is receipted by the recording itself and by
-    /// `mesocosm-runtime`'s checkpoint tests.
-    const TEST_STEPS: u64 = 400;
-    const TEST_FOUNDERS: u32 = 60;
-
-    /// One recording, shared. Each of these tests used to pay for its own.
-    static TRACE: LazyLock<PlayedTrace> =
-        LazyLock::new(|| record_demo(DEMO_SEED, TEST_FOUNDERS, 10, TEST_STEPS));
-
-    #[test]
-    fn the_demo_trace_exercises_every_verb_the_slice_claims() {
-        let trace = &*TRACE;
-        assert_eq!(trace.intents.len(), TEST_STEPS as usize);
-
-        let moves: std::collections::BTreeSet<_> = trace
-            .intents
-            .iter()
-            .filter_map(|intent| match intent {
-                Intent::Move { delta } => Some([delta[0].signum(), delta[2].signum()]),
-                _ => None,
-            })
-            .collect();
-        assert!(
-            moves.len() >= 4,
-            "the trace walks in more than one direction: {moves:?}"
-        );
-        for verb in ["Metabolize", "Deposit", "Carve", "Idle"] {
-            assert!(
-                trace
-                    .intents
-                    .iter()
-                    .any(|intent| format!("{intent:?}").starts_with(verb)),
-                "the trace contains a {verb}"
-            );
-        }
-    }
-
-    /// The claim `--replay` makes: the recorded hash is reachable from the
-    /// seed and the trace alone, with no host in the loop.
-    #[test]
-    fn the_demo_trace_replays_to_its_recorded_hash() {
-        let trace = &*TRACE;
-        let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
-        assert_eq!(mesocosm_core::state_hash(&world), trace.state_hash);
-    }
-
-    /// TD4's other half, receipted: the recorded run must actually let go, or
-    /// the fixture proves nothing about instincts under idleness.
-    #[test]
-    fn the_demo_trace_puts_its_hands_down_long_enough_to_lose_the_body() {
-        let trace = &*TRACE;
-        let longest = trace
-            .intents
-            .iter()
-            .fold((0u32, 0u32), |(run, best), intent| {
-                let run = if matches!(intent, Intent::Idle) {
-                    run + 1
-                } else {
-                    0
-                };
-                (run, best.max(run))
-            })
-            .1;
-        assert!(
-            longest >= INSTINCT_IDLE_TICKS,
-            "the demo idles {longest} in a row, short of the {INSTINCT_IDLE_TICKS} \
-             it takes for the ecology to take the body back"
-        );
-
-        let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
-        assert!(
-            world.controlled_id().is_none() || world.idle_run() < INSTINCT_IDLE_TICKS,
-            "and the run ends back under the hand, so the capture is of a played world"
-        );
-    }
-
-    /// The script's whole answer to a checkpoint, in one place: continue at a
-    /// birth, succeed at a death, decline only when there is nothing left to
-    /// continue through. Pure, so it is asserted directly rather than fished
-    /// out of a long recording.
-    #[test]
-    fn the_demo_continues_at_a_birth_and_succeeds_at_a_death() {
-        let heirless = Checkpoint {
-            tick: 10,
-            occasion: Occasion::Loss(Loss {
-                organism: OrganismId(4),
-                lineage: SpeciesId(1),
-            }),
-            heirs: Vec::new(),
-        };
-        assert_eq!(answer(&heirless), Intent::Resume);
-
-        let carried = Checkpoint {
-            heirs: vec![OrganismId(9), OrganismId(12)],
-            ..heirless.clone()
-        };
-        assert_eq!(
-            answer(&carried),
-            Intent::TakeControl {
-                organism: OrganismId(9)
-            },
-            "the eldest descendant, and only it"
-        );
-
-        let birth = Checkpoint {
-            tick: 20,
-            occasion: Occasion::Birth(Birth {
-                parent: OrganismId(4),
-                offspring: OrganismId(9),
-                lineage: SpeciesId(1),
-                substance_mg: 500,
-                reserve_mg: 500,
-            }),
-            heirs: vec![OrganismId(9)],
-        };
-        assert_eq!(
-            answer(&birth),
-            Intent::Resume,
-            "a birth keeps the body the run has been growing"
-        );
-    }
-
-    /// PE2's two claims, in the recorded loop rather than only in a fixture.
-    ///
-    /// **A non-food discovery**, reached by the script putting the food down
-    /// long enough to come through the starvation horizon; and **a meal that
-    /// refuses an incompatible candidate** — every one of the demo's meals is
-    /// an observation, and the record says the endurance condition could not be
-    /// reached by any of them because it never declared that lane.
-    #[test]
-    fn the_demo_reaches_a_non_food_discovery_and_a_meal_that_unlocks_nothing() {
-        let trace = &*TRACE;
-        let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
-
-        let discoveries = world.discoveries();
-        assert_eq!(
-            discoveries.len(),
-            1,
-            "the recorded run comes through exactly one condition: {discoveries:?}"
-        );
-        let discovery = discoveries[0];
-        assert_eq!(
-            discovery.route,
-            mesocosm_core::Input::Endurance,
-            "and it is not a meal that taught it"
-        );
-        assert!(matches!(
-            discovery.evidence,
-            mesocosm_core::Evidence::Endured { .. }
-        ));
-        assert!(
-            world.last_observation().is_some(),
-            "and the run's last evidence is on the record either way"
-        );
-    }
-
-    /// The other half, asserted where the routing happens rather than only at
-    /// the end of a run: a meal's evidence cannot reach the endurance
-    /// condition, and the observation says so in those words.
-    #[test]
-    fn a_recorded_meal_is_observed_and_unlocks_nothing() {
-        let mut runtime = Runtime::new(DEMO_SEED, TEST_FOUNDERS, 10);
-        let volumes = crate::fixture::volumes();
-        let mut meals = 0u32;
-        let mut seen = None;
-        for step in 0..TEST_STEPS {
-            let intent = match runtime.checkpoint() {
-                Some(checkpoint) => answer(checkpoint),
-                None => demo_intent(runtime.world(), &volumes, step, &mut meals),
-            };
-            let ate = matches!(intent, Intent::Metabolize { .. });
-            runtime.queue(intent);
-            runtime.step(1);
-            if ate && let Some(observation) = runtime.world().last_observation() {
-                seen = Some(observation.clone());
-                break;
-            }
-        }
-        let observation = seen.expect("the script eats early and often");
-        assert_eq!(observation.route, mesocosm_core::Input::Meal);
-        assert!(
-            observation
-                .missed
-                .iter()
-                .any(|(_, miss)| matches!(miss, mesocosm_core::Miss::UndeclaredInput)),
-            "a meal cannot be offered to a condition that never asked about \
-             meals: {observation:?}"
-        );
-    }
-
-    /// A carve that removed nothing would leave the section with no dirty
-    /// bricks to drain, and the whole refresh path untested by the receipt.
-    #[test]
-    fn the_demo_trace_changes_the_ground() {
-        let trace = &*TRACE;
-        let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
-        assert!(world.ground().revision() > 0, "the digging removed voxels");
-    }
-}
+mod tests;

@@ -173,6 +173,16 @@ impl World {
             // does not: an organ named on both sides of the transfer.
             Intent::Consume { organism, part } => self.consume(organism, part),
 
+            // P3's branch transfer. Next door in `world::graft`, which owns the
+            // one thing an organ-sized meal does not have: a subtree, its
+            // internal relations, and a world that has an opinion about whether
+            // this body can carry that line's tissue.
+            Intent::Graft {
+                organism,
+                part,
+                crossing,
+            } => self.graft(organism, part, crossing),
+
             // The developmental verb (PD2). It lives next door in
             // `world::rearrange`, which owns the price, the payment and the
             // record; the validator under it is the phenotype's.

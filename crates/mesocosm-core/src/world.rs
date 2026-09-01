@@ -26,12 +26,14 @@ mod act;
 mod consume;
 mod discover;
 mod genesis;
+mod graft;
 mod intent;
 mod read;
 mod rearrange;
 mod records;
 
 pub use genesis::Founding;
+pub use graft::Graft;
 pub use intent::{Allocate, Ineligible, Intent, Outcome, Placement, Rejection, Route};
 pub use read::Gland;
 
@@ -86,6 +88,12 @@ pub const PLACE_SALT: u64 = 0x504C_4143_4553_0001;
 
 /// Body recipes draw from their own stream too, per lineage.
 pub const RECIPE_SALT: u64 = 0x5245_4349_5045_0001;
+
+/// Tissue domains draw from their own stream too, per lineage.
+///
+/// Its own salt for the reason every other one has: assigning a lineage what it
+/// is made of must not move a single creature in the enclosure.
+pub const GRAFT_SALT: u64 = 0x4752_4146_5453_0001;
 
 /// Individual developmental variation has its own worldgen stream.
 ///
@@ -222,6 +230,24 @@ pub struct World {
     /// claim about a record.
     #[serde(default)]
     last_observation: Option<crate::discovery::Observation>,
+    /// This world's directed graft affinity over tissue domains. (P3)
+    ///
+    /// **World data, because the ruling says so.** A default world holds the
+    /// three-domain cycle; a generated one arrives by holding a different
+    /// table. It is serialized and hashed like every other rule a world
+    /// realized, so two worlds that disagree about an edge cannot agree about a
+    /// graft.
+    #[serde(default)]
+    affinity: crate::graft::Affinity,
+    /// The most recent branch transfer this world's played body took. (P3)
+    ///
+    /// One, not a log — the same arrangement `last_observation` uses, and for
+    /// the same reason: a running list of every branch a line ever took is a
+    /// journal. What each transferred part *is* survives on its own provenance,
+    /// which is durable; this is the transaction, so a receipt can say which
+    /// crossing was taken and what the world's table said about it.
+    #[serde(default)]
+    last_graft: Option<graft::Graft>,
     /// Consecutive ticks a hand has held a body whose budget is under the
     /// starved line.
     ///

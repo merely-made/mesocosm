@@ -16,7 +16,8 @@
 
 use cambium::{AnyView, DetailRow, DetailSection, GenetCtx, GenetElement, detail_panel, el, text};
 use mesocosm_core::{
-    Discovery, Gland, Ineligible, Observation, Outcome, Refusal, Rejection, Trend, World,
+    Crossing, Discovery, Gland, Graft, Ineligible, Observation, Outcome, Refusal, Rejection, Trend,
+    World,
 };
 
 /// A view in the vitals tree. Inert: nothing here takes a click, because
@@ -60,6 +61,9 @@ pub struct Vitals {
     /// What this line has most recently come to: what it is, the route it came
     /// by, and the evidence that carried it. (PE2)
     pub discovery: Option<DiscoveryWords>,
+    /// The branch this body most recently took off something else, and on what
+    /// terms. (P3)
+    pub graft: Option<GraftWords>,
     /// The last evidence a condition was offered and did not take.
     ///
     /// **Evidence that unlocked nothing is still evidence.** A meal that fed
@@ -83,6 +87,52 @@ pub struct DiscoveryWords {
     pub route: String,
     /// What it grants, and on what.
     pub grants: String,
+}
+
+/// The two sentences a transferred branch is owed: where it came from, and
+/// what it is doing here. (P3)
+///
+/// Provenance is the first of them because it is the thing a graft has that
+/// growing does not: this tissue was somebody. The second is the verdict made
+/// legible — a carried branch that arrived native works, a carried branch over
+/// a cross-domain edge is on you and doing nothing, and a regrown one is doing
+/// whatever your own rules make of that shape.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GraftWords {
+    /// Which parts came, off which part of which line.
+    pub taken: String,
+    /// The crossing, the verdict, and what that leaves the branch doing.
+    pub terms: String,
+}
+
+/// A branch transfer in plain words.
+pub fn graft_words(graft: &Graft, expressing: bool) -> GraftWords {
+    let taken = format!(
+        "{} part{} from part {} of line {}",
+        graft.parts.len(),
+        if graft.parts.len() == 1 { "" } else { "s" },
+        graft.donor_part.0,
+        graft.donor_line.0,
+    );
+    // What the branch is *doing* is read off the body rather than inferred from
+    // the verdict, because they are two different facts and a panel that
+    // guessed the second from the first would be describing the table instead
+    // of the creature.
+    let doing = if expressing {
+        "working"
+    } else {
+        "doing nothing yet"
+    };
+    GraftWords {
+        taken,
+        terms: format!(
+            "{} on part {} — {}, {}",
+            graft.crossing.name(),
+            graft.root.0,
+            graft.verdict.name(),
+            doing
+        ),
+    }
 }
 
 /// The three sentences a gland is owed, one per question a player asks of it:
@@ -239,6 +289,19 @@ pub fn vitals_of(
     // a journal, and a journal is not a vitals panel.
     vitals.discovery = world.discoveries().last().map(discovery_words);
     vitals.observation = world.last_observation().and_then(observation_words);
+    // The most recent branch, and whether it is expressing anything today. Read
+    // off the phenotype, so an incompatible branch that has since been given an
+    // adapter stops calling itself idle.
+    vitals.graft = world.carried_branch().map(|graft| {
+        let expressing = world.phenotype().is_some_and(|phenotype| {
+            graft.parts.iter().any(|part| {
+                phenotype
+                    .explain(*part)
+                    .is_some_and(|read| read.living && !read.sites.is_empty())
+            })
+        });
+        graft_words(graft, expressing)
+    });
     vitals
 }
 
@@ -268,6 +331,7 @@ fn reading(
         // Filled by `vitals_of`, which has the world the ground is in.
         gland: None,
         discovery: None,
+        graft: None,
         observation: None,
     }
 }
@@ -322,6 +386,10 @@ pub fn refusal_words(rejection: &Rejection) -> &'static str {
         Rejection::NoSuchPart(_) => "it has no such part",
         Rejection::StillLiving(_) => "that one is still using it",
         Rejection::NothingLeft(_) => "nothing left of that part",
+        // P3's branch transfer. Each says what would make it possible: take a
+        // branch instead of the whole thing, or regrow what cannot be carried.
+        Rejection::WholeBody(_) => "that is the whole of it",
+        Rejection::Incompatible { .. } => "that tissue will not go in you",
         Rejection::Ineligible(Ineligible::NotAlive) => "that one is dead",
         Rejection::Ineligible(Ineligible::AboveTheFrontier { .. }) => "beyond you",
         Rejection::Ineligible(Ineligible::NoSuchOrganism) => "nothing there",
@@ -363,6 +431,17 @@ pub fn notice_in(outcomes: &[Outcome]) -> Option<&'static str> {
         // body is that an organ now does something else, and the tissue it was
         // made of was paid for again.
         Outcome::Rearranged { .. } => Some("rebuilt"),
+        // P3's branch transfer. The crossing is the fact worth saying: a
+        // carried branch arrived as what it was, a regrown one as what this
+        // body makes of it.
+        Outcome::Grafted {
+            crossing: Crossing::Carry,
+            ..
+        } => Some("carried the branch"),
+        Outcome::Grafted {
+            crossing: Crossing::Regrow,
+            ..
+        } => Some("regrew the branch"),
         _ => None,
     })
 }
@@ -394,6 +473,13 @@ pub fn vitals_root(vitals: &Vitals) -> VitalsChild {
         rows.push(DetailRow::new("discovered", discovery.what.clone()));
         rows.push(DetailRow::new("by", discovery.route.clone()));
         rows.push(DetailRow::new("grants", discovery.grants.clone()));
+    }
+    // Two rows, and only once a branch has come across: whose it was, and what
+    // it is doing here. Provenance first, because it is the fact a graft has
+    // that growing does not.
+    if let Some(graft) = &vitals.graft {
+        rows.push(DetailRow::new("branch", graft.taken.clone()));
+        rows.push(DetailRow::new("terms", graft.terms.clone()));
     }
     if let Some(observation) = &vitals.observation {
         rows.push(DetailRow::new("last evidence", observation.clone()));

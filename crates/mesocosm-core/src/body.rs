@@ -51,7 +51,12 @@ pub enum Yaw {
 }
 
 impl Yaw {
-    fn rotate(self, v: [i32; 3]) -> [i32; 3] {
+    /// Turns a vector by this many quarter turns about the vertical axis.
+    ///
+    /// Public since P3: a harvested branch has to be able to work out the box
+    /// it occupies before it is attached to anything, which is the same
+    /// arithmetic `world_pivot` does and must not be a second copy of it.
+    pub fn rotate(self, v: [i32; 3]) -> [i32; 3] {
         let [x, y, z] = v;
         match self {
             Yaw::Zero => [x, y, z],
@@ -61,7 +66,8 @@ impl Yaw {
         }
     }
 
-    fn compose(self, inner: Yaw) -> Yaw {
+    /// This turn applied on top of an inner one.
+    pub fn compose(self, inner: Yaw) -> Yaw {
         let steps = (self.steps() + inner.steps()) % 4;
         match steps {
             0 => Yaw::Zero,

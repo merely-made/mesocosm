@@ -48,6 +48,21 @@ pub(super) fn event_for(
             organism: actor?,
             part,
         }),
+        // A branch transfer is not growing: it names both bodies, because the
+        // loss and the acquisition are one fact. (P3)
+        Outcome::Grafted {
+            root,
+            parts,
+            from,
+            from_part,
+            ..
+        } => Some(Event::Grafted {
+            organism: actor?,
+            from,
+            part: root,
+            from_part,
+            parts,
+        }),
         Outcome::Inhabited { organism } => Some(Event::Inhabited { organism }),
         // Carving air did not happen to anyone; only removed matter is
         // biographical.

@@ -29,6 +29,8 @@ mod allocation;
 mod discovery;
 #[path = "embodied/gland.rs"]
 mod gland;
+#[path = "embodied/graft.rs"]
+mod graft;
 #[path = "embodied/part_meal.rs"]
 mod part_meal;
 

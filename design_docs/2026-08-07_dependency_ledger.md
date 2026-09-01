@@ -20,7 +20,7 @@ PE0 flow record + first reading -> PE1 reproduction + succession
 PD1b allocation -> PD2 one embodied process -> PE2 embodied discovery
 
 PE0 + PE1 + PE2
-  -> P3 branch transfer -> PD3/PD4 authoring parity
+  -> P3 branch transfer [LANDED 2026-09-01] -> PD3/PD4 authoring parity
   -> PE3 lineage review + P4/PD5 filial expression
   -> PE4 world-generated biology
   -> PE5 second form + durable relationship
@@ -46,7 +46,7 @@ wall.
 order):
 
 ```text
-PD1b -> PD2 (one native played process) -> P3 (branch transfer)
+PD1b -> PD2 (one native played process) -> P3 (branch transfer) [all LANDED]
      -> PD3/PD4 (packs, Piccolo) -> P4
 ```
 
@@ -93,7 +93,7 @@ capacity proof; E4's one-selector-many-behaviours receipt.
 **Independent of both chains:** the epoch-boundary screen (route B's own
 consumer; the cambium lane itself is no longer waiting on it, see the
 2026-08-29 progress entry); epoch boundary's live-boundary residue; phenotype
-P3-P6; wing contract W1-W6; D0 (headed WebGL); the relief lab
+P4-P6; wing contract W1-W6; D0 (headed WebGL); the relief lab
 (instrument, any time); F0's vertical slice (impossible ecology, after
 the ecology's acceptance gates stop moving under it).
 
@@ -124,6 +124,11 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-09-01:** P3 branch transfer landed, so the chain's next link is
+  PD3/PD4 authoring parity before PE3's lineage review. It also gave a world
+  its first graft-affinity table, which is data PD3's pack admission will want
+  a door for.
 
 - **2026-08-31:** integrated the playable ecology architecture plan. PE0 is
   the first product slice; reproduction and the epoch boundary are now

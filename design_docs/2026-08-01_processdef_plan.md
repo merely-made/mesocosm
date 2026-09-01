@@ -276,6 +276,20 @@ or a heritable compound recipe evaluated through its parents.
 
 ### Directed graft affinity
 
+**Built at phenotype P3, 2026-09-01.** `mesocosm-core::graft` holds `Domain`,
+`Verdict` and `Affinity`; the graph is world data (a default world holds the
+three-domain favoured cycle), each lineage carries a domain drawn from its own
+salted stream and inherited by a fork, and the digest is over the table's
+rule-bearing bytes. The three verdicts decide which **crossing** a branch
+transfer may take: a same-domain carry keeps the donor's arrangement, a
+favoured cross-domain carry lands the branch expressing nothing until an
+adapter is grown on it, and a disfavoured carry is refused with regrowth left
+as the feasible route. The remaining ruling below is therefore answered *for
+carrying only* — a disfavoured edge is a hard gate there — and whether
+regrowth across one should itself be gated or priced is still open. The
+adapter's embodied footprint is the free tissue the branch arrives with; a
+smaller footprint bought by a learned compatibility process is untouched.
+
 The proposed balancing model is a directed affinity graph over tissue domains,
 not the existing `Kingdom::{Producer, Consumer, Decomposer}` trophic role. A
 default world might use animal-like -> fungal-like -> plant-like -> animal-like
@@ -1094,6 +1108,15 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-09-01, phenotype P3 consumed this plan's graft ruling.** The directed
+  affinity section above records what was built and what it answers. One
+  additive change to PD1b's landed types came with it: `Instruction` gained
+  `cost_by_part` beside `cost_cells`, because a cell is worth what its own
+  part's tissue is worth and a graft is the first development that names
+  several parts at once — one total cannot be priced at one part's rate without
+  inventing a rate. The validator counts it; `world/rearrange.rs` still uses
+  the single-part total and is unchanged.
 
 - **2026-09-01, PD2 complete: a gland, the one process a shape has to be
   given.**

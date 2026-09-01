@@ -105,6 +105,26 @@ pub enum Intent {
     ///
     /// [`Metabolize`]: Intent::Metabolize
     Consume { organism: OrganismId, part: PartId },
+    /// Take a whole **branch** off a carcass and set it on this body. (P3)
+    ///
+    /// The transfer [`Consume`] deliberately stops short of. It names one part
+    /// of a body that has stopped, and everything hanging off that part comes
+    /// with it: the ids are freshly allocated here, the branch's own joints and
+    /// parent relations are preserved, every arriving part's provenance names
+    /// the exact part it came off, and the source loses the branch.
+    ///
+    /// **The crossing is the player's, the verdict is the world's.** Whether
+    /// the branch can be *carried* — arriving with the arrangement it had — is
+    /// what this world's graft affinity says about the two lines' tissue
+    /// domains; regrowing it here is feasible whatever the table says, and does
+    /// not promise the donor's arrangement.
+    ///
+    /// [`Consume`]: Intent::Consume
+    Graft {
+        organism: OrganismId,
+        part: PartId,
+        crossing: crate::graft::Crossing,
+    },
     /// Return mass to the enclosure as carrion.
     Deposit { mass_mg: u64 },
     /// Split the line you are in, and name it.
@@ -199,6 +219,18 @@ pub enum Rejection {
     /// would be live dismemberment, which phenotype P3 owns and PE2's bounded
     /// part-meal proof does not open.
     StillLiving(OrganismId),
+    /// That part is the whole creature. A body without a root is not an
+    /// injured body, so the root is not a branch anybody can take; eating it is
+    /// the verb for wanting all of it. (P3)
+    WholeBody(PartId),
+    /// This world's graft affinity refuses to carry that line's tissue into
+    /// this one. Regrowing it here is the feasible route, which is what the
+    /// wing contract requires of an incompatible carry: refused or redirected,
+    /// never silently rewritten. (P3)
+    Incompatible {
+        from: crate::graft::Domain,
+        into: crate::graft::Domain,
+    },
     /// The part is severed or already taken, so there is nothing there to
     /// settle. A severed part's milligrams have already left the conservation
     /// account; eating one would create matter.
@@ -269,6 +301,23 @@ pub enum Outcome {
         from: OrganismId,
         from_part: PartId,
         mass_mg: u64,
+    },
+    /// A branch came off a carcass and onto this body, with its topology and
+    /// its source addresses intact. (P3)
+    ///
+    /// Says both ends and the terms: which part it became here, which part of
+    /// which body it was, how many parts came with it, what they weigh, which
+    /// crossing was taken and what this world's table said about it. The full
+    /// remapping is on the arriving parts' own provenance, which is a durable
+    /// record rather than an outcome.
+    Grafted {
+        root: PartId,
+        parts: u32,
+        from: OrganismId,
+        from_part: PartId,
+        mass_mg: u64,
+        crossing: crate::graft::Crossing,
+        verdict: crate::graft::Verdict,
     },
     Deposited {
         organism: OrganismId,
