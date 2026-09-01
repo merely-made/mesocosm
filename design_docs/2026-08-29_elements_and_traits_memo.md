@@ -1,11 +1,21 @@
 # Elements and Traits: How a Generated Vocabulary Becomes Real (2026-08-29)
 
-**Status: memo, nothing ruled. Written to be chosen from.** Three schemes with
-costs and failure modes, not a recommendation. Section 10 lists the decisions
-that are Mark's. Companion to
+**Status: memo, material scheme unruled; refreshed 2026-08-31.** Mark has
+reaffirmed the direction that world criteria shape generated biology. The
+three schemes remain choices with costs and failure modes, not a recommendation.
+Section 7 lists the decisions that are Mark's. Companion to
 [forms of life](2026-08-29_forms_of_life_brief.md) and
 [traits and perception](2026-08-29_traits_and_perception_brief.md); it does not
 restate them. Claims checked against `1b08f6c`.
+
+**2026-08-31 boundary.** A world first realizes the laws, materials, fields,
+and schedules that make biological options useful or impossible; generated
+developmental candidates then draw from that realized vocabulary. Mechanical
+verbs remain authored and bounded, while nouns, parameters, conditions,
+placements, costs, and combinations may be generated. The
+[playable ecology plan](2026-08-31_playable_ecology_plan.md) owns persistence,
+reachability, anti-affix validation, and the first ordinary/impossible-world
+proof. It deliberately does not choose scheme A, B, or C here.
 
 ## The question
 

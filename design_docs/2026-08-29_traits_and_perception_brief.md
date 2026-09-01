@@ -1,12 +1,26 @@
 # Traits, Incorporation Cost, and Trait-Relative Perception — Design Brief (2026-08-29)
 
-**Status: design brief recording Mark's direction, 2026-08-29. One thing in it
-is ruled; everything else is direction and is not yet ruled.** Companion to
+**Status: design brief recording Mark's direction, refreshed 2026-08-31. Two
+directions in it are ruled: organism-to-organism edges are the carrier for
+durable pair relations, and unlock conditions extend beyond a linear eating
+tree. Their shape, key, cost, schedule, and NPC reach remain open.** Companion to
 [the forms-of-life brief](2026-08-29_forms_of_life_brief.md), written the same
 day. That brief asked what a *form of life* is; this one records what Mark said
 about how a form of life is **acquired**, what it **costs**, and how one
 organism **reads** another. It does not restate the companion — where the two
 touch, this brief cites it and moves on.
+
+**2026-08-31 acquisition ruling.** Eating may provide material, donor
+provenance, and evidence, but a food category does not directly award its
+matching trait category. Discovery may instead cite survival through stress,
+repeated use or failure, environmental exposure, a relationship, an epoch
+achievement, a particular donor part or process, or a combination under one
+body and world. The existing `learn_from` path is therefore a migration input,
+not the target model. Whether NPC lineages acquire through the same evidence
+rules remains an open question. The
+[playable ecology plan](2026-08-31_playable_ecology_plan.md) owns the first
+condition-to-descendant proof; this brief retains the unresolved pricing and
+perception choices.
 
 **Verification.** Code claims are checked against committed `HEAD 89d09aa` via
 `git show HEAD:...`, not the working tree, because TD7 is live. Seven

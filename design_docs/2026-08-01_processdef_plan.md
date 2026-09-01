@@ -1,16 +1,19 @@
 # ProcessDef: authored biology without ability flags
 
-**Status: in progress, revised 2026-08-05. No ProcessDef schema, pack loader,
-or Mesocosm Piccolo host exists yet. P2's native `Contract`, `Intake`, `Sense`,
-and derived `Reach` are the starting proof. PD0, the PD1a allocation design
-pass, and the live developmental-constructor join are complete; the next
-implementation gate is PD1b's native ProcessDef migration.**
+**Status: in progress, refreshed 2026-08-31. PD1b's identity slice landed
+2026-08-08: native `ProcessDef` records, per-definition digests, and a registry
+exist. PD1b's `BodyPhenotype` allocation half remains open, followed by PD2's
+one additional embodied process. No pack loader or Mesocosm Piccolo host exists
+yet. PD0, the PD1a allocation design pass, and the live developmental-
+constructor join are complete.**
 
 This plan owns Mesocosm's extensible process vocabulary, developmental
 expression boundary, content-pack shape, and Piccolo proof. The
 [phenotype plan](2026-07-31_phenotype_plan.md) continues to own body and
 capability semantics. The
-[execution waves plan](2026-07-31_execution_waves_plan.md) owns scheduling.
+[dependency ledger](2026-08-07_dependency_ledger.md) owns scheduling, and the
+[playable ecology plan](2026-08-31_playable_ecology_plan.md) owns the product
+integration proof that consumes PD1b and PD2.
 The [wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md)
 owns what can cross into Paredros and Isometry.
 
@@ -989,6 +992,11 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-08-31:** reconciled the status with the landed PD1b identity slice.
+  The playable ecology plan consumes PD1b allocation and PD2 in PE2, then
+  preserves P3 and PD3/PD4 before PE3 invokes P4/PD5 for filial expression.
+  This changes no ProcessDef gate and dispatches no code.
 
 - **2026-08-01:** `ProcessDef` accepted as the working name. Architecture,
   Piccolo boundary, pack and license gate, authority model, proof gates, stop

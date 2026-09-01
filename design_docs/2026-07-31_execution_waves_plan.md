@@ -24,7 +24,7 @@ constraints that only appear once the order is fixed.
 
 Governing plans, which own the *what*:
 
-- [body pipeline and host probe](2026-07-30_body_pipeline_and_host_probe_plan.md) — the shared organ, the body document, R-phases
+- [body pipeline and host probe](archive_docs/2026-08-07/2026-07-30_body_pipeline_and_host_probe_plan.md) — the shared organ, the body document, R-phases
 - [Mesocosm founding plan](2026-07-30_mesocosm_founding_plan.md) — vessel 1's design and M-phases
 - [games wing founding record](2026-07-30_games_wing_founding.md) — the laws, and the proof pair as the next architectural threshold
 - [phenotype plan](2026-07-31_phenotype_plan.md): Mesocosm's body rules and local proof dependencies

@@ -1,6 +1,19 @@
 # Composable Forms of Life — Research Brief (2026-08-29)
 
-**Status: research brief, 2026-08-29. Not a plan, not a scheduled round.**
+**Status: research brief, refreshed 2026-08-31. Not a plan, not a scheduled
+round.** Mark has reaffirmed the product direction that animal-, plant-,
+fungal-, and microbial-scale critters belong in the playable roster. The four
+stages, their order, and their representation choices remain unruled.
+
+**2026-08-31 integration boundary.** Different forms may receive different
+controllers, but every controller proposes intentions to the same matter,
+energy, space, body, relationship, and history authority. Before a true
+mycelium, clonal stand, or biofilm is built, the game must rule whether the
+played subject owns one connected body, several spatial bodies, or a colony
+projection. The
+[playable ecology plan](2026-08-31_playable_ecology_plan.md) owns that
+architecture decision and the first second-form proof; this brief keeps the
+biological axes and costs.
 Written to be reacted to. Opened by Mark alongside TD7 and deliberately kept
 out of that round (see
 [terrarium dynamics plan](2026-08-29_terrarium_dynamics_plan.md) TD7's closing

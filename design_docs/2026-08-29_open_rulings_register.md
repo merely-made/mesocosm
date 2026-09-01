@@ -1,12 +1,16 @@
 # Open Rulings Register (2026-08-29)
 
-**Status: register, nothing ruled. Snapshot of 2026-08-29.**
+**Status: historical register snapshot, partially superseded; refreshed
+2026-08-31.** Do not use this file as the current execution order. TD8 through
+TD11 and DC1 through DC4 closed or reframed several entries after the snapshot,
+and the [playable ecology plan](2026-08-31_playable_ecology_plan.md) now owns
+the integration chain. Source plans remain authoritative.
 
-This is a worklist, not a plan. It is one place to see every decision the
-active documents say is Mark's, ordered so the ones that unblock the most can
-be answered first. Writing a decision down here does not rule it, propose it,
-or schedule it; where a source document argued for an answer, that is said and
-attributed, and the counter-case is stated with it.
+This was a worklist, not a plan. Its numbered entries are retained as a dated
+map of the questions active on 2026-08-29, not silently rewritten into a new
+snapshot. Writing a decision down here did not rule it, propose it, or schedule
+it; where a source document argued for an answer, that is said and attributed,
+and the counter-case is stated with it.
 
 **It will go stale.** Six documents were read on 2026-08-29 and four of them
 were written or extended that same day; the terrarium round in particular has
@@ -1027,4 +1031,5 @@ ruling". *Source: elements memo, status line vs §7.*
   (`organism.rs`, `ecology.rs`, `ecology/rates.rs`, `axis.rs`,
   `world/genesis.rs`). TD7 has since landed and S1 ran on top of it. Re-verify
   any entry that cites those files before acting on it.
-- `DOC_README.md` has not been updated for this file; policy §6 requires it.
+- `DOC_README.md` indexes this file as a historical snapshot and points current
+  integration work to the playable ecology plan.

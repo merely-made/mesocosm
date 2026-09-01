@@ -1,10 +1,11 @@
 # The epoch boundary: significance, speciation, and what youth costs
 
-**Status: partially built, revised 2026-08-03.** The world record, causal event
-log, species tree, places, reckoning, and player speciation are built. Shared
-lineage adaptation, goals, NPC speciation, and life-stage plasticity remain
-design. Rulings are Mark's from the dialogue through 2026-08-03 and are marked
-where the reasoning is mine.
+**Status: partially built, refreshed 2026-08-31.** The world record, causal
+event log, species tree, places, reckoning, and player speciation are built.
+Shared lineage adaptation, goals, NPC speciation, life-stage plasticity, and
+the played boundary remain design or unwired. The 2026-08-31 reproduction
+direction is recorded in section 0; earlier rulings are Mark's from the
+dialogue through 2026-08-03 and are marked where the reasoning is mine.
 
 This owns what happens *between* epochs: how a run is judged, how a lineage
 splits, what a player may aim at, and why a young critter is different from an
@@ -14,6 +15,24 @@ vocabulary. The [founding plan](2026-07-30_mesocosm_founding_plan.md) owns the
 epoch loop's turn structure, which this sits on top of.
 
 ---
+
+## 0. Reproduction and the boundary are different checkpoints
+
+**Ruled direction, Mark, 2026-08-31:** reproduction is a micro-checkpoint at
+the scale of an individual critter. This boundary remains the checkpoint at
+the scale of the lineage and its ecology.
+
+The existing breeding pass already pays for and records a filial body. Its
+played work is to make descent inspectable and let a recorded control choice
+continue through a descendant. It does not open the full lineage editor or
+revise the shared developmental program. This boundary reviews the epoch,
+weighs evidence and world readings, and commits a program revision that future
+descendants may realize. It is not silently triggered by every birth.
+
+The exact reproduction choice and epoch-ending rule remain open. The
+[playable ecology plan](2026-08-31_playable_ecology_plan.md) owns their
+integration order and full proof; this plan continues to own what the lineage
+boundary means once opened.
 
 ## 1. The finding that makes this urgent
 
@@ -633,6 +652,10 @@ executable.
   descendant will express one literal phenotype.
 
 ## Progress
+
+- **2026-08-31:** separated reproduction's individual checkpoint from this
+  lineage checkpoint and linked the playable ecology integration plan. No
+  implementation or earlier boundary ruling changed.
 
 - **2026-08-01:** speciation-by-act, significance-as-abnormality, the scoring
   axes, the reward ladder, goal selection, and life-stage plasticity recorded

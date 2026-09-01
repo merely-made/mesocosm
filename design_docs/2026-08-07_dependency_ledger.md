@@ -1,7 +1,7 @@
 # Dependency Ledger (2026-08-07)
 
-**Status: active ordering authority, corrected against live code
-2026-08-26.** Successor to the
+**Status: active ordering authority, corrected against live code and the
+playable-ecology ruling 2026-08-31.** Successor to the
 [execution waves plan](2026-07-31_execution_waves_plan.md), demoted to
 Wave 1/2 history by the audit. The governing plans own the *what*; this
 owns the *when* and the *blocks-what*. One page on purpose; when it
@@ -12,6 +12,35 @@ It does not make one product slice a prerequisite for reusable mechanics whose
 ownership and consumer proof have already settled.
 
 ## Mesocosm lanes
+
+**Playable ecology integration chain** (product order; founded 2026-08-31):
+
+```text
+PE0 flow record + first reading -> PE1 reproduction + succession
+PD1b allocation -> PD2 one embodied process -> PE2 embodied discovery
+
+PE0 + PE1 + PE2
+  -> P3 branch transfer -> PD3/PD4 authoring parity
+  -> PE3 lineage review + P4/PD5 filial expression
+  -> PE4 world-generated biology
+  -> PE5 second form + durable relationship
+  -> PE6 cohort scale + ecological zoom
+  -> PE7 collapse-and-recovery proof
+```
+
+The [playable ecology plan](2026-08-31_playable_ecology_plan.md) owns those
+integration targets and done-conditions. **PE0 is the first undispatched
+product slice.** It has a visible consumer in the same slice, so it is not a
+telemetry infrastructure detour: one replay-derived ecological trend must
+reach the played view. PE1 then wraps the existing conservative filial
+transaction in the individual checkpoint. PE3 is the distinct lineage
+checkpoint and waits on PE2 plus the owning P3/PD3/PD4 path rather than
+opening over the provisional scalar trait model or bypassing P4/PD5.
+
+PE6 consumes the scale lane but does not silently rule its open S2-versus-S3
+order. S3's spatial index and cohort execution are required before the final
+large-roster proof; S2 remains the presentation route beyond the current atlas
+wall.
 
 **ProcessDef/phenotype chain** (active product chain, not the global engine
 order):
@@ -95,6 +124,12 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-08-31:** integrated the playable ecology architecture plan. PE0 is
+  the first product slice; reproduction and the epoch boundary are now
+  separate individual- and lineage-scale checkpoints; PD1b/PD2 remain their
+  own active process chain, followed by P3 and PD3/PD4 before the first real
+  P4/PD5 lineage review. No code was dispatched by this documentation pass.
 
 - **2026-08-29:** the cambium lane opened in-epoch (vitals surface, played
   slice plan). Three dependency facts came with it, all of the same family

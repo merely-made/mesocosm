@@ -1,6 +1,10 @@
 # Terrarium Dynamics Plan (2026-08-29)
 
-**Status: in progress (2026-08-29); scope and rulings by Mark the same day.**
+**Status: landed and closed 2026-08-30; refreshed 2026-08-31.** TD1 through
+TD11 are implemented and receipted. The instrument remains a diagnostic, but
+`breathes` no longer spawns tuning rounds for systems the game has not built.
+The [playable ecology plan](2026-08-31_playable_ecology_plan.md) now owns the
+integration work this series exposed.
 Make the terrarium compelling on its own — an ant farm worth watching — and
 let the player's considerations step into that. Mark's words, ruling the
 priority: "slices that shape the world and ecosystem dynamics... that's my
@@ -348,15 +352,18 @@ named with evidence; attribution shows the in-window alternatives table
 staying populated and hungry bodies closing distance to pasture; seed
 comparisons against TD10's table; conservation exact; fixtures re-recorded.
 
-## After TD11: PS2 is next (direction standing, not yet dispatched)
+## After TD11: the playable ecology chain is next
 
-Three lanes now queue behind the epoch boundary: succession (death →
-witnessing → TakeControl), the world record (empty until `end_epoch` has a
-production caller — the trait bank's weighting waits on it), and NPC
-speciation (kinship's discount cancels while each tier is one interbreeding
-species — TD10's structural finding). The loop-composition correction from
-the second playtest stands: single-loop polish is done until the loops can
-compose.
+The [playable ecology plan](2026-08-31_playable_ecology_plan.md) decomposes the
+next product chain. PE0 first makes ecological flow visible. PE1 composes
+reproduction, death, witnessing, and succession as the individual checkpoint.
+PD1b/PD2 then supply one embodied developmental option in PE2; P3 and PD3/PD4
+remain ahead of PE3's P4/PD5 lineage-scale epoch review. The world record
+remains empty until `end_epoch` has that production caller, and NPC speciation
+remains open.
+
+The loop-composition correction from the second playtest stands: single-loop
+polish is done until the loops can compose.
 
 ## The series closes here (ruled 2026-08-30, Mark)
 
@@ -764,6 +771,10 @@ Two directions ruled with the correction, in Mark's words:
   retired, and a fresh demo trace is recorded at the new constants.
 
 ## Progress
+
+- **2026-08-31:** marked the TD series closed and handed its product residues
+  to the playable ecology plan. No constants, code, receipts, or TD rulings
+  changed.
 
 - **2026-08-30: TD11 verified — the gradient is the half that works, sight
   reads a body the world almost never grows, and the seventh cause is that the

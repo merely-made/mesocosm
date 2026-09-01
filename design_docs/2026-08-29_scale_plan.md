@@ -1,7 +1,10 @@
 # Scale Plan (2026-08-29)
 
-**Status: founded 2026-08-29; ruled by Mark the same day. S1 landed the same
-day, on top of TD7. S2 is next — every rung touches the same crate.**
+**Status: active scale ladder, refreshed 2026-08-31. S1 landed 2026-08-29 on
+top of TD7. The written ladder still places S2 next, while S1's measured
+findings argue for S3 first; that order remains unruled. This lane is not the
+next product slice. The [playable ecology plan](2026-08-31_playable_ecology_plan.md)
+consumes cohort scale and zoom at PE6.**
 
 The ruling, in Mark's words: "scale is remarkable to behold, a feature in
 its own right! a large scale intelligible terrarium-esque world generator,
@@ -202,6 +205,10 @@ That was measured on a 32-voxel enclosure S1 has since grown to 129.
     systems-test one.
 
 ## Progress
+
+- **2026-08-31:** clarified that S2-versus-S3 remains an open scale-order
+  ruling and that the playable ecology plan consumes this lane at PE6. No rung
+  was reordered or dispatched.
 
 - **2026-08-29 (last today): the framing landed — half-height 28 is the
   default, and the follow centre is clamped to it.** Two lines of behaviour,

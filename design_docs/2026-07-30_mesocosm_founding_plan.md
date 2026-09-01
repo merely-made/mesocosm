@@ -1,6 +1,9 @@
 # Mesocosm: Founding Plan
 
-**Status: active founding plan, updated 2026-07-31; audit notes 2026-08-07.**
+**Status: active founding design, refreshed 2026-08-31.** Later domain plans
+and live code supersede its implementation status; the
+[playable ecology plan](2026-08-31_playable_ecology_plan.md) owns the current
+integration proof and the dependency ledger owns dispatch order.
 Two audit corrections bind readers of this document: (1) its M0/runtime
 descriptions are **historical** where they conflict with the landed
 `mesocosm-runtime` (fixed-step driver, traces, replay, receipts) and the
@@ -343,6 +346,12 @@ it is a story, which is exactly why the story is trustworthy.
 **Ruled 2026-07-30. This is the game's structure, and it is what makes it a
 roguelike rather than a sandbox.** Two alternating phases:
 
+**Clarified 2026-08-31:** reproduction is an individual-scale
+micro-checkpoint inside this structure, not a synonym for the epoch boundary.
+A birth makes descent and a possible continuation through the offspring
+pointable. The boundary below remains the lineage-scale review and revision;
+its exact world trigger is still open.
+
 **1. The epoch — played, embodied, first person.** Acquire resources,
 explore, fight, test what your body can do. Form relationships and
 dependencies. Discover, by living in it, what your form cannot handle. The
@@ -566,7 +575,7 @@ by studying Thrive (§1c); 2 and 3 remain real forks.
    rather than an open question, but recorded here because it binds early
    decisions: `mesocosm-core` should be a **pure function of (seed, ordered
    inputs)** behind a boundary that can be snapshotted wholesale. See the
-   [body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md) §R0.
+   [body pipeline plan](archive_docs/2026-08-07/2026-07-30_body_pipeline_and_host_probe_plan.md) §R0.
    Cheap to design in now, brutal to retrofit.
 
 ## 1c. What we take from Thrive
@@ -756,6 +765,10 @@ founding.*
 ---
 
 ## 5. Progress
+
+- **2026-08-31:** linked the current playable ecology architecture and
+  clarified reproduction as an individual checkpoint distinct from the
+  lineage-scale epoch boundary. No founding ruling was otherwise replaced.
 
 - **2026-07-30**: repo founded, name reserved, design recorded. No code.
 - **2026-07-31**: recorded the world-condition grammar, metabolic-complexity

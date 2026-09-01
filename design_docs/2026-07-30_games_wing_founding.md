@@ -381,7 +381,7 @@ to *who this creature is, where it came from, and what happened to it*. The
 sharing rules per layer are tabulated in the
 [engine and render lane landscape](2026-07-30_engine_and_render_lane_landscape.md)
 §5, and the shared organ that follows from them is planned in the
-[body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md).
+[body pipeline plan](archive_docs/2026-08-07/2026-07-30_body_pipeline_and_host_probe_plan.md).
 
 Consequently: **"shared world model" is too strong** — Mesocosm's live
 ecology, Paredros' settlement, and Isometry's campaign state will never be one
@@ -619,7 +619,7 @@ the body document and a geometry renderer projects a token *live*, with
 procedural articulation; a peer holding only an image decoder shows the baked
 sheet. Neither is privileged, the document is canonical, and sheets are
 optional derived artifacts riding beside it. Detail in the
-[body pipeline plan](2026-07-30_body_pipeline_and_host_probe_plan.md) §3.
+[body pipeline plan](archive_docs/2026-08-07/2026-07-30_body_pipeline_and_host_probe_plan.md) §3.
 
 **Protocol keystone: additive facts, opaque preservation, deferred
 interpretation.** Games append history in their own vocabulary and never

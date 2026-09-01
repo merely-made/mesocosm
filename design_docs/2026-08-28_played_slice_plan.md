@@ -1,10 +1,12 @@
 # Played Slice Plan (2026-08-28)
 
-**Status: in progress (2026-08-28); PS0 and PS1 scoped, ruled by Mark.**
-The first slice of Mesocosm a hand actually plays: the live epoch as the
-ruled terrarium section with direct control of your organism. Scope ruled
-2026-08-28: PS0 + PS1; succession and the epoch boundary are PS2, extracted
-below as future work. Renderer ruled: the brick-traced side-on section.
+**Status: in progress, refreshed 2026-08-31. PS0 and PS1 landed mechanically
+and were playtested; their vitals, terrarium-dynamics, roster, and default-body
+follow-ups have also landed through DC4. PS2 is now decomposed by the
+[playable ecology plan](2026-08-31_playable_ecology_plan.md).** The first
+slice of Mesocosm a hand actually plays: the live epoch as the ruled terrarium
+section with direct control of your organism. Renderer ruled: the brick-traced
+side-on section.
 
 The rulings this plan executes, cited not restated: the terrarium section
 and direct control (`2026-08-18_vessel_briefs_and_presentation.md` §2), the
@@ -114,14 +116,25 @@ minimap; a lens roster is the named follow-up. And the G2 slab
 frame — the right half-height is nearer 9-11, but the section framing is
 a presentation ruling and waits for Mark.
 
-## PS2 — extracted, not scheduled
+## PS2 — decomposed by the playable ecology plan
 
-The loop's two unwired seams, deliberately out of v1: handling
-`World::control_lost()` (death → witnessing → `Intent::TakeControl` of an
-eligible critter — the documented disembodiment seam) and the
-earned-reproduction epoch end driving `Runtime::end_epoch` toward the
-adaptation phase. Both have landed core machinery and zero host wiring.
-The trait-board review screen stays with Views route B.
+The loop's two unwired seams remain real, but reproduction and the epoch are
+now explicitly different checkpoints.
+
+- **Individual checkpoint, PE1:** a birth involving the controlled critter
+  makes parent, offspring, material cost, and descent inspectable; one recorded
+  control choice resumes play. Death enters witnessing and
+  `Intent::TakeControl` of an eligible descendant or lineage member. Siblings
+  remain in the ecology.
+- **Lineage checkpoint, PE3:** an explicit epoch rule drives
+  `Runtime::end_epoch`, the world review, and a validated developmental-program
+  revision for future descendants. It does not fire silently on every birth.
+
+PE0's first flow reading precedes both so the birth and the epoch review have
+the ecological evidence this game's interface requires. The trait-board review
+screen stays with Views route B. Core machinery exists for birth, control loss,
+`TakeControl`, readings, and `end_epoch`; the host composition and real
+developmental adaptation remain unwired.
 
 ## Findings
 
@@ -197,6 +210,11 @@ The trait-board review screen stays with Views route B.
   the bare lineage roster.
 
 ## Progress
+
+- **2026-08-31:** reconciled PS2 with the playable ecology architecture.
+  Reproduction is the individual checkpoint, the epoch boundary is the lineage
+  checkpoint, and PE0's first ecological reading precedes their host wiring.
+  Documentation only; no implementation dispatched.
 
 - **2026-08-29 (later): the vitals surface landed** — Mesocosm's first
   cambium consumer, and the first words on the screen. Energy as a number
