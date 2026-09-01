@@ -1,15 +1,20 @@
 # Mesocosm — Project Description
 
-> **Drafted 2026-07-30; revised by instruction 2026-07-31.** Per DOC_POLICY
-> §6 this file is maintainer-owned; assistants should not edit it without
-> instruction.
+> **Drafted 2026-07-30; revised by instruction 2026-07-31 and 2026-09-01.**
+> Per DOC_POLICY §6 this file is maintainer-owned; assistants should not edit
+> it without instruction.
 
 ## What it is
 
 Mesocosm is a first-person game of lineages. You are a critter in an enclosed
 mid-scale ecosystem. You grow only by incorporating other organisms. You die,
-and your line continues or it does not. Your aim is to increase your kind's
-share of the world's biomass — which no predator achieves alone.
+and your line continues or it does not. Growing your kind's share of the
+world's biomass — which no predator achieves alone — is the guideline, not
+the destination: share buys position, position buys agency, and what you do
+with agency is yours. The world keeps one honest record and notices what you
+did with it — saved it, shaped it, gardened it, ended it deliberately, or
+carried one lineage's clades into something self-propagating. Every pursuit
+is a reading of that record; none is a mode.
 
 A mesocosm is ecology's mid-scale enclosed experimental ecosystem: larger
 than a microcosm, smaller than the world. That names the scale of the
