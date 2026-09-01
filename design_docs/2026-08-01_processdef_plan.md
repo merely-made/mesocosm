@@ -1271,7 +1271,7 @@ These are intentionally deferred to the gate with evidence:
     new timing on an unmoved result. **0 breathes / 10 thins / 0 boil / 0
     collapse** stands unchanged, six of ten seeds directly re-verified this
     session.
-  - `cargo test --workspace` green (33 suites in release, plus mesocosm-lens 45 at `--test-threads=1`); clippy `-D warnings`
+  - `cargo test --workspace` green (33 suites in release, plus mesocosm-lens 45; the lens crate passed both serially and in the ordinary parallel run this session, so the GPU flake did not bite); clippy `-D warnings`
     clean; `cargo fmt --all --check` clean; `cargo check -p paredros-room
     --features r1-proof` builds, its one `dead_code` warning on
     `brick::retarget_from_ground` unchanged and predating this work.
