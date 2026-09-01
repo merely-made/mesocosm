@@ -1,11 +1,13 @@
 # ProcessDef: authored biology without ability flags
 
-**Status: in progress, refreshed 2026-09-01. PD1b's identity slice landed
-2026-08-08: native `ProcessDef` records, per-definition digests, and a registry
-exist. PD1b's `BodyPhenotype` allocation half remains open, followed by PD2's
-one additional embodied process. No pack loader or Mesocosm Piccolo host exists
-yet. PD0, the PD1a allocation design pass, and the live developmental-
-constructor join are complete.**
+**Status: in progress, refreshed 2026-09-01. PD1b is COMPLETE. Its identity
+slice landed 2026-08-08 (native `ProcessDef` records, per-definition digests,
+a registry) and its allocation half landed 2026-09-01: a private
+`BodyPhenotype` wrapper, per-part authoritative cell-graph mosaics seeded from
+geometry, one proposal and one validator for direct and automatic arrangement,
+and an intentional snapshot format bump. PD2's one additional embodied process
+is next. No pack loader or Mesocosm Piccolo host exists yet. PD0 and the PD1a
+allocation design pass are complete.**
 
 This plan owns Mesocosm's extensible process vocabulary, developmental
 expression boundary, content-pack shape, and Piccolo proof. The
@@ -812,12 +814,19 @@ a site dormant without moving it; restoration and replay agree; the same valid
 proposal from direct and automatic arrangement produces byte-identical state;
 and a body-only projection still decodes without Mesocosm phenotype semantics.
 
-### PD1b. Native ProcessDef migration — **slice 1 LANDED 2026-08-08; allocation half OPEN**
+### PD1b. Native ProcessDef migration: **LANDED 2026-09-01**
 
 Execute PD1a's ruling. Replace the closed `Process` enum as identity authority
-with registry-backed `ProcessDef` records for the three existing native
+with registry-backed `ProcessDef` records for the **four** existing native
 processes. Existing geometry deterministically seeds their initial allocation,
 and `Reach` keeps exactly its P2 semantics.
+
+**Correction, recorded 2026-09-01.** This gate was written when there were
+three natives. DC1.5 added a fourth — `Process::Fix`, expressed by
+`Role::Plate`, the fixing/producer reading — together with `Process::ALL` and
+the registry parity receipt. Every "three" in this gate means four; the
+implementation covers all four and `the_registry_and_the_native_view_agree`
+is what makes a fifth impossible to add silently.
 
 Expected seams, subject to PD1a:
 
@@ -827,7 +836,7 @@ Expected seams, subject to PD1a:
 - snapshot and replay fixtures: one intentional format bump, with no legacy
   compatibility shim for unreleased data.
 
-**Done when:** the three built-ins are ordinary definitions, every living
+**Done when:** the four built-ins are ordinary definitions, every living
 allocation names a living part, attach and sever cannot split anatomy from
 phenotype, every part mosaic conserves capacity, rearrangement occurs only
 through recorded events, existing reach outcomes and refusals hold, and a part
@@ -836,6 +845,9 @@ candidate submitted through direct and automatic proposal sources lowers to
 the same developmental instruction, and the same invalid candidate receives
 the same refusal. Re-realization under changed declared conditions may produce
 a different valid phenotype without changing process identity or provenance.
+
+**All met.** See the 2026-09-01 Progress entry for the landed shape, the
+receipts, and the residues PD2 inherits.
 
 ### PD2. One native played process
 
@@ -1053,6 +1065,203 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-09-01, PD1b complete: allocation gets its owner.**
+
+  **The four-process correction, first.** This gate was written against "the
+  three existing native processes". DC1.5 added a fourth — `Process::Fix`,
+  expressed by `Role::Plate`, the fixing/producer reading — together with
+  `Process::ALL` and a registry parity receipt. §9 is corrected rather than
+  quietly contradicted, the implementation covers four, and
+  `the_registry_and_the_native_view_agree` is what makes a fifth impossible to
+  add in silence.
+
+  **What allocation is.** `crates/mesocosm-core/src/phenotype.rs` holds
+  `BodyPhenotype { body, mosaics, revision }`, every field private.
+  `phenotype/mosaic.rs` holds one `Mosaic` per part — lattice `dims`, a sorted
+  `lost` list, and its `Site`s — and the mosaics are **index-aligned with
+  `BodyDocument::parts`**. That alignment is the whole invariant: an anatomy
+  tombstone *is* an allocation tombstone, and the two cannot disagree because
+  there is nothing to synchronise. A `Site` names a `ProcessRef`, the sorted
+  connected set of `CellId`s it occupies, and an `Expressed` cause —
+  `Geometry` for what a shape grew, `Arranged { revision }` for what a
+  development placed. There is no capacity scalar: structural capacity is the
+  count of living cells, and occupied plus free equals it by construction.
+
+  **Identity moved off the enum.** A site cites
+  `ProcessRef { definition: DefinitionDigest }` — the content address of the
+  exact admitted definition — and resolves it through `Registry::resolve`,
+  which answers `None` rather than substituting a similar local process.
+  `Process` survives as the native binding for engine fast paths and
+  `Role::processes` survives as the **seeding rule**; neither is what a
+  phenotype stores. Only the digest travels, because `ProcessId`'s
+  `&'static str` cannot be deserialized into an owned world; PD3 widens the
+  record when packs mint owned ids.
+
+  **The seed.** A part's lattice is `half_extent / 2 + 1` cells per axis,
+  clamped to four — so `MAX_CELLS` is 64, derived from the axis bound rather
+  than typed twice. A `[4,1,1]` limb is a chain of three, a `[4,4,1]` plate a
+  3x3 sheet, a `[1,1,1]` sensor one cell. Adjacency is derived from the dims
+  inside `Mosaic::neighbours`, which is the one seam a later admitted topology
+  arrives through: every reader asks the mosaic rather than doing lattice
+  arithmetic of its own. **A seeded site takes the whole part.** That is the
+  honest lowering of "this shape does this thing" — nothing is pre-donated, so
+  the first development that wants a second process has to take tissue off the
+  first, which is the tradeoff PD1a deliberately put inside the organ. Any
+  other share would have been a number invented to make it painless.
+
+  **One validator, and the equivalence is structural.**
+  `phenotype/develop.rs` holds one `AllocationProposal` — expected digest,
+  the sorted parts it rewrites, and the complete desired sites for each — and
+  one `validate`. `Arrangement::{Direct, Automatic}` rides along and the
+  validator never reads it, so the parity receipt is not a coincidence to be
+  re-checked but a property of the shape: `develop` returns
+  `Development { instruction, source }`, and `Instruction` (revision, parts,
+  sites, `cost_cells`, resulting digest) contains no author. `arrange(&p, Aim)`
+  builds the automatic side and asks `Mosaic::seed` for the seeding rule
+  rather than reimplementing it, so auto-arrange cannot drift from what
+  development would have grown. Fifteen named refusals, checked in a fixed
+  order that is part of the contract.
+
+  **Where the anti-Spore property now lives.** `ProcessDef::admits(role)` gates
+  every proposed site by the part's classified shape, so `SiteMismatch` refuses
+  contraction on a plate. To make a frond an actuator you must make it a limb,
+  which is a different shape and a different part. There is still no capability
+  field anywhere.
+
+  **Cost is counted, not invented.** `Instruction::cost_cells` is the number of
+  cells whose expression changed. PD2 prices that in milligrams when a played
+  process gives the price a consumer; this slice refused to guess one, and no
+  ecology number moved as a result.
+
+  **Ownership, and one deliberate refinement of the seam.** `Organism.body:
+  BodyDocument` became `Organism.phenotype: BodyPhenotype` with an
+  `Organism::body()` reading. §9's seam said "private `BodyPhenotype`"; the
+  field is `pub` and the **wrapper's** fields are private, which is the
+  invariant the ruling actually protects — no caller can obtain
+  `&mut BodyDocument` from a live organism, and `BodyPhenotype::seed` is the
+  only constructor. Keeping the field public is what lets a test or a host
+  sever through the transactional API without an `Organism` passthrough for
+  every wrapper verb. `world/act.rs`'s incorporation now attaches through the
+  wrapper, and its no-room rollback restores the **whole phenotype** rather
+  than the anatomy — a body put back with grown mosaics would have been
+  exactly the split account this wrapper exists to prevent.
+
+  **The format bump, and what it cost.** One intentional break, no shim:
+  `Organism` now serialises a phenotype where it serialised a body. Measured on
+  the two worlds that matter — `World::new(4242, 24)` grows 5.3% (21 KB of
+  399 KB, 871 living parts, 5,416 cells) and the demo's 916-founder world grows
+  **28.0%** (773 KB of 2.76 MB, 31,762 living parts, 198,193 cells). Roughly
+  ten of the thirteen bytes per site are the 64-bit definition digest as a
+  postcard varint. §3 already permits interning a process reference to a
+  compact integer inside one simulation; doing it needs a world-owned admitted
+  ruleset, which is PD3's, so the digest stays whole here and the lever is
+  recorded rather than pulled. Standalone `BodyDocument` bytes and the V2
+  Lens/mesh/Isometry projection contract are untouched.
+
+  **Receipts.**
+  - `mesocosm-core` lib: **337** green. `process/tests.rs` (10) gains
+    `a_reference_resolves_to_the_definition_it_addresses`: every native's
+    stored reference resolves back to exactly its own definition, and an
+    address this ruleset does not hold answers `None` rather than the nearest
+    local process. `phenotype/tests.rs` (21):
+    geometry seeds what it used to only answer; a seeded part arrives fully
+    committed; every living allocation names a living part; capacity conserves;
+    the lattice follows the shape; attach seeds in the same operation; sever
+    removes the allocation and its consequence together and still explains the
+    branch; a stale proposal moves nothing; **direct and automatic lower the
+    same candidate to the same instruction and byte-identical state**; the same
+    invalid candidate earns the same refusal; a part cannot acquire a
+    capability by editing a number; every refusal names its boundary; an
+    invalid multi-part development leaves the wrapper byte-identical; an
+    unknown definition refuses rather than substitutes; a severed part cannot
+    be rearranged; rearrangement is ordered and on the record; the phenotype
+    round-trips; the mosaic and the geometry reading agree; irreversible loss
+    takes capacity and the site with it; an explanation names the definition.
+  - `tests/embodied.rs` **16** green, split at the ceiling into
+    `tests/embodied/allocation.rs`: every founder carries one mosaic per living
+    part; the allocation and the anatomy reading agree across a whole roster
+    and all four processes; incorporating a part seeds its allocation in the
+    same meal; one validator serves the player and the game over a live body;
+    re-realizing the same program under a different world's admitted materials
+    grows a phenotype with a genuinely different amount of tissue that
+    expresses the same definitions for the same reason, while identical inputs
+    still reproduce the phenotype exactly.
+  - `cargo test -p mesocosm-core --test matter --test flows --test succession
+    --release`: **5 + 9 + 7** green. Conservation and PE0's reconciliation are
+    unmoved.
+  - **The instrument is unmoved.** Drawn baseline, all ten seeds re-run and
+    compared against the DC4/PE1 receipt **seed for seed** — verdict, start,
+    peak, peak tick, end, cumulative births and cumulative deaths each
+    identical. **0 breathes / 10 thins / 0 boil / 0 collapse**, exactly as
+    recorded. The run was stopped after the baseline rather than left to
+    overwrite `dc4_roster.json`, which is byte-identical to what DC4 wrote.
+    Wall times are not compared: the sweep shared the machine with the debug
+    test suite.
+  - **Fixtures re-recorded.** The demo trace's **intent stream is
+    byte-identical** — the same three births continued, the same
+    `TakeControl { organism: 2205 }` at step 3000, the same fourth birth at
+    3040 — and only the hash moved, `f90123db6f2a5ac5` to
+    **`0ebe0655317a7392`**, which is the format bump and nothing else. Headed
+    `--replay` runs 3,100 steps over 775 frames and matches, exit 0; a hash
+    falsified by one bit exits 1.
+  - `cargo test --workspace` green — **639** tests, and the lens crate's 45
+    passed in the ordinary parallel run rather than needing
+    `--test-threads=1`. Clippy `-D warnings` clean, `cargo fmt --all --check`
+    clean, `cargo check -p paredros-room --features r1-proof` builds (its one
+    `dead_code` warning on `brick::retarget_from_ground` predates this work;
+    the paredros tree is untouched and clean).
+
+  **Splits at the ceiling**, per the workspace rule: `process/tests.rs` out of
+  `process.rs`, `organism/ledger.rs` out of `organism.rs` (mass ceiling,
+  intake room, gain and spend, complexity, upkeep and the rent payment), and
+  `tests/embodied/allocation.rs` out of `tests/embodied.rs`. An integration
+  test's crate root resolves `mod` against `tests/`, so the last one carries an
+  explicit `#[path]`; a bare `tests/allocation.rs` would have become a second
+  test binary.
+
+  **Residues, and what PD2 and PE2 inherit.**
+  - **`performs` could be more honest, and was deliberately left alone.**
+    `BodyDocument::performs`, `reach`, `canopy`, `mouth` and `feeding_mode`
+    still read geometry. The truer reading is "some living site on a living
+    part expresses this definition", which is `BodyPhenotype::expresses` —
+    already implemented, already receipted as agreeing with `performs` over a
+    whole roster and every native process. Rewriting the anatomy readings onto
+    it is PD2's, because it is only a *different* answer once something makes
+    a site dormant or a development moves one, and doing it here would have
+    made a representation change into an ecology change. One reading did get
+    strictly more honest and is already in: **an injury can now be explained.**
+    `BodyPhenotype::explain` answers for a severed part — "this branch fixed,
+    on this much tissue, because its shape did, and it is gone" — which no
+    process reading could say before, since severing erased the fact from the
+    process view entirely and left only `Part::severed`. `canopy` is the next
+    candidate: its first clause asks `performs(Process::Fix)`, and the truer
+    question is whether the plate's tissue is actually allocated to fixing,
+    which only becomes a different question when a development can take that
+    tissue away.
+  - **Dormancy is unbuilt.** PD1a's structural-capacity/current-availability
+    split is honoured by construction — mass changes move no organ — but
+    nothing yet evaluates availability. `Mosaic::tombstone` carries the
+    irreversible half of the rule and has no live caller; sub-part injury is
+    phenotype D3a's gate.
+  - **No world intent, by choice.** `BodyPhenotype::develop` is the only
+    mutation path and returns its record; the phenotype stores the ordering
+    (`revision`) and each site stores the revision that placed it, so
+    rearrangement is ordered and readable in the snapshot. An
+    `Intent::Rearrange` and a `History` event belong with PD2's editor
+    operation, which is the first thing that will actually rearrange anything.
+  - **The registry is still `Registry::native()`, reached internally.** Seeding
+    and validation call it rather than receiving it. When PD3 gives a world its
+    own admitted ruleset it becomes a parameter, and `World` starts recording
+    the ruleset digest a snapshot cites.
+  - **`World` exposes no phenotype reading.** `World::body()` still answers a
+    `BodyDocument`; PE2's inspector will want `World::phenotype()` and
+    `BodyPhenotype::explain` behind it. Not added ahead of its consumer.
+  - **Multi-process roles are unexercised.** Every role expresses exactly one
+    process today, so `Mosaic::seed`'s even-share splitter has never had to
+    divide a part. The validator is the authority on connectivity and will
+    catch a bad split; the splitter itself wants a receipt the first time a
+    role expresses two.
 
 - **2026-09-01:** recorded the condition/development/process compilation split,
   hard graph and work bounds, delayed-cycle rule, explicit stacking laws, and

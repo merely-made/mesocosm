@@ -608,9 +608,13 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
   realizes a filial body through the lineage recipe, records the parent, and
   conserves matter. The missing checkpoint is host, control, and presentation
   composition rather than a second breeding system.
-- **2026-08-31, process seam:** native `ProcessDef` identity, definition
-  digests, and a registry have landed. PD1b's `BodyPhenotype` allocation half
-  and PD2's first additional played process remain open.
+- **2026-08-31, process seam** *(updated 2026-09-01)*: native `ProcessDef`
+  identity, definition digests, and a registry have landed. **PD1b's
+  `BodyPhenotype` allocation half landed 2026-09-01**, so PE2's first
+  prerequisite is met; PD2's first additional played process is the remaining
+  one. `crates/mesocosm-core/src/phenotype.rs` is the owner PE2 allocates
+  through, and `phenotype/develop.rs` is the single validator its direct and
+  automatic fixtures must both use.
 - **2026-08-31, acquisition seam:** `World::learn_from` still runs after both
   burn and incorporation, teaches every non-innate appendage in the donor
   lineage recipe rather than the consumed part, and returns early for an
@@ -735,6 +739,37 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
 ---
 
 ## 9. Progress
+
+- **2026-09-01, PE2's first prerequisite is met: PD1b landed whole.** The
+  [ProcessDef plan](2026-08-01_processdef_plan.md)'s allocation half is
+  complete, so §4's `PD1b allocation -> PD2 -> PE2` chain now waits only on
+  PD2's one native played process.
+
+  What PE2 inherits, concretely. `crates/mesocosm-core/src/phenotype.rs` owns
+  `BodyPhenotype`: a private wrapper over anatomy plus one authoritative
+  cell-graph mosaic per living part, seeded from geometry, conserving capacity,
+  and impossible to split from anatomy by an attach or a sever.
+  `phenotype/develop.rs` is the **single validator** PE2's direct and automatic
+  fixtures must both use — its `Arrangement` is diagnostic metadata the
+  validator never reads, which is why "the same candidate lowers the same way"
+  is a property of the type rather than a test that has to keep being
+  re-passed. Expression identity is `ProcessRef`, a definition digest resolved
+  through the registry, so "the PD2 process is located on anatomy" has a place
+  to be located and a name to be located under. `BodyPhenotype::explain` is the
+  explanation path a headed receipt reads: capacity, free tissue, each site's
+  qualified id, cell count, and the cause that placed it — and it still answers
+  for a severed part, which is the "lost when its dependency is severed" state
+  PE2's done-condition names.
+
+  This changed no PE gate, no ecology number and no product order. The drawn
+  baseline is unmoved and the demo trace's intent stream is byte-identical; the
+  only fixture movement is the intentional snapshot format bump, which took the
+  demo hash from `f90123db6f2a5ac5` to **`0ebe0655317a7392`**. PD1b's Progress
+  entry carries the residues, including the one PE2 will feel first: the
+  anatomy readings (`performs`, `reach`, `canopy`, `mouth`, `feeding_mode`)
+  still read geometry rather than allocation, deliberately, because that
+  rewrite is only a *different* answer once PD2 gives a site something to be
+  dormant about.
 
 - **2026-09-01, PE1 landed: reproduction and succession as the individual
   checkpoint.** Death stops being a wall.

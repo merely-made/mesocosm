@@ -366,7 +366,7 @@ impl World {
             organisms.push(Organism {
                 id: founder.id,
                 species: founder.species,
-                body,
+                phenotype: crate::phenotype::BodyPhenotype::seed(body),
                 development_seed: founder.development_seed,
                 life_history_mass_mg: mass_mg,
                 position: founder.position,

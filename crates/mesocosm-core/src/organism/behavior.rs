@@ -62,14 +62,14 @@ pub struct FaunaTraits {
 impl FaunaTraits {
     pub(crate) fn read(organism: &Organism) -> Self {
         let sensory_parts = organism
-            .body
+            .body()
             .living()
-            .filter(|part| organism.body.processes(part.id).contains(&Process::Sense))
+            .filter(|part| organism.body().processes(part.id).contains(&Process::Sense))
             .count()
             .min(u16::MAX as usize) as u16;
         Self {
             feeding_mode: organism.feeding_mode(),
-            reach: organism.body.reach(),
+            reach: organism.body().reach(),
             locomotion: organism.locomotion(),
             sensory_parts,
         }

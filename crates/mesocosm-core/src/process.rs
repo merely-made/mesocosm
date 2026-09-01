@@ -19,13 +19,22 @@
 //! the default creatures plan's DC1.5 needed a producer to be readable from
 //! anatomy rather than from symmetry.
 //!
-//! # Processes are read, not stored
+//! # Geometry seeds allocation; nobody edits a number
 //!
-//! A part does not carry a list of what it does. Its processes are derived
-//! from its geometry through [`classify`](crate::plan::classify), which is the
-//! same rule that already decides where growth puts things. So a part cannot
-//! be given an ability it has no shape for, and reshaping a body reshapes what
-//! it can do without anybody editing a number.
+//! P2's rule was *processes are read, not stored*: a part's processes were
+//! derived from its geometry through [`classify`](crate::plan::classify) and
+//! kept nowhere. PD1b keeps the principle and moves the boundary. Geometry is
+//! now the **seeding rule** — [`Role::processes`] says what a shape expresses
+//! when a part is developed — and what it seeds is
+//! [allocation](crate::phenotype): tissue on a named part, occupying named
+//! cells, citing the exact definition it expresses.
+//!
+//! The anti-Spore property survives the move intact, in two places. A
+//! definition's [`ProcessDef::admits`] still gates every allocation by the
+//! part's shape, so a proposal cannot put contraction on a plate; and
+//! capability stays a reading over anatomy, allocation and environment rather
+//! than a stored verdict. Reshaping a body still reshapes what it can do, and
+//! there is still no ability field to raise.
 
 use serde::{Deserialize, Serialize};
 
@@ -75,11 +84,13 @@ impl Role {
     ///
     /// A long thin part is an actuator, a bulky one admits material, a small
     /// one senses, and a flat one spreads itself against the world and fixes.
-    /// That mapping is the whole vocabulary today.
+    /// That mapping is the whole vocabulary today, and since PD1b it is the
+    /// **seeding rule**: it decides what a newly developed part expresses,
+    /// not what a part is permanently obliged to be.
     pub fn processes(self) -> &'static [Process] {
         // The registry is the definition of record (PD1b); this remains the
-        // fast native view of it, and the parity receipt below keeps the two
-        // from drifting.
+        // fast native view of it, and the parity receipt in `process/tests.rs`
+        // keeps the two from drifting. Seeding itself reads the registry.
         match self {
             Role::Limb => &[Process::Contract],
             Role::Mass => &[Process::Intake],
@@ -146,6 +157,34 @@ pub struct ProcessId {
     pub name: &'static str,
 }
 
+/// A definition's content address: a hash over its rule-bearing bytes.
+///
+/// This is what stops a friendly id silently changing meaning. Two worlds
+/// that both know `mesocosm:fix` but disagree about which roles express it
+/// hold different digests, and an allocation citing one cannot be resolved
+/// against the other.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+pub struct DefinitionDigest(pub u64);
+
+/// What an expressed process names: the exact admitted definition.
+///
+/// **This is the identity a phenotype stores**, and it is deliberately not a
+/// [`Process`] variant. The enum is a native binding for engine fast paths;
+/// allocation cites a definition, resolves it through a [`Registry`], and
+/// refuses when the registry does not hold it. That is the PD1b migration:
+/// the closed enum stopped being identity authority.
+///
+/// Only the digest travels, because [`ProcessId`]'s static strs cannot be
+/// deserialized into an owned world. PD3 admits owned ids and this record
+/// widens to carry both; the qualified id is recovered through
+/// [`Registry::resolve`] until then.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct ProcessRef {
+    pub definition: DefinitionDigest,
+}
+
 /// One process as a record: identity, the roles whose geometry expresses
 /// it, and a digest over its rule-bearing bytes.
 ///
@@ -164,7 +203,7 @@ pub struct ProcessDef {
 
 impl ProcessDef {
     /// Digest over the rule-bearing bytes: identity plus expression rule.
-    pub fn digest(&self) -> u64 {
+    pub fn digest(&self) -> DefinitionDigest {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(self.id.namespace.as_bytes());
         bytes.push(0);
@@ -173,7 +212,24 @@ impl ProcessDef {
         for role in self.expressed_by {
             bytes.push(*role as u8);
         }
-        crate::snapshot::hash_bytes(&bytes)
+        DefinitionDigest(crate::snapshot::hash_bytes(&bytes))
+    }
+
+    /// What a phenotype stores when it expresses this definition.
+    pub fn reference(&self) -> ProcessRef {
+        ProcessRef {
+            definition: self.digest(),
+        }
+    }
+
+    /// Whether a part of this shape may express this process.
+    ///
+    /// The site requirement, and the reason a part cannot acquire a
+    /// capability by editing a number: allocation can only put a process
+    /// where the geometry already expresses it, so changing what a part does
+    /// still means changing what a part *is*.
+    pub fn admits(&self, role: Role) -> bool {
+        self.expressed_by.contains(&role)
     }
 }
 
@@ -236,6 +292,18 @@ impl Registry {
         self.defs.iter().find(|def| def.id == id)
     }
 
+    /// The definition a stored reference names, or `None` when this world's
+    /// ruleset does not hold it.
+    ///
+    /// `None` is a real answer and must never be substituted for a similar
+    /// local definition (plan §6, missing packs). Allocation refuses rather
+    /// than guessing.
+    pub fn resolve(&self, reference: ProcessRef) -> Option<&ProcessDef> {
+        self.defs
+            .iter()
+            .find(|def| def.digest() == reference.definition)
+    }
+
     /// The definition a native binding resolves to. Total for the natives
     /// by construction; the bijection is receipted below.
     pub fn of_native(&self, process: Process) -> &ProcessDef {
@@ -256,7 +324,7 @@ impl Registry {
     pub fn digest(&self) -> u64 {
         let mut bytes = Vec::new();
         for def in self.defs {
-            bytes.extend_from_slice(&def.digest().to_le_bytes());
+            bytes.extend_from_slice(&def.digest().0.to_le_bytes());
         }
         crate::snapshot::hash_bytes(&bytes)
     }
@@ -345,225 +413,4 @@ impl BodyDocument {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::body::{Attachment, Provenance, SpeciesId, VolumeRef, Yaw};
-
-    /// A bulk root, with an optional long limb reaching out along +x.
-    fn critter(limb: bool) -> (BodyDocument, Option<PartId>) {
-        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 1_000, [2, 2, 2]);
-        let root = body.root;
-        if !limb {
-            return (body, None);
-        }
-        let arm = body
-            .attach(
-                VolumeRef::from_tag(2),
-                200,
-                // Long in one axis only, so `classify` reads it as a limb.
-                [6, 1, 1],
-                Attachment {
-                    parent: root,
-                    offset: [8, 0, 0],
-                    yaw: Yaw::Zero,
-                },
-                Provenance::founding(),
-            )
-            .expect("attaches");
-        (body, Some(arm))
-    }
-
-    #[test]
-    fn a_parts_processes_come_from_its_shape() {
-        let (body, arm) = critter(true);
-        assert_eq!(
-            body.processes(body.root),
-            &[Process::Intake],
-            "a bulk root admits"
-        );
-        assert_eq!(
-            body.processes(arm.unwrap()),
-            &[Process::Contract],
-            "a long part acts"
-        );
-    }
-
-    #[test]
-    fn a_body_without_an_actuator_reaches_only_its_own_bulk() {
-        let (body, _) = critter(false);
-        assert!(!body.performs(Process::Contract));
-        assert_eq!(
-            body.reach(),
-            BULK_REACH + 2,
-            "its own half-extent, and no further"
-        );
-    }
-
-    #[test]
-    fn growing_a_limb_extends_reach() {
-        // The first embodied consequence. Two bodies, different reach, and no
-        // capability number was written anywhere.
-        let (bare, _) = critter(false);
-        let (limbed, _) = critter(true);
-
-        assert!(
-            limbed.reach() > bare.reach(),
-            "{} vs {}",
-            limbed.reach(),
-            bare.reach()
-        );
-    }
-
-    #[test]
-    fn severing_the_limb_takes_the_reach_with_it() {
-        // The other half: a capability that came from anatomy leaves with it.
-        let (mut body, arm) = critter(true);
-        let reached = body.reach();
-
-        body.sever(arm.unwrap());
-
-        assert!(body.reach() < reached, "the reach went with the arm");
-        assert_eq!(body.reach(), BULK_REACH + 2, "back to bulk");
-        assert!(
-            !body.performs(Process::Contract),
-            "and nothing acts any more"
-        );
-    }
-
-    #[test]
-    fn a_longer_limb_reaches_further_than_a_short_one() {
-        let mut short = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, [1, 1, 1]);
-        let root = short.root;
-        let mut long = short.clone();
-
-        short
-            .attach(
-                VolumeRef::from_tag(2),
-                50,
-                [3, 1, 1],
-                Attachment {
-                    parent: root,
-                    offset: [4, 0, 0],
-                    yaw: Yaw::Zero,
-                },
-                Provenance::founding(),
-            )
-            .unwrap();
-        long.attach(
-            VolumeRef::from_tag(2),
-            50,
-            [9, 1, 1],
-            Attachment {
-                parent: root,
-                offset: [10, 0, 0],
-                yaw: Yaw::Zero,
-            },
-            Provenance::founding(),
-        )
-        .unwrap();
-
-        assert!(long.reach() > short.reach(), "length is the reach");
-    }
-
-    #[test]
-    fn a_failure_says_which_requirement_was_unmet() {
-        // "No arm" and "arm too short" are different problems and a receipt
-        // has to be able to say which.
-        let (bare, _) = critter(false);
-        assert_eq!(
-            bare.can_reach(50),
-            Err(Unmet::NoProcess {
-                capability: Capability::Reach,
-                needs: Process::Contract
-            })
-        );
-
-        let (limbed, _) = critter(true);
-        let reach = limbed.reach();
-        assert_eq!(
-            limbed.can_reach(50),
-            Err(Unmet::TooFar {
-                reach,
-                distance: 50
-            })
-        );
-        assert_eq!(
-            limbed.can_reach(reach),
-            Ok(()),
-            "and what it can do, it can do"
-        );
-    }
-
-    #[test]
-    fn the_registry_and_the_native_view_agree() {
-        // PD1b slice 1's load-bearing receipt: expression is defined by
-        // registry data, and the enum fast-path may never drift from it.
-        let registry = Registry::native();
-        for role in Role::ALL {
-            let via_registry: Vec<Process> =
-                registry.expressed_by(role).map(|def| def.native).collect();
-            assert_eq!(
-                via_registry,
-                role.processes().to_vec(),
-                "{role:?} expresses differently in data and in code"
-            );
-        }
-        // The binding is a bijection: every native resolves, and ids are
-        // qualified and distinct.
-        let mut ids = std::collections::BTreeSet::new();
-        for process in Process::ALL {
-            let def = registry.of_native(process);
-            assert_eq!(def.native, process);
-            assert!(ids.insert(def.id), "duplicate id {:?}", def.id);
-            assert_eq!(def.id.namespace, "mesocosm");
-        }
-        assert_eq!(
-            registry.all().count(),
-            Process::ALL.len(),
-            "the registry and the native list hold different numbers of processes"
-        );
-    }
-
-    #[test]
-    fn a_rule_bearing_byte_changes_the_digest() {
-        let registry = Registry::native();
-        let contract = registry.of_native(Process::Contract);
-        // Same identity, different expression rule: a different definition.
-        let tampered = ProcessDef {
-            id: contract.id,
-            native: contract.native,
-            expressed_by: &[Role::Limb, Role::Plate],
-        };
-        assert_ne!(contract.digest(), tampered.digest());
-        // And the ruleset digest is stable across constructions.
-        assert_eq!(Registry::native().digest(), Registry::native().digest());
-    }
-
-    #[test]
-    fn a_plate_is_not_an_actuator() {
-        // Armour resists; it does not reach. Without this a body could grow
-        // reach by growing anything at all, and shape would stop mattering.
-        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, [1, 1, 1]);
-        let root = body.root;
-        body.attach(
-            VolumeRef::from_tag(2),
-            50,
-            // Wide and flat: two long axes, one short.
-            [4, 4, 1],
-            Attachment {
-                parent: root,
-                offset: [6, 0, 0],
-                yaw: Yaw::Zero,
-            },
-            Provenance::founding(),
-        )
-        .unwrap();
-
-        assert_eq!(classify([4, 4, 1]), Role::Plate);
-        assert!(!body.performs(Process::Contract));
-        assert_eq!(body.reach(), BULK_REACH + 1, "a plate bought no reach");
-        // It bought the other thing, which is the DC1.5 half: area against the
-        // world is what fixing is, and it is still not an arm.
-        assert!(body.performs(Process::Fix), "and a plate fixes");
-    }
-}
+mod tests;

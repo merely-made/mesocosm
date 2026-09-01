@@ -55,7 +55,7 @@ pub(super) fn choose_living_target(
     kin: &Kin,
 ) -> Option<usize> {
     let mode = organism.feeding_mode();
-    let reach = GRAZE_RANGE + organism.body.reach();
+    let reach = GRAZE_RANGE + organism.body().reach();
     let sight = sight_range(organism, reach, ground);
     let observer_shape = organism.walker_shape();
     let hungry = is_hungry(organism);
@@ -284,7 +284,7 @@ fn preferred_target(
 ) -> Option<MovementTarget> {
     match organism.feeding_mode() {
         FeedingMode::Grazer | FeedingMode::Predator => {
-            let reach = GRAZE_RANGE + organism.body.reach();
+            let reach = GRAZE_RANGE + organism.body().reach();
             let sight = sight_range(organism, reach, ground);
             if let (Tier::Near, Some(ground)) = (organism.tier, ground) {
                 policy_living(
@@ -308,7 +308,7 @@ fn preferred_target(
             // sense carrion it could not already reach, so it stood still
             // until starvation's own wander kicked in), while the bite stays
             // capped at the flat DECOMPOSE_RANGE below.
-            let sight = sight_range(organism, DECOMPOSE_RANGE + organism.body.reach(), ground);
+            let sight = sight_range(organism, DECOMPOSE_RANGE + organism.body().reach(), ground);
             if organism.tier == Tier::Near && ground.is_some() {
                 preferred_carrion(
                     organism,
@@ -442,7 +442,7 @@ pub(super) fn disperse(
             let mut at = organism.position;
             for _ in 0..dispersal_for(organism) {
                 at = integer_step(at, target);
-                if chebyshev(at, target) <= organism.body.reach() + GRAZE_RANGE {
+                if chebyshev(at, target) <= organism.body().reach() + GRAZE_RANGE {
                     break;
                 }
             }
@@ -542,7 +542,7 @@ fn walk_grounded(
             break;
         }
         at = next;
-        if chebyshev(at, target) <= organism.body.reach() + GRAZE_RANGE {
+        if chebyshev(at, target) <= organism.body().reach() + GRAZE_RANGE {
             break;
         }
     }

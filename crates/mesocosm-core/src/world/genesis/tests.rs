@@ -265,7 +265,7 @@ fn every_founded_fauna_body_senses_and_contracts() {
             }
             per_seed += 1;
             assert!(
-                organism.body.performs(crate::process::Process::Sense),
+                organism.body().performs(crate::process::Process::Sense),
                 "seed {seed}: founder {:?} has no sense organ",
                 organism.id
             );
@@ -275,7 +275,7 @@ fn every_founded_fauna_body_senses_and_contracts() {
                 organism.id
             );
             assert!(
-                organism.body.performs(crate::process::Process::Contract),
+                organism.body().performs(crate::process::Process::Contract),
                 "seed {seed}: founder {:?} cannot move itself",
                 organism.id
             );
@@ -298,9 +298,13 @@ fn the_roster_founds_a_predator_beside_the_grazers_and_an_armoured_body() {
     let mut armoured = 0;
     for organism in &world.organisms {
         *modes.entry(organism.feeding_mode()).or_default() += 1;
-        if organism.kingdom() != Kingdom::Producer && organism.body.performs(Process::Fix) {
+        if organism.kingdom() != Kingdom::Producer && organism.body().performs(Process::Fix) {
             armoured += 1;
-            assert!(!organism.body.canopy(), "founder {:?} is lit", organism.id);
+            assert!(
+                !organism.body().canopy(),
+                "founder {:?} is lit",
+                organism.id
+            );
         }
     }
     assert!(modes[&FeedingMode::Predator] > 0, "no pursuit form founded");
@@ -364,9 +368,9 @@ fn a_founded_archetype_reads_the_carving_b_column() {
         if organism.kingdom() != Kingdom::Consumer {
             continue;
         }
-        if organism.body.living().count() != 33 {
+        if organism.body().living().count() != 33 {
             // An absence took one appendage pair; the recipe is the same.
-            assert!(organism.body.living().count() < 33);
+            assert!(organism.body().living().count() < 33);
             continue;
         }
         whole += 1;
@@ -401,8 +405,8 @@ fn the_arm_leaves_the_other_two_tiers_alone() {
                 continue;
             }
             assert_eq!(
-                crate::snapshot::encode(&before.body).expect("a body encodes"),
-                crate::snapshot::encode(&after.body).expect("a body encodes"),
+                crate::snapshot::encode(before.body()).expect("a body encodes"),
+                crate::snapshot::encode(after.body()).expect("a body encodes"),
                 "seed {seed}: founder {:?} changed body under the archetype arm",
                 before.id
             );

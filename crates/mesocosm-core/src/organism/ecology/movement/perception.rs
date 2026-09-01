@@ -175,14 +175,14 @@ pub(super) fn forage_gradient(
     let at = organism.position;
     match mode {
         FeedingMode::Grazer | FeedingMode::Predator => {
-            let horizon = super::GRAZE_RANGE + organism.body.reach();
+            let horizon = super::GRAZE_RANGE + organism.body().reach();
             densest_cell(at, living_cells, horizon, |index| match living.get(index) {
                 Some(target) => u32::from(edible(organism, mode, target, horizon, kin)),
                 None => 0,
             })
         }
         FeedingMode::Scavenger => {
-            let horizon = super::DECOMPOSE_RANGE + organism.body.reach();
+            let horizon = super::DECOMPOSE_RANGE + organism.body().reach();
             densest_cell(at, carrion_cells, horizon, |index| {
                 u32::from(carrion.get(index).is_some())
             })

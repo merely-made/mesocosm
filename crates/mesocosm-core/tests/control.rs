@@ -45,7 +45,7 @@ fn the_player_is_an_ordinary_organism() {
         world.organisms.iter().any(|o| o.id == me.id),
         "in the roster like anything else"
     );
-    assert!(!me.body.is_empty(), "with a body");
+    assert!(!me.body().is_empty(), "with a body");
     assert!(me.energy_mg > 0, "and a budget");
 }
 
@@ -55,7 +55,7 @@ fn every_organism_has_a_body_now() {
     // action: there is no scalar organism left to special-case.
     let world = World::new(11, 24);
     for organism in &world.organisms {
-        assert!(!organism.body.is_empty(), "{:?} has anatomy", organism.id);
+        assert!(!organism.body().is_empty(), "{:?} has anatomy", organism.id);
         let preview = world
             .lineages()
             .get(organism.species)
@@ -67,12 +67,17 @@ fn every_organism_has_a_body_now() {
             )
             .unwrap();
         assert_eq!(
-            organism.body, preview,
+            *organism.body(),
+            preview,
             "founding and preview share one developer"
         );
         assert_eq!(
             organism.half_extent(),
-            organism.body.part(organism.body.root).unwrap().half_extent,
+            organism
+                .body()
+                .part(organism.body().root)
+                .unwrap()
+                .half_extent,
             "and its shape is read off that anatomy rather than stored beside it"
         );
     }
@@ -194,8 +199,8 @@ fn serialization_does_not_distinguish_the_played_critter() {
             o.stage,
             o.development_seed,
             o.life_history_mass_mg,
-            o.body.plan.clone(),
-            o.body
+            o.body().plan.clone(),
+            o.body()
                 .parts
                 .iter()
                 .map(|part| {
@@ -501,7 +506,7 @@ fn reproduction_does_not_manufacture_body_mass() {
         world.apply(Intent::Idle);
         for newborn in world.organisms.iter().filter(|o| o.age == 0) {
             assert_eq!(
-                newborn.body.total_mass_mg(),
+                newborn.body().total_mass_mg(),
                 newborn.biomass_mg(),
                 "{:?} was born with anatomy it did not pay for",
                 newborn.id
@@ -516,8 +521,11 @@ fn reproduction_does_not_manufacture_body_mass() {
                     world.development_palette(),
                 )
                 .unwrap();
-            assert_eq!(newborn.body, expected, "birth and founder preview agree");
-            assert!(newborn.body.len() > 1, "the recipe reached live offspring");
+            assert_eq!(*newborn.body(), expected, "birth and founder preview agree");
+            assert!(
+                newborn.body().len() > 1,
+                "the recipe reached live offspring"
+            );
             checked += 1;
         }
         if checked > 3 {

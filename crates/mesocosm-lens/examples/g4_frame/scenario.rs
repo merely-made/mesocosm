@@ -322,7 +322,7 @@ fn hunter_body(world: &World) -> Result<BodyLensProjection, String> {
         .find(|organism| organism.id == HUNTER_ID)
         .ok_or("the G4 crossing has no hunter")?;
     BodyLensProjection::project(
-        &hunter.body,
+        hunter.body(),
         BodyPlacement {
             ground: [
                 hunter.position[0] as f32 + 0.5,

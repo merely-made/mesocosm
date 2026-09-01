@@ -317,7 +317,7 @@ impl World {
 
     /// The played critter's anatomy.
     pub fn body(&self) -> Option<&BodyDocument> {
-        self.controlled().map(|o| &o.body)
+        self.controlled().map(|o| o.body())
     }
 
     /// Where the played critter is.
@@ -359,7 +359,7 @@ impl World {
             .map(|axis| (target[axis] - me.position[axis]).abs())
             .max()
             .unwrap_or(0);
-        me.body.can_reach(distance)
+        me.body().can_reach(distance)
     }
 
     /// Whether the played critter can touch a point. Anatomy decides.

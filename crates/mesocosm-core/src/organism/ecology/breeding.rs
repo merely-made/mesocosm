@@ -66,7 +66,7 @@ pub(super) fn breed(
         let Ok(mut body) = lineage.realize(development_seed, cost, palette) else {
             continue;
         };
-        body.plan.symmetry = parent.body.plan.symmetry;
+        body.plan.symmetry = parent.body().plan.symmetry;
         // Wide enough to leave a crowded cell. Dispersal is how a stand
         // escapes its own shade, so a short throw would trap every offspring
         // in the same competition its parent is already losing.
@@ -95,8 +95,10 @@ pub(super) fn breed(
             species: parent.species,
             // A child starts small but structurally filial: the lineage recipe
             // grew this body under the current world's palette, and the whole
-            // graph contains exactly what the parent paid.
-            body,
+            // graph contains exactly what the parent paid. Its allocation is
+            // seeded against those actual parts in the same unpublished
+            // candidate, so a newborn is never a body without a phenotype.
+            phenotype: crate::phenotype::BodyPhenotype::seed(body),
             development_seed,
             life_history_mass_mg: cost,
             energy_mg: endowment,

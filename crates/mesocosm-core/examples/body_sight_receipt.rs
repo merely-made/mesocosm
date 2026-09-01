@@ -147,13 +147,13 @@ fn hunter(tall: bool, position: [i32; 3]) -> Organism {
     );
     if tall {
         hunter
-            .body
+            .phenotype
             .attach(
                 VolumeRef::from_tag(17),
                 1,
                 [1, 5, 1],
                 Attachment {
-                    parent: hunter.body.root,
+                    parent: hunter.body().root,
                     offset: [0, 6, 0],
                     yaw: Yaw::Zero,
                 },

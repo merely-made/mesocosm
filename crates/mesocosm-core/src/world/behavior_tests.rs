@@ -68,7 +68,7 @@ fn bounded_fauna_policy_names_its_decision_and_replays() {
         .last_fauna_decision
         .expect("near fauna records its bounded target proposal");
     assert_eq!(trace.traits.feeding_mode, FeedingMode::Predator);
-    assert_eq!(trace.traits.reach, predator.body.reach());
+    assert_eq!(trace.traits.reach, predator.body().reach());
     assert_eq!(trace.traits.locomotion, predator.locomotion());
     assert_eq!(trace.senses.target_distance, distance);
     assert_eq!(trace.senses.target_mass_mg, 300);

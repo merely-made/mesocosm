@@ -464,7 +464,7 @@ pub fn roster_of(
                 && window.holds(organism.position)
         })
         .filter_map(|organism| {
-            pose_at(&organism.body, organism.position, tint(organism)).map(|(pose, _)| pose)
+            pose_at(organism.body(), organism.position, tint(organism)).map(|(pose, _)| pose)
         })
         .take(MAX_ROSTER)
         .collect()

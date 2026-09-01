@@ -566,7 +566,7 @@ fn hunter_pose(world: &World) -> Option<CritterPose> {
         .iter()
         .find(|organism| organism.id == OrganismId(900) && organism.is_alive())?;
     BodyLensProjection::project(
-        &hunter.body,
+        hunter.body(),
         BodyPlacement {
             ground: [
                 hunter.position[0] as f32 + 0.5,

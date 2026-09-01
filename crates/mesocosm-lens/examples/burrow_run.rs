@@ -52,7 +52,7 @@ fn main() -> Result<(), String> {
         run.world
             .controlled()
             .expect("the G4 run has a played organism")
-            .body
+            .body()
             .living()
             .count(),
         "the SDF projection omitted a living player part"
@@ -299,7 +299,7 @@ fn player_body(world: &World) -> Result<BodyLensProjection, String> {
         .controlled()
         .ok_or("the G4 run lost its played organism before projection")?;
     BodyLensProjection::project(
-        &player.body,
+        player.body(),
         BodyPlacement {
             ground: [
                 player.position[0] as f32 + 0.5,

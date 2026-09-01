@@ -16,9 +16,21 @@
 //! because there is no capability number to edit.
 
 use mesocosm_core::{
-    Attachment, Capability, Intent, OrganismId, Outcome, Placement, Process, Provenance, Rejection,
-    Unmet, VolumeRef, World, Yaw,
+    Attachment, Capability, Intent, OrganismId, Outcome, Placement, Process, ProcessRef,
+    Provenance, Registry, Rejection, Unmet, VolumeRef, World, Yaw,
 };
+
+// An integration test's crate root resolves `mod` against `tests/`, and a
+// bare `tests/allocation.rs` would become a second test binary. The explicit
+// path keeps the split file beside the suite it belongs to.
+#[path = "embodied/allocation.rs"]
+mod allocation;
+
+/// The definition a contracting part expresses. Identity is the registry's
+/// now, not the enum's: this is the reference a phenotype actually stores.
+fn contract() -> ProcessRef {
+    Registry::native().of_native(Process::Contract).reference()
+}
 
 /// Empties the played critter's budget. Since TD4 the body routes its own
 /// meals, so this is how a test asks for the burning half of the verb.
@@ -63,9 +75,9 @@ fn bulk_world(seed: u64, founders: u32) -> World {
 fn grow_a_limb(world: &mut World) -> mesocosm_core::PartId {
     let me = world.controlled_id().expect("embodied");
     let organism = world.organisms.iter_mut().find(|o| o.id == me).unwrap();
-    let root = organism.body.root;
+    let root = organism.body().root;
     organism
-        .body
+        .phenotype
         .attach(
             VolumeRef::from_tag(9),
             200,
@@ -177,11 +189,27 @@ fn severing_the_limb_removes_the_ability_it_provided() {
         .iter_mut()
         .find(|o| o.id == me)
         .unwrap()
-        .body
+        .phenotype
         .sever(limb);
 
     assert_eq!(lost, vec![limb]);
     assert!(world.reach() < reached, "the reach went with the arm");
+
+    // **And the allocation went with it, in the same commit.** Anatomy and
+    // phenotype cannot be split: there is no ordering in which the arm is gone
+    // and the tissue allocated to contraction is still expressing.
+    let me = world.controlled().unwrap();
+    assert!(
+        !me.phenotype.expresses(contract()),
+        "no living allocation contracts any more"
+    );
+    assert!(
+        me.phenotype
+            .allocations()
+            .all(|(part, _)| me.body().is_living(part)),
+        "and every living allocation still names a living part"
+    );
+    assert!(me.phenotype.conserves());
 }
 
 #[test]
@@ -259,12 +287,12 @@ fn every_organism_answers_the_same_way() {
     let world = World::new(4_242, 24);
     for organism in &world.organisms {
         assert!(
-            organism.body.reach() > 0,
+            organism.body().reach() > 0,
             "{:?} can touch something",
             organism.id
         );
         assert_eq!(
-            organism.body.can_reach(organism.body.reach()),
+            organism.body().can_reach(organism.body().reach()),
             Ok(()),
             "and can do what its own fold says it can"
         );
@@ -285,9 +313,9 @@ fn growing_raises_the_rent_and_burning_does_not() {
     let me = grown.controlled_id().unwrap();
     {
         let organism = grown.organisms.iter_mut().find(|o| o.id == me).unwrap();
-        let root = organism.body.root;
+        let root = organism.body().root;
         organism
-            .body
+            .phenotype
             .attach(
                 VolumeRef::from_tag(9),
                 4_000,
@@ -349,7 +377,7 @@ fn a_body_and_its_weight_are_one_account() {
     assert_eq!(after.biomass_mg(), before + room);
     assert_eq!(
         after.biomass_mg(),
-        after.body.total_mass_mg(),
+        after.body().total_mass_mg(),
         "one account, not two"
     );
 }

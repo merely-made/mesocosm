@@ -49,6 +49,7 @@ pub mod flow;
 pub mod growth;
 pub mod history;
 pub mod organism;
+pub mod phenotype;
 pub mod places;
 pub mod plan;
 pub mod process;
@@ -86,9 +87,16 @@ pub use organism::{
     FaunaDecisionTrace, FaunaDrive, FaunaDriveScores, FaunaPolicy, FaunaSenses, FaunaTraits,
     Kingdom, Organism, OrganismId, Signal, Stage, Tally,
 };
+pub use phenotype::{
+    Aim, AllocationProposal, Arrangement, BodyPhenotype, CellId, Development, Explanation,
+    Expressed, Instruction, Mosaic, ProposedSite, Refusal, Site, SiteId, SiteReading, arrange,
+};
 pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
-pub use process::{BULK_REACH, Capability, FeedingMode, Process, Unmet};
+pub use process::{
+    BULK_REACH, Capability, DefinitionDigest, FeedingMode, Process, ProcessDef, ProcessId,
+    ProcessRef, Registry, Unmet,
+};
 pub use record::{Feat, Mark, Scale, WorldRecord};
 pub use rng::Rng;
 pub use score::{Reading, readings};

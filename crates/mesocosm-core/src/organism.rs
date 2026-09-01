@@ -19,6 +19,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::body::{Attachment, BodyDocument, Provenance, Yaw};
+use crate::phenotype::BodyPhenotype;
 use crate::places::{Tier, WalkerShape};
 use crate::plan::{Role, classify};
 use crate::process::{FeedingMode, Process};
@@ -26,6 +27,7 @@ use crate::process::{FeedingMode, Process};
 mod behavior;
 pub mod ecology;
 mod kingdom;
+mod ledger;
 
 pub use behavior::{
     FaunaDecisionTrace, FaunaDrive, FaunaDriveScores, FaunaPolicy, FaunaSenses, FaunaTraits,
@@ -33,6 +35,7 @@ pub use behavior::{
 pub use ecology::step;
 use ecology::{OFFSPRING_COST, STARVATION_MG};
 pub use kingdom::Kingdom;
+pub use ledger::Upkeep;
 
 use crate::body::{SpeciesId, VolumeRef};
 
@@ -87,7 +90,7 @@ pub struct Organism {
     /// Which lineage this belongs to. Incorporation carries it forward, so a
     /// part you take always knows whose it was.
     pub species: SpeciesId,
-    /// This organism's anatomy.
+    /// This organism's anatomy **and its process allocation**.
     ///
     /// **Every organism has one**, played or not. Before P1 only the critter
     /// the player inhabited had a body and everything else was a `VolumeRef`
@@ -98,7 +101,12 @@ pub struct Organism {
     ///
     /// Most organisms carry a single root part. That is a body, not a special
     /// case, and it grows by the same rules as any other.
-    pub body: BodyDocument,
+    ///
+    /// **It was a bare `BodyDocument` until PD1b.** The wrapper's own fields
+    /// are private, so no caller reaches `&mut BodyDocument` through an
+    /// organism and no attach, sever or rearrangement can split anatomy from
+    /// phenotype. Read the anatomy through [`Organism::body`].
+    pub phenotype: BodyPhenotype,
     /// Entropy that realized this individual from its lineage recipe.
     ///
     /// Stored because the body is causal state, not a renderer accident. A
@@ -225,7 +233,7 @@ impl Organism {
         Self {
             id,
             species,
-            body,
+            phenotype: BodyPhenotype::seed(body),
             development_seed,
             life_history_mass_mg: mass_mg,
             position,
@@ -243,10 +251,26 @@ impl Organism {
         }
     }
 
+    /// The same organism, grown up. A fixture convenience: worldgen staggers
+    /// ages, and a test that needs an adult should not have to.
+    pub fn matured(mut self) -> Self {
+        self.stage = Stage::Mature;
+        self
+    }
+
+    /// This organism's anatomy.
+    ///
+    /// The structural reading everything that draws, weighs, places or
+    /// projects a body wants. Its allocation is beside it, through
+    /// [`Organism::phenotype`], and neither can move without the other.
+    pub fn body(&self) -> &BodyDocument {
+        self.phenotype.body()
+    }
+
     /// The volume a projection should draw for this organism: its root part's.
     pub fn volume(&self) -> VolumeRef {
-        self.body
-            .part(self.body.root)
+        self.body()
+            .part(self.body().root)
             .map(|p| p.volume)
             .unwrap_or(VolumeRef([0; 32]))
     }
@@ -256,8 +280,8 @@ impl Organism {
     /// A reading rather than a field, so a body and the shape the world sees
     /// cannot disagree.
     pub fn half_extent(&self) -> [i32; 3] {
-        self.body
-            .part(self.body.root)
+        self.body()
+            .part(self.body().root)
             .map(|p| p.half_extent)
             .unwrap_or([1, 1, 1])
     }
@@ -268,7 +292,7 @@ impl Organism {
     /// injury can change where the organism fits without synchronizing a
     /// second locomotion size field.
     pub fn walker_shape(&self) -> WalkerShape {
-        WalkerShape::from_aabb(self.body.aabb())
+        WalkerShape::from_aabb(self.body().aabb())
     }
 
     /// What this organism weighs: the sum of its surviving parts.
@@ -279,7 +303,7 @@ impl Organism {
     /// see the other. That is why a forty-part critter cost exactly what a
     /// single cell cost.
     pub fn biomass_mg(&self) -> u64 {
-        self.body.total_mass_mg()
+        self.body().total_mass_mg()
     }
 
     pub(crate) fn life_history_mass_mg(&self) -> u64 {
@@ -294,13 +318,13 @@ impl Organism {
     /// a genesis decree. A reshaped body therefore changes the role the ecology
     /// sees. See [`kingdom`] for the rules and why they replaced symmetry.
     pub fn kingdom(&self) -> Kingdom {
-        Kingdom::of_body(&self.body)
+        Kingdom::of_body(self.body())
     }
 
     /// What this body does with matter: the same anatomy, read one level
     /// finer. A jaw at the head makes a predator; a crop makes a grazer.
     pub fn feeding_mode(&self) -> FeedingMode {
-        FeedingMode::of_body(&self.body)
+        FeedingMode::of_body(self.body())
     }
 
     /// How far this body's actuators swing, in voxels: each living
@@ -311,9 +335,9 @@ impl Organism {
     /// the drive selector's arithmetic; rent prices this one, so a plant pays
     /// nothing for a machinery it does not carry. (TD7)
     pub fn actuator_span(&self) -> u32 {
-        self.body
+        self.body()
             .living()
-            .filter(|part| self.body.processes(part.id).contains(&Process::Contract))
+            .filter(|part| self.body().processes(part.id).contains(&Process::Contract))
             .map(|part| {
                 part.half_extent
                     .iter()
@@ -338,9 +362,9 @@ impl Organism {
     /// the two coincide anyway on the primitive palette, whose sensor template
     /// is `[1, 1, 1]`.
     pub fn sensor_span(&self) -> u32 {
-        self.body
+        self.body()
             .living()
-            .filter(|part| self.body.processes(part.id).contains(&Process::Sense))
+            .filter(|part| self.body().processes(part.id).contains(&Process::Sense))
             .map(|part| {
                 part.half_extent
                     .iter()
@@ -355,143 +379,6 @@ impl Organism {
     /// on the same contractile geometry that makes a body a predator.
     pub fn locomotion(&self) -> u32 {
         self.actuator_span().max(1)
-    }
-
-    /// The adult mass this body plan describes.
-    ///
-    /// **Determinate growth** (TD6, ruled 2026-08-29). Income, upkeep and the
-    /// reproduction tax all scale as `m^0.75`, so the sign of net growth never
-    /// depended on size and no body ever arrived at an adult mass. The ceiling
-    /// is derived per part from what the plan already knows — the part's own
-    /// voxel volume — and summed, so a longer or bulkier recipe is a larger
-    /// adult and gigantism is a lineage strategy rather than an authored
-    /// number. It is no longer the stability mechanism (conservation is), so
-    /// it can be exactly this simple.
-    ///
-    /// The way past it is the game's own verb: eating adds *parts*, and every
-    /// part brings its own ceiling with it.
-    pub fn mass_ceiling_mg(&self) -> u64 {
-        self.body
-            .living()
-            .map(|part| ecology::part_ceiling_mg(part.half_extent))
-            .sum()
-    }
-
-    /// How much more matter this body could take in, as substance or reserve.
-    ///
-    /// What a feeding body should ask for: drawing beyond it would only have
-    /// to be handed straight back to the world.
-    pub fn intake_room_mg(&self) -> u64 {
-        let ceiling = self.mass_ceiling_mg();
-        ceiling.saturating_sub(self.biomass_mg()) + ceiling.saturating_sub(self.energy_mg)
-    }
-
-    /// Adds substance, to the root part, up to [`Self::mass_ceiling_mg`].
-    ///
-    /// Growth by feeding thickens what is already there. Gaining a *part* is
-    /// incorporation, which is a different act with a different cost.
-    ///
-    /// Returns what would not fit. Matter is conserved, so a caller has to put
-    /// that somewhere real rather than letting it evaporate.
-    pub fn gain_mass(&mut self, mg: u64) -> u64 {
-        let room = self.mass_ceiling_mg().saturating_sub(self.biomass_mg());
-        let kept = mg.min(room);
-        let root = self.body.root;
-        match self.body.parts.get_mut(root.0 as usize) {
-            Some(part) => {
-                part.mass_mg = part.mass_mg.saturating_add(kept);
-                mg - kept
-            }
-            None => mg,
-        }
-    }
-
-    /// Removes substance across the living body in stable part order.
-    ///
-    /// Returns what could not be paid. A body that cannot cover a cost is
-    /// starving, and the caller decides what that means.
-    pub fn spend_mass(&mut self, mg: u64) -> u64 {
-        let mut unpaid = mg;
-        for part in self.body.parts.iter_mut().filter(|part| !part.severed) {
-            let paid = part.mass_mg.min(unpaid);
-            part.mass_mg -= paid;
-            unpaid -= paid;
-            if unpaid == 0 {
-                break;
-            }
-        }
-        unpaid
-    }
-
-    /// How elaborate this organism is.
-    ///
-    /// **Derived from anatomy**, like everything else a body decides. Parts
-    /// carry more weight than substance, because a creature is complex by
-    /// having many things rather than by being large, and each part is
-    /// something that has to be fed and connected.
-    ///
-    /// `epoch::Lineage` has its own complexity over a trait array. That one is
-    /// the provisional scaffolding the phenotype plan schedules for deletion;
-    /// this is the one the world uses.
-    pub fn complexity(&self) -> i32 {
-        let parts = self.body.living().count() as i32;
-        parts * 4 + (self.biomass_mg() / 500) as i32
-    }
-
-    /// What this organism spends per tick simply existing — **and moving**.
-    ///
-    /// **Scales with what it is carrying**, which is the whole point of
-    /// reconciling the ledgers: before this, upkeep was a flat milligram and
-    /// a body could grow without limit for free. Growing is now a standing
-    /// cost, which is what gives *burn or grow* a downside to weigh.
-    ///
-    /// TD7 adds the second half: rent prices what a body *does*, not only what
-    /// it weighs. The three numbers here are all the body plan's own —
-    /// [`Self::biomass_mg`], [`Self::actuator_span`], and
-    /// [`Self::mass_ceiling_mg`] — so the trophic asymmetry between a plant and
-    /// an animal is anatomy rather than an authored constant. See
-    /// [`ecology::upkeep_for_body`].
-    pub fn upkeep_mg(&self) -> u64 {
-        ecology::upkeep_for_body(
-            self.biomass_mg(),
-            self.actuator_span(),
-            self.mass_ceiling_mg(),
-        )
-    }
-
-    /// Whether the budget holds fewer than `ticks` ticks of upkeep.
-    ///
-    /// **The one shape every hunger question in the game takes.** Hunger is
-    /// never a milligram count — a large body burns through the same number
-    /// faster — so it is asked in the only unit that means the same thing to
-    /// every body: how long this one could go on doing nothing. The callers
-    /// pick their own horizon and say why: the ecology wanders at
-    /// `HUNGRY_UPKEEP_TICKS` (nearly out), and a meal routes at
-    /// `STARVED_UPKEEP_TICKS` (out soon enough to matter).
-    pub fn budget_below(&self, ticks: u64) -> bool {
-        self.energy_mg < self.upkeep_mg().saturating_mul(ticks)
-    }
-
-    /// Pays one tick of upkeep: from the budget first, then from the body.
-    ///
-    /// Eating to burn buys survival directly; when there is nothing left to
-    /// spend, a creature consumes itself.
-    ///
-    /// Reports which account each milligram came out of, because the flow record
-    /// has to say so: rent paid out of a reserve and rent paid out of a body are
-    /// the same transfer to the ground and different transfers out of the
-    /// creature. `unpaid_mg` is what it still could not cover, which is
-    /// starvation.
-    pub fn pay_upkeep(&mut self) -> Upkeep {
-        let owed = self.upkeep_mg();
-        let reserve_mg = self.energy_mg.min(owed);
-        self.energy_mg -= reserve_mg;
-        let unpaid_mg = self.spend_mass(owed - reserve_mg);
-        Upkeep {
-            reserve_mg,
-            substance_mg: owed - reserve_mg - unpaid_mg,
-            unpaid_mg,
-        }
     }
 
     pub fn is_alive(&self) -> bool {
@@ -547,15 +434,6 @@ impl Organism {
             && self.biomass_mg() >= ecology::breeding_mass_mg(self.mass_ceiling_mg())
             && self.biomass_mg() > STARVATION_MG * OFFSPRING_COST
     }
-}
-
-/// One tick of rent, and which account it came out of.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Upkeep {
-    pub reserve_mg: u64,
-    pub substance_mg: u64,
-    /// What the body could not cover. This is starvation.
-    pub unpaid_mg: u64,
 }
 
 /// What a tick did to the world's organisms, so a host can show it and a test

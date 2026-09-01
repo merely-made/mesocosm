@@ -9,9 +9,10 @@
 //! world, and nothing else in the crate does: `World::apply` is the only door,
 //! and this is the room behind it.
 
-use crate::body::{Attachment, BodyDocument, Origin, PartId, Provenance};
+use crate::body::{Attachment, Origin, PartId, Provenance};
 use crate::flow::{Account, FlowEvent, Subject};
 use crate::organism::{Organism, OrganismId};
+use crate::phenotype::BodyPhenotype;
 use crate::places::step_for;
 
 use super::records::Landed;
@@ -133,7 +134,7 @@ impl World {
                 // a commitment rather than a rename.
                 if let Some(organism) = self.organisms.iter_mut().find(|o| o.id == id) {
                     organism.species = species;
-                    organism.body.species = species;
+                    organism.phenotype.set_species(species);
                 }
                 self.unlocked.insert(species);
                 Outcome::Speciated {
@@ -264,8 +265,11 @@ impl World {
             }
             _ => None,
         };
+        // The rollback point is the whole **phenotype**, not the anatomy: a
+        // restore that put back the parts and left the mosaics grown would be
+        // exactly the split account the wrapper exists to prevent.
         let body_before = matches!(route, Route::Incorporate { .. })
-            .then(|| self.body().cloned())
+            .then(|| self.controlled().map(|me| me.phenotype.clone()))
             .flatten();
 
         // Read before the meal lands, because landing it changes the anatomy a
@@ -295,7 +299,7 @@ impl World {
                     .stands(&self.ground, organism.position)
             })
         {
-            *self.controlled_body_mut() = before;
+            *self.controlled_phenotype_mut() = before;
             self.organisms.insert(index, eaten);
             return Outcome::Rejected(Rejection::NoRoom);
         }
@@ -399,7 +403,7 @@ impl World {
                     },
             } => {
                 let provenance = self.taken_from(eaten);
-                let attached = self.controlled_body_mut().attach(
+                let attached = self.controlled_phenotype_mut().attach(
                     eaten.volume(),
                     eaten.biomass_mg(),
                     eaten.half_extent(),
@@ -435,7 +439,7 @@ impl World {
                 let parts = if growth.mirror.is_some() { 2 } else { 1 };
                 let each = eaten.biomass_mg() / parts;
 
-                let Ok(part) = self.controlled_body_mut().attach(
+                let Ok(part) = self.controlled_phenotype_mut().attach(
                     eaten.volume(),
                     each,
                     eaten.half_extent(),
@@ -448,7 +452,7 @@ impl World {
                 // No energy. Growing is the slow answer, and a meal cannot be
                 // both meals.
                 let (outcome, body_mg) = match crate::growth::mirror_attachment(&growth) {
-                    Some(mirrored) => match self.controlled_body_mut().attach(
+                    Some(mirrored) => match self.controlled_phenotype_mut().attach(
                         eaten.volume(),
                         each,
                         eaten.half_extent(),
@@ -471,16 +475,21 @@ impl World {
         }
     }
 
-    /// The played critter's anatomy, mutably. Only reached after control
+    /// The played critter's phenotype, mutably. Only reached after control
     /// has been confirmed, so the fallback is unreachable in practice.
-    fn controlled_body_mut(&mut self) -> &mut BodyDocument {
+    ///
+    /// **A phenotype, not a `&mut BodyDocument`.** Incorporation attaches
+    /// through the wrapper, which seeds the new part's mosaic in the same
+    /// operation; there is no call here that could land a part with no
+    /// allocation behind it.
+    fn controlled_phenotype_mut(&mut self) -> &mut BodyPhenotype {
         let id = self.controlled.expect("metabolize checks embodiment first");
         &mut self
             .organisms
             .iter_mut()
             .find(|o| o.id == id)
             .expect("metabolize checks embodiment before landing a meal")
-            .body
+            .phenotype
     }
 
     /// Provenance for a part taken off `eaten`.
