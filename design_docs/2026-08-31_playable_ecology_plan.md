@@ -146,6 +146,12 @@ The durable record therefore needs the evidence and route, not only the thing
 unlocked. The current `Event::Learned` and `World::learn_from` are migration
 inputs, not the final acquisition model.
 
+*(Built 2026-09-01. `World::learn_from` is gone and `Event::Learned` is
+replaced by `Event::Discovered`, whose condition digest resolves to the
+evidence, the route, the realized candidate and its parameters. `Recipe::
+acquire` survives, called by the evaluator for the word a matched condition
+grants rather than by every meal for the donor's whole recipe. See §9.)*
+
 ### Generated effects use authored verbs
 
 The generator may compose surprising biology, but it does so inside bounded,
@@ -435,6 +441,13 @@ validator (PD1b), so PE2's NPC-acquisition ruling has a proposal source to
 plug into whenever it is made, but that ruling itself is still open. This
 note dispatches no PE2 work.
 
+**Complete, 2026-09-01.** All five done-conditions are receipted; see §9. The
+gate's own located/paid/useful/dormant/severed clause is re-receipted through
+the discovery route rather than through PD2's temporary fixture:
+`the_discovered_candidate_is_located_paid_for_useful_dormant_and_lost_with_its_branch`
+starts from a condition and ends with a severed branch that still explains
+itself.
+
 ### PE3: the lineage checkpoint turns discovery into a descendant
 
 Follow the owning phenotype and ProcessDef order through P3 branch transfer,
@@ -574,7 +587,15 @@ have measured receipts.
 4. Which generated-material scheme from the elements memo is the first one
    built?
 5. Do NPC lineages acquire new developmental vocabulary through the same
-   evidence rules, or only evaluate inherited candidates?
+   evidence rules, or only evaluate inherited candidates? **Still open**, and
+   PE2 built so that ruling either way is small: `discovery::Evidence` names no
+   player, the evaluator takes evidence and a set of known conditions and
+   nothing else, and a `Candidate` lowers through the same validator whichever
+   `Arrangement` proposed it. What the NPC path would need is two things PE2
+   deliberately did not build — a per-body accumulator for each stress a
+   condition reads (or a declared cohort reduction for it, per the execution
+   boundary), and a proposal sink in the ecology's own step so an unplayed
+   lineage can actually take a candidate up. Neither is a second evaluator.
 6. How much ecology truth is available during live play, and how much becomes
    available only during epoch review or postmortem?
 7. What exact recoverability condition makes a trophic collapse terminal in
@@ -601,6 +622,12 @@ detailed requirements and research live in the plan that owns each mechanism.
 | Sub-part body mutation | [Phenotype D3a](2026-07-31_phenotype_plan.md#d3a-when-do-voxel-cells-become-body-state) | First played case in PE2 or PE3 that cannot use whole-part loss | New immutable volume or explicit body patch; atomic body revision; bounded revision-safe mesh/collider work; truthful fallback. |
 | Generated trait execution | [ProcessDef](2026-08-01_processdef_plan.md#one-displayed-trait-three-compiled-programs) and [acquisition](2026-08-29_traits_and_perception_brief.md) | PE2 then PE3 | Event-driven condition, discrete development program, and native repeated process remain separate; each is typed and bounded; the exact realized candidate and digest persist. |
 | Environmental fields | [Resident views](2026-08-14_resident_views_composition_plan.md#field-admission-boundary-2026-09-01) and [elements](2026-08-29_elements_and_traits_memo.md#field-dimensionality-is-part-of-admission) | First PE4 world rule that needs a new field | Named consumer, honest domain, cadence, sources/sinks, boundaries, units/range, conservation, scale rule, cost, and control. |
+
+**Generated trait execution, first half met (2026-09-01).** PE2 built the
+condition program: event-driven, typed, bounded, with declared inputs, and it
+persists the exact realized candidate reference and a digest. It is not a
+`ProcessDef` and it is not a development program — those stay separate, and
+the second of them is PE3's. See §9.
 
 Three cross-lane rules stay here. Representation changes are world
 transactions and cannot create events or resources. A derived mesh, collider,
@@ -745,6 +772,58 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
   but it means succession is an *opportunity* the ecology grants, not a
   guarantee the checkpoint makes.
 
+- **2026-09-01, a severed part's milligrams have already left the conservation
+  account.** `BodyPhenotype::sever` tombstones a branch and
+  `BodyDocument::total_mass_mg` skips severed parts, so severing *destroys*
+  mass as far as `World::total_matter_mg` is concerned. Nothing has noticed
+  because `sever` has no production caller — it is reached only by fixtures and
+  PD2's receipt — but it is why PE2's part-level meal takes an organ off a
+  **corpse** rather than off the severed branch the plan's sentence also allows:
+  eating tombstoned tissue would create matter out of nothing. Whoever opens
+  dismemberment (phenotype D3a) owns the ruling this needs first — a severed
+  branch either stays in the account as a detached body, returns to the soil
+  column under it, or is a carcass in its own right. It is a one-line bug today
+  and a conservation hole the moment an `Intent` can sever.
+
+- **2026-09-01, not eating is not the same as going hungry.** The demo's
+  critter grows a canopy from its first ten meals, and a canopy earns from the
+  ground: with the script's meal branch simply switched off its budget went
+  *flat* at 1,820 mg for two hundred ticks and never crossed the starved line
+  once. The stress had to be induced with `Deposit` — spending the reserve into
+  the ground — which is diegetic and needs no new verb, but it is a finding
+  about the shipping body rather than about the script. A played critter that
+  has grown a producer's anatomy is much harder to starve than the played-slice
+  plan's reading assumes, and any later condition that reads hunger should
+  expect to be reached by a *consumer*, not by whatever the demo happens to
+  have grown into.
+
+- **2026-09-01, eating one organ can change what the eater is.** Taking a plate
+  off a carcass and attaching it in a canopy position makes the eater read as a
+  producer to `Kingdom::of`, and the ecology grazes it accordingly — observed
+  in `tests/flows.rs`, where the played critter appears on the *source* side of
+  a `Feeding` record one tick after consuming a plate. This is the
+  body-is-authority rule working exactly as ruled, arriving somewhere new: a
+  single incorporation can move a critter between trophic roles, with all the
+  income and all the predation that implies, and nothing warned it. Worth
+  knowing before PE3 offers a candidate that changes a lineage's kingdom.
+
+- **2026-09-01, availability outruns expression, and that is the interesting
+  state.** The body that comes through the starvation horizon is a bulk
+  consumer, and the gland it earns needs a plate. So `Candidate::propose`
+  returns `None` on the very body that did the enduring, and stays `None` until
+  something grows it a plate. That is not a gap: it is the plan's
+  observation/availability/expression distinction showing up as a state a
+  player will actually sit in, and PE3's review has to be able to *show* a
+  candidate that cannot yet be taken, with the reason, rather than hiding it or
+  offering it and refusing.
+
+- **2026-09-01, PE0's place stamp is still unread, and PE2 did not take it
+  either.** §8 routed the enclosure-wide reading to "the first phase with a
+  player standing somewhere specific"; PE1 passed it to PE2 and PE2 has a
+  player standing somewhere specific but spent its whole surface on acquisition.
+  The reading remains enclosure-wide. It falls to PE3 or PE4; recording it here
+  so it is passed deliberately rather than by inheritance a third time.
+
 - **2026-09-01, the causal log had no tick until now.** PE0's envelope is what
   makes a bounded window over births, maturations and deaths possible at all:
   `History` stored bare `Event`s, so "how many died in the last two hundred
@@ -755,6 +834,214 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
 ---
 
 ## 9. Progress
+
+- **2026-09-01, PE2 landed: discovery becomes an embodied option.** A meal
+  stops being a lesson.
+
+  **The evaluator, and the boundary made structural.**
+  `mesocosm-core/src/discovery.rs` holds the evidence, the rules and the
+  routing; `discovery/conditions.rs` holds the fixed table. The traits brief's
+  four requirements are each a property of a type rather than a discipline
+  somebody keeps. *Event-driven*: `evaluate` runs once per accepted fact and
+  nothing polls an organism. *Declared inputs*: a `Condition` names the `Input`
+  lanes it accepts and routing checks the declaration **before** the rule, so
+  a meal offered to an endurance condition is recorded as
+  `Miss::UndeclaredInput` — a different and truer answer than "the rule went
+  unmet". *Bounded*: two conditions, one integer compare each, and the only
+  accumulator a rule may read is world state. *Recorded*: a `Discovery` carries
+  the matched evidence with its quantities, the route, the **realized candidate
+  reference** (a `ProcessRef`, never a name), its parameters, its `Source`, and
+  a digest over all of it. `ConditionId` is itself a digest over the
+  condition's rule-bearing bytes, exactly as `ProcessRef` is over a
+  definition's, so two worlds that agree about a name and disagree about the
+  rule cannot trade discoveries.
+
+  **The record kept for evidence that unlocks nothing.** `Observation` is the
+  other half and the one the done-condition actually needs: what was offered,
+  which lane it came down, what took it, and — for every condition that did
+  not — why. Without it "a meal supplies evidence without unlocking an
+  incompatible candidate" would be a claim about an absence. `World` keeps one,
+  not a log; a log of meals is what `History` is for.
+
+  **The two conditions.** `mesocosm:endured-hunger` reads the endurance lane:
+  `HUNGER_TICKS` consecutive ticks under the starved line with a hand on the
+  body, and it grants the **gland** — `mesocosm:secrete` on a plate. No meal
+  appears anywhere in it, and the reward is a chemical defence rather than a
+  matching food category, which is §1's ruling in one table entry.
+  `mesocosm:plate-eaten` reads the meal lane, narrowed to the **organ actually
+  consumed**: a plate of at least `MEAL_EVIDENCE_MG` grants `mesocosm:fix` on a
+  plate *plus* the lexicon word for one. **No number here was picked.**
+  `HUNGER_TICKS` is `STARVED_UPKEEP_TICKS` itself — you endure the horizon you
+  are inside; `MEAL_EVIDENCE_MG` is the ecology's own `STARVATION_MG`, its
+  answer to how much substance is a body at all; the two cell counts are the
+  ones PD2's own fixtures use for the same organ.
+
+  **What a discovery *is*: availability, and three other things it is not.**
+  A `Candidate` is a proposal the one validator can lower and nothing else.
+  `Candidate::propose` builds an ordinary `AllocationProposal`, so
+  `BodyPhenotype::develop` is still the only way allocation moves, and
+  `World::candidate_intent` hands a player the `Intent::Rearrange` that would
+  express it. `propose` returning `None` is a **real state**: a bulk consumer
+  has the gland available and nowhere to put it until it grows a plate. That is
+  the plan's requested distinction, in five places rather than one word —
+  observation (`Observation`), somatic incorporation (`Intent::Consume`),
+  developmental availability (`Discovery`), expression (`Intent::Rearrange`),
+  and inheritance (`Candidate::word`, the lexicon entry a descendant is born
+  with).
+
+  **The accumulator is the world's, and played-only by the same gate PE1
+  used.** `World::hunger_run` is one integer of world state, hashed,
+  snapshotted and replayed. It advances only while `World::held` says a hand is
+  on the body, and resets when the body is fed or stops being a body; a hand
+  that lets go neither advances it nor throws it away, because the ecology is
+  driving then and nobody is enduring anything. The crossing is an *event* —
+  the evidence is offered at `== HUNGER_TICKS` and never again — so nothing
+  sweeps the roster and a second crossing reads `Miss::AlreadyKnown`.
+
+  **`learn_from` is subsumed, not merely deleted.** It ran on every meal, read
+  the *eaten lineage's recipe*, and taught the eater's line every non-innate
+  appendage in it. What replaced it is `World::observed_in`, which offers one
+  piece of evidence about the organ that was consumed. The one honest
+  consequence was kept and narrowed: `Recipe::acquire` is still called, by the
+  evaluator, for a word the matched condition grants — so the complexity
+  frontier stays connected to play and `acquire` finally has a production
+  caller. `Event::Learned` is replaced by `Event::Discovered { organism,
+  species, condition }`; the condition digest resolves to everything the old
+  variant's `appendage` field could not say.
+
+  **Part-level eating: `Intent::Consume`, and `from_part` becomes real.**
+  `world/consume.rs` takes one organ off a **carcass**, settles exactly that
+  part's milligrams, and writes `Origin::Incorporated { from_species,
+  from_part }` naming the part it came off — a field written `PartId(0)` at
+  every call site until now. The subtree under the organ stays on the corpse,
+  because live subtree transfer is phenotype P3's. `BodyPhenotype::
+  take_part_mass` is the named operation that makes "only its own matter"
+  a property rather than an assembled call site.
+
+  **Why a corpse and not a severed branch**, though the plan's sentence allows
+  either: a severed part is tombstoned and `BodyDocument::total_mass_mg`
+  already skips it, so its milligrams have left the conservation account and
+  eating one would *create matter*. A corpse's living parts still weigh what
+  they weigh. The severed half waits for the dismemberment gate (phenotype
+  D3a) that would put those milligrams somewhere honest first. Three named
+  refusals carry the boundary: `StillLiving`, `NoSuchPart`, `NothingLeft`.
+
+  **Receipts.**
+  - `mesocosm-core` lib: **346** green (+8, the evaluator's own routing claims
+    in `discovery/tests.rs`).
+  - `tests/embodied.rs`: **41** green (+13, in the new `embodied/discovery.rs`
+    and `embodied/part_meal.rs`), one test per named claim: a stress unlocks a
+    candidate with no meal in it; the accumulator is the world's and the
+    crossing happens once; feeding ends the stress; **an idle terrarium
+    discovers nothing** (1,200 ticks); a meal supplies evidence and cannot
+    reach a condition that never asked for one; a meal no longer teaches the
+    donor's whole recipe; the organ that teaches teaches the word for it; a
+    consumed part settles its own matter and nothing else's; an organ can only
+    be taken once and only off something that has stopped; the discovered
+    candidate is located, paid for, useful, dormant and lost with its branch;
+    direct and automatic fixtures lower the same candidate the same way; the
+    discovery survives a snapshot and replays to the same hash; the causal
+    record names the condition.
+  - `tests/flows.rs` gains **a consumed part moves exactly its own milligrams
+    and says so**: PE0's whole-compartment reconciliation over the tick, plus
+    one `Feeding` record of exactly the organ's mass, substance to substance.
+  - `mesocosm-views`: **20** green (+2): the discovery's three rows in the
+    exact words a player reads, and the evidence row that appears only when
+    nothing took it.
+  - `mesocosm-genet` lib: **17** green (+2): the recorded demo reaches a
+    non-food discovery, and a recorded meal is observed and unlocks nothing.
+  - `cargo test -p mesocosm-core --test matter --test flows --test succession
+    --test embodied --release`: **5 + 10 + 7 + 41** green.
+  - **The instrument cannot observe this phase, and did not.** It drives
+    `World::apply` with nothing but `Intent::Idle`, and `held()` lapses after
+    thirty of those — so the hunger run never advances, no evidence is ever
+    offered, and `discoveries` stays empty for the whole ten thousand ticks.
+    That is structural rather than a measurement anyone has to trust, and
+    `an_idle_terrarium_discovers_nothing` asserts it directly. Re-run anyway
+    against `dc4_roster.json`, and **all ten** baseline seeds came back
+    identical: verdict, start, peak, peak tick, end, cumulative births,
+    cumulative deaths, end kingdom counts and end biomass, seed for seed and to
+    the milligram. **0 breathes / 10 thins / 0 boil / 0 collapse** stands
+    unchanged. The sweep was stopped after the baseline batch rather than run
+    through the other five — the isolating mechanism is structural, not a
+    per-seed coincidence — and stopped before it could overwrite
+    `dc4_roster.json` with new timing on an unmoved result; the file is
+    byte-identical to what DC4 recorded.
+  - `cargo test --workspace` green — **680** tests across 27 suites in release,
+    the lens crate's 45 also taken at `--test-threads=1`. Clippy `-D warnings`
+    clean over `--all-targets`, `cargo fmt --all --check` clean,
+    `cargo check -p paredros-room --features r1-proof` builds with its one
+    pre-existing `dead_code` warning on `brick::retarget_from_ground`.
+
+  **The demo exercises both loops.** Recorded at `DEMO_SEED = 7`,
+  `DEMO_STEPS = 3_100`, 916 founders. Simply *not eating* was not enough — by
+  step 120 the demo's critter has a canopy and earns about what it spends, so
+  its budget sits flat and it never crosses the line at all. So the script
+  spends its reserve where a player can, into the ground under it, and holds
+  about half a horizon short: no new verb, and `Deposit` is a key the host
+  already has. The recorded run comes through **one** discovery —
+  `mesocosm:endured-hunger`, route `Endurance`, evidence *hunger for 100
+  ticks*, at tick 219 — and its last observation is a meal at tick 801, *bulk
+  part 0 of line 8, 316 mg*, matching nothing, with `endured-hunger` recorded
+  as `UndeclaredInput` and `plate-eaten` as `RuleUnmet`. Both PE2 receipts, in
+  the loop rather than in a fixture. It still reaches both PE1 checkpoints:
+  `Resume` at 800, 1600 and 2400, `TakeControl { organism: 1692 }` at 3000, and
+  it ends alive in that descendant at 1,282 mg.
+
+  **Hash, replay and falsification.** The demo trace moved from
+  `25a5a0096cef0af1` (PD2) to **`7e315db34c37baf7`**, and the intent stream
+  moved with it — the script changed, so the run did. Headed `--replay` runs
+  3,100 steps over 775 frames and matches, exit 0; a hash falsified by one bit
+  reports the mismatch and exits 1.
+
+  **Captures.** The one that matters is **`pe2_replay_end.png`**: the frame the
+  recorded replay finishes on, in the real host, with both PE2 receipts legible
+  side by side in one panel over a living terrarium — *discovered: endured
+  hunger / by: endured: hunger for 100 ticks / grants: secrete on a plate*, and
+  under them *last evidence: bulk part 0 of line 8, 316 mg — endured hunger:
+  not a question this asks*. Energy 1,282 mg in the descendant the run
+  succeeded into. Three panel-only captures carry the states ordinary play does
+  not reach in one frame: `pe2_discovery.png` (the discovery on a body with no
+  gland anywhere on it, because unlocking is not expressing),
+  `pe2_meal_refused.png` (the meal's evidence and the condition it could not
+  reach), and `pe2_candidate_taken.png` (the same candidate lowered through the
+  one validator, with PD2's three gland rows underneath). The panel grew to
+  300x320 to hold three more rows.
+
+  **Splits at the ceiling**, per the workspace rule: `discovery/conditions.rs`
+  out of `discovery.rs`; `mesocosm-views/src/vitals/tests.rs` out of
+  `vitals.rs`; `tests/embodied/part_meal.rs` out of `embodied/discovery.rs`.
+
+  **Residues, and what PE3's review inherits.**
+  - **A candidate that cannot be taken is the ordinary case, not an edge one.**
+    `World::candidate_intent` returns `None` on the body that earned the
+    discovery, because a bulk consumer has nowhere to put a gland. PE3's review
+    has to *show* an offered candidate with the reason it cannot be taken yet,
+    and PE3 is also where the answer arrives: a development program that grows
+    the shape a descendant needs. That is the second of the ProcessDef plan's
+    three compiled programs, and PE2 deliberately built only the first.
+  - **`Intent::Rearrange` is still the door**, and it is still PD3's to delete.
+    What PE2 added on top of it — `candidate_proposal` and `candidate_intent` —
+    is proposal *construction*, not a second authoring path, so it survives
+    that deletion and points at whatever review replaces the door.
+  - **NPC acquisition is still open** and §6 ruling 5 now says exactly what it
+    would need.
+  - **The condition table is a table, not a generator.** PE4's generated
+    conditions arrive by being admitted into `discovery::conditions()` with the
+    same declared inputs, bounded rules and digest; nothing here reruns a
+    generator from a name, and `ConditionId` is what stops a generated
+    condition's meaning drifting under its own label.
+  - **Acquisition is still unpriced.** Coming to a discovery costs nothing; the
+    only price a body pays is `Intent::Rearrange`'s development cost when it
+    takes the candidate up. Mark's cost formula — complexity, and proximity of
+    the donor's lineage — remains the traits brief's open question, and the
+    proximity term's `None` for every cross-founder pair is still the blocker
+    that brief named.
+  - **The `Rearranged` outcome does not know it came from a discovery.** A
+    development taken up from a candidate and one drawn by hand are the same
+    event in the record. If PE3's review wants to say *this body expressed what
+    its line came to*, it will need the discovery reference on the instruction
+    or a join through the digests; PE2 did not invent one with no consumer.
 
 - **2026-09-01, PE2's first prerequisite is met: PD1b landed whole.** The
   [ProcessDef plan](2026-08-01_processdef_plan.md)'s allocation half is

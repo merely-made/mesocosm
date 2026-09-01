@@ -363,6 +363,26 @@ impl BodyPhenotype {
         }
     }
 
+    /// Takes one part's substance and nothing else, returning what it held.
+    ///
+    /// **Only its own matter** (PE2). [`Self::sever`] takes a branch and
+    /// everything under it, and [`Self::spend_mass`] takes what it needs from
+    /// wherever it can; this takes exactly the named part's milligrams and
+    /// leaves its children where they are, holding theirs. That difference is
+    /// the whole of the part-level meal's claim, so the operation that makes it
+    /// is named rather than assembled at a call site.
+    ///
+    /// The emptied part stays in the anatomy, weighing nothing. It is not
+    /// severed: the branch under it is still attached to a corpse that is still
+    /// decaying, and tombstoning it would take those milligrams out of the
+    /// conservation account.
+    pub fn take_part_mass(&mut self, part: PartId) -> u64 {
+        match self.body.parts.get_mut(part.0 as usize) {
+            Some(found) => std::mem::take(&mut found.mass_mg),
+            None => 0,
+        }
+    }
+
     /// Removes substance across the living body in stable part order,
     /// returning what could not be paid.
     pub fn spend_mass(&mut self, mg: u64) -> u64 {

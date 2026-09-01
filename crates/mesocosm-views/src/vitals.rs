@@ -15,7 +15,9 @@
 //! panel *is*, and the host says where its raster lands.
 
 use cambium::{AnyView, DetailRow, DetailSection, GenetCtx, GenetElement, detail_panel, el, text};
-use mesocosm_core::{Gland, Ineligible, Outcome, Refusal, Rejection, Trend, World};
+use mesocosm_core::{
+    Discovery, Gland, Ineligible, Observation, Outcome, Refusal, Rejection, Trend, World,
+};
 
 /// A view in the vitals tree. Inert: nothing here takes a click, because
 /// during an epoch you act on the world, not on a panel.
@@ -55,6 +57,32 @@ pub struct Vitals {
     /// PD2's process, when this body has one. Absent for every body a world
     /// founds, because nothing grows a gland.
     pub gland: Option<GlandWords>,
+    /// What this line has most recently come to: what it is, the route it came
+    /// by, and the evidence that carried it. (PE2)
+    pub discovery: Option<DiscoveryWords>,
+    /// The last evidence a condition was offered and did not take.
+    ///
+    /// **Evidence that unlocked nothing is still evidence.** A meal that fed
+    /// you and taught you nothing is the ordinary case, and a panel that only
+    /// ever spoke on a discovery would leave a player unable to tell "that
+    /// taught me nothing" from "the game did not notice."
+    pub observation: Option<String>,
+}
+
+/// The three things a discovery is owed: what it is, how it was come by, and
+/// what the evidence was.
+///
+/// Separate rows because they answer different questions and a player rereads
+/// them at different times: what you now have, why you have it, and — since a
+/// candidate is availability rather than expression — where it can go.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiscoveryWords {
+    /// The condition's name, plainly.
+    pub what: String,
+    /// The route, and the evidence that came down it.
+    pub route: String,
+    /// What it grants, and on what.
+    pub grants: String,
 }
 
 /// The three sentences a gland is owed, one per question a player asks of it:
@@ -105,6 +133,85 @@ pub fn gland_words(gland: &Gland) -> GlandWords {
     }
 }
 
+/// A discovery in plain words. (PE2)
+///
+/// **Evidence and route, not only the thing unlocked** — the plan's §1 asks
+/// for exactly that, because a player who cannot see what taught them is back
+/// in a diet tree whether or not the code is.
+pub fn discovery_words(discovery: &Discovery) -> DiscoveryWords {
+    let what = condition_word(discovery.condition);
+    let grants = format!(
+        "{} on {}{}",
+        process_word(discovery.candidate.process),
+        site_word(discovery.candidate.site),
+        // Inheritance is a separate fact from expression, so it is a separate
+        // clause: this body may develop it, and its descendants may be born
+        // with the shape to.
+        if discovery.candidate.word.is_some() {
+            ", and the word for one"
+        } else {
+            ""
+        }
+    );
+    DiscoveryWords {
+        what,
+        route: format!("{}: {}", discovery.route.name(), discovery.evidence.words()),
+        grants,
+    }
+}
+
+/// The last evidence offered, and what became of it.
+///
+/// It names the condition that refused it and why, because "this is not a
+/// question that one asks" and "not enough of it" are different facts and only
+/// the second is worth trying harder at.
+///
+/// `None` when a condition took it: the three discovery rows above the panel's
+/// evidence line have already said what it was and what it bought, and saying
+/// it twice is how a panel stops being read.
+pub fn observation_words(observation: &Observation) -> Option<String> {
+    if observation.matched.is_some() {
+        return None;
+    }
+    Some(match observation.missed.first() {
+        Some((condition, miss)) => format!(
+            "{} — {}: {}",
+            observation.evidence.words(),
+            condition_word(*condition),
+            miss.words()
+        ),
+        None => observation.evidence.words(),
+    })
+}
+
+/// A condition's name, plainly and the same way everywhere it appears.
+///
+/// The namespace is dropped and the hyphens opened out, because two rows of one
+/// panel naming the same condition two ways reads as two conditions. `None`
+/// from the registry is the missing-ruleset diagnostic and is said rather than
+/// papered over with a similar local name.
+fn condition_word(condition: mesocosm_core::ConditionId) -> String {
+    mesocosm_core::discovery::name_of(condition)
+        .map(|name| name.trim_start_matches("mesocosm:").replace('-', " "))
+        .unwrap_or_else(|| "a condition this world does not hold".to_string())
+}
+
+fn process_word(process: mesocosm_core::ProcessRef) -> String {
+    mesocosm_core::Registry::native()
+        .resolve(process)
+        .map(|def| def.id.name.to_string())
+        .unwrap_or_else(|| "an unknown process".to_string())
+}
+
+fn site_word(site: mesocosm_core::Role) -> &'static str {
+    match site {
+        mesocosm_core::Role::Mass => "bulk",
+        mesocosm_core::Role::Limb => "a limb",
+        mesocosm_core::Role::Plate => "a plate",
+        mesocosm_core::Role::Sensor => "a sensor",
+    }
+}
+
 impl Vitals {
     pub fn is_dead(&self) -> bool {
         self.energy_mg.is_none()
@@ -128,6 +235,10 @@ pub fn vitals_of(
         trend,
     );
     vitals.gland = world.gland().as_ref().map(gland_words);
+    // The most recent one. A running list of everything a line ever came to is
+    // a journal, and a journal is not a vitals panel.
+    vitals.discovery = world.discoveries().last().map(discovery_words);
+    vitals.observation = world.last_observation().and_then(observation_words);
     vitals
 }
 
@@ -156,6 +267,8 @@ fn reading(
         warning: trend.and_then(warning_words),
         // Filled by `vitals_of`, which has the world the ground is in.
         gland: None,
+        discovery: None,
+        observation: None,
     }
 }
 
@@ -204,6 +317,11 @@ pub fn refusal_words(rejection: &Rejection) -> &'static str {
         Rejection::NoRoom => "no room for it",
         Rejection::NoSuchOrganism(_) => "nothing there",
         Rejection::NoSuchParent(_) => "nowhere to attach",
+        // PE2's part-level meal. Each says what would make it possible: wait,
+        // pick another organ, or find one that still has something in it.
+        Rejection::NoSuchPart(_) => "it has no such part",
+        Rejection::StillLiving(_) => "that one is still using it",
+        Rejection::NothingLeft(_) => "nothing left of that part",
         Rejection::Ineligible(Ineligible::NotAlive) => "that one is dead",
         Rejection::Ineligible(Ineligible::AboveTheFrontier { .. }) => "beyond you",
         Rejection::Ineligible(Ineligible::NoSuchOrganism) => "nothing there",
@@ -238,6 +356,9 @@ pub fn notice_in(outcomes: &[Outcome]) -> Option<&'static str> {
         Outcome::Rejected(rejection) => Some(refusal_words(rejection)),
         Outcome::Burned { .. } => Some("burned"),
         Outcome::Incorporated { .. } | Outcome::IncorporatedPair { .. } => Some("grew"),
+        // PE2's part-level meal. Not "grew": what happened is that a specific
+        // organ came off something and onto you, and the player chose which.
+        Outcome::Consumed { .. } => Some("took the organ"),
         // PD2's verb. "Rebuilt" rather than "rearranged": what happened to the
         // body is that an organ now does something else, and the tissue it was
         // made of was paid for again.
@@ -265,6 +386,17 @@ pub fn vitals_root(vitals: &Vitals) -> VitalsChild {
         rows.push(DetailRow::new("gland", gland.tissue.clone()));
         rows.push(DetailRow::new("sting", gland.sting.clone()));
         rows.push(DetailRow::new("gland rent", gland.rent.clone()));
+    }
+    // Three rows, and only once there is one: what you came to, how, and what
+    // it lets you build. A discovery is availability, so "grants" says where
+    // it could go rather than claiming the body already does it.
+    if let Some(discovery) = &vitals.discovery {
+        rows.push(DetailRow::new("discovered", discovery.what.clone()));
+        rows.push(DetailRow::new("by", discovery.route.clone()));
+        rows.push(DetailRow::new("grants", discovery.grants.clone()));
+    }
+    if let Some(observation) = &vitals.observation {
+        rows.push(DetailRow::new("last evidence", observation.clone()));
     }
     children.push(Box::new(detail_panel::<Vitals, ()>(&[DetailSection::new(
         "vitals", rows,
@@ -348,175 +480,4 @@ pub fn vitals_css() -> &'static str {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_world_with_nobody_in_it_reads_dead() {
-        let vitals = reading(None, 1_000, Some("not enough energy"), None);
-        assert!(vitals.is_dead());
-        assert_eq!(vitals.fullness, 0.0);
-        // The death state stands alone: a notice from the same batch is not
-        // shown beside "dead", because a dead critter refused nothing.
-        assert_eq!(vitals.notice, None);
-    }
-
-    #[test]
-    fn the_bar_measures_against_the_session_high_water() {
-        let world = World::new(0x00A7_7AC4, 8);
-        let energy = world.energy_mg().expect("the world starts embodied");
-        let full = vitals_of(&world, energy, None, None);
-        assert_eq!(full.energy_mg, Some(energy));
-        assert!((full.fullness - 1.0).abs() < f32::EPSILON);
-        let half = vitals_of(&world, energy * 2, None, None);
-        assert!((half.fullness - 0.5).abs() < 0.001);
-    }
-
-    /// The playtest's three silences, each with a word for it.
-    #[test]
-    fn the_refusals_the_playtest_hit_have_plain_words() {
-        assert_eq!(
-            notice_in(&[Outcome::Rejected(Rejection::InsufficientMass)]),
-            Some("not enough energy")
-        );
-        assert_eq!(
-            notice_in(&[Outcome::Rejected(Rejection::Disembodied)]),
-            Some("no body")
-        );
-        assert_eq!(notice_in(&[Outcome::Moved, Outcome::Idled]), None);
-    }
-
-    /// The warning says what moved and over what window, or says nothing.
-    #[test]
-    fn a_warning_carries_its_evidence_and_only_arrives_when_it_is_true() {
-        let quiet = Trend {
-            replacement_ticks: 240,
-            matured: 4,
-            died: 2,
-            stand_ticks: 60,
-            stand_change_mg: 900,
-            grazed_mg: 300,
-            shortfall_ticks: 0,
-        };
-        assert_eq!(warning_words(&quiet), None);
-        assert_eq!(replacement_words(&quiet), "4 matured, 2 died in 240 ticks");
-
-        let short = Trend {
-            stand_change_mg: -7_930,
-            grazed_mg: 15_771,
-            shortfall_ticks: mesocosm_core::WARN_AFTER_TICKS,
-            ..quiet
-        };
-        let words = warning_words(&short).expect("a real shortfall says so");
-        assert!(words.contains("7930 mg lost over the last 60"));
-        assert!(words.contains("mouths took 15771 mg in the same window"));
-        assert!(words.contains("ticks"), "and the window it moved over");
-        assert!(
-            !words.contains('%'),
-            "never an unexplained percentage: {words}"
-        );
-        for verdict in ["breathes", "thins", "boils", "collapses"] {
-            assert!(
-                !words.contains(verdict),
-                "the instrument's verdicts are not player language: {words}"
-            );
-        }
-    }
-
-    /// PD2's four states, in the words a player reads. Each says what is true
-    /// and, when something is not working, what would change it.
-    #[test]
-    fn the_gland_reads_differently_in_each_of_its_four_states() {
-        let part = mesocosm_core::PartId(3);
-        let allocated = Gland {
-            sites: vec![(part, 5)],
-            cells: 5,
-            potency_mg: 115,
-            ground_mg: 206,
-            charged: true,
-            rent_mg: 2,
-            lost: Vec::new(),
-        };
-        let words = gland_words(&allocated);
-        assert_eq!(words.tissue, "5 cells of part 3", "located, and how much");
-        assert_eq!(words.sting, "115 mg a bite", "and it is working");
-        assert_eq!(words.rent, "2 mg a tick", "and this is what it costs");
-
-        // Dormant: the two numbers side by side, because their difference is
-        // the thing a player can do something about.
-        let dry = Gland {
-            ground_mg: 100,
-            charged: false,
-            ..allocated.clone()
-        };
-        let words = gland_words(&dry);
-        assert_eq!(
-            words.sting,
-            "dry: this ground holds 100 mg, the gland needs 115"
-        );
-        assert_eq!(words.rent, "2 mg a tick", "and it is still being paid for");
-
-        // Severed: the consequence is gone, and the branch still says what it
-        // used to do.
-        let lost = Gland {
-            sites: Vec::new(),
-            cells: 0,
-            potency_mg: 0,
-            rent_mg: 0,
-            lost: vec![part],
-            ..allocated
-        };
-        let words = gland_words(&lost);
-        assert_eq!(words.tissue, "gone with part 3");
-        assert_eq!(words.sting, "nothing left to sting with");
-        assert_eq!(words.rent, "0 mg a tick");
-    }
-
-    /// A refusal a hand can actually produce is answered in words, not in a
-    /// variant name. The boundary itself stays in the outcome.
-    #[test]
-    fn a_development_that_would_not_validate_says_why_in_plain_words() {
-        assert_eq!(
-            refusal_words(&Rejection::Refused(Refusal::SiteMismatch {
-                part: mesocosm_core::PartId(0),
-                process: mesocosm_core::ProcessRef {
-                    definition: mesocosm_core::DefinitionDigest(1),
-                },
-            })),
-            "that shape does not do that"
-        );
-        assert_eq!(
-            refusal_words(&Rejection::Refused(Refusal::Disconnected(
-                mesocosm_core::PartId(3)
-            ))),
-            "an organ is one piece of tissue"
-        );
-        assert_eq!(
-            notice_in(&[Outcome::Rearranged {
-                part: mesocosm_core::PartId(3),
-                cost_mg: 115,
-                revision: 1,
-            }]),
-            Some("rebuilt")
-        );
-    }
-
-    /// TD4's half of the feedback: the player no longer chooses what a meal
-    /// becomes, so the panel has to say what it became.
-    #[test]
-    fn a_landed_meal_says_which_way_the_body_took_it() {
-        assert_eq!(
-            notice_in(&[Outcome::Burned {
-                organism: mesocosm_core::OrganismId(3),
-                energy_mg: 120,
-            }]),
-            Some("burned")
-        );
-        assert_eq!(
-            notice_in(&[Outcome::Incorporated {
-                part: mesocosm_core::PartId(1),
-            }]),
-            Some("grew")
-        );
-    }
-}
+mod tests;

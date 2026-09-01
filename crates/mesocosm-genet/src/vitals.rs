@@ -40,7 +40,13 @@ const WIDTH: u32 = 300;
 /// the longest of them — and a hundred extra pixels of width buys back more
 /// height than it costs, which keeps the ordinary panel from being mostly
 /// empty box waiting for a warning that is usually not there.
-const HEIGHT: u32 = 200;
+/// Taller again since PE2: a body that has come to something carries three
+/// more rows — what, by what route, and what it grants — plus the last
+/// evidence, which wraps. The box is sized for the panel's fullest state
+/// (a gland, a discovery and a live warning at once) rather than its usual
+/// one, because a row that ran off the bottom would be worse than an empty
+/// margin.
+const HEIGHT: u32 = 320;
 
 /// Distance from the frame's corner. Matches the minimap's, so the two chrome
 /// surfaces sit on one margin.

@@ -23,6 +23,8 @@ use crate::rng::Rng;
 use crate::score::Reading;
 
 mod act;
+mod consume;
+mod discover;
 mod genesis;
 mod intent;
 mod read;
@@ -202,6 +204,35 @@ pub struct World {
     pub organisms: Vec<Organism>,
     next_organism: u32,
     last_tally: crate::organism::Tally,
+    /// What this line has come to, in order. (PE2)
+    ///
+    /// **World state, because a candidate is not a view.** A discovery decides
+    /// what a body may be developed into, so it has to survive a save and come
+    /// back the same on a replay — which it does, being a pure function of the
+    /// seed and the trace like everything else here. Bounded by the condition
+    /// table: a condition discovers once and never again.
+    #[serde(default)]
+    discoveries: Vec<crate::discovery::Discovery>,
+    /// The most recent evidence a condition was offered, and what every
+    /// condition made of it.
+    ///
+    /// One, not a log — a log of meals is what [`History`] is for. It is kept
+    /// because evidence that unlocked nothing is still evidence, and "a meal
+    /// supplies evidence without unlocking an incompatible candidate" is a
+    /// claim about a record.
+    #[serde(default)]
+    last_observation: Option<crate::discovery::Observation>,
+    /// Consecutive ticks a hand has held a body whose budget is under the
+    /// starved line.
+    ///
+    /// **The authoritative bounded accumulator** a sustained-stress condition
+    /// reads, and the reason such a condition does not have to read a
+    /// presentation trend. One integer, world state, hashed and replayed —
+    /// exactly the arrangement `idle_run` uses, and for the same reason: a
+    /// host-side counter would give a different answer at a different frame
+    /// rate.
+    #[serde(default)]
+    hunger_run: u32,
     /// What happened on the most recent tick, waiting to be drained.
     ///
     /// **One tick, never more.** History is derivable from a seed and ordered
@@ -318,6 +349,13 @@ impl World {
             }
             _ => None,
         };
+
+        // The one accumulator a discovery condition may read, advanced after
+        // the ecology has settled what this body is: whether it is starved and
+        // whether it is still a body are both this tick's answers, not last
+        // tick's. Event-driven — it offers evidence at the crossing and never
+        // sweeps the roster. (PE2)
+        self.endure();
 
         // Where each lineage has been, unioned in after the ecology has moved
         // everything. Reading it before the step would record last tick's

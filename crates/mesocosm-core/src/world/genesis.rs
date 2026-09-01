@@ -429,6 +429,11 @@ impl World {
             // A world opens under the hand. Nobody has idled yet, so the
             // first tick's instincts leave the played critter alone.
             idle_run: 0,
+            // A line starts having come to nothing, and having offered no
+            // evidence to anything. (PE2)
+            discoveries: Vec::new(),
+            last_observation: None,
+            hunger_run: 0,
             unlocked: std::collections::BTreeSet::from([SpeciesId(1)]),
             // The starting body already counts: the player is holding it, so
             // the frontier begins where they begin rather than at nothing.

@@ -31,5 +31,6 @@ pub use minimap::{
 };
 pub use succession::{Succession, SuccessionChild, succession_css, succession_root};
 pub use vitals::{
-    Vitals, VitalsChild, notice_in, refusal_words, vitals_css, vitals_of, vitals_root,
+    DiscoveryWords, Vitals, VitalsChild, discovery_words, notice_in, observation_words,
+    refusal_words, vitals_css, vitals_of, vitals_root,
 };

@@ -45,6 +45,7 @@ pub mod axis;
 pub mod body;
 pub mod cohort;
 pub mod development;
+pub mod discovery;
 pub mod flow;
 pub mod growth;
 pub mod history;
@@ -75,6 +76,10 @@ pub use cohort::{Cohort, CohortKey, CohortMember};
 pub use development::{
     DevelopmentError, PALETTE_SHAPES, PartPalette, PartTemplate, RoleShapes, develop_body,
     minimum_body_mass_mg,
+};
+pub use discovery::{
+    Candidate, Condition, ConditionId, Discovery, Evidence, Input, Miss, Observation, Source,
+    Stress,
 };
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use flow::{

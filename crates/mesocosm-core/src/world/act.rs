@@ -9,7 +9,7 @@
 //! world, and nothing else in the crate does: `World::apply` is the only door,
 //! and this is the room behind it.
 
-use crate::body::{Attachment, Origin, PartId, Provenance};
+use crate::body::{Attachment, Origin, Provenance};
 use crate::flow::{Account, FlowEvent, Subject};
 use crate::organism::{Organism, OrganismId};
 use crate::phenotype::BodyPhenotype;
@@ -167,6 +167,11 @@ impl World {
                 organism,
                 placement,
             } => self.metabolize(organism, placement),
+
+            // PE2's part-level meal. It lives next door in `world::consume`,
+            // which owns the one thing this verb has that a whole-body meal
+            // does not: an organ named on both sides of the transfer.
+            Intent::Consume { organism, part } => self.consume(organism, part),
 
             // The developmental verb (PD2). It lives next door in
             // `world::rearrange`, which owns the price, the payment and the
@@ -337,53 +342,40 @@ impl World {
         self.soil
             .deposit(column, unkept + eaten.energy_mg + spilled);
         self.record_meal(&eaten, meal, eater, eater_at, &landed, unkept, spilled);
-        self.learn_from(&eaten);
+        self.observed_in(&eaten);
         outcome
     }
 
-    /// Teaches the eater's line whatever the meal knew how to grow.
+    /// The observation a whole-body meal supplies. (PE2)
     ///
-    /// **The acquisition half of kleptoplasty**, ruled 2026-08-03: a lineage
-    /// cannot express an appendage it has never eaten, so incorporation is
-    /// developmental rather than decorative. Eating teaches your line a word;
-    /// the recipe decides where to say it. A word already known is just food,
-    /// which is what makes the first one a discovery.
-    fn learn_from(&mut self, eaten: &Organism) {
-        let Some(eater) = self.controlled().map(|o| (o.id, o.species)) else {
+    /// **What replaced `learn_from`.** That function ran here on every meal,
+    /// read the *eaten lineage's recipe*, and taught the eater's line every
+    /// non-innate appendage in it — a food category mapped straight onto a
+    /// reward category, which the playable ecology plan §1 rules against and
+    /// names a migration input. Nothing about the donor's recipe is read now.
+    /// What is offered is one piece of [`Evidence`]: the organ you actually
+    /// took, and what it weighed. Whether that unlocks anything is
+    /// [`crate::discovery`]'s question, and the answer for most meals is no.
+    ///
+    /// A whole body's observed organ is its **root**, honestly — you took the
+    /// whole thing — and it is read off the body rather than assumed, which is
+    /// the same correction [`Intent::Consume`](super::Intent::Consume) makes at
+    /// the part level.
+    ///
+    /// [`Evidence`]: crate::discovery::Evidence
+    fn observed_in(&mut self, eaten: &Organism) {
+        let body = eaten.body();
+        let root = body.root;
+        let Some(part) = body.part(root) else {
             return;
         };
-        let Some(taught) = self.lineages.get(eaten.species).map(|s| {
-            s.recipe
-                .tagmata
-                .iter()
-                .map(|t| t.appendage)
-                .filter(|a| !a.is_innate())
-                .collect::<Vec<_>>()
-        }) else {
-            return;
-        };
-
-        let mut learned = Vec::new();
-        if let Some(species) = self.lineages.get_mut(eater.1) {
-            for appendage in taught {
-                if species.recipe.acquire(appendage) {
-                    learned.push(appendage);
-                }
-            }
-        }
-        let place = self.acted_at(Some(eater.0));
-        let tick = self.tick;
-        for appendage in learned {
-            self.pending.push(crate::flow::Envelope::new(
-                tick,
-                place,
-                crate::history::Event::Learned {
-                    organism: eater.0,
-                    species: eater.1,
-                    appendage,
-                },
-            ));
-        }
+        let (role, mass_mg) = (crate::plan::classify(part.half_extent), part.mass_mg);
+        self.observe(crate::discovery::Evidence::Meal {
+            donor: eaten.species,
+            part: root,
+            role,
+            mass_mg,
+        });
     }
 
     /// Attempts the routed outcome, returning it and where the meal's mass
@@ -493,7 +485,7 @@ impl World {
     /// through the wrapper, which seeds the new part's mosaic in the same
     /// operation; there is no call here that could land a part with no
     /// allocation behind it.
-    fn controlled_phenotype_mut(&mut self) -> &mut BodyPhenotype {
+    pub(super) fn controlled_phenotype_mut(&mut self) -> &mut BodyPhenotype {
         let id = self.controlled.expect("metabolize checks embodiment first");
         &mut self
             .organisms
@@ -504,11 +496,16 @@ impl World {
     }
 
     /// Provenance for a part taken off `eaten`.
+    ///
+    /// A whole-body meal came off the donor's **root**, which is read off the
+    /// body rather than written as `PartId(0)`. The number is usually the same;
+    /// the claim is not, and PE2's part-level verb is where the field finally
+    /// names something a caller chose.
     fn taken_from(&self, eaten: &Organism) -> Provenance {
         Provenance {
             origin: Origin::Incorporated {
                 from_species: eaten.species,
-                from_part: PartId(0),
+                from_part: eaten.body().root,
             },
             epoch: self.epoch,
         }

@@ -55,6 +55,21 @@ const CARDINALS: [[i32; 3]; 4] = [[0, 0, -2], [0, 0, 2], [-2, 0, 0], [2, 0, 0]];
 /// of nothing at the canonical tempo.
 const HANDS_OFF: std::ops::Range<u64> = 300..340;
 
+/// Steps the demo deliberately goes without eating. (PE2)
+///
+/// **The non-food discovery, scripted.** Every other route into the record
+/// happens on its own — the demo eats constantly, and each meal is an
+/// observation that unlocks nothing — but coming through a *stress* needs the
+/// script to stop reaching for food and stay stopped: the condition is
+/// `discovery::HUNGER_TICKS` consecutive ticks under the starved line with a
+/// hand still on the body, and one meal in the middle of it resets the run.
+///
+/// It runs long, and after the ten meals the demo grows on, because a critter
+/// that has never eaten is not enduring anything — it is simply small. The
+/// window closes well before the first birth, so nothing downstream in the
+/// recording depends on it.
+const ENDURING: std::ops::Range<u64> = 120..340;
+
 /// A recorded run, complete enough to reproduce and to judge.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PlayedTrace {
@@ -229,6 +244,23 @@ fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, meals: &mut u32) -
     if HANDS_OFF.contains(&step) {
         return Intent::Idle;
     }
+    // **Going hungry on purpose** (PE2). Simply not eating was not enough: by
+    // this point the demo's critter has grown a canopy and earns about what it
+    // spends, so its budget sits flat and it never crosses the starved line at
+    // all. So it spends the reserve where a player can — into the ground under
+    // it — until the budget sits about half a horizon short, and then holds
+    // there while its own income keeps it alive. No new verb, and no scripted
+    // world change: `Deposit` is a key the host already has.
+    if ENDURING.contains(&step)
+        && let Some(me) = world.controlled()
+    {
+        let target = me.upkeep_mg() * mesocosm_core::STARVED_UPKEEP_TICKS / 2;
+        if me.energy_mg > target {
+            return Intent::Deposit {
+                mass_mg: me.energy_mg - target,
+            };
+        }
+    }
     // Digging at your own feet: reach is anatomy, and one voxel down is
     // inside the shortest reach a starting critter has.
     if step % 40 == 19
@@ -250,7 +282,8 @@ fn demo_intent(world: &World, volumes: &VolumeMap, step: u64, meals: &mut u32) -
     // the rent, which is what pushes a well-fed critter back over the starved
     // line; a script that stopped eating at its quota simply starved to death
     // partway through the run, and a receipt of a corpse shows nothing.
-    if (*meals < 10 || world.is_starved())
+    if !ENDURING.contains(&step)
+        && (*meals < 10 || world.is_starved())
         && let Some(target) = crate::fixture::reachable(world)
     {
         *meals += 1;
@@ -403,6 +436,74 @@ mod tests {
             answer(&birth),
             Intent::Resume,
             "a birth keeps the body the run has been growing"
+        );
+    }
+
+    /// PE2's two claims, in the recorded loop rather than only in a fixture.
+    ///
+    /// **A non-food discovery**, reached by the script putting the food down
+    /// long enough to come through the starvation horizon; and **a meal that
+    /// refuses an incompatible candidate** — every one of the demo's meals is
+    /// an observation, and the record says the endurance condition could not be
+    /// reached by any of them because it never declared that lane.
+    #[test]
+    fn the_demo_reaches_a_non_food_discovery_and_a_meal_that_unlocks_nothing() {
+        let trace = &*TRACE;
+        let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
+
+        let discoveries = world.discoveries();
+        assert_eq!(
+            discoveries.len(),
+            1,
+            "the recorded run comes through exactly one condition: {discoveries:?}"
+        );
+        let discovery = discoveries[0];
+        assert_eq!(
+            discovery.route,
+            mesocosm_core::Input::Endurance,
+            "and it is not a meal that taught it"
+        );
+        assert!(matches!(
+            discovery.evidence,
+            mesocosm_core::Evidence::Endured { .. }
+        ));
+        assert!(
+            world.last_observation().is_some(),
+            "and the run's last evidence is on the record either way"
+        );
+    }
+
+    /// The other half, asserted where the routing happens rather than only at
+    /// the end of a run: a meal's evidence cannot reach the endurance
+    /// condition, and the observation says so in those words.
+    #[test]
+    fn a_recorded_meal_is_observed_and_unlocks_nothing() {
+        let mut runtime = Runtime::new(DEMO_SEED, TEST_FOUNDERS, 10);
+        let volumes = crate::fixture::volumes();
+        let mut meals = 0u32;
+        let mut seen = None;
+        for step in 0..TEST_STEPS {
+            let intent = match runtime.checkpoint() {
+                Some(checkpoint) => answer(checkpoint),
+                None => demo_intent(runtime.world(), &volumes, step, &mut meals),
+            };
+            let ate = matches!(intent, Intent::Metabolize { .. });
+            runtime.queue(intent);
+            runtime.step(1);
+            if ate && let Some(observation) = runtime.world().last_observation() {
+                seen = Some(observation.clone());
+                break;
+            }
+        }
+        let observation = seen.expect("the script eats early and often");
+        assert_eq!(observation.route, mesocosm_core::Input::Meal);
+        assert!(
+            observation
+                .missed
+                .iter()
+                .any(|(_, miss)| matches!(miss, mesocosm_core::Miss::UndeclaredInput)),
+            "a meal cannot be offered to a condition that never asked about \
+             meals: {observation:?}"
         );
     }
 

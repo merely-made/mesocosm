@@ -38,12 +38,16 @@ pub(super) fn event_for(
             organism: actor?,
             energy_mg,
         }),
-        Outcome::Incorporated { part } | Outcome::IncorporatedPair { part, .. } => {
-            Some(Event::Grew {
-                organism: actor?,
-                part,
-            })
-        }
+        // Growing is growing, however the part arrived: PE2's organ off a
+        // carcass is the same biographical fact as a meal that built. Where it
+        // *came from* is on the part's own provenance, which is a durable
+        // record rather than an event.
+        Outcome::Incorporated { part }
+        | Outcome::IncorporatedPair { part, .. }
+        | Outcome::Consumed { part, .. } => Some(Event::Grew {
+            organism: actor?,
+            part,
+        }),
         Outcome::Inhabited { organism } => Some(Event::Inhabited { organism }),
         // Carving air did not happen to anyone; only removed matter is
         // biographical.

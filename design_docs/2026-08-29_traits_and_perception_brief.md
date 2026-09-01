@@ -41,6 +41,30 @@ reach, or the player's information access. The
 [ProcessDef plan](2026-08-01_processdef_plan.md#one-displayed-trait-three-compiled-programs)
 owns the condition/development/process split.
 
+**2026-09-01, PE2 landed and `learn_from` is subsumed.** The boundary above is
+built. `crates/mesocosm-core/src/discovery.rs` holds the evaluator and the
+records; `discovery/conditions.rs` holds the fixed condition table;
+`world/discover.rs` holds the world's half — the authoritative accumulator and
+what a landed discovery does to the line. **`World::learn_from` is gone as a
+function and its one honest consequence was kept**: it taught every non-innate
+appendage in the *donor's whole recipe* on every meal, and what a meal now
+teaches is a word for the organ that was actually consumed, granted by a
+condition rather than by the meal itself. `Event::Learned` is replaced by
+`Event::Discovered { organism, species, condition }`, whose digest resolves to
+the matched evidence, the route, the realized candidate and its parameters.
+`Recipe::acquire` survives with a production caller for the first time since it
+was written.
+
+**§0's items 1-3 below are superseded by that landing** and are kept as the
+record of what the mechanic was. Read them as history: the lesson is no longer
+free (it is not a lesson at all — it is a condition), it no longer pays out on
+every meal, and `Recipe::assign` still has no production caller, which is the
+half PE3 owns. Items 4-6 are untouched and still open. Nothing here settles
+acquisition **price**: the discovery costs nothing to come to, and what a body
+pays is `Intent::Rearrange`'s development price when it takes the candidate up.
+Mark's cost formula, its complexity and proximity terms, and NPC reach remain
+this brief's open questions.
+
 **Verification.** Code claims are checked against committed `HEAD 89d09aa` via
 `git show HEAD:...`, not the working tree, because TD7 is live. Seven
 subsystem readers were run against HEAD and then three adversarial challenges

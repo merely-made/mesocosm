@@ -124,14 +124,21 @@ pub enum Event {
         at: [i32; 3],
         removed: u32,
     },
-    /// A line learned to grow something, by eating something that had it.
+    /// A line came to a new developmental option, and this names the condition
+    /// it came through. (PE2)
     ///
-    /// The discovery half of kleptoplasty: a meal that teaches is a different
-    /// kind of event from a meal that feeds, and only the first is recorded.
-    Learned {
+    /// **Replaces `Learned`.** That variant recorded one appendage word per
+    /// meal, because `World::learn_from` taught every non-innate appendage in
+    /// the donor's whole recipe; the plan named it a migration input. What is
+    /// recorded now is the *condition*, whose digest resolves to the matched
+    /// evidence, the route, the realized candidate and its parameters through
+    /// [`World::discoveries`](crate::World::discoveries). A meal that teaches
+    /// is still a different kind of event from a meal that feeds — it is just
+    /// no longer only a meal that can teach.
+    Discovered {
         organism: OrganismId,
         species: SpeciesId,
-        appendage: crate::axis::Appendage,
+        condition: crate::discovery::ConditionId,
     },
     /// A creature rebuilt one of its organs, and paid for it. (PD2)
     ///
@@ -174,7 +181,7 @@ impl Event {
             // makes a speciation visible in its own history rather than only
             // in the world's.
             Event::Speciated { founder, .. } => vec![founder],
-            Event::Learned { organism, .. } => vec![organism],
+            Event::Discovered { organism, .. } => vec![organism],
         }
     }
 }

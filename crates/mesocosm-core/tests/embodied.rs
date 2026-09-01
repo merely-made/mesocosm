@@ -25,8 +25,12 @@ use mesocosm_core::{
 // path keeps the split file beside the suite it belongs to.
 #[path = "embodied/allocation.rs"]
 mod allocation;
+#[path = "embodied/discovery.rs"]
+mod discovery;
 #[path = "embodied/gland.rs"]
 mod gland;
+#[path = "embodied/part_meal.rs"]
+mod part_meal;
 
 /// The definition a contracting part expresses. Identity is the registry's
 /// now, not the enum's: this is the reference a phenotype actually stores.

@@ -90,6 +90,21 @@ pub enum Intent {
         organism: OrganismId,
         placement: Placement,
     },
+    /// Take **one organ** off a carcass. (PE2)
+    ///
+    /// A different act from [`Metabolize`], not a parameter on it. Eating a
+    /// whole body is calories and the body routes them; this names an organ on
+    /// something that has stopped being alive, settles exactly what that organ
+    /// weighs, and writes down which part of which line it came off — the first
+    /// time `Origin::Incorporated`'s `from_part` has been anything but the
+    /// donor's root.
+    ///
+    /// It attaches one part and never a branch: the subtree under the organ
+    /// stays on the corpse, because live subtree transfer is phenotype P3's
+    /// gate and this proof deliberately stops short of it.
+    ///
+    /// [`Metabolize`]: Intent::Metabolize
+    Consume { organism: OrganismId, part: PartId },
     /// Return mass to the enclosure as carrion.
     Deposit { mass_mg: u64 },
     /// Split the line you are in, and name it.
@@ -178,6 +193,16 @@ pub enum Rejection {
     Disembodied,
     NoSuchOrganism(OrganismId),
     NoSuchParent(PartId),
+    /// That body has no such part. (PE2)
+    NoSuchPart(PartId),
+    /// Its organs are not on offer, because it is still using them. Taking one
+    /// would be live dismemberment, which phenotype P3 owns and PE2's bounded
+    /// part-meal proof does not open.
+    StillLiving(OrganismId),
+    /// The part is severed or already taken, so there is nothing there to
+    /// settle. A severed part's milligrams have already left the conservation
+    /// account; eating one would create matter.
+    NothingLeft(PartId),
     /// The played critter could not touch it, and this says why: no actuator
     /// at all, or one that does not extend far enough.
     OutOfReach(Unmet),
@@ -233,6 +258,17 @@ pub enum Outcome {
     IncorporatedPair {
         part: PartId,
         mirror: PartId,
+    },
+    /// One organ came off a carcass and onto this body. (PE2)
+    ///
+    /// Says both ends of the provenance, because that is the whole point of
+    /// the verb: which part it became here, and which part of which body it
+    /// was. `mass_mg` is exactly what that part weighed — no split, no spill.
+    Consumed {
+        part: PartId,
+        from: OrganismId,
+        from_part: PartId,
+        mass_mg: u64,
     },
     Deposited {
         organism: OrganismId,
