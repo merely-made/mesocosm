@@ -73,7 +73,7 @@ pub fn readings(world: &World, history: &History) -> Vec<Reading> {
     let mut predation: BTreeMap<SpeciesId, i64> = BTreeMap::new();
 
     for event in history.log().entries() {
-        match *event {
+        match event.record {
             Event::Born {
                 organism, species, ..
             } => {
@@ -204,8 +204,8 @@ mod tests {
             .log()
             .entries()
             .iter()
-            .filter_map(|e| match e {
-                Event::Fed { mass_mg, .. } => Some(*mass_mg as i64),
+            .filter_map(|e| match e.record {
+                Event::Fed { mass_mg, .. } => Some(mass_mg as i64),
                 _ => None,
             })
             .sum();

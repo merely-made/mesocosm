@@ -1,0 +1,333 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// SPDX-License-Identifier: MPL-2.0
+
+//! **The flow stream accounts for what the compartments did.** PE0's
+//! load-bearing invariant, and the executable form of the plan's sentence: *a
+//! resource mutation cannot be visible to the state while absent from the flow
+//! record.*
+//!
+//! `matter.rs` next door proves the other half — that the enclosure's total is
+//! constant. That one would still pass if every milligram moved in silence.
+//! This one reads the two records against each other: for every tick, and for
+//! every account of every body, the recorded transfers must sum to exactly the
+//! change the world made. A seam that mutates without emitting fails here even
+//! though conservation holds, because the matter went somewhere real and the
+//! stream did not say so.
+//!
+//! # The instrument is proved, not assumed
+//!
+//! [`reconcile`] is handed a doctored tick as well as honest ones, and must
+//! report it. An absence is evidence only beside a positive control in the same
+//! run.
+
+use std::collections::BTreeMap;
+
+use mesocosm_core::flow::{Account, Process, RecordedFlow};
+use mesocosm_core::{Intent, OrganismId, Placement, World, state_hash};
+
+/// Every compartment TD6's conserved sum is made of.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Books {
+    soil_mg: u64,
+    /// Substance and reserve, per body. Absent means zero: a body that has not
+    /// been born yet and one that has been eaten are the same to a ledger.
+    bodies: BTreeMap<OrganismId, (u64, u64)>,
+}
+
+fn books(world: &World) -> Books {
+    Books {
+        soil_mg: world.soil().total_mg(),
+        bodies: world
+            .organisms
+            .iter()
+            .map(|o| (o.id, (o.biomass_mg(), o.energy_mg)))
+            .collect(),
+    }
+}
+
+/// What the stream says each account did, as a signed milligram delta.
+fn claimed(flows: &[RecordedFlow]) -> (i128, BTreeMap<OrganismId, (i128, i128)>) {
+    let mut soil = 0i128;
+    let mut bodies: BTreeMap<OrganismId, (i128, i128)> = BTreeMap::new();
+    for flow in flows {
+        let record = &flow.record;
+        soil += record.net_on(Account::Soil);
+        let amount = i128::from(record.amount_mg);
+        if let Some(from) = record.from
+            && record.source != Account::Soil
+        {
+            let entry = bodies.entry(from.organism).or_default();
+            match record.source {
+                Account::Substance => entry.0 -= amount,
+                Account::Reserve => entry.1 -= amount,
+                Account::Soil => unreachable!("guarded above"),
+            }
+        }
+        if let Some(to) = record.to
+            && record.destination != Account::Soil
+        {
+            let entry = bodies.entry(to.organism).or_default();
+            match record.destination {
+                Account::Substance => entry.0 += amount,
+                Account::Reserve => entry.1 += amount,
+                Account::Soil => unreachable!("guarded above"),
+            }
+        }
+    }
+    (soil, bodies)
+}
+
+/// The check itself. `Ok` is silence; `Err` names the account that disagreed.
+///
+/// One function, used by the runs that must pass **and** by the control that
+/// must fail, because a check only ever shown honest ticks has not been shown
+/// to detect anything.
+fn reconcile(
+    before: &Books,
+    after: &Books,
+    flows: &[RecordedFlow],
+    at: &str,
+) -> Result<(), String> {
+    let (soil_claim, body_claims) = claimed(flows);
+    let soil_moved = i128::from(after.soil_mg) - i128::from(before.soil_mg);
+    if soil_moved != soil_claim {
+        return Err(format!(
+            "soil moved {soil_moved} mg {at}, the stream accounts for {soil_claim} mg"
+        ));
+    }
+
+    let subjects: std::collections::BTreeSet<OrganismId> = before
+        .bodies
+        .keys()
+        .chain(after.bodies.keys())
+        .chain(body_claims.keys())
+        .copied()
+        .collect();
+    for id in subjects {
+        let (was_body, was_reserve) = before.bodies.get(&id).copied().unwrap_or_default();
+        let (is_body, is_reserve) = after.bodies.get(&id).copied().unwrap_or_default();
+        let (body_claim, reserve_claim) = body_claims.get(&id).copied().unwrap_or_default();
+        let body_moved = i128::from(is_body) - i128::from(was_body);
+        let reserve_moved = i128::from(is_reserve) - i128::from(was_reserve);
+        if body_moved != body_claim {
+            return Err(format!(
+                "{id:?} substance moved {body_moved} mg {at}, the stream accounts for {body_claim} mg"
+            ));
+        }
+        if reserve_moved != reserve_claim {
+            return Err(format!(
+                "{id:?} reserve moved {reserve_moved} mg {at}, the stream accounts for {reserve_claim} mg"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// A tick, reconciled. Returns the tick's flows so a caller can assert on them.
+fn stepped(world: &mut World, intent: Intent, at: &str) -> Vec<RecordedFlow> {
+    let before = books(world);
+    world.apply(intent);
+    let flows = world.drain_flows();
+    let after = books(world);
+    if let Err(why) = reconcile(&before, &after, &flows, at) {
+        panic!("{why}");
+    }
+    flows
+}
+
+#[test]
+fn the_stream_accounts_for_every_compartment_across_a_run() {
+    // Long enough that every seam in the cycle fires: soil draw and return,
+    // grazing, predation, scavenging, rent paid out of a reserve and out of a
+    // body, dispersal, birth, death and decay.
+    for seed in [1u64, 7, 4_242] {
+        let mut world = World::new(seed, 60);
+        for tick in 1..=1_200 {
+            stepped(
+                &mut world,
+                Intent::Idle,
+                &format!("on tick {tick} of seed {seed}"),
+            );
+        }
+    }
+}
+
+#[test]
+fn the_stream_accounts_for_the_played_verbs_too() {
+    // The tick is not the only thing that moves matter, so the ledger is read
+    // against every acting intent as well: a meal (burned or built, the body
+    // decides), a deposit, movement paid in substance, and a carve, which must
+    // move none at all.
+    let mut world = World::new(11, 40);
+    let mut trace = vec![
+        Intent::Deposit { mass_mg: 60 },
+        Intent::Move { delta: [1, 0, 0] },
+        Intent::Move { delta: [-1, 0, 1] },
+        Intent::Carve {
+            at: world.position().expect("a played critter"),
+            radius: 1,
+        },
+    ];
+    let me = world.controlled_id().expect("a played critter");
+    for organism in world.living().map(|o| o.id).collect::<Vec<_>>() {
+        if organism != me {
+            trace.push(Intent::Metabolize {
+                organism,
+                placement: Placement::Planned,
+            });
+        }
+    }
+
+    for (step, intent) in trace.into_iter().enumerate() {
+        stepped(&mut world, intent, &format!("after played step {step}"));
+    }
+}
+
+#[test]
+fn an_accepted_deposit_is_in_the_stream_and_a_refused_one_is_not() {
+    // Accepted and refused transactions cannot disagree with the stream,
+    // because they share a commit point: the accepted branch emits, the refused
+    // one returns before reaching it.
+    let mut world = World::new(11, 40);
+    world.apply(Intent::Idle);
+
+    let flows = stepped(
+        &mut world,
+        Intent::Deposit { mass_mg: 60 },
+        "on the deposit",
+    );
+    let deposits: Vec<u64> = flows
+        .iter()
+        .filter(|f| f.record.process == Process::Deposit)
+        .map(|f| f.record.amount_mg)
+        .collect();
+    assert_eq!(deposits, vec![60], "one deposit, for what was deposited");
+
+    let refused = stepped(
+        &mut world,
+        Intent::Deposit { mass_mg: u64::MAX },
+        "on the refused deposit",
+    );
+    assert!(
+        !refused.iter().any(|f| f.record.process == Process::Deposit),
+        "a refusal moved nothing, so it recorded nothing"
+    );
+}
+
+#[test]
+fn a_refused_meal_leaves_the_prey_out_of_the_stream() {
+    let mut world = World::new(11, 40);
+    world.apply(Intent::Idle);
+
+    let here = world.position().expect("embodied");
+    let far = world
+        .living()
+        .filter(|o| Some(o.id) != world.controlled_id())
+        .max_by_key(|o| (0..3).map(|a| (o.position[a] - here[a]).abs()).max())
+        .map(|o| o.id)
+        .expect("something is out of reach in a wide enclosure");
+
+    let flows = stepped(
+        &mut world,
+        Intent::Metabolize {
+            organism: far,
+            placement: Placement::Planned,
+        },
+        "on the refused meal",
+    );
+    assert!(
+        world.living().any(|o| o.id == far),
+        "the refusal left it alive"
+    );
+    assert!(
+        !flows.iter().any(|f| f.record.process == Process::Feeding
+            && f.record.from.is_some_and(|s| s.organism == far)),
+        "nothing was taken out of it, so nothing was recorded"
+    );
+}
+
+#[test]
+fn every_flow_is_stamped_with_the_tick_it_happened_on() {
+    let mut world = World::new(7, 40);
+    for _ in 0..30 {
+        let expected = world.tick;
+        let flows = stepped(&mut world, Intent::Idle, "while stamping");
+        assert!(!flows.is_empty(), "a living enclosure moves matter");
+        assert!(
+            flows.iter().all(|f| f.tick == expected),
+            "one tick's buffer holds one tick"
+        );
+    }
+}
+
+#[test]
+fn draining_the_readings_is_not_a_world_change() {
+    // The `drain_ground_dirty` precedent, asserted: the ledger is outside the
+    // snapshot and outside equality, so a run that reduces readings every tick
+    // and one that never looks are the same world.
+    let mut drained = World::new(4_242, 60);
+    let mut held = World::new(4_242, 60);
+    for _ in 0..80 {
+        drained.apply(Intent::Idle);
+        held.apply(Intent::Idle);
+        assert!(!drained.flows().is_empty(), "there was something to drain");
+        drained.drain_flows();
+    }
+
+    assert!(!held.flows().is_empty(), "and the other one still holds it");
+    assert_eq!(
+        drained, held,
+        "the buffer is not part of a world's identity"
+    );
+    assert_eq!(state_hash(&drained), state_hash(&held));
+
+    // And the drain itself moves nothing, taken twice on the same world.
+    let before = state_hash(&held);
+    held.drain_flows();
+    assert_eq!(state_hash(&held), before);
+}
+
+#[test]
+fn a_worlds_snapshot_does_not_carry_the_flow_stream() {
+    // The stop rule, structurally: dense per-tick flow must not enter a
+    // snapshot to serve presentation. A world holding a tick of it encodes to
+    // the same bytes as one that drained.
+    let mut world = World::new(4_242, 60);
+    world.apply(Intent::Idle);
+    let holding = mesocosm_core::snapshot::snapshot(&world).expect("encodable");
+    let flows = world.flows().len();
+    world.drain_flows();
+    let empty = mesocosm_core::snapshot::snapshot(&world).expect("encodable");
+
+    assert!(flows > 0, "the tick had flows to leave out");
+    assert_eq!(holding, empty);
+}
+
+#[test]
+fn the_check_catches_a_mutation_the_stream_did_not_record() {
+    // **The positive control.** A seam that moves matter without emitting is
+    // exactly the failure this file exists against, so the check is shown one.
+    let mut world = World::new(1, 60);
+    world.apply(Intent::Idle);
+    let before = books(&world);
+    world.apply(Intent::Idle);
+    let flows = world.drain_flows();
+
+    let honest = books(&world);
+    reconcile(&before, &honest, &flows, "on an honest tick").expect("the tick itself reconciles");
+
+    // The mutation an unrecorded seam would make: a milligram appears in a
+    // reserve and no transfer says where it came from.
+    let mut doctored = honest.clone();
+    let subject = *doctored.bodies.keys().next().expect("a populated world");
+    doctored.bodies.get_mut(&subject).expect("just read").1 += 1;
+
+    let complaint = reconcile(&before, &doctored, &flows, "after a silent gain")
+        .expect_err("an unrecorded milligram must not pass");
+    assert!(
+        complaint.contains("reserve moved"),
+        "the check must name the account: {complaint}"
+    );
+}

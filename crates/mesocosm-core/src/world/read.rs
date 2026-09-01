@@ -194,6 +194,47 @@ impl World {
         self.ground.drain_dirty()
     }
 
+    /// Takes the events of the most recent tick, leaving the world empty of
+    /// them. Recording them is a caller's business; the world only reports.
+    pub fn drain_events(&mut self) -> Vec<crate::flow::RecordedEvent> {
+        std::mem::take(&mut self.pending)
+    }
+
+    /// The events of the most recent tick, without taking them.
+    pub fn events(&self) -> &[crate::flow::RecordedEvent] {
+        &self.pending
+    }
+
+    /// Takes the matter movements of the most recent tick.
+    ///
+    /// **`&mut` and yet not a world change**, exactly as
+    /// [`Self::drain_ground_dirty`] is: the ledger is `serde(skip)` and its
+    /// equality is unconditional, so a run that reduces readings every tick and
+    /// one that never looks are the same world and the same state hash. That is
+    /// what keeps a dense presentation stream out of the snapshot (PE0).
+    ///
+    /// The buffer is reopened at the top of each tick, so this returns that
+    /// tick's flows whether or not the last one was ever taken.
+    pub fn drain_flows(&mut self) -> Vec<crate::flow::RecordedFlow> {
+        self.flows.take()
+    }
+
+    /// The most recent tick's matter movements, without taking them.
+    pub fn flows(&self) -> &[crate::flow::RecordedFlow] {
+        self.flows.records()
+    }
+
+    /// Which region an act by `actor` happened in, read after it resolved.
+    ///
+    /// Every act event names the played critter or a body standing where it
+    /// stands, so one lookup answers for all of them. `None` when the actor no
+    /// longer exists, which is honest: nothing can say where it was.
+    pub(super) fn acted_at(&self, actor: Option<OrganismId>) -> Option<PlaceId> {
+        let actor = actor?;
+        let position = self.organisms.iter().find(|o| o.id == actor)?.position;
+        self.places.at(position)
+    }
+
     /// The enclosure's matter store.
     ///
     /// Read-only from outside: matter moves through the tick and the recorded

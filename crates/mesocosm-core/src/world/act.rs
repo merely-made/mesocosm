@@ -10,25 +10,15 @@
 //! and this is the room behind it.
 
 use crate::body::{Attachment, BodyDocument, Origin, PartId, Provenance};
+use crate::flow::{Account, FlowEvent, Subject};
 use crate::organism::{Organism, OrganismId};
 use crate::places::step_for;
 
+use super::records::Landed;
 use super::{Intent, Outcome, Placement, Rejection, Route, World};
 
 /// Energy spent per unit of movement, in milligrams.
 const MOVE_COST_MG: u64 = 1;
-
-/// Where a landed meal's mass went: into the budget, or into the body.
-///
-/// The two are not interchangeable and the difference is the whole verb, but
-/// the closed cycle needs one more thing from them than the outcome says —
-/// their **sum**, because whatever the meal weighed and neither of them took
-/// has to go back into the world. (TD6)
-#[derive(Clone, Copy, Debug, Default)]
-struct Landed {
-    budget_mg: u64,
-    body_mg: u64,
-}
 
 impl World {
     pub(super) fn resolve(&mut self, intent: Intent) -> Outcome {
@@ -102,10 +92,20 @@ impl World {
                 };
                 me.energy_mg -= cost;
                 me.position = next;
+                let traveller = Subject::of(me);
                 // Travel is paid in substance, and it lands in the ground it
                 // was covered over rather than vanishing. (TD6)
                 let column = self.soil.column_at(from);
                 self.soil.deposit(column, cost);
+                self.flow(
+                    from,
+                    FlowEvent::returned(
+                        crate::flow::Process::Travel,
+                        traveller,
+                        Account::Reserve,
+                        cost,
+                    ),
+                );
                 Outcome::Moved
             }
 
@@ -166,7 +166,10 @@ impl World {
             // the outcome is the depositor, not a corpse that no longer
             // exists.
             Intent::Deposit { mass_mg } => {
-                let Some((id, position)) = self.controlled().map(|me| (me.id, me.position)) else {
+                let Some((id, position, depositor)) = self
+                    .controlled()
+                    .map(|me| (me.id, me.position, Subject::of(me)))
+                else {
                     return Outcome::Rejected(Rejection::Disembodied);
                 };
                 {
@@ -178,6 +181,15 @@ impl World {
                 }
                 let column = self.soil.column_at(position);
                 self.soil.deposit(column, mass_mg);
+                self.flow(
+                    position,
+                    FlowEvent::returned(
+                        crate::flow::Process::Deposit,
+                        depositor,
+                        Account::Reserve,
+                        mass_mg,
+                    ),
+                );
                 Outcome::Deposited { organism: id }
             }
         }
@@ -246,7 +258,14 @@ impl World {
             .then(|| self.body().cloned())
             .flatten();
 
+        // Read before the meal lands, because landing it changes the anatomy a
+        // subject is read off. A meal is credited to the body that took it.
+        let Some((eater, eater_at)) = self.controlled().map(|me| (Subject::of(me), me.position))
+        else {
+            return Outcome::Rejected(Rejection::Disembodied);
+        };
         let eaten = self.organisms.remove(index);
+        let meal = Subject::of(&eaten);
         let (outcome, landed) = self.land(&eaten, route, growth);
 
         if matches!(outcome, Outcome::Rejected(_)) {
@@ -292,6 +311,7 @@ impl World {
         let unkept = eaten.biomass_mg() - landed.budget_mg - landed.body_mg;
         self.soil
             .deposit(column, unkept + eaten.energy_mg + spilled);
+        self.record_meal(&eaten, meal, eater, eater_at, &landed, unkept, spilled);
         self.learn_from(&eaten);
         outcome
     }
@@ -326,12 +346,18 @@ impl World {
                 }
             }
         }
+        let place = self.acted_at(Some(eater.0));
+        let tick = self.tick;
         for appendage in learned {
-            self.pending.push(crate::history::Event::Learned {
-                organism: eater.0,
-                species: eater.1,
-                appendage,
-            });
+            self.pending.push(crate::flow::Envelope::new(
+                tick,
+                place,
+                crate::history::Event::Learned {
+                    organism: eater.0,
+                    species: eater.1,
+                    appendage,
+                },
+            ));
         }
     }
 

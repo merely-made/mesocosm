@@ -1,7 +1,8 @@
 # Playable Ecology Architecture Plan (2026-08-31)
 
-**Status: plan, founded 2026-08-31 and refined 2026-09-01. Nothing in this
-document claims new code.**
+**Status: plan, founded 2026-08-31 and refined 2026-09-01. PE0 is built as of
+2026-09-01 (see §9); PE1-PE7 remain plan, and nothing outside PE0 claims new
+code.**
 Mark ruled reproduction as an individual-scale micro-checkpoint and named
 trophic visibility as the primary design challenge. He reaffirmed the other
 load-bearing directions: body composition determines what a critter can do;
@@ -622,9 +623,144 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
   has an owning plan and an incumbent seam. Section 7 routes their admission
   gates without adding an engine layer or changing the product order.
 
+- **2026-09-01, a support *ratio* is the wrong shape; a support *stock* is the
+  right one.** PE0 built the flow reducer against the plan's own example
+  ("grazer demand has exceeded producer regrowth") and measured three
+  candidates for the supply term across eight seeds. Gross uptake fails because
+  producers pay rent proportional to what they carry, so their draw out of the
+  ground is mostly treadmill and outweighs every mouth in the enclosure four to
+  eight times over; uptake net of rent fails because it sits on zero at any
+  equilibrium and its sign is then decided by noise; uptake into *substance*
+  fails once determinate growth binds, because a mature stand routes its income
+  to reserve and reads as growing nothing. What a support path is actually short
+  of is **standing matter**, so the shipped reading is the producer tier's net
+  substance change over a bounded window, with the grazed share stated beside it
+  rather than divided into it. Every later ratio in §3 inherits this: a flow
+  ratio at equilibrium is one, and says nothing.
+
+- **2026-09-01, the first honest reading agrees with the population
+  instrument.** Eight untouched seeds of the shipping roster, two thousand
+  ticks each: four never read short at all, and four read short and stayed
+  short (83, 153, 169, 367 consecutive ticks). Those four are the enclosures
+  whose stand really is declining, which is exactly the instrument's standing
+  verdict for this world — `thins`, never `breathes`. The warning firing there
+  is the reading being right, not misfiring, and it is independent evidence for
+  the terrarium-dynamics work rather than against the reading. It also means the
+  warning threshold cannot be tuned to keep a shrinking enclosure quiet: it is
+  set so that an enclosure *holding* its stand never raises it, and
+  `mesocosm-runtime/tests/readings.rs` asserts that of every quiet seed.
+
+- **2026-09-01, `flow::Process` versus `process::Process`.** The plan's sketch
+  names the field `process`, and the crate already has a `Process` — what a
+  *part* does (`Fix`, `Contract`, `Sense`). The flow record keeps the plan's
+  word behind the `flow::` qualifier rather than being renamed, because the two
+  converge instead of colliding: when PE4 admits generated transformations,
+  `flow::Process` is where a `ProcessDef` identity lands.
+
+- **2026-09-01, the enclosure-wide reading averages away local trouble.** The
+  place stamp is on every record and is not read by the reducer yet. A stand
+  being eaten out in one region is invisible in a nine-region aggregate, which
+  is why an induced overdraw had to be enclosure-wide to separate at all. §3's
+  "by place and lineage where the data supports it" is therefore not a
+  refinement of PE0's reading but a correction to it, and belongs in the first
+  phase that has a player standing somewhere specific — PE1 or PE2.
+
+- **2026-09-01, the flow record costs 13.5% of the tick.** The population
+  instrument's full sweep — six batches, 55 runs, ten thousand ticks apiece at
+  the shipping cohort — took 3,498 s against the pre-PE0 receipt's 3,082 s, and
+  every verdict, curve, sample and matter figure came back **identical**. So the
+  price of the record is one number and it is on the tick, not on the reading:
+  the reducer is a fixed-size integer fold and the presentation is a per-frame
+  read. If a later round needs that back, the lever is the per-flow `Subject`,
+  whose kingdom is an anatomy read — already taken once per organism per tick in
+  the hot loop, and cacheable on the body if the ecology ever wants it there.
+
+- **2026-09-01, the causal log had no tick until now.** PE0's envelope is what
+  makes a bounded window over births, maturations and deaths possible at all:
+  `History` stored bare `Event`s, so "how many died in the last two hundred
+  ticks" was unanswerable from the record that knew who died. `RecordedEvent`
+  and `RecordedFlow` are the same `Envelope<T>`, so the two records cannot drift
+  apart on when or where.
+
 ---
 
 ## 9. Progress
+
+- **2026-09-01, PE0 landed: one flow record, one useful warning.**
+
+  **The records.** `mesocosm-core/src/flow.rs` adds `Envelope<T> { tick, place,
+  record }` and the two aliases the plan named — `RecordedEvent` and
+  `RecordedFlow`. `History` now stores the envelope, so the causal log finally
+  carries a tick. A `FlowEvent` is `{ process, carrier, source, destination,
+  amount_mg, from, to }`: `Account` is `Soil | Substance | Reserve`, exactly
+  TD6's conserved sum split three ways; `Carrier` has the one variant matter
+  needs and is the seam PE4's materials arrive through; `Subject` names an
+  organism with its lineage and its **true** kingdom, read off anatomy rather
+  than off `guise`. `Ledger` is the world's one-tick buffer and `Records` is the
+  writing façade both streams share, which is what makes "one accepted
+  transaction, one commit point" structural rather than a convention.
+
+  **Where flows are emitted.** Every seam TD6 closed: producer uptake, upkeep
+  (split by the account it was paid from — `Organism::pay_upkeep` now reports
+  that), NPC feeding and its spill, venom, dispersal travel, birth (as a
+  parent-to-child transfer, not a spawn), death, carrion decay, and every played
+  verb — move, deposit, and the meal's five destinations. Nothing was found that
+  moves matter and does not emit, and `tests/flows.rs` is what would find one.
+
+  **The reducer.** `mesocosm-runtime/src/readings.rs`: one ring of
+  `RETENTION_TICKS = 240` per-tick totals, read through two windows — the whole
+  ring for replacement, `JUDGEMENT_TICKS = 60` for the stand — and a shortfall
+  streak that warns at `WARN_AFTER_TICKS = 60`, one whole judgement window
+  unbroken. `Runtime::replayed` rebuilds it during replay.
+
+  **Receipts.**
+  - `mesocosm-core/tests/flows.rs` reconciles the stream against **every
+    account of every body plus the soil, tick by tick**, over three seeds x
+    1,200 ticks and over every played verb, milligram-exact. It also carries a
+    positive control: a doctored tick with an unrecorded milligram must be
+    reported, and is.
+  - An accepted deposit puts exactly one `Process::Deposit` of exactly its mass
+    in the stream; a refused one puts nothing there, and a refused meal leaves
+    the prey out of it entirely.
+  - `mesocosm-runtime/tests/readings.rs`: a replay's windows encode **byte for
+    byte** to the driven run's; a run that reduces every tick and a bare world
+    that never looks land on the same state hash; and the windows do not grow
+    with the run.
+  - Draining does not change the world hash, because the ledger is
+    `serde(skip)` and its `PartialEq` is unconditional — the `drain_ground_dirty`
+    arrangement. A world holding a tick of flow encodes to the same bytes as one
+    that drained, which is the stop rule against dense flow in snapshots made
+    structural.
+  - **Two arms.** Seed 7, 200 founders, 2,000 ticks. The untouched control never
+    read short once; the induced overdraw — half the stand dies off and every
+    surviving mouth starts on what is left, neither half moving a milligram —
+    reached **586** consecutive short ticks. Three further seeds whose
+    enclosures hold their stand are asserted quiet.
+  - **Headed capture:** `Code/testing/mesocosm/pe0_reading.png`, seed 7, 307
+    steps over 5,000 frames, reading `energy 7214 mg` and `replacement 0
+    matured, 126 died in 240 ticks` live in the vitals panel.
+  - The demo trace's hash is **unchanged** (`2295790889f3ccd5`) and the recorded
+    trace is byte-identical, because the envelope only widened a buffer that is
+    drained empty every tick. `--replay` exits 0; a falsified hash exits 1.
+  - The population instrument's whole sweep returned **identical verdicts,
+    curves and matter figures** — baseline 0 breathes / 10 thins / 0 boil / 0
+    collapse, and every other batch unmoved — for 13.5% more wall time. Its
+    `dc4_roster.json` was left as DC4 recorded it rather than overwritten with
+    PE0-era timings; the comparison lives here.
+
+  **Presentation.** `mesocosm-views` gains `replacement_words` and
+  `warning_words` and the panel grew to 300x200 to hold them. The warning states
+  what moved and over what window and never a bare percentage; a views test
+  asserts it never spends `breathes`, `thins`, `boils` or `collapses`, which
+  remain test classifications.
+
+  **Splits at the ceiling**, per the workspace rule: `world/records.rs` out of
+  `act.rs`, `ecology/flows.rs` out of `ecology.rs`, `ecology/tests/fixture.rs`
+  out of `tests/mod.rs` (which was already at 601 lines before this round).
+
+  **Not done, and named in §8:** the place stamp is written on every record and
+  not yet read; the reading is enclosure-wide. That belongs in the first phase
+  with a player standing somewhere specific.
 
 - **2026-09-01:** refined the downstream architecture from technical prior art,
   routed multi-scale execution, materials, body mutation, generated-trait

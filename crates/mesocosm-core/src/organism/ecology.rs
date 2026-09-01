@@ -15,6 +15,7 @@
 
 use crate::cohort;
 use crate::development::PartPalette;
+use crate::flow::{Account, FlowEvent, Process, Records, Subject};
 use crate::places::{FORAGE_RADIUS, Ground, Places, Soil, Tier, TierLine};
 use crate::process::FeedingMode;
 use crate::rng::Rng;
@@ -28,10 +29,12 @@ use crate::world::STARVED_UPKEEP_TICKS;
 use super::{Organism, OrganismId, Stage, Tally};
 
 mod breeding;
+mod flows;
 mod kinship;
 mod movement;
 mod rates;
 
+use flows::{earn, record_intake, release_reserve};
 use movement::{
     CarrionTarget, LivingTarget, carrion_cells, choose_carrion_target, choose_living_target,
     disperse, living_cells,
@@ -61,51 +64,6 @@ struct Meal {
     kind: MealKind,
 }
 
-/// Feeding income, routed by the body — **the same rule for every kingdom**.
-///
-/// TD4 gave the played meal one question: is this body inside
-/// [`STARVED_UPKEEP_TICKS`] of empty? If so the meal burns, refilling the
-/// budget; if not it builds. TD5 asks it of every organism instead, because
-/// before this every non-played gain built biomass only and `energy_mg` was a
-/// birth endowment that never refilled — so an NPC crossed every hunger
-/// threshold within its first few hundred ticks and lived off its own body
-/// thereafter, and a decomposer could never bank a corpse against the gap to
-/// the next one.
-///
-/// Called after [`Organism::pay_upkeep`], so the reserve it reads is this
-/// tick's, post-rent.
-///
-/// Returns what the body could not hold. TD6's ceilings bound both halves —
-/// substance at the body plan's adult mass, reserve at the same number — so a
-/// caller has to put the remainder back in the world rather than let it
-/// evaporate. Callers clamp their draw to [`Organism::intake_room_mg`], so in
-/// practice this returns zero; it returns it anyway because a leak here is a
-/// leak nothing else would catch.
-fn earn(organism: &mut Organism, mg: u64) -> u64 {
-    let ceiling = organism.mass_ceiling_mg();
-    if organism.budget_below(STARVED_UPKEEP_TICKS) {
-        let banked = mg.min(ceiling.saturating_sub(organism.energy_mg));
-        organism.energy_mg += banked;
-        organism.gain_mass(mg - banked)
-    } else {
-        let spilled = organism.gain_mass(mg);
-        let banked = spilled.min(ceiling.saturating_sub(organism.energy_mg));
-        organism.energy_mg += banked;
-        spilled - banked
-    }
-}
-
-/// A body's remains go back to the ground where it lies: what it was still
-/// carrying as reserve, released the moment it stops being able to hold it.
-///
-/// Substance is returned separately and slowly, by [`Stage::Carrion`] decay
-/// and by whatever eats the corpse.
-fn release_reserve(organism: &mut Organism, soil: &mut Soil) {
-    let column = soil.column_at(organism.position);
-    soil.deposit(column, organism.energy_mg);
-    organism.energy_mg = 0;
-}
-
 /// Advances every organism one tick.
 ///
 /// Deterministic: organisms are visited in id order, offspring are appended in
@@ -113,21 +71,22 @@ fn release_reserve(organism: &mut Organism, soil: &mut Soil) {
 /// the seeded stream.
 /// One tick of the enclosure.
 ///
-/// `events` collects what happened to *individuals*. [`Tally`] counts, which is
-/// what a host shows; the events are what a history records, and significance
-/// needs to know who rather than how many.
+/// `records` collects what happened to *individuals* and what matter did.
+/// [`Tally`] counts, which is what a host shows; the causal events are what a
+/// history records, because significance needs to know who rather than how many;
+/// and the flows are what the bounded ecology readings reduce.
 #[allow(clippy::too_many_arguments)]
 pub fn step(
     organisms: &mut Vec<Organism>,
     next_id: &mut u32,
     rng: &mut Rng,
-    events: &mut Vec<Event>,
+    records: &mut Records<'_>,
     lineages: &Lineages,
     palette: PartPalette,
     soil: &mut Soil,
 ) -> Tally {
     step_inner(
-        organisms, next_id, rng, events, lineages, palette, soil, None, None, None, None,
+        organisms, next_id, rng, records, lineages, palette, soil, None, None, None, None,
     )
 }
 
@@ -139,7 +98,7 @@ pub fn step_with_places(
     organisms: &mut Vec<Organism>,
     next_id: &mut u32,
     rng: &mut Rng,
-    events: &mut Vec<Event>,
+    records: &mut Records<'_>,
     lineages: &Lineages,
     palette: PartPalette,
     soil: &mut Soil,
@@ -150,7 +109,7 @@ pub fn step_with_places(
         organisms,
         next_id,
         rng,
-        events,
+        records,
         lineages,
         palette,
         soil,
@@ -177,7 +136,7 @@ pub fn step_with_ground(
     organisms: &mut Vec<Organism>,
     next_id: &mut u32,
     rng: &mut Rng,
-    events: &mut Vec<Event>,
+    records: &mut Records<'_>,
     lineages: &Lineages,
     palette: PartPalette,
     soil: &mut Soil,
@@ -190,7 +149,7 @@ pub fn step_with_ground(
         organisms,
         next_id,
         rng,
-        events,
+        records,
         lineages,
         palette,
         soil,
@@ -206,7 +165,7 @@ fn step_inner(
     organisms: &mut Vec<Organism>,
     next_id: &mut u32,
     rng: &mut Rng,
-    events: &mut Vec<Event>,
+    records: &mut Records<'_>,
     lineages: &Lineages,
     palette: PartPalette,
     soil: &mut Soil,
@@ -304,6 +263,9 @@ fn step_inner(
             continue;
         }
         let column = soil.column_at(organism.position);
+        // One anatomy read a tick, reused by every record this body writes.
+        let subject = Subject::of(organism);
+        let at = organism.position;
 
         // Everything alive pays rent, every tick, **and the rent scales with
         // the body**. Budget first, then the body itself: a creature with
@@ -311,8 +273,17 @@ fn step_inner(
         // to the ground it is standing on — a body that burns itself has to
         // put that mass somewhere, and that somewhere is the cycle. (TD6)
         let owed = organism.upkeep_mg();
-        let unpaid = organism.pay_upkeep();
-        soil.deposit(column, owed - unpaid);
+        let rent = organism.pay_upkeep();
+        soil.deposit(column, owed - rent.unpaid_mg);
+        for (out_of, mg) in [
+            (Account::Reserve, rent.reserve_mg),
+            (Account::Substance, rent.substance_mg),
+        ] {
+            records.flow(
+                at,
+                FlowEvent::returned(Process::Upkeep, subject, out_of, mg),
+            );
+        }
 
         // Nothing draws more than it can hold: past the body plan's adult mass
         // and a full reserve, more matter would only be handed straight back.
@@ -343,8 +314,9 @@ fn step_inner(
                     .clamp(UPKEEP_BASE_MG, income)
                     .min(room);
                 let drawn = soil.draw_richest_within(column, FORAGE_RADIUS, want);
-                let spilled = earn(organism, drawn);
-                soil.deposit(column, spilled);
+                let landed = earn(organism, drawn);
+                soil.deposit(column, landed.spilled_mg);
+                record_intake(records, at, None, subject, &landed);
             }
             // **The bite scales with build** (TD9): the mouthful reads the same
             // three body-plan numbers the rent above reads, so the body that
@@ -410,12 +382,23 @@ fn step_inner(
         }
         let from = organisms[meal.prey].id;
         let venom_mg = organisms[meal.prey].venom_mg;
-        let prey_column = soil.column_at(organisms[meal.prey].position);
+        let prey = Subject::of(&organisms[meal.prey]);
+        let prey_at = organisms[meal.prey].position;
+        let prey_column = soil.column_at(prey_at);
         let column = soil.column_at(organisms[meal.eater].position);
         let eater = &mut organisms[meal.eater];
         let eater_id = eater.id;
-        let spilled = earn(eater, taken);
-        soil.deposit(column, spilled);
+        let eater_subject = Subject::of(eater);
+        let at = eater.position;
+        let landed = earn(eater, taken);
+        soil.deposit(column, landed.spilled_mg);
+        record_intake(records, at, Some(prey), eater_subject, &landed);
+        // What the mouth could not hold left the prey all the same, so it is
+        // the prey's substance the ground got.
+        records.flow(
+            at,
+            FlowEvent::returned(Process::Spill, prey, Account::Substance, landed.spilled_mg),
+        );
         // Gains before costs, same order act.rs's played meal settled on: a
         // nearly starved eater must not lose part of the toxin to the zero
         // floor and then still bank the whole bite. A bite doses by the
@@ -429,13 +412,21 @@ fn step_inner(
         let dose = venom_mg.saturating_mul(taken) / prey_mass_mg.max(1);
         let before_venom = eater.energy_mg;
         eater.energy_mg = before_venom.saturating_sub(dose);
-        soil.deposit(prey_column, before_venom - eater.energy_mg);
-        events.push(Event::Fed {
-            eater: eater_id,
-            from,
-            mass_mg: taken,
-            kind: meal.kind,
-        });
+        let paid = before_venom - eater.energy_mg;
+        soil.deposit(prey_column, paid);
+        records.flow(
+            prey_at,
+            FlowEvent::returned(Process::Spill, eater_subject, Account::Reserve, paid),
+        );
+        records.event(
+            at,
+            Event::Fed {
+                eater: eater_id,
+                from,
+                mass_mg: taken,
+                kind: meal.kind,
+            },
+        );
     }
 
     // **What the tick did to each body**, once every ledger has settled.
@@ -459,7 +450,7 @@ fn step_inner(
                         &living_cells,
                         &carrion,
                         &carrion_cells,
-                        events,
+                        records,
                         &kin,
                     )
                 {
@@ -470,9 +461,12 @@ fn step_inner(
                     && organism.age >= maturity_for_mass(organism.life_history_mass_mg())
                 {
                     organism.stage = Stage::Mature;
-                    events.push(Event::Matured {
-                        organism: organism.id,
-                    });
+                    records.event(
+                        organism.position,
+                        Event::Matured {
+                            organism: organism.id,
+                        },
+                    );
                     tally.matured += 1;
                 }
 
@@ -484,18 +478,24 @@ fn step_inner(
                     // Eaten to nothing. There is no corpse to leave, so this
                     // skips carrion entirely and returns straight to the world.
                     organism.stage = Stage::Spent;
-                    release_reserve(organism, soil);
-                    events.push(Event::Returned {
-                        organism: organism.id,
-                    });
+                    release_reserve(organism, soil, records);
+                    records.event(
+                        organism.position,
+                        Event::Returned {
+                            organism: organism.id,
+                        },
+                    );
                     tally.returned += 1;
                 } else if starved || aged {
                     organism.stage = Stage::Carrion;
-                    release_reserve(organism, soil);
-                    events.push(Event::Died {
-                        organism: organism.id,
-                        species: organism.species,
-                    });
+                    release_reserve(organism, soil, records);
+                    records.event(
+                        organism.position,
+                        Event::Died {
+                            organism: organism.id,
+                            species: organism.species,
+                        },
+                    );
                     organism.since_offspring = 0;
                     tally.died += 1;
                 }
@@ -518,11 +518,23 @@ fn step_inner(
                 let returning = u64::from(organism.age.is_multiple_of(CARRION_DECAY_TICKS));
                 let unreturned = organism.spend_mass(returning);
                 soil.deposit(column, returning - unreturned);
+                records.flow(
+                    organism.position,
+                    FlowEvent::returned(
+                        Process::Decay,
+                        Subject::of(organism),
+                        Account::Substance,
+                        returning - unreturned,
+                    ),
+                );
                 if organism.biomass_mg() == 0 {
                     organism.stage = Stage::Spent;
-                    events.push(Event::Returned {
-                        organism: organism.id,
-                    });
+                    records.event(
+                        organism.position,
+                        Event::Returned {
+                            organism: organism.id,
+                        },
+                    );
                     tally.returned += 1;
                 }
             }
@@ -536,7 +548,7 @@ fn step_inner(
         &mut newborns,
         next_id,
         rng,
-        events,
+        records,
         lineages,
         palette,
         ground,

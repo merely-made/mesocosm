@@ -11,6 +11,7 @@
 
 use std::cmp::Reverse;
 
+use crate::flow::Records;
 use crate::history::Event;
 use crate::organism::{Kingdom, Signal};
 use crate::places::{
@@ -365,7 +366,7 @@ pub(super) fn disperse(
     living_cells: &Cells,
     carrion: &[CarrionTarget],
     carrion_cells: &Cells,
-    events: &mut Vec<Event>,
+    records: &mut Records<'_>,
     kin: &Kin,
 ) -> bool {
     let target = preferred_target(
@@ -501,19 +502,16 @@ pub(super) fn disperse(
     };
 
     if next != old {
-        let distance = chebyshev(old, next) as u64;
-        // Travel is paid in substance, and the substance goes into the ground
-        // it was covered over — the trail, not a sink. (TD6)
-        let owed = distance.max(1);
-        let unpaid = organism.spend_mass(owed);
-        let column = soil.column_at(old);
-        soil.deposit(column, owed - unpaid);
+        super::flows::pay_travel(organism, soil, records, old, chebyshev(old, next) as u64);
         organism.position = next;
-        events.push(Event::Moved {
-            organism: organism.id,
-            from: old,
-            to: next,
-        });
+        records.event(
+            next,
+            Event::Moved {
+                organism: organism.id,
+                from: old,
+                to: next,
+            },
+        );
         true
     } else {
         false

@@ -33,8 +33,14 @@ use crate::chrome::{Chrome, Raster};
 
 /// The panel's box, in pixels. It is also the raster's size, so the tree is
 /// laid out at the resolution it is shown at.
-const WIDTH: u32 = 200;
-const HEIGHT: u32 = 132;
+const WIDTH: u32 = 300;
+/// Wider and taller since PE0, and wider **because** taller: the panel now
+/// carries a replacement reading and, when the support path has run short, a
+/// warning that states its evidence. Both wrap, so the box has to be sized for
+/// the longest of them — and a hundred extra pixels of width buys back more
+/// height than it costs, which keeps the ordinary panel from being mostly
+/// empty box waiting for a warning that is usually not there.
+const HEIGHT: u32 = 200;
 
 /// Distance from the frame's corner. Matches the minimap's, so the two chrome
 /// surfaces sit on one margin.
@@ -108,6 +114,7 @@ impl VitalsChrome {
         world: &World,
         outcomes: &[mesocosm_core::Outcome],
         steps: u64,
+        trend: &mesocosm_core::Trend,
     ) {
         match world.energy_mg() {
             Some(energy) => self.high_water = self.high_water.max(energy),
@@ -122,8 +129,12 @@ impl VitalsChrome {
             self.notice = None;
         }
 
-        let reading =
-            mesocosm_views::vitals_of(world, self.high_water, self.notice.map(|(words, _)| words));
+        let reading = mesocosm_views::vitals_of(
+            world,
+            self.high_water,
+            self.notice.map(|(words, _)| words),
+            Some(trend),
+        );
         if self.shown.as_ref() == Some(&reading) {
             return;
         }

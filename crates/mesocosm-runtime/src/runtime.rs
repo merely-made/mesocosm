@@ -12,9 +12,10 @@
 
 use std::collections::VecDeque;
 
-use mesocosm_core::{History, Intent, Outcome, Reading, World, state_hash};
+use mesocosm_core::{History, Intent, Outcome, Reading, Trend, World, state_hash};
 
 use crate::clock::Clock;
+use crate::readings::FlowWindows;
 
 /// Default ceiling on steps authorised by one `advance` call. A stalled host
 /// resuming after a long pause catches up over several frames rather than in
@@ -35,6 +36,13 @@ pub struct Runtime {
     /// driver already records every intent, and recording every consequence
     /// belongs beside it.
     history: History,
+    /// The bounded ecology windows, reduced from the same two streams.
+    ///
+    /// Here rather than in the world for the reason the history is here: it is
+    /// derivable from a seed and a trace, so keeping it in the snapshot would
+    /// put a presentation reading inside the replay hash. `Runtime::replayed`
+    /// rebuilds it, which is that claim made executable.
+    readings: FlowWindows,
     last: Vec<Outcome>,
     max_steps: u64,
     seed: u64,
@@ -49,6 +57,7 @@ impl Runtime {
             queued: VecDeque::new(),
             trace: Vec::new(),
             history: History::new(),
+            readings: FlowWindows::new(),
             last: Vec::new(),
             max_steps: DEFAULT_MAX_STEPS_PER_ADVANCE,
             seed,
@@ -81,7 +90,7 @@ impl Runtime {
             let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
             let outcome = self.world.apply(intent.clone());
             self.trace.push(intent);
-            self.history.record_all(self.world.drain_events());
+            self.absorb();
             self.last.push(outcome);
         }
         advance.steps
@@ -95,9 +104,20 @@ impl Runtime {
             let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
             let outcome = self.world.apply(intent.clone());
             self.trace.push(intent);
-            self.history.record_all(self.world.drain_events());
+            self.absorb();
             self.last.push(outcome);
         }
+    }
+
+    /// Takes the tick's two records: the causal half into the past, both halves
+    /// into the windows. One call, because they are one tick's worth and a
+    /// caller that drained one and forgot the other would have a past and a
+    /// reading that disagreed.
+    fn absorb(&mut self) {
+        let events = self.world.drain_events();
+        let flows = self.world.drain_flows();
+        self.readings.absorb(&events, &flows);
+        self.history.record_all(events);
     }
 
     pub fn world(&self) -> &World {
@@ -117,6 +137,16 @@ impl Runtime {
     /// What this run has seen happen.
     pub fn history(&self) -> &History {
         &self.history
+    }
+
+    /// The bounded ecology windows over this run's flows.
+    pub fn windows(&self) -> &FlowWindows {
+        &self.readings
+    }
+
+    /// What those windows currently read: facts and the windows they cover.
+    pub fn trend(&self) -> Trend {
+        self.readings.trend()
     }
 
     /// What each lineage has done, without noting any of it.
@@ -167,14 +197,39 @@ impl Runtime {
     /// difference in the hash. Reproducing the history rather than discarding it
     /// is also the claim that keeps it out of the snapshot, made executable.
     pub fn replay(seed: u64, organisms: u32, trace: &[Intent]) -> (World, History) {
+        let replayed = Self::replayed(seed, organisms, trace);
+        (replayed.world, replayed.history)
+    }
+
+    /// The same replay, keeping the readings it rebuilt.
+    ///
+    /// **The done-condition made runnable.** The windows are not in the
+    /// snapshot, so nothing forces them to agree; reducing the replay's own
+    /// streams through the same reducer and comparing the encodings is what
+    /// shows that a replayed run reads the same as the run it replays.
+    pub fn replayed(seed: u64, organisms: u32, trace: &[Intent]) -> Replayed {
         let mut world = World::new(seed, organisms);
         let mut history = History::new();
+        let mut readings = FlowWindows::new();
         for intent in trace {
             world.apply(intent.clone());
-            history.record_all(world.drain_events());
+            let events = world.drain_events();
+            readings.absorb(&events, &world.drain_flows());
+            history.record_all(events);
         }
-        (world, history)
+        Replayed {
+            world,
+            history,
+            readings,
+        }
     }
+}
+
+/// What a replay reproduced: the world, its past, and its readings.
+pub struct Replayed {
+    pub world: World,
+    pub history: History,
+    pub readings: FlowWindows,
 }
 
 /// A run's identity, for comparing hosts.

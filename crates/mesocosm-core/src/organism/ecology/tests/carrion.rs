@@ -78,7 +78,7 @@ fn a_corpse_stands_longer_and_still_returns_every_milligram() {
             &mut world,
             &mut next,
             &mut rng,
-            &mut Vec::new(),
+            &mut Sink::default().stream(),
             &lineages,
             PartPalette::primitive(),
             &mut ground,

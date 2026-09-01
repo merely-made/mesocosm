@@ -328,6 +328,10 @@ impl Host {
         // were polite inside `World::apply` and silent outside it until the
         // cambium lane landed; this is the whole of their route to a screen.
         let outcomes = self.runtime.last_outcomes().to_vec();
+        // The bounded ecology windows, read off the driver that reduced them.
+        // Presentation only: the panel shows what the reducer found and writes
+        // nothing back, so the trace and the hash never learn it exists.
+        let trend = self.runtime.trend();
 
         let world = self.runtime.world();
         let Some(gpu) = &mut self.gpu else { return };
@@ -382,7 +386,9 @@ impl Host {
             // After the minimap, so a refusal reads over the section rather
             // than under it. Presentation only: nothing it reads is written
             // back, so the trace and the hash never learn it exists.
-            lanes.vitals.refresh(&lanes.device, world, &outcomes, steps);
+            lanes
+                .vitals
+                .refresh(&lanes.device, world, &outcomes, steps, &trend);
             lanes
                 .vitals
                 .composite(&lanes.device, &mut encoder, &view, frame);

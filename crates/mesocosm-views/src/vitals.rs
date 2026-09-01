@@ -15,7 +15,7 @@
 //! panel *is*, and the host says where its raster lands.
 
 use cambium::{AnyView, DetailRow, DetailSection, GenetCtx, GenetElement, detail_panel, el, text};
-use mesocosm_core::{Ineligible, Outcome, Rejection, World};
+use mesocosm_core::{Ineligible, Outcome, Rejection, Trend, World};
 
 /// A view in the vitals tree. Inert: nothing here takes a click, because
 /// during an epoch you act on the world, not on a panel.
@@ -44,6 +44,14 @@ pub struct Vitals {
     /// destination out of the player's hands — what the body did with a meal.
     /// The state that decided is the number right above it.
     pub notice: Option<&'static str>,
+    /// The first ecology reading: maturation against mortality, and the window
+    /// it covers. **A fact with its window on it**, never a bare ratio.
+    pub replacement: Option<String>,
+    /// The one warning PE0 ships, when the support path has actually run short.
+    /// It says what moved and over how long; it never presents a collapse
+    /// percentage, and it never repeats the population instrument's test
+    /// verdicts, which are not player language.
+    pub warning: Option<String>,
 }
 
 impl Vitals {
@@ -54,19 +62,31 @@ impl Vitals {
 
 /// Reads the vitals out of a world. `high_water` is the host's running
 /// maximum, passed in because the bar's scale is a session fact rather than a
-/// world one.
-pub fn vitals_of(world: &World, high_water: u64, notice: Option<&'static str>) -> Vitals {
+/// world one; `trend` is the driver's bounded windows, passed in for the same
+/// reason — a world cannot say what happened, only what is.
+pub fn vitals_of(
+    world: &World,
+    high_water: u64,
+    notice: Option<&'static str>,
+    trend: Option<&Trend>,
+) -> Vitals {
     reading(
         world.controlled().map(|critter| critter.energy_mg),
         high_water,
         notice,
+        trend,
     )
 }
 
 /// The reading itself, off the world. Separated so the disembodied case is
 /// testable: nothing public drops control, and the world it happens in is a
 /// thousand ticks away.
-fn reading(energy_mg: Option<u64>, high_water: u64, notice: Option<&'static str>) -> Vitals {
+fn reading(
+    energy_mg: Option<u64>,
+    high_water: u64,
+    notice: Option<&'static str>,
+    trend: Option<&Trend>,
+) -> Vitals {
     let fullness = match (energy_mg, high_water) {
         (Some(energy), top) if top > 0 => (energy as f32 / top as f32).clamp(0.0, 1.0),
         _ => 0.0,
@@ -77,7 +97,45 @@ fn reading(energy_mg: Option<u64>, high_water: u64, notice: Option<&'static str>
         // A dead critter refuses nothing and eats nothing; the death state
         // stands alone.
         notice: notice.filter(|_| energy_mg.is_some()),
+        // The enclosure keeps happening whether or not anyone is in it, so
+        // these two survive losing a body.
+        replacement: trend.map(replacement_words),
+        warning: trend.and_then(warning_words),
     }
+}
+
+/// Maturation against mortality, and the window it covers.
+///
+/// Counts rather than a ratio, because a ratio hides how much evidence it is
+/// made of: three deaths in two hundred ticks and three hundred are the same
+/// number and not the same fact.
+pub fn replacement_words(trend: &Trend) -> String {
+    format!(
+        "{} matured, {} died in {} ticks",
+        trend.matured, trend.died, trend.replacement_ticks
+    )
+}
+
+/// The warning, when the support path has run short long enough to say so.
+///
+/// **What moved, over what window.** Never a collapse percentage, and never one
+/// of the population instrument's verdicts: those classify a test run, and
+/// turning one into player language is a separate interaction ruling.
+///
+/// The two numbers sit side by side rather than one inside the other. Grazing is
+/// one of several ways a stand loses matter, and it can exceed the net loss when
+/// the survivors are still growing; saying "of which" would be a causal claim
+/// the record does not make.
+pub fn warning_words(trend: &Trend) -> Option<String> {
+    trend.warns().then(|| {
+        format!(
+            "the stand has been shrinking for {} ticks: {} mg lost over the last {}; mouths took {} mg in the same window",
+            trend.shortfall_ticks,
+            trend.stand_change_mg.unsigned_abs(),
+            trend.stand_ticks,
+            trend.grazed_mg
+        )
+    })
 }
 
 /// The plain words for a rejection. Short because they are read in motion, and
@@ -122,10 +180,13 @@ pub fn vitals_root(vitals: &Vitals) -> VitalsChild {
 
     // The catalog's labelled-facts component, which is exactly what a vital
     // sign is: an inert key and its value. Not a hand-rolled row.
-    let rows = match vitals.energy_mg {
+    let mut rows = match vitals.energy_mg {
         Some(energy) => vec![DetailRow::new("energy", format!("{energy} mg"))],
         None => vec![DetailRow::new("state", "dead")],
     };
+    if let Some(replacement) = &vitals.replacement {
+        rows.push(DetailRow::new("replacement", replacement.clone()));
+    }
     children.push(Box::new(detail_panel::<Vitals, ()>(&[DetailSection::new(
         "vitals", rows,
     )])));
@@ -150,6 +211,14 @@ pub fn vitals_root(vitals: &Vitals) -> VitalsChild {
         ));
     }
 
+    // Last, and only when it is true. A warning that is always on screen is a
+    // decoration.
+    if let Some(words) = &vitals.warning {
+        children.push(Box::new(
+            el::<_, Vitals, ()>("div", text(words.clone())).attr("class", "vital-warning"),
+        ));
+    }
+
     Box::new(el::<_, Vitals, ()>("div", children).attr("class", "vitals"))
 }
 
@@ -158,7 +227,10 @@ pub fn vitals_root(vitals: &Vitals) -> VitalsChild {
 pub fn vitals_css() -> &'static str {
     r#"
 .vitals {
-    width: 200px;
+    /* The host's raster is 300 wide and this is a content box, so the twelve
+       pixels of padding on each side come out of it. Setting the two equal
+       clipped the last character off every line that reached the edge. */
+    width: 276px;
     padding: 10px 12px;
     background-color: #10141aee;
     color: #dfe6dd;
@@ -188,6 +260,11 @@ pub fn vitals_css() -> &'static str {
     color: #e2a06a;
     font-size: 13px;
 }
+.vital-warning {
+    margin-top: 8px;
+    color: #d8776a;
+    font-size: 12px;
+}
 "#
 }
 
@@ -197,7 +274,7 @@ mod tests {
 
     #[test]
     fn a_world_with_nobody_in_it_reads_dead() {
-        let vitals = reading(None, 1_000, Some("not enough energy"));
+        let vitals = reading(None, 1_000, Some("not enough energy"), None);
         assert!(vitals.is_dead());
         assert_eq!(vitals.fullness, 0.0);
         // The death state stands alone: a notice from the same batch is not
@@ -209,10 +286,10 @@ mod tests {
     fn the_bar_measures_against_the_session_high_water() {
         let world = World::new(0x00A7_7AC4, 8);
         let energy = world.energy_mg().expect("the world starts embodied");
-        let full = vitals_of(&world, energy, None);
+        let full = vitals_of(&world, energy, None, None);
         assert_eq!(full.energy_mg, Some(energy));
         assert!((full.fullness - 1.0).abs() < f32::EPSILON);
-        let half = vitals_of(&world, energy * 2, None);
+        let half = vitals_of(&world, energy * 2, None, None);
         assert!((half.fullness - 0.5).abs() < 0.001);
     }
 
@@ -228,6 +305,43 @@ mod tests {
             Some("no body")
         );
         assert_eq!(notice_in(&[Outcome::Moved, Outcome::Idled]), None);
+    }
+
+    /// The warning says what moved and over what window, or says nothing.
+    #[test]
+    fn a_warning_carries_its_evidence_and_only_arrives_when_it_is_true() {
+        let quiet = Trend {
+            replacement_ticks: 240,
+            matured: 4,
+            died: 2,
+            stand_ticks: 60,
+            stand_change_mg: 900,
+            grazed_mg: 300,
+            shortfall_ticks: 0,
+        };
+        assert_eq!(warning_words(&quiet), None);
+        assert_eq!(replacement_words(&quiet), "4 matured, 2 died in 240 ticks");
+
+        let short = Trend {
+            stand_change_mg: -7_930,
+            grazed_mg: 15_771,
+            shortfall_ticks: mesocosm_core::WARN_AFTER_TICKS,
+            ..quiet
+        };
+        let words = warning_words(&short).expect("a real shortfall says so");
+        assert!(words.contains("7930 mg lost over the last 60"));
+        assert!(words.contains("mouths took 15771 mg in the same window"));
+        assert!(words.contains("ticks"), "and the window it moved over");
+        assert!(
+            !words.contains('%'),
+            "never an unexplained percentage: {words}"
+        );
+        for verdict in ["breathes", "thins", "boils", "collapses"] {
+            assert!(
+                !words.contains(verdict),
+                "the instrument's verdicts are not player language: {words}"
+            );
+        }
     }
 
     /// TD4's half of the feedback: the player no longer chooses what a meal

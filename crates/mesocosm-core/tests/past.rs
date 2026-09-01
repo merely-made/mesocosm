@@ -36,7 +36,7 @@ fn an_enclosure_left_alone_still_has_a_past() {
             .log()
             .entries()
             .iter()
-            .any(|e| matches!(e, Event::Fed { .. })),
+            .any(|e| matches!(e.record, Event::Fed { .. })),
         "including creatures eating each other"
     );
 }
@@ -49,7 +49,7 @@ fn a_creature_gets_a_line_of_its_own() {
         .log()
         .entries()
         .iter()
-        .flat_map(|event| event.subjects())
+        .flat_map(|event| event.record.subjects())
         .find(|who| history.line_of(*who).len() > 2)
         .expect("somebody had a life");
 
@@ -57,7 +57,12 @@ fn a_creature_gets_a_line_of_its_own() {
     assert!(line.windows(2).all(|w| w[0] < w[1]), "oldest first");
     for seq in &line {
         assert!(
-            history.get(*seq).unwrap().subjects().contains(&subject),
+            history
+                .get(*seq)
+                .unwrap()
+                .record
+                .subjects()
+                .contains(&subject),
             "every event in a creature's line is about it"
         );
     }
@@ -73,11 +78,11 @@ fn feeding_joins_lines_that_were_independent() {
         .log()
         .entries()
         .iter()
-        .position(|e| matches!(e, Event::Fed { .. }))
+        .position(|e| matches!(e.record, Event::Fed { .. }))
         .map(|i| codicil::Seq(i as u64))
         .expect("something fed");
 
-    let Some(Event::Fed { eater, from, .. }) = history.get(meal).copied() else {
+    let Some(Event::Fed { eater, from, .. }) = history.event(meal).copied() else {
         unreachable!("filtered to a meal")
     };
     assert_ne!(eater, from, "nothing eats itself");
@@ -122,7 +127,7 @@ fn a_death_follows_from_what_drained_it() {
         .log()
         .entries()
         .iter()
-        .position(|e| matches!(e, Event::Died { .. }))
+        .position(|e| matches!(e.record, Event::Died { .. }))
         .map(|i| codicil::Seq(i as u64))
         .expect("something died");
 
@@ -188,7 +193,7 @@ fn the_player_act_is_recorded_before_the_tick_it_happened_in() {
     let events = burned.expect("something was burned");
     let mine = events
         .iter()
-        .position(|e| matches!(e, Event::Burned { organism, .. } if *organism == me))
+        .position(|e| matches!(e.record, Event::Burned { organism, .. } if organism == me))
         .expect("the burn was recorded");
 
     assert_eq!(mine, 0, "the player's act leads the tick it happened in");

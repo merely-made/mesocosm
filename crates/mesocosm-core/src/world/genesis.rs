@@ -384,18 +384,6 @@ impl World {
             });
         }
 
-        // The founding population enters the record. Without this a seeded
-        // creature's first event is whatever happened *to* it, so its origin
-        // is invisible and its causal line begins in the middle.
-        let pending = organisms
-            .iter()
-            .map(|o| crate::history::Event::Born {
-                organism: o.id,
-                species: o.species,
-                parent: None,
-            })
-            .collect();
-
         let grown = crate::places::Places::grown(seed ^ PLACE_SALT, PLACE_SIDE, ENCLOSURE);
         let ground = crate::places::Ground::grow(&grown, ENCLOSURE);
 
@@ -411,6 +399,26 @@ impl World {
                     .expect("the grown enclosure covers every founding body");
             debug_assert!(shape.stands(&ground, organism.position));
         }
+
+        // The founding population enters the record. Without this a seeded
+        // creature's first event is whatever happened *to* it, so its origin
+        // is invisible and its causal line begins in the middle. Stamped after
+        // the enclosure exists, so a founding birth names the region it
+        // actually happened in.
+        let pending = organisms
+            .iter()
+            .map(|o| {
+                crate::flow::Envelope::new(
+                    0,
+                    grown.places.at(o.position),
+                    crate::history::Event::Born {
+                        organism: o.id,
+                        species: o.species,
+                        parent: None,
+                    },
+                )
+            })
+            .collect();
 
         let mut world = Self {
             tick: 0,
@@ -442,6 +450,7 @@ impl World {
             next_organism: organism_count + 1,
             last_tally: crate::organism::Tally::default(),
             pending,
+            flows: crate::flow::Ledger::default(),
         };
 
         // The starting body already counts, and intricacy needs the registry,

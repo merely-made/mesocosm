@@ -8,93 +8,14 @@ use crate::history::Event;
 use crate::organism::{Kingdom, Signal};
 
 mod carrion;
+mod fixture;
 mod signals;
 
-/// A fixture body big enough to be the mass it is given.
-///
-/// The half-extent used to be `[1, 1, 1]` — twenty-seven voxels carrying three
-/// hundred milligrams, which nothing noticed until TD6 gave a body plan an
-/// adult mass derived from its own volume. `[5, 5, 5]` is 1,331 voxels, so
-/// these fixtures sit well under their ceiling and can still be watched
-/// growing. (2026-08-29 TD6)
-fn organism(kingdom: Kingdom, mass: u64) -> Organism {
-    Organism::founding(
-        OrganismId(0),
-        SpeciesId(2),
-        kingdom,
-        VolumeRef::from_tag(16),
-        [5, 5, 5],
-        [0, 0, 0],
-        mass,
-    )
-}
-
-/// A fixture soil with enough matter that these tests measure the rule they
-/// name rather than the enclosure running out. Real worlds seed theirs from
-/// `world::genesis`; the conservation invariant is proved there, over a
-/// founded world, in `tests/matter.rs`.
-fn soil() -> Soil {
-    Soil::seeded(32, 100_000)
-}
-
-fn run(organisms: &mut Vec<Organism>, ticks: u32) -> Tally {
-    let mut rng = Rng::from_seed(1);
-    let mut next = 100;
-    let mut total = Tally::default();
-    let mut ground = soil();
-    let lineages = registry(organisms);
-    for _ in 0..ticks {
-        let t = step(
-            organisms,
-            &mut next,
-            &mut rng,
-            &mut Vec::new(),
-            &lineages,
-            PartPalette::primitive(),
-            &mut ground,
-        );
-        total.matured += t.matured;
-        total.born += t.born;
-        total.died += t.died;
-        total.returned += t.returned;
-    }
-    total
-}
-
-/// Steps until `done`, up to a generous cap. Returns whether it happened.
-///
-/// Tick counts stopped being stable when upkeep became a function of body
-/// mass and a banked budget, so tests state the outcome they are waiting
-/// for rather than a number that has to be re-tuned.
-fn until(world: &mut Vec<Organism>, done: impl Fn(&[Organism]) -> bool) -> bool {
-    let mut next_id = 900;
-    let mut rng = Rng::from_seed(7);
-    let mut ground = soil();
-    let lineages = registry(world);
-    for _ in 0..4_000 {
-        if done(world) {
-            return true;
-        }
-        step(
-            world,
-            &mut next_id,
-            &mut rng,
-            &mut Vec::new(),
-            &lineages,
-            PartPalette::primitive(),
-            &mut ground,
-        );
-    }
-    done(world)
-}
-
-fn registry(organisms: &[Organism]) -> Lineages {
-    let mut lineages = Lineages::new();
-    for organism in organisms {
-        lineages.found(organism.species);
-    }
-    lineages
-}
+// The shared bodies, soils and drivers, split out on 2026-09-01 when PE0's
+// record sink took this file past the six-hundred-line ceiling. Re-exported
+// rather than imported, so `use super::*` in the child modules still reaches
+// them.
+pub use fixture::*;
 
 #[test]
 fn allometric_rates_cross_three_orders_without_flat_steps() {
@@ -157,7 +78,7 @@ fn a_contractile_consumer_can_take_live_consumer_prey() {
     assert_eq!(predator.feeding_mode(), FeedingMode::Predator);
     assert_eq!(prey.kingdom(), Kingdom::Consumer);
     let mut world = vec![predator.clone(), prey];
-    let mut events = Vec::new();
+    let mut sink = Sink::default();
     let mut rng = Rng::from_seed(4);
     let mut next = 2;
     let lines = registry(&world);
@@ -165,13 +86,13 @@ fn a_contractile_consumer_can_take_live_consumer_prey() {
         &mut world,
         &mut next,
         &mut rng,
-        &mut events,
+        &mut sink.stream(),
         &lines,
         PartPalette::primitive(),
         &mut soil(),
     );
 
-    assert!(events.iter().any(|event| matches!(
+    assert!(sink.events().iter().any(|event| matches!(
         event,
         Event::Fed { eater, from, kind: crate::history::MealKind::Predation, .. }
             if *eater == predator.id && *from == OrganismId(1)
@@ -195,7 +116,7 @@ fn an_exhausted_body_disperses_through_the_place_graph() {
     )];
     world[0].energy_mg = 0;
     let before = world[0].position;
-    let mut events = Vec::new();
+    let mut sink = Sink::default();
     let mut rng = Rng::from_seed(7);
     let mut next = 10;
     let lines = registry(&world);
@@ -203,7 +124,7 @@ fn an_exhausted_body_disperses_through_the_place_graph() {
         &mut world,
         &mut next,
         &mut rng,
-        &mut events,
+        &mut sink.stream(),
         &lines,
         PartPalette::primitive(),
         &mut soil(),
@@ -217,7 +138,7 @@ fn an_exhausted_body_disperses_through_the_place_graph() {
     );
     assert_eq!(tally.moved, 1);
     assert!(
-        events.iter().any(
+        sink.events().iter().any(
             |event| matches!(event, Event::Moved { organism, .. } if *organism == OrganismId(0))
         )
     );
@@ -258,8 +179,8 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
     );
     let mut fast_world = vec![fast, prey.clone()];
     let mut slow_world = vec![slow, prey];
-    let mut fast_events = Vec::new();
-    let mut slow_events = Vec::new();
+    let mut fast = Sink::default();
+    let mut slow = Sink::default();
     let mut fast_rng = Rng::from_seed(3);
     let mut slow_rng = Rng::from_seed(3);
     let mut fast_next = 20;
@@ -270,7 +191,7 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
         &mut fast_world,
         &mut fast_next,
         &mut fast_rng,
-        &mut fast_events,
+        &mut fast.stream(),
         &fast_lines,
         PartPalette::primitive(),
         &mut soil(),
@@ -281,7 +202,7 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
         &mut slow_world,
         &mut slow_next,
         &mut slow_rng,
-        &mut slow_events,
+        &mut slow.stream(),
         &slow_lines,
         PartPalette::primitive(),
         &mut soil(),
@@ -291,12 +212,12 @@ fn drive_selection_makes_fast_and_slow_bodies_different() {
 
     assert!(fast_world[0].position[0] > slow_world[0].position[0]);
     assert!(
-        fast_events
+        fast.events()
             .iter()
             .any(|event| matches!(event, Event::Moved { .. }))
     );
     assert!(
-        slow_events
+        slow.events()
             .iter()
             .any(|event| matches!(event, Event::Moved { .. }))
     );
@@ -315,7 +236,7 @@ fn far_bodies_form_conserved_cohorts_and_promote_at_the_focus() {
     far_a.tier = Tier::Far;
     far_b.tier = Tier::Far;
     let mut world = vec![far_a, far_b];
-    let mut events = Vec::new();
+    let mut sink = Sink::default();
     let mut rng = Rng::from_seed(8);
     let mut next = 10;
     let lines = registry(&world);
@@ -323,7 +244,7 @@ fn far_bodies_form_conserved_cohorts_and_promote_at_the_focus() {
         &mut world,
         &mut next,
         &mut rng,
-        &mut events,
+        &mut sink.stream(),
         &lines,
         PartPalette::primitive(),
         &mut soil(),
@@ -339,7 +260,7 @@ fn far_bodies_form_conserved_cohorts_and_promote_at_the_focus() {
         &mut world,
         &mut next,
         &mut rng,
-        &mut events,
+        &mut sink.stream(),
         &lines,
         PartPalette::primitive(),
         &mut soil(),
@@ -445,7 +366,7 @@ fn an_underprovisioned_body_waits_without_spending_or_drawing() {
         &mut world,
         &mut next,
         &mut rng,
-        &mut Vec::new(),
+        &mut Sink::default().stream(),
         &lineages,
         PartPalette::primitive(),
         &mut soil(),

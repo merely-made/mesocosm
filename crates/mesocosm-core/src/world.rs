@@ -26,6 +26,7 @@ use crate::score::Reading;
 mod act;
 mod genesis;
 mod read;
+mod records;
 
 pub use genesis::Founding;
 
@@ -386,49 +387,21 @@ pub struct World {
     /// conditionally cannot be read back. That trap already cost one decode
     /// failure here.
     #[serde(default)]
-    pending: Vec<crate::history::Event>,
-}
-
-/// The event an outcome amounts to, if any.
-///
-/// Refusals produce nothing: a history records what happened, and a rejected
-/// intent is a thing that did not.
-fn event_for(outcome: &Outcome, actor: Option<OrganismId>) -> Option<crate::history::Event> {
-    use crate::history::Event;
-    match *outcome {
-        // Burning names the meal, growing names the grower. Both need the
-        // actor, because a history is keyed by who a thing happened to and an
-        // event citing nobody would fork that creature's line.
-        Outcome::Burned { energy_mg, .. } => Some(Event::Burned {
-            organism: actor?,
-            energy_mg,
-        }),
-        Outcome::Incorporated { part } | Outcome::IncorporatedPair { part, .. } => {
-            Some(Event::Grew {
-                organism: actor?,
-                part,
-            })
-        }
-        Outcome::Inhabited { organism } => Some(Event::Inhabited { organism }),
-        // Carving air did not happen to anyone; only removed matter is
-        // biographical.
-        Outcome::Carved { at, removed } if removed > 0 => Some(Event::Carved {
-            organism: actor?,
-            at,
-            removed,
-        }),
-        Outcome::Carved { .. } => None,
-        Outcome::Speciated {
-            species,
-            from,
-            founder,
-        } => Some(Event::Speciated {
-            species,
-            from,
-            founder,
-        }),
-        Outcome::Moved | Outcome::Deposited { .. } | Outcome::Idled | Outcome::Rejected(_) => None,
-    }
+    pending: Vec<crate::flow::RecordedEvent>,
+    /// What moved on the most recent tick, waiting to be reduced.
+    ///
+    /// **Beside the world rather than in it** (PE0). Dense per-tick flow in a
+    /// snapshot is exactly what the plan's stop rules forbid, so this is
+    /// `serde(skip)` and transparent to equality — the `drain_ground_dirty`
+    /// arrangement, for the same reason: a host that drains readings every frame
+    /// and a headless replay that never drains still hash identically.
+    ///
+    /// Opened at the top of every tick rather than accumulating like `pending`,
+    /// because a stream this dense must be bounded whether or not anyone is
+    /// listening. `pending` keeps its old contract: sparse, and a caller's to
+    /// drain.
+    #[serde(skip)]
+    flows: crate::flow::Ledger,
 }
 
 /// The half-extent of an organism, by its volume tag.
@@ -457,6 +430,10 @@ impl World {
         } else {
             0
         };
+        // One tick's flows, and only one. Opened before anything can move
+        // matter, so the act and the ecology write into the same stamped
+        // stream.
+        self.flows.open(self.tick);
         // Where the act's own consequences begin. Resolving can record
         // events of its own (learning a word from a meal), and those follow
         // from the act rather than preceding it, so the act is inserted at
@@ -468,8 +445,12 @@ impl World {
         // happened in and a history that reversed them would let a creature's
         // death precede its last act. It also means the actor is still whoever
         // acted, even if this tick kills them.
-        if let Some(event) = event_for(&outcome, actor) {
-            self.pending.insert(boundary, event);
+        if let Some(event) = records::event_for(&outcome, actor) {
+            let place = self.acted_at(actor);
+            self.pending.insert(
+                boundary,
+                crate::flow::Envelope::new(self.tick, place, event),
+            );
         }
 
         // The enclosure lives whether or not the player acted. This is what
@@ -477,11 +458,14 @@ impl World {
         // starve, and rot on their own schedule.
         let focus = self.position();
         let held = self.held();
+        let tick = self.tick;
+        let mut records =
+            crate::flow::Records::new(tick, Some(&self.places), &mut self.pending, &mut self.flows);
         self.last_tally = crate::organism::ecology::step_with_ground(
             &mut self.organisms,
             &mut self.next_organism,
             &mut self.rng,
-            &mut self.pending,
+            &mut records,
             &self.lineages,
             self.development_palette,
             &mut self.soil,
@@ -523,17 +507,6 @@ impl World {
 
         self.tick += 1;
         outcome
-    }
-
-    /// Takes the events of the most recent tick, leaving the world empty of
-    /// them. Recording them is a caller's business; the world only reports.
-    pub fn drain_events(&mut self) -> Vec<crate::history::Event> {
-        std::mem::take(&mut self.pending)
-    }
-
-    /// The events of the most recent tick, without taking them.
-    pub fn events(&self) -> &[crate::history::Event] {
-        &self.pending
     }
 
     /// What the most recent tick did to the enclosure.

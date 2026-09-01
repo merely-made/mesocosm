@@ -101,7 +101,7 @@ fn a_held_critter_still_ages_pays_rent_and_can_die() {
         for event in world.drain_events() {
             if let mesocosm_core::Event::Fed {
                 eater, mass_mg: mg, ..
-            } = event
+            } = event.record
                 && eater == me
             {
                 eaten += mg;

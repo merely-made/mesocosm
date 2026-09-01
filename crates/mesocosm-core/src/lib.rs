@@ -45,6 +45,7 @@ pub mod axis;
 pub mod body;
 pub mod cohort;
 pub mod development;
+pub mod flow;
 pub mod growth;
 pub mod history;
 pub mod organism;
@@ -75,6 +76,10 @@ pub use development::{
     minimum_body_mass_mg,
 };
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
+pub use flow::{
+    Account, Carrier, Envelope, FlowEvent, Ledger, RecordedEvent, RecordedFlow, Subject, Trend,
+    WARN_AFTER_TICKS,
+};
 pub use growth::{Growth, resolve};
 pub use history::{Event, History, MealKind};
 pub use organism::{

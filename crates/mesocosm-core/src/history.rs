@@ -39,6 +39,11 @@
 //! It does not decide what was *significant*. Abnormality is a lookup against
 //! [`WorldRecord`](crate::record::WorldRecord); this is the traversal half.
 //! Two questions, two structures.
+//!
+//! It also does not carry resource movement. Every milligram of upkeep and soil
+//! draw in a permanent causal log would be the wrong record at the wrong
+//! frequency; [`flow`](crate::flow) is the other half, and the two share one
+//! commit point and one [`Envelope`](crate::flow::Envelope).
 
 use std::collections::BTreeMap;
 
@@ -46,6 +51,7 @@ use codicil::{Codicil, Seq};
 use serde::{Deserialize, Serialize};
 
 use crate::body::{PartId, SpeciesId};
+use crate::flow::RecordedEvent;
 use crate::organism::OrganismId;
 
 /// Why a feeding event happened. Keeping this on the event makes predation
@@ -161,9 +167,14 @@ impl Event {
 }
 
 /// The world's past.
+///
+/// Entries are [`RecordedEvent`]s: the event plus when and where it happened.
+/// The envelope arrived with PE0's flow record and is shared with it, because a
+/// past with no tick on it cannot answer *how many died in the last two hundred
+/// ticks*, which is what the first ecology reading is made of.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct History {
-    log: Codicil<Event>,
+    log: Codicil<RecordedEvent>,
     /// The most recent event about each organism, which is how a new one finds
     /// its causes. Ordered, so recording is deterministic.
     latest: BTreeMap<OrganismId, Seq>,
@@ -179,8 +190,8 @@ impl History {
     /// A creature's first event has no cause, which is honest: nothing in this
     /// log led to it. Every later one continues that creature's line, and an
     /// event touching two creatures joins theirs.
-    pub fn record(&mut self, event: Event) -> Seq {
-        let subjects = event.subjects();
+    pub fn record(&mut self, event: RecordedEvent) -> Seq {
+        let subjects = event.record.subjects();
         let causes: Vec<Seq> = subjects
             .iter()
             .filter_map(|who| self.latest.get(who).copied())
@@ -198,14 +209,14 @@ impl History {
     }
 
     /// Records a tick's worth of events, in order.
-    pub fn record_all(&mut self, events: impl IntoIterator<Item = Event>) {
+    pub fn record_all(&mut self, events: impl IntoIterator<Item = RecordedEvent>) {
         for event in events {
             self.record(event);
         }
     }
 
     /// The log itself, for causal queries.
-    pub fn log(&self) -> &Codicil<Event> {
+    pub fn log(&self) -> &Codicil<RecordedEvent> {
         &self.log
     }
 
@@ -217,9 +228,14 @@ impl History {
         self.log.is_empty()
     }
 
-    /// The event, if any.
-    pub fn get(&self, seq: Seq) -> Option<&Event> {
+    /// The record, if any: the event with its tick and place.
+    pub fn get(&self, seq: Seq) -> Option<&RecordedEvent> {
         self.log.get(seq)
+    }
+
+    /// Just the event, for a caller that only wants what happened.
+    pub fn event(&self, seq: Seq) -> Option<&Event> {
+        self.get(seq).map(|recorded| &recorded.record)
     }
 
     /// The most recent event about an organism.
@@ -261,7 +277,7 @@ impl History {
     }
 
     fn touches(&self, seq: Seq, organism: OrganismId) -> bool {
-        self.get(seq)
+        self.event(seq)
             .is_some_and(|event| event.subjects().contains(&organism))
     }
 }
@@ -274,43 +290,71 @@ mod tests {
     const B: OrganismId = OrganismId(2);
     const SPECIES: SpeciesId = SpeciesId(7);
 
+    /// An event with its envelope. The causal claims below are about what is
+    /// inside it; the tick is what a windowed reading later counts by.
+    fn at(tick: u64, event: Event) -> RecordedEvent {
+        RecordedEvent::new(tick, None, event)
+    }
+
+    fn born(organism: OrganismId, parent: Option<OrganismId>) -> Event {
+        Event::Born {
+            organism,
+            species: SPECIES,
+            parent,
+        }
+    }
+
+    fn meal() -> Event {
+        Event::Fed {
+            eater: A,
+            from: B,
+            mass_mg: 40,
+            kind: MealKind::Predation,
+        }
+    }
+
     #[test]
     fn a_first_event_has_no_cause() {
         let mut history = History::new();
-        let born = history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
+        let seq = history.record(at(1, born(A, None)));
 
         assert!(
-            history.antecedents(born).is_empty(),
+            history.antecedents(seq).is_empty(),
             "nothing in this log led to it"
         );
-        assert_eq!(history.latest(A), Some(born));
+        assert_eq!(history.latest(A), Some(seq));
+    }
+
+    #[test]
+    fn a_record_keeps_the_tick_it_happened_on() {
+        // The envelope's whole job: a past with no tick cannot answer how many
+        // died in the last two hundred ticks.
+        let mut history = History::new();
+        let seq = history.record(at(931, born(A, None)));
+        assert_eq!(history.get(seq).map(|record| record.tick), Some(931));
+        assert_eq!(history.event(seq), Some(&born(A, None)));
     }
 
     #[test]
     fn a_creatures_events_form_its_line() {
         let mut history = History::new();
-        let born = history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
-        let matured = history.record(Event::Matured { organism: A });
-        let died = history.record(Event::Died {
-            organism: A,
-            species: SPECIES,
-        });
+        let opening = history.record(at(1, born(A, None)));
+        let matured = history.record(at(2, Event::Matured { organism: A }));
+        let died = history.record(at(
+            3,
+            Event::Died {
+                organism: A,
+                species: SPECIES,
+            },
+        ));
 
-        assert_eq!(history.antecedents(matured), vec![born]);
+        assert_eq!(history.antecedents(matured), vec![opening]);
         assert_eq!(
             history.antecedents(died),
-            vec![matured, born],
+            vec![matured, opening],
             "nearest first"
         );
-        assert_eq!(history.line_of(A), vec![born, matured, died]);
+        assert_eq!(history.line_of(A), vec![opening, matured, died]);
     }
 
     #[test]
@@ -318,16 +362,8 @@ mod tests {
         // The property a flat log destroys: two creatures that never met are
         // concurrent, not ordered.
         let mut history = History::new();
-        let a = history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
-        let b = history.record(Event::Born {
-            organism: B,
-            species: SPECIES,
-            parent: None,
-        });
+        let a = history.record(at(1, born(A, None)));
+        let b = history.record(at(1, born(B, None)));
 
         assert!(history.concurrent(a, b), "neither led to the other");
         assert!(history.consequences(a).is_empty());
@@ -339,34 +375,21 @@ mod tests {
         // had nothing to do with each other; afterwards, one's past is part of
         // the other's.
         let mut history = History::new();
-        let a_born = history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
-        let b_born = history.record(Event::Born {
-            organism: B,
-            species: SPECIES,
-            parent: None,
-        });
+        let a_born = history.record(at(1, born(A, None)));
+        let b_born = history.record(at(1, born(B, None)));
         assert!(history.concurrent(a_born, b_born));
 
-        let meal = history.record(Event::Fed {
-            eater: A,
-            from: B,
-            mass_mg: 40,
-            kind: MealKind::Predation,
-        });
+        let fed = history.record(at(9, meal()));
 
         assert_eq!(
-            history.antecedents(meal),
+            history.antecedents(fed),
             vec![a_born, b_born],
             "both lines are cited"
         );
-        assert_eq!(history.consequences(a_born), vec![meal]);
+        assert_eq!(history.consequences(a_born), vec![fed]);
         assert_eq!(
             history.consequences(b_born),
-            vec![meal],
+            vec![fed],
             "the eaten one led here too"
         );
     }
@@ -374,16 +397,8 @@ mod tests {
     #[test]
     fn a_birth_descends_from_its_parent() {
         let mut history = History::new();
-        let parent = history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
-        let child = history.record(Event::Born {
-            organism: B,
-            species: SPECIES,
-            parent: Some(A),
-        });
+        let parent = history.record(at(1, born(A, None)));
+        let child = history.record(at(40, born(B, Some(A))));
 
         assert_eq!(history.antecedents(child), vec![parent]);
         assert_eq!(history.consequences(parent), vec![child]);
@@ -399,30 +414,20 @@ mod tests {
         // The retroactive definition of significance: what a thing led to,
         // however far downstream.
         let mut history = History::new();
-        history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
-        let b_born = history.record(Event::Born {
-            organism: B,
-            species: SPECIES,
-            parent: None,
-        });
-        let meal = history.record(Event::Fed {
-            eater: A,
-            from: B,
-            mass_mg: 40,
-            kind: MealKind::Predation,
-        });
-        let grew = history.record(Event::Grew {
-            organism: A,
-            part: PartId(1),
-        });
+        history.record(at(1, born(A, None)));
+        let b_born = history.record(at(1, born(B, None)));
+        let fed = history.record(at(9, meal()));
+        let grew = history.record(at(
+            10,
+            Event::Grew {
+                organism: A,
+                part: PartId(1),
+            },
+        ));
 
         assert_eq!(
             history.consequences(b_born),
-            vec![meal, grew],
+            vec![fed, grew],
             "being eaten led, eventually, to somebody else's new limb"
         );
     }
@@ -430,19 +435,21 @@ mod tests {
     #[test]
     fn severing_continues_the_line_it_happened_to() {
         let mut history = History::new();
-        history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
-        let grew = history.record(Event::Grew {
-            organism: A,
-            part: PartId(1),
-        });
-        let lost = history.record(Event::Severed {
-            organism: A,
-            part: PartId(1),
-        });
+        history.record(at(1, born(A, None)));
+        let grew = history.record(at(
+            2,
+            Event::Grew {
+                organism: A,
+                part: PartId(1),
+            },
+        ));
+        let lost = history.record(at(
+            3,
+            Event::Severed {
+                organism: A,
+                part: PartId(1),
+            },
+        ));
 
         assert!(
             history.antecedents(lost).contains(&grew),
@@ -453,17 +460,8 @@ mod tests {
     #[test]
     fn a_history_round_trips() {
         let mut history = History::new();
-        history.record(Event::Born {
-            organism: A,
-            species: SPECIES,
-            parent: None,
-        });
-        history.record(Event::Fed {
-            eater: A,
-            from: B,
-            mass_mg: 5,
-            kind: MealKind::Predation,
-        });
+        history.record(at(1, born(A, None)));
+        history.record(at(2, meal()));
 
         let bytes = crate::snapshot::encode(&history).unwrap();
         assert_eq!(crate::snapshot::decode::<History>(&bytes).unwrap(), history);
@@ -475,18 +473,9 @@ mod tests {
         // silently forks that creature's history. Cheap to assert, expensive
         // to discover later.
         let all = [
-            Event::Born {
-                organism: A,
-                species: SPECIES,
-                parent: Some(B),
-            },
+            born(A, Some(B)),
             Event::Matured { organism: A },
-            Event::Fed {
-                eater: A,
-                from: B,
-                mass_mg: 1,
-                kind: MealKind::Predation,
-            },
+            meal(),
             Event::Grew {
                 organism: A,
                 part: PartId(0),

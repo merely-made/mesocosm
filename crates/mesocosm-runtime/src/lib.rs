@@ -30,9 +30,11 @@
 //! integer-only.
 
 pub mod clock;
+pub mod readings;
 pub mod runtime;
 pub mod tactile;
 
 pub use clock::{Advance, Clock};
-pub use runtime::{DEFAULT_MAX_STEPS_PER_ADVANCE, Receipt, Runtime};
+pub use readings::{FlowWindows, JUDGEMENT_TICKS, RETENTION_TICKS};
+pub use runtime::{DEFAULT_MAX_STEPS_PER_ADVANCE, Receipt, Replayed, Runtime};
 pub use tactile::{TactileCapsule, TactileError, TactileHit, TactilePick, TactileWorld};

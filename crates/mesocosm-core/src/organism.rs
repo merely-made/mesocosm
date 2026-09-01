@@ -475,13 +475,23 @@ impl Organism {
     /// Pays one tick of upkeep: from the budget first, then from the body.
     ///
     /// Eating to burn buys survival directly; when there is nothing left to
-    /// spend, a creature consumes itself. Returns what it still could not pay,
-    /// which is starvation.
-    pub fn pay_upkeep(&mut self) -> u64 {
+    /// spend, a creature consumes itself.
+    ///
+    /// Reports which account each milligram came out of, because the flow record
+    /// has to say so: rent paid out of a reserve and rent paid out of a body are
+    /// the same transfer to the ground and different transfers out of the
+    /// creature. `unpaid_mg` is what it still could not cover, which is
+    /// starvation.
+    pub fn pay_upkeep(&mut self) -> Upkeep {
         let owed = self.upkeep_mg();
-        let from_budget = self.energy_mg.min(owed);
-        self.energy_mg -= from_budget;
-        self.spend_mass(owed - from_budget)
+        let reserve_mg = self.energy_mg.min(owed);
+        self.energy_mg -= reserve_mg;
+        let unpaid_mg = self.spend_mass(owed - reserve_mg);
+        Upkeep {
+            reserve_mg,
+            substance_mg: owed - reserve_mg - unpaid_mg,
+            unpaid_mg,
+        }
     }
 
     pub fn is_alive(&self) -> bool {
@@ -537,6 +547,15 @@ impl Organism {
             && self.biomass_mg() >= ecology::breeding_mass_mg(self.mass_ceiling_mg())
             && self.biomass_mg() > STARVATION_MG * OFFSPRING_COST
     }
+}
+
+/// One tick of rent, and which account it came out of.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Upkeep {
+    pub reserve_mg: u64,
+    pub substance_mg: u64,
+    /// What the body could not cover. This is starvation.
+    pub unpaid_mg: u64,
 }
 
 /// What a tick did to the world's organisms, so a host can show it and a test

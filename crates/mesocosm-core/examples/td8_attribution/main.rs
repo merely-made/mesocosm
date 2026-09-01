@@ -256,7 +256,7 @@ fn run(seed: u64, ticks: u32) -> Reading {
         // it, so reading it every tick would count every event again.
         let events = world.drain_events();
         for event in &events {
-            match event {
+            match &event.record {
                 Event::Born { organism, .. } => {
                     // A newborn's kingdom is its parent's species' — read off
                     // the body itself, which is in the world by now.

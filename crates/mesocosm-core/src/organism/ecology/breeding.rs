@@ -13,6 +13,7 @@
 //! concerns: the filial stream, recipe realization, and the scatter.
 
 use crate::development::PartPalette;
+use crate::flow::{Account, FlowEvent, Process, Records, Subject};
 use crate::history::Event;
 use crate::places::{Ground, Tier};
 use crate::rng::Rng;
@@ -32,7 +33,7 @@ pub(super) fn breed(
     newborns: &mut Vec<Organism>,
     next_id: &mut u32,
     rng: &mut Rng,
-    events: &mut Vec<Event>,
+    records: &mut Records<'_>,
     lineages: &Lineages,
     palette: PartPalette,
     ground: Option<&Ground>,
@@ -122,14 +123,20 @@ pub(super) fn breed(
             guise: parent.guise,
         };
         *next_id += 1;
-        events.push(Event::Born {
-            organism: child.id,
-            species: child.species,
-            parent: Some(parent.id),
-        });
+        let born_at = child.position;
+        let heir = Subject::of(&child);
+        records.event(
+            born_at,
+            Event::Born {
+                organism: child.id,
+                species: child.species,
+                parent: Some(parent.id),
+            },
+        );
         newborns.push(child);
 
         let parent = &mut organisms[index];
+        let forebear = Subject::of(parent);
         // `can_reproduce` requires more than `STARVATION_MG * OFFSPRING_COST`
         // of body, and cost is a quarter of that body, so the debit is always
         // payable in full; a shortfall here would be matter out of nothing.
@@ -138,6 +145,16 @@ pub(super) fn breed(
         parent.energy_mg -= endowment;
         parent.since_offspring = 0;
         tally.born += 1;
+
+        // A birth is a transfer, not a spawn. Both halves come out of the
+        // parent's own accounts and land in the matching account of the child,
+        // which is what TD6 made true and this is what says so.
+        for (account, mg) in [(Account::Substance, cost), (Account::Reserve, endowment)] {
+            records.flow(
+                born_at,
+                FlowEvent::between(Process::Birth, forebear, account, heir, account, mg),
+            );
+        }
     }
 }
 

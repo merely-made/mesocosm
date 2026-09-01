@@ -803,7 +803,7 @@ fn a_split_is_recorded_in_the_founders_own_history() {
         .log()
         .entries()
         .iter()
-        .any(|e| matches!(e, Event::Speciated { founder, .. } if *founder == me));
+        .any(|e| matches!(e.record, Event::Speciated { founder, .. } if founder == me));
     assert!(split, "the founder's line shows where it forked");
 }
 

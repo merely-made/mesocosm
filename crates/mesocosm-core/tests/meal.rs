@@ -99,7 +99,7 @@ fn apply_counting_the_ecologys_own_meal(world: &mut World, intent: Intent) -> (O
     let fed = world
         .drain_events()
         .into_iter()
-        .filter_map(|event| match event {
+        .filter_map(|event| match event.record {
             mesocosm_core::Event::Fed { eater, mass_mg, .. } if Some(eater) == me => Some(mass_mg),
             _ => None,
         })
