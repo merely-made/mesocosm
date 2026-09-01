@@ -82,8 +82,32 @@ Consequences this plan adopts:
   hook), with the naming ceremony plausibly a Paredros verb. Recorded as
   direction; nothing scheduled.
 
-`PROJECT_DESCRIPTION.md` still states the biomass goal as terminal; it is
-maintainer-owned, so the contradiction is surfaced here rather than edited.
+`PROJECT_DESCRIPTION.md` was updated by instruction 2026-09-01: biomass
+share unlocks lineage play, and the record's changes ripple to the wing.
+
+**Lineage switching and the gate to godhood (Mark, 2026-09-01).** The quick
+criteria, recorded as ruled direction:
+
+1. You may switch to any lineage you have unlocked.
+2. Unlocking a lineage takes more biomass than that lineage holds, plus
+   conditions that depend on the lineage.
+3. Playing an unlocked lineage requires a living individual of it: a new
+   one must be created for you to inhabit. Ageless entities rarely
+   reproduce, but may carry a karmic cycle instituting rebirth after
+   death, or other special divine rules. **TTRPG prior art should be
+   surveyed before those rules are designed** (flagged as a research
+   brief, not scheduled).
+4. Killing a god does not make the corpse disappear. Weird things can
+   happen with a god's corpse, especially for worlds built on a god's
+   body.
+
+Much of this gate already exists in code and should be extended rather
+than duplicated: `World::eligibility` already gates `TakeControl` on the
+complexity frontier and on the target being alive, and the `unlocked` set
+already exists. The additions are the biomass comparison, per-lineage
+conditions (the same evidence machinery as discovery, PE2), and the
+divine-reproduction rules. Nothing here is scheduled; PE5 and the epoch
+work reach it naturally.
 
 ### Reproduction and the epoch are different checkpoints
 
