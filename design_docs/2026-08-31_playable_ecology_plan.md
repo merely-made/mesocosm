@@ -41,6 +41,50 @@ updated together.
 
 ## 1. The product rulings and their technical consequences
 
+### Biomass is an intermediate goal; pursuits are readings (Mark, 2026-09-01)
+
+> "Perhaps 'grow your share of biomass' is really an intermediate goal. If
+> preventing bad outcomes that will result in the death of your lineage too
+> is why you grow your biomass, to change into something with more control
+> over/different position in the ecology, you're really trying to save the
+> world and shape it to your desires!... there should be more goals than
+> just biomass as a target; it's a guideline, but just one thing, kinda like
+> colony wealth in rimworld... People should be able to play to end the
+> world dramatically, deliberately! Or cultivate a particular world! Or
+> really have one lineage with multiple clades and form a self-propagating
+> superlineage!"
+
+Consequences this plan adopts:
+
+- **Biomass share is a guideline reading, not a win condition** — the
+  RimWorld-wealth shape: a number the world responds to. The epoch plan's
+  significance-as-abnormality is the responsive half and already exists.
+- **Goals are readings, never quests.** Ending, cultivating, dynasty-
+  building, and journey play are all served by one honest record that
+  notices what happened, not by authored modes. The moment a pursuit
+  becomes a system rather than a reading, the one-authority rule is
+  violated.
+- **Spatial heterogeneity is product, not decoration** ("only trees in one
+  area, a dozen different critters at a lake nearby... migrations,
+  temporary events, extreme conditions") — the place graph's product
+  justification, promoting S3's region tier from performance work to
+  product work; events route through PE4's environmental schedules.
+- **Life changes the world at every scale** — algae to core-changing
+  extremophiles. Honest terraforming through the conservation ledger;
+  world-scale strangeness admitted through PE4's fields gate (named
+  consumer, sources, sinks, conservation) and never around it.
+- **Supercritters are the primordial-name hook's upstream** ("a big animal
+  in the sky... would drastically change the ecology! If they name
+  themselves or are named somehow, then they're borgs"). An unnamed
+  supercritter is a body whose scale makes it an environmental condition
+  for others — one substrate, no second system. Naming promotes it to a
+  borg and hands it across the wing (vessel briefs: the primordial-name
+  hook), with the naming ceremony plausibly a Paredros verb. Recorded as
+  direction; nothing scheduled.
+
+`PROJECT_DESCRIPTION.md` still states the biomass goal as terminal; it is
+maintainer-owned, so the contradiction is surfaced here rather than edited.
+
 ### Reproduction and the epoch are different checkpoints
 
 **Ruled direction, 2026-08-31.** Reproduction is the checkpoint at the scale
