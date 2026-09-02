@@ -3,6 +3,7 @@
 **Date:** 2026-08-02
 **Status:** First slice landed (adapter + leaf, tested). Host embedding open.
 Amended 2026-08-29 (§6): the textless guard was lane discipline, not a text ban.
+Route B's own subject — the between-epochs screen — landed 2026-09-02 (§7).
 **Companions:** mere's projection proofs plan (arrangement register; P4),
 isometry's `2026-08-02_overmap_presentation_plan.md` (the second Hulls
 consumer), the epoch boundary plan (places, §12).
@@ -188,3 +189,17 @@ list rasterizes into a texture composited over the game's own frame,
 the same path the minimap takes. Genet owning the window with the game
 view embedded stays available and unspent, and is still a scope
 decision rather than a technical requirement.
+
+## 7. Progress
+
+- **2026-09-02: route B's own subject finally arrived** (playable ecology plan
+  PE3b). §3 named between-epochs as where text lives — *readings, records,
+  adopt-or-branch* — and deferred the lane to its consumer. The consumer is the
+  lineage review: `mesocosm-views::review` draws the reckoning, a candidate
+  table and its three answers as the fourth cambium surface, and
+  `mesocosm-genet::review` is its lane. **The host inversion is still unspent**,
+  exactly as the 2026-08-29 amendment left it: the board rasterizes into a
+  texture composited over the game's own frame, the same path the vitals panel
+  and the minimap take, and genet owning the window remains a scope decision
+  rather than a technical requirement.
+

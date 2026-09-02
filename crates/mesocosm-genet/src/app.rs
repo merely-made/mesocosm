@@ -5,7 +5,7 @@
 
 //! The window, the surface, and the loop.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -150,6 +150,13 @@ pub struct Host {
     /// the last drawn frame. Nonzero means a truncated player, which the
     /// receipt says out loud — before DC3 it meant no player at all.
     body_capsules_dropped: u32,
+    /// Which row of the trait board the cursor is on. (PE3b)
+    ///
+    /// Host state and nothing else: moving it sends no intent, so it cannot
+    /// reach the trace or the hash. It resets whenever a review opens, because
+    /// a cursor left pointing at a row from the last boundary would be pointing
+    /// at a candidate this one may not offer.
+    board_row: usize,
     /// Process exit code. Nonzero only when a replay landed on a different
     /// hash than the one its trace recorded.
     code: i32,
@@ -167,19 +174,46 @@ struct Gpu {
     chrome: Option<Lanes>,
 }
 
-/// The three chrome lanes over one netrender instance and one blend pass: the
-/// painted minimap, the cambium vitals panel, and the individual checkpoint,
-/// which draws only while the world is holding at a question.
+/// The four chrome lanes over one netrender instance and one blend pass: the
+/// painted minimap, the cambium vitals panel, the individual checkpoint, and
+/// the trait board. The last two draw only while the world is holding at a
+/// question, and never both: a lineage checkpoint is the board's.
 pub(crate) struct Lanes {
     device: Chrome,
     hud: crate::hud::Hud,
     vitals: crate::vitals::VitalsChrome,
     checkpoint: crate::succession::SuccessionChrome,
+    board: crate::review::BoardChrome,
+}
+
+/// The shipped pack's root, derived from this crate's own location rather than
+/// a hardcoded path. (PE3b)
+///
+/// `<repo>/crates/mesocosm-genet` up two, then down into the pack the game
+/// ships. What the host reads out of it is the review's second proposal source
+/// and nothing else: the ruleset a world runs is still the core's own.
+fn pack_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .map(|repo| repo.join("packs").join("mesocosm"))
+        .unwrap_or_else(|| PathBuf::from("packs/mesocosm"))
 }
 
 impl Host {
     pub fn new(config: HostConfig) -> Self {
         let runtime = Runtime::new(config.seed, config.organisms, config.ticks_per_second);
+        // The pack's authored expressions, for the review. A pack that will not
+        // load is a diagnostic and not a reason to refuse to run: the board
+        // simply shows one proposal source per row, which is what it does
+        // wherever no pack expression applies anyway.
+        let runtime = match mesocosm_runtime::Authored::load(&pack_root()) {
+            Ok(authored) => runtime.with_authored(authored),
+            Err(why) => {
+                eprintln!("pack: {}", why.words());
+                runtime
+            }
+        };
         Self {
             config,
             runtime,
@@ -194,6 +228,7 @@ impl Host {
             cursor: 0,
             finished: false,
             body_capsules_dropped: 0,
+            board_row: 0,
             code: 0,
         }
     }
@@ -304,6 +339,34 @@ impl Host {
         false
     }
 
+    /// The trait board's own keys, while it is standing. (PE3b)
+    ///
+    /// `None` means the board did not take this key and it falls through to the
+    /// checkpoint's answers. `Some(None)` means the board took it and produced
+    /// no intent — moving the cursor is presentation, and putting a cursor
+    /// move in the queue would be putting it in the trace.
+    fn board_key(&mut self, key: &winit::keyboard::Key) -> Option<Option<Intent>> {
+        let action = input::board_key(key)?;
+        let review = self.runtime.review()?;
+        match action {
+            // `Review::commit` refuses the status quo and every untakeable row,
+            // so the key cannot send a revision the world would only reject.
+            input::BoardKey::Commit => Some(review.commit(self.board_row)),
+            input::BoardKey::Next => {
+                // Wrapping, and over every row including the untakeable ones:
+                // a candidate you cannot take yet is a thing to read, and
+                // skipping it would hide the reason it is there for.
+                let rows = review.rows.len();
+                self.board_row = if rows == 0 {
+                    0
+                } else {
+                    (self.board_row + 1) % rows
+                };
+                Some(None)
+            }
+        }
+    }
+
     fn frame(&mut self, event_loop: &ActiveEventLoop) {
         let replay_done = self.advance();
 
@@ -349,6 +412,15 @@ impl Host {
         // Cloned off the driver so the world can be borrowed below; presentation
         // only, like everything else on this side of the frame.
         let checkpoint = self.runtime.checkpoint().cloned();
+        // The played line's turn, at a lineage checkpoint. The cursor is kept in
+        // range here rather than in the key handler, so a review that came back
+        // shorter than the last one cannot leave it pointing past the table.
+        let review = self.runtime.review().cloned();
+        let board_row = match &review {
+            Some(review) if !review.rows.is_empty() => self.board_row.min(review.rows.len() - 1),
+            _ => 0,
+        };
+        self.board_row = board_row;
 
         let world = self.runtime.world();
         let Some(gpu) = &mut self.gpu else { return };
@@ -409,11 +481,20 @@ impl Host {
             lanes
                 .vitals
                 .composite(&lanes.device, &mut encoder, &view, frame);
-            // Last, and over everything: while this is up the world is not
-            // running, and it should look that way.
-            lanes.checkpoint.refresh(&lanes.device, checkpoint.as_ref());
+            // Last, and over everything: while either of these is up the world
+            // is not running, and it should look that way. The board takes the
+            // lineage checkpoint and the checkpoint panel takes the rest, so
+            // they never overlap.
+            lanes
+                .board
+                .refresh(&lanes.device, review.as_ref(), board_row);
+            let held = checkpoint.as_ref().filter(|_| !lanes.board.standing());
+            lanes.checkpoint.refresh(&lanes.device, held);
             lanes
                 .checkpoint
+                .composite(&lanes.device, &mut encoder, &view, frame);
+            lanes
+                .board
                 .composite(&lanes.device, &mut encoder, &view, frame);
         }
         gpu.queue.submit(Some(encoder.finish()));
@@ -456,12 +537,17 @@ impl ApplicationHandler for Host {
                     // key contributes its initial keydown and nothing more
                     // while it stays down.
                     key if self.config.replay.is_none() && !event.repeat => {
-                        // At a checkpoint the keyboard narrows to the two
-                        // answers: the world is stopped, so a move has nothing
-                        // to move and would only go stale in the queue.
-                        let intent = match self.runtime.checkpoint() {
-                            Some(checkpoint) => input::answer_for(checkpoint, key),
-                            None => input::intent_for(self.runtime.world(), &self.volumes, key),
+                        // At a checkpoint the keyboard narrows to the answers:
+                        // the world is stopped, so a move has nothing to move
+                        // and would only go stale in the queue. At a lineage
+                        // checkpoint the board's own two keys come first — one
+                        // of which sends no intent at all.
+                        let intent = match self.board_key(key) {
+                            Some(taken) => taken,
+                            None => match self.runtime.checkpoint() {
+                                Some(checkpoint) => input::answer_for(checkpoint, key),
+                                None => input::intent_for(self.runtime.world(), &self.volumes, key),
+                            },
                         };
                         if let Some(intent) = intent {
                             let urgency = input::urgency_of(&intent);

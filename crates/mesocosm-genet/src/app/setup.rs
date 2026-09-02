@@ -120,6 +120,7 @@ impl Host {
             hud: crate::hud::Hud::new(&device, self.runtime.world()),
             vitals: crate::vitals::VitalsChrome::new(&device),
             checkpoint: crate::succession::SuccessionChrome::new(&device),
+            board: crate::review::BoardChrome::new(&device),
             device,
         });
 

@@ -118,6 +118,35 @@ pub fn answer_for(checkpoint: &Checkpoint, key: &Key) -> Option<Intent> {
     }
 }
 
+/// What a key means while the trait board is standing. (PE3b)
+///
+/// **Two, and only one of them is an intent.** Moving the cursor changes what
+/// the panel is pointing at and nothing else, so it never reaches the queue;
+/// committing sends an ordinary `Intent::Revise`, which enters the trace and
+/// replays like every other answer. Enter and T stay where they are — the board
+/// is a checkpoint, and its "carry on" is the same one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BoardKey {
+    /// Move the selection to the next candidate, wrapping.
+    Next,
+    /// Commit the selected candidate.
+    Commit,
+}
+
+/// Turns a key into a board action. `None` for every other key, which then
+/// falls through to [`answer_for`].
+///
+/// Tab rather than an arrow: the arrows pan the section and keep doing so at a
+/// checkpoint, because where the camera is looking is presentation and does not
+/// stop when the world does.
+pub fn board_key(key: &Key) -> Option<BoardKey> {
+    match key {
+        Key::Named(NamedKey::Tab) => Some(BoardKey::Next),
+        Key::Character(c) if matches!(c.as_str(), "r" | "R") => Some(BoardKey::Commit),
+        _ => None,
+    }
+}
+
 /// Turns a key into an intent. Pure, given the world state it needs to
 /// resolve a meal's target: the host does not decide whether the intent is
 /// legal, the core does, and reports a rejection through `Outcome`.
@@ -182,6 +211,21 @@ mod tests {
             assert!(admits(Urgency::Deliberate, len), "len {len} should admit");
         }
         assert!(!admits(Urgency::Deliberate, DELIBERATE_QUEUE_CAP));
+    }
+
+    #[test]
+    fn the_board_has_two_keys_and_neither_is_a_verb() {
+        assert_eq!(board_key(&Key::Named(NamedKey::Tab)), Some(BoardKey::Next));
+        assert_eq!(
+            board_key(&Key::Character("r".into())),
+            Some(BoardKey::Commit)
+        );
+        // Everything else falls through to the checkpoint's own two answers,
+        // which is what keeps Enter meaning "carry on" everywhere.
+        for key in ["w", "e", "q", "c", "t"] {
+            assert_eq!(board_key(&Key::Character(key.into())), None, "{key}");
+        }
+        assert_eq!(board_key(&Key::Named(NamedKey::Enter)), None);
     }
 
     #[test]

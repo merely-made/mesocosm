@@ -15,7 +15,9 @@
 //! C digs, the arrow keys pan the section, Escape writes the receipts and
 //! quits. At a checkpoint — a birth involving your critter, or its death — the
 //! world stops and the keys narrow to Enter (carry on) and T (take the body on
-//! offer).
+//! offer). At the epoch boundary the trait board comes up instead: Tab moves
+//! among the candidates, R commits the selected one, Enter goes back to the
+//! terrarium.
 
 use std::path::PathBuf;
 
@@ -134,6 +136,10 @@ mesocosm-genet: run Mesocosm in a window
   --slab H        section slab half-height in voxels (presentation only, default 28)
 
 controls: WASD move, E/Space eat, Q deposit, C dig, arrows pan, Esc quit
-at a checkpoint the world stops and the keys narrow to two:
+at a checkpoint the world stops and the keys narrow:
   Enter  carry on unchanged
-  T      take the body on offer (the newborn, or your eldest descendant)";
+  T      take the body on offer (the newborn, or your eldest descendant)
+at the epoch boundary the trait board comes up instead:
+  Tab    move among the candidates
+  R      commit the selected candidate to your line
+  Enter  back to the terrarium";

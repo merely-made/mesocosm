@@ -240,7 +240,7 @@ pub fn observation_words(observation: &Observation) -> Option<String> {
 /// panel naming the same condition two ways reads as two conditions. `None`
 /// from the registry is the missing-ruleset diagnostic and is said rather than
 /// papered over with a similar local name.
-fn condition_word(condition: mesocosm_core::ConditionId) -> String {
+pub(crate) fn condition_word(condition: mesocosm_core::ConditionId) -> String {
     mesocosm_core::discovery::name_of(condition)
         .map(|name| name.trim_start_matches("mesocosm:").replace('-', " "))
         .unwrap_or_else(|| "a condition this world does not hold".to_string())

@@ -119,6 +119,6 @@ pub use snapshot::{SnapshotError, restore, restore_under, snapshot, state_hash};
 pub use species::{Lineages, Species};
 pub use wire::{WireError, frame, unframe};
 pub use world::{
-    Founding, Gland, Graft, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement, Rejection,
-    Route, STARVED_UPKEEP_TICKS, Unrevised, World,
+    Founding, Gland, Graft, INSTINCT_IDLE_TICKS, Ineligible, Intent, Offer, Outcome, Placement,
+    Prospect, Rejection, Route, STARVED_UPKEEP_TICKS, Score, Unrevised, Untakeable, World,
 };

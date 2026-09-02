@@ -32,6 +32,7 @@ mod graft;
 mod intent;
 mod read;
 mod records;
+mod review;
 mod revise;
 
 pub use adapt::{Round, Score, Turn};
@@ -39,6 +40,7 @@ pub use genesis::Founding;
 pub use graft::Graft;
 pub use intent::{Ineligible, Intent, Outcome, Placement, Rejection, Route};
 pub use read::Gland;
+pub use review::{Offer, Prospect, Untakeable};
 pub use revise::Unrevised;
 
 /// How far the enclosure reaches from its middle, in voxels.

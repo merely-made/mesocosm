@@ -40,6 +40,7 @@ use movement::{
     disperse, living_cells,
 };
 
+pub(crate) use breeding::filial_seed;
 pub(crate) use rates::*;
 use rates::{CROWD_CELL, CROWD_COMFORT, UPKEEP_BASE_MG};
 

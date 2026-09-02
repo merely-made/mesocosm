@@ -4,9 +4,10 @@
 event log, species tree, places, reckoning, and player speciation are built,
 and since PE3a **the boundary itself happens**: a versioned epoch rule ends it,
 every unplayed line takes a scored turn at it, and a driver holds the world
-there. Goals, NPC speciation, life-stage plasticity, and the played *review*
-remain design or unwired. The 2026-08-31 reproduction direction is recorded in
-section 0; earlier rulings are Mark's from the dialogue through 2026-08-03 and
+there. Since PE3b the played line's own turn is a screen — the reckoning, a
+priced and previewed candidate table, and a committed revision. Goals, NPC
+speciation and life-stage plasticity remain design or unwired. The 2026-08-31
+reproduction direction is recorded in section 0; earlier rulings are Mark's from the dialogue through 2026-08-03 and
 are marked where the reasoning is mine.
 
 This owns what happens *between* epochs: how a run is judged, how a lineage
@@ -657,6 +658,19 @@ executable.
   descendant will express one literal phenotype.
 
 ## Progress
+
+- **2026-09-02 (PE3b):** §3's reckoning becomes the review's evidence, on a
+  screen. `World::offers` puts every candidate the played line could commit on
+  one table with the score it earned, the price its next descendant would pay,
+  a founder preview and the reason it cannot be taken when it cannot; the
+  driver's `Review` adds the epoch's readings — each carrying whether it took
+  the record, which is abnormality-against-the-record made legible — and the
+  bounded ecology windows. §8 q4's flat price is honoured unchanged: nothing is
+  spent at the commit, and the finite thing the table is weighed against is
+  **the founder's own material**, the ecology's own provisioning arithmetic
+  rather than a currency. §2's *adopt or branch* is still one player and one
+  child revision; nothing here merges a proposal, and §8 q6 (who must adopt a
+  shared continuation) is untouched.
 
 - **2026-09-02 (PE3a):** the boundary finally happens on its own. `EpochRule`
   is a versioned world rule beside the ruleset — `Timed { ticks }` built,

@@ -44,6 +44,11 @@ impl Host {
                 lanes
                     .checkpoint
                     .capture_composite(&lanes.device, format, encoder, target, frame);
+                // Last, as on screen: a capture of a boundary is a capture of
+                // the board.
+                lanes
+                    .board
+                    .capture_composite(&lanes.device, format, encoder, target, frame);
             }
         });
         let Some((width, height, pixels)) = shot else {

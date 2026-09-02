@@ -22,12 +22,17 @@
 
 pub mod leaf;
 pub mod minimap;
+pub mod review;
 pub mod succession;
 pub mod vitals;
 
 pub use leaf::MinimapLeaf;
 pub use minimap::{
     MINIMAP_ADAPTER, dominant_lineages, lineage_tint, minimap_leaf, minimap_scene, minimap_score,
+};
+pub use review::{
+    Board, BoardChild, BoardRow, board_css, board_root, commit_words, evidence_words,
+    reading_words, row_words,
 };
 pub use succession::{Succession, SuccessionChild, succession_css, succession_root};
 pub use vitals::{

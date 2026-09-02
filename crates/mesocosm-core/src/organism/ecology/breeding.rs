@@ -162,7 +162,11 @@ pub(super) fn breed(
 
 const FILIAL_SALT: u64 = 0x4649_4C49_414C_0001;
 
-fn filial_seed(parent: u64, child: OrganismId) -> u64 {
+/// The development seed a birth realizes a child under.
+///
+/// Crate-visible since PE3b, because a founder *preview* has to be grown under
+/// the seed the birth will actually use or it is a picture of a different body.
+pub(crate) fn filial_seed(parent: u64, child: OrganismId) -> u64 {
     let mut stream = Rng::from_seed(parent ^ FILIAL_SALT ^ u64::from(child.0));
     stream.next_u64()
 }

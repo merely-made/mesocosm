@@ -31,12 +31,14 @@
 
 pub mod clock;
 pub mod readings;
+pub mod review;
 pub mod runtime;
 pub mod succession;
 pub mod tactile;
 
 pub use clock::{Advance, Clock};
 pub use readings::{FlowWindows, JUDGEMENT_TICKS, RETENTION_TICKS};
+pub use review::{Authored, Proposed, Review, Row, Source};
 pub use runtime::{DEFAULT_MAX_STEPS_PER_ADVANCE, Receipt, Replayed, Runtime};
 pub use succession::{Birth, Boundary, Checkpoint, Loss, Occasion};
 pub use tactile::{TactileCapsule, TactileError, TactileHit, TactilePick, TactileWorld};

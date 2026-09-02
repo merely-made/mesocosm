@@ -37,6 +37,8 @@ mod graft;
 mod lineage;
 #[path = "embodied/part_meal.rs"]
 mod part_meal;
+#[path = "embodied/review.rs"]
+mod review;
 #[path = "embodied/round.rs"]
 mod round;
 

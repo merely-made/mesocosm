@@ -25,7 +25,7 @@ PE0 + PE1 + PE2
   -> PD4 Piccolo authoring parity [LANDED 2026-09-01]
   -> P4a lineage program + PD5 filial expression [LANDED 2026-09-02]
   -> P4b scorer + PE3a epoch rule and round [LANDED 2026-09-02]
-  -> PE3b lineage review screen [unblocked; the last PE3 link]
+  -> PE3b lineage review screen [LANDED 2026-09-02]
   -> PE4 world-generated biology
   -> PE5 second form + durable relationship
   -> PE6 cohort scale + ecological zoom
@@ -130,6 +130,19 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-09-02 (later still):** PE3b landed — the lineage review is a screen.
+  `World::offers` is the table (status quo first, every discovery the line does
+  not hold, each with its score, the price a birth then pays, a founder preview
+  and the reason it cannot be taken when it cannot), `mesocosm-runtime::Review`
+  adds the reckoning, the trend, the founder's budget and a **second proposal
+  source** through the pack's declared expression script, and
+  `mesocosm-views::Board` is the fourth chrome lane with Tab, R and Enter.
+  **`mesocosm-runtime` now depends on `mesocosm-phenotype`**, which is that
+  crate's first production consumer; the dependency still runs one way and the
+  core knows about neither. PE3's whole chain is closed except the
+  `epoch::Trait` deletion, which remains Mark's. The demo fixture hash is
+  unmoved at `081b4ba4bdc46190`. **PE4 is the next undispatched product slice.**
 
 - **2026-09-02 (later):** P4b + PE3a landed — the epoch ends itself on a
   versioned `EpochRule::Timed` world rule, every unplayed line takes a turn at

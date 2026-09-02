@@ -546,11 +546,17 @@ a list of one, and every round is empty. The instrument therefore sees the epoch
 end and nothing else. It will start seeing the loop when an unplayed line can
 *acquire* — ruling 5's open half — and not before.
 
-**What PE3b still needs:** the review itself — several candidates on screen at
-once over `World::candidates` and `candidate_proposal`, `Runner::propose` as the
-second proposal source, a founder preview and a price beside each, and a lineage
-budget. Nothing above shows a player a candidate; the host has no key that sends
-`Intent::Revise` and the demo resumes.
+**PE3b landed 2026-09-02: the review, the board, and the two keys.** The
+player's turn is now a screen. `World::offers` is the table — the status quo
+first, then every discovery the line does not already hold, each with its
+`World::score`, the price `program::express` would charge the next descendant,
+the founder preview's digest, and the reason it cannot be taken when it cannot.
+`mesocosm-runtime::Review` assembles that with the reckoning, the trend, the
+lineage budget and a **second proposal source**: where the shipped pack declares
+an expression script for a candidate's process, `Runner::propose` runs it with
+host-owned entropy off the world's own stream and the row lists both proposals
+by name. `mesocosm-views::Board` is the fourth chrome lane, Tab moves the
+selection, R commits, Enter resumes. See the Progress entry below.
 
 **Done when:** a player finishes an epoch, can explain why each offered change
 is available and what it costs, commits one body-program revision, watches one
@@ -560,6 +566,18 @@ incorporation, discovery, lineage commitment, and filial expression remain
 distinct records; the old scalar trait array is either removed under its
 existing deletion gate or marked explicitly as non-authoritative; replay and
 the world record agree.
+
+**Landed 2026-09-02, with one clause needing Mark's reading.** Every condition
+above holds and is receipted in the Progress entry. The last one — *the old
+scalar trait array is either removed under its existing deletion gate or marked
+explicitly as non-authoritative* — is satisfiable either way and **which counts
+is Mark's**: PE3a already wrote the marking into `epoch.rs`'s own module note
+(*this module is provisional*, PE3a took only its ordering, `Trait`, `Mutation`
+and `fitness` did not cross, and *nothing in `World` reads this module*), so
+the second branch reads as met at the source; the *deletion* is the fifth and
+last of phenotype plan §D4's retirement conditions and has always been Mark's
+call. PE3b deliberately did not touch `epoch::Trait`. Nothing else in PE3 is
+outstanding.
 
 ### PE4: world criteria generate mechanically distinct biology
 
@@ -943,6 +961,190 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
 ---
 
 ## 9. Progress
+
+- **2026-09-02, PE3b landed: the lineage review.** The player's turn stops
+  being the one nobody takes.
+
+  **The reading is the world's, and it invents no number.**
+  `mesocosm-core/src/world/review.rs` holds `Offer` — one row — and
+  `World::offers(species)`, which puts the status quo first and then every
+  discovery the line does not already hold, **including the ones it cannot
+  take**. Each row carries `World::score` (the identical function an unplayed
+  line's turn is decided by, over the same `score_ticks` window), the price
+  `program::express` would charge, the founder preview's body digest, the
+  program digest it was grown under, and `Untakeable` when it cannot be taken.
+  Nothing here recomputes anything: the score is P4b's, the price is PD5's, the
+  preview is `Species::preview`'s, and the refusal is `Unexpressed` carried
+  whole. `World::offers` takes `&self`, and a receipt asserts the state hash is
+  unmoved after building one.
+
+  **A candidate that cannot be taken is a row**, which is PE2's own residue
+  answered in the place a player acts on it: a bulk line's gland row says
+  *nowhere on this body is a plate* and stays on the table. `World::candidates`
+  drops those, deliberately, because a round should not spend a bounded run
+  scoring one; a review shows them, because the difference between *this world
+  has nothing for me* and *this body is the wrong shape for it, yet* is the
+  whole of what the screen is for.
+
+  **The budget is the founder's material, and it is spent for real.** §8 q4's
+  flat-price ruling means committing costs nothing and the *descendant* pays the
+  development price at its birth, out of its own reserve and into the ground
+  under it. So `World::prospect` reads the founder the played line would bear
+  next — the ecology's own provisioning arithmetic
+  (`parent.energy_mg.min(parent.biomass_mg() / OFFSPRING_COST)`), the soil
+  column the parent stands on, the world's palette, and the development seed the
+  birth pass would hand the next id it allocates — and `World::lineage_budget`
+  is that founder's `material_mg`. No currency was invented; the alternative
+  (the line's living reserves summed) was rejected because no rule anywhere
+  spends it.
+
+  **The second proposal source.** `mesocosm-runtime/src/review.rs` assembles
+  `Review` — the reckoning, the trend, the budget, the current revision and the
+  rows — because three of its four halves live beside a world rather than in
+  one, and the third of those reads a pack off a disk. `Authored::load` opens
+  exactly the scripts the manifest declares, through the pack door's own
+  `asset` path check; each row's candidate is offered to every declared script
+  through `Runner::propose` with `Entropy::from_seed(World::draw())`, and a
+  script that returns no site simply does not apply. **`World::draw` reads this
+  world's own SplitMix64 stream on a copy of the state**, so the entropy is the
+  game's, the world's sequence is untouched, and a review built twice makes the
+  same call twice. A fresh `Runner` is loaded per call, because script
+  determinism is per runner. This is `mesocosm-phenotype`'s first production
+  consumer; the dependency still runs one way, and the core knows about neither
+  crate.
+
+  **A fourth lane, not the checkpoint widened.** PE1's panel is *four facts, two
+  answers, out*, and a `mesocosm-views` test asserts in so many words that it
+  never mentions a program, a trait, a budget, an epoch, a revision or a
+  founder. Widening it would delete that claim and make the individual
+  checkpoint the editor PE1's stop rule forbids. The two also change on
+  different clocks — a checkpoint is fixed once shown, a board re-reads after
+  every commit — so `mesocosm-views::Board` is its own surface and
+  `mesocosm-genet::review` its own lane, and at a lineage checkpoint the board
+  draws while the checkpoint panel stands down. `Succession::epoch` survives as
+  the fallback for a boundary no review could be built for.
+
+  **The keys.** Tab moves the selection over every row, untakeable ones
+  included; **R** commits the selected candidate as `Intent::Revise`; Enter is
+  the same Resume it is everywhere. Only R reaches the queue — a cursor move is
+  presentation, so it never enters the trace — and `Review::commit` refuses the
+  status quo and every untakeable row, so the key cannot send a revision the
+  world would only reject. After a commit the driver rebuilds the review, so
+  the table describes the program the line now has.
+
+  **The evidence is narrowed, and the first capture is why.** A young enclosure
+  reckons twenty-odd marks across six lines; the first headed capture had them
+  push the candidate table and both answers off the bottom of the panel. So
+  `evidence_words` keeps the played line's readings whole and states everyone
+  else's as one line — *11 marks taken by 6 other lines* — which is
+  significance-as-abnormality without a scrolling log.
+
+  **Receipts.**
+  - `mesocosm-core` lib: **385** green (+6, `src/world/review/tests.rs`): a
+    review built twice is the same review; it moves no world; the status quo is
+    always the first row; the preview digest is the one `Species::preview`
+    answers; the budget is the ecology's own provisioning arithmetic; an extinct
+    line has no prospect and no budget.
+  - `tests/embodied.rs`: **70** green (+10, `embodied/review.rs`): the table
+    offers the status quo and everything the line came to; an untakeable
+    candidate stays on it with its reason; a line that grows the shape can take
+    it; **the price is the filial cost the birth then pays**; richer ground
+    under the parent quotes more than a dispersed birth pays; a commit is
+    admitted at the boundary and refused outside it; after a commit the review
+    shows the revision as current; **one rival lineage responds to the change**;
+    and the gland the review prices is the one a descendant expresses.
+  - `mesocosm-runtime`: **23 + 12 + 5 + 5** green (`tests/review.rs` is new):
+    the review stands only while the world holds at a lineage checkpoint and a
+    revision answers without closing it; a review built twice is the same
+    review *with the scripts in it*; **a pack expression appears beside the
+    discovered proposal and is marked**, and without the pack the same row has
+    one source; a commit is offered only for a row the world would admit.
+  - `mesocosm-views`: **31** green (+11): the board's four facts and the budget;
+    the status quo as a row; an untakeable candidate's reason, including an
+    unaffordable price that is still a price; every source named; the net with
+    its window and its sign; a reading that says whether it was a first; the
+    evidence narrowed; three answers and no menu.
+  - `mesocosm-genet` lib: **19** green (+2): the board has two keys and neither
+    is a verb.
+  - `cargo test -p mesocosm-core --test matter --test flows --test succession
+    --test embodied --release`: **6 + 13 + 7 + 70** green.
+  - `cargo test --workspace --release`: **814** green, the lens crate's 45 also
+    taken at `--test-threads=1`. Clippy `-D warnings` clean over `--all-targets`
+    in both profiles, `cargo fmt --all --check` clean, and
+    `cargo check -p paredros-room --features r1-proof` builds with its one
+    pre-existing `dead_code` warning on `brick::retarget_from_ground`.
+
+  **The rival's response, and how it is shown.** `one_rival_lineage_responds_to_
+  the_change` is a counterfactual rather than an assertion about a number: the
+  same seed twice, one run committing the player's revision at the boundary and
+  one not, both carried to the next boundary, and the same unplayed line's
+  `Turn::considered` differs between them. The round records it, because a round
+  is a transcript.
+
+  **The demo trace did not move.** The recorded stream is byte-identical and the
+  hash is still **`081b4ba4bdc46190`** — the new keys change nothing a recording
+  sends, and the demo still answers its boundaries with `Resume`. Headed
+  `--replay` runs 3,100 steps over 775 frames and matches, exit 0; a hash
+  falsified by one bit reports the mismatch and exits 1.
+
+  **Captures.** `Code/testing/mesocosm/pe3b_review.png` is the board over the
+  living terrarium at the demo's first boundary (tick 1,000): *the epoch is over
+  / epoch 1 ended / your line line 1, born as it always was / a founder holds
+  666 mg to develop with / the enclosure 88 matured, 47 died in 240 ticks*, then
+  the reckoning — three marks of line 1, each *the most this world has seen*,
+  and *11 marks taken by 6 other lines* — then the two rows (*the status quo
+  (nothing to build)* and *endured hunger (discovered: nowhere on this body to
+  put it)*, both *+72 mg over 480 ticks / nothing to develop / founder
+  ebc38d7c6a5e08be*, the second carrying *nowhere on this body is a plate*), and
+  the two answers. The vitals panel and the minimap read normally beside it and
+  the terrarium is alive behind it. No `[R]` line, correctly: the cursor is on
+  the status quo and the one candidate cannot be taken.
+
+  **A finding the capture forced into the open, in `pe3b_unattended.png`.** An
+  *unattended* clocked run cannot reach a boundary at all. `--auto-eat 40` lets
+  `World::held` lapse between meals, so the epoch ends with no hand on the body
+  and `succession::opened` — rightly — asks nobody anything; tighten it to
+  `--auto-eat 20` and the run instead stalls forever at the **birth** checkpoint
+  at step 800, because nothing unattended answers a question. Both are the
+  TD4 ruling working as written. The consequence for the harness is that an
+  epoch-boundary capture has to come from a run that answers its own
+  checkpoints, which is what the recorded demo is for; `pe3b_review.png` is
+  `--replay ... --frames 250`, which is a whole epoch of simulated time.
+
+  **Splits at the ceiling**, per the workspace rule: `runtime/tests.rs` out of
+  `runtime.rs` when the review pushed it to 607.
+
+  **Residues, and what PE4 and DT2 inherit.**
+  - **`Offer` is the row the next two consumers want.** It is
+    `Serialize`/`Deserialize` and pure data — candidate, score, price, preview,
+    program, reason — read entirely through core queries. The
+    [dev tools plan](2026-09-01_dev_tools_plan.md)'s DT2 asks an inspector for
+    a critter's discoveries and *its species' current program revision*, which
+    is `Review::current` and `Offer::program` already; its principle 3 (the
+    lane invents no readings) is satisfied for that half without adding one.
+    PE4's generated candidates arrive as more `Offer`s, since nothing in the
+    row names a hand-written condition.
+  - **A founder preview declares the ground the parent is standing on**, and a
+    descendant disperses up to twelve voxels away onto ordinary soil. A body
+    that stood still for a hundred ticks returned its upkeep into the column
+    under it, so the quote can be five cells where the birth affords one — the
+    dormancy rule doing its job, receipted in
+    `richer_ground_under_the_parent_quotes_more_than_a_dispersed_birth_pays`.
+    Whether a preview should instead declare the *neighbourhood* a birth can
+    land in is a design question and is Mark's; nothing here guesses at it.
+  - **The two proposal sources are read on the played body**, because that is
+    what `Request::of` freezes and what a player can point at, while the price
+    and the preview are the descendant's. Both facts belong on the screen and
+    they are about different bodies; a row does not currently say so in words.
+  - **Nothing is spent at the commit.** The budget is reported and the birth
+    charges it. If §8 q4 is ever reopened — youth buying developmental change
+    more cheaply — the one place a multiplier lands is still `program::express`.
+  - **`epoch::Lineage`'s scalar trait array is untouched**, as instructed, and
+    PE3's last done-condition turns on a reading only Mark can give: PE3a's own
+    module note already says the module is provisional and that `World` reads
+    none of it, which is the *marked non-authoritative* branch; the deletion
+    branch is phenotype §D4's fifth retirement condition and has always been
+    his. Flagged rather than decided here.
 
 - **2026-09-01, PE2 landed: discovery becomes an embodied option.** A meal
   stops being a lesson.

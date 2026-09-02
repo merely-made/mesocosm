@@ -16,7 +16,8 @@ use mesocosm_core::{History, Intent, Outcome, Reading, Trend, World, state_hash}
 
 use crate::clock::Clock;
 use crate::readings::FlowWindows;
-use crate::succession::Checkpoint;
+use crate::review::{Authored, Review};
+use crate::succession::{Checkpoint, Occasion};
 
 /// Default ceiling on steps authorised by one `advance` call. A stalled host
 /// resuming after a long pause catches up over several frames rather than in
@@ -51,6 +52,18 @@ pub struct Runtime {
     /// its trace and never learns that anybody stopped to think. See
     /// [`crate::succession`].
     checkpoint: Option<Checkpoint>,
+    /// The played line's own turn, while the world is holding at a lineage
+    /// checkpoint. (PE3b)
+    ///
+    /// **Built when the question opens and again after a commit**, never per
+    /// frame: every row costs a bounded scoring run, which is the price an
+    /// unplayed line's turn pays and not one a redraw should. Presentation like
+    /// the readings beside it — nothing here is written back, so the trace and
+    /// the hash never learn it exists.
+    review: Option<Review>,
+    /// The pack's declared expression scripts, when a host supplied them. The
+    /// review's second proposal source; `None` leaves every row with one.
+    authored: Option<Authored>,
     /// The epoch this driver has already reckoned. (PE3)
     ///
     /// The world ends its own epochs, because the rule that ends them is a
@@ -87,6 +100,8 @@ impl Runtime {
             history: History::new(),
             readings: FlowWindows::new(),
             checkpoint: None,
+            review: None,
+            authored: None,
             epoch_seen: 0,
             reckoning: Vec::new(),
             last: Vec::new(),
@@ -99,6 +114,17 @@ impl Runtime {
     pub fn with_max_steps(mut self, max_steps: u64) -> Self {
         assert!(max_steps > 0, "at least one step per advance");
         self.max_steps = max_steps;
+        self
+    }
+
+    /// Gives the review a second proposal source: a pack's declared expression
+    /// scripts. (PE3b)
+    ///
+    /// Presentation only, like the review itself. A script proposes and the
+    /// world never hears about it, so this cannot move a hash or a trace, and a
+    /// driver without it simply shows one source per row.
+    pub fn with_authored(mut self, authored: Authored) -> Self {
+        self.authored = Some(authored);
         self
     }
 
@@ -189,9 +215,13 @@ impl Runtime {
             .held()
             .and_then(|id| self.world.controlled().map(|held| (id, held.species)));
         let intent = self.queued.pop_front().unwrap_or(Intent::Idle);
+        // A commit at the boundary leaves the question standing and changes
+        // what the review is about, so the reading is rebuilt rather than left
+        // describing the program the line no longer has.
+        let revised = matches!(intent, Intent::Revise { .. });
         let outcome = self.world.apply(intent.clone());
         self.trace.push(intent);
-        self.absorb(hand);
+        self.absorb(hand, revised);
         self.last.push(outcome);
         true
     }
@@ -201,7 +231,11 @@ impl Runtime {
     /// player something. One call, because they are one tick's worth and a
     /// caller that drained one and forgot the other would have a past and a
     /// reading that disagreed.
-    fn absorb(&mut self, hand: Option<(mesocosm_core::OrganismId, mesocosm_core::SpeciesId)>) {
+    fn absorb(
+        &mut self,
+        hand: Option<(mesocosm_core::OrganismId, mesocosm_core::SpeciesId)>,
+        revised: bool,
+    ) {
         let events = self.world.drain_events();
         let flows = self.world.drain_flows();
         self.readings.absorb(&events, &flows);
@@ -220,11 +254,43 @@ impl Runtime {
             self.checkpoint =
                 crate::succession::opened(&self.world, &self.history, hand, &events, &flows);
         }
+        self.refresh_review(revised);
+    }
+
+    /// Keeps the played line's turn in step with the question. (PE3b)
+    ///
+    /// Built once when a lineage checkpoint opens, rebuilt after a commit, and
+    /// dropped the moment the world is not holding at one — so an ordinary tick
+    /// of play pays one match and nothing else.
+    fn refresh_review(&mut self, revised: bool) {
+        let at_boundary = matches!(
+            self.checkpoint.as_ref().map(|held| held.occasion),
+            Some(Occasion::Epoch(_))
+        );
+        if !at_boundary {
+            self.review = None;
+            return;
+        }
+        if self.review.is_some() && !revised {
+            return;
+        }
+        self.review = Review::of(
+            &self.world,
+            &self.reckoning,
+            self.readings.trend(),
+            self.authored.as_ref(),
+        );
     }
 
     /// What the most recent epoch boundary reckoned. Empty until one happens.
     pub fn reckoning(&self) -> &[Reading] {
         &self.reckoning
+    }
+
+    /// The played line's turn, while the world is holding at its lineage
+    /// checkpoint. `None` at every other moment. (PE3b)
+    pub fn review(&self) -> Option<&Review> {
+        self.review.as_ref()
     }
 
     /// The question the world is holding at, if any.
@@ -372,170 +438,4 @@ pub struct Receipt {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use mesocosm_core::{PartId, Placement, Yaw};
-
-    fn scripted() -> Vec<Intent> {
-        vec![
-            Intent::Move { delta: [1, 0, 0] },
-            Intent::Idle,
-            Intent::Move { delta: [0, 0, 2] },
-            Intent::Deposit { mass_mg: 25 },
-            Intent::Metabolize {
-                organism: mesocosm_core::OrganismId(0),
-                placement: Placement::Explicit {
-                    parent: PartId(0),
-                    offset: [4, 0, 0],
-                    yaw: Yaw::Zero,
-                },
-            },
-            Intent::Move { delta: [-1, 0, -1] },
-        ]
-    }
-
-    #[test]
-    fn uneven_frames_do_not_change_the_simulation() {
-        let steady = {
-            let mut rt = Runtime::new(2024, 24, 60).with_max_steps(u64::MAX);
-            for intent in scripted() {
-                rt.queue(intent);
-            }
-            for _ in 0..6 {
-                rt.advance(16_666);
-            }
-            rt
-        };
-
-        let ragged = {
-            let mut rt = Runtime::new(2024, 24, 60).with_max_steps(u64::MAX);
-            for intent in scripted() {
-                rt.queue(intent);
-            }
-            // The same total time, delivered badly: a stall, a burst, a crawl.
-            for chunk in [33u64, 1, 79_998, 12, 19_952] {
-                rt.advance(chunk);
-            }
-            rt
-        };
-
-        assert_eq!(
-            steady.trace(),
-            ragged.trace(),
-            "same intents in the same order"
-        );
-        assert_eq!(steady.state_hash(), ragged.state_hash());
-    }
-
-    #[test]
-    fn a_step_cap_delays_work_without_changing_it() {
-        let uncapped = {
-            let mut rt = Runtime::new(77, 16, 60).with_max_steps(u64::MAX);
-            for intent in scripted() {
-                rt.queue(intent);
-            }
-            rt.advance(100_000);
-            rt
-        };
-
-        let capped = {
-            let mut rt = Runtime::new(77, 16, 60).with_max_steps(2);
-            for intent in scripted() {
-                rt.queue(intent);
-            }
-            // One big frame, then idle frames while it catches up.
-            rt.advance(100_000);
-            for _ in 0..8 {
-                rt.advance(0);
-            }
-            rt
-        };
-
-        assert_eq!(uncapped.trace().len(), capped.trace().len());
-        assert_eq!(uncapped.state_hash(), capped.state_hash());
-    }
-
-    #[test]
-    fn empty_queue_idles_rather_than_stalling() {
-        let mut rt = Runtime::new(3, 4, 60).with_max_steps(u64::MAX);
-        rt.advance(16_666 * 4);
-        assert_eq!(rt.trace().len(), 3);
-        assert!(rt.trace().iter().all(|i| matches!(i, Intent::Idle)));
-    }
-
-    #[test]
-    fn trace_replays_to_the_same_world() {
-        let mut rt = Runtime::new(555, 20, 60).with_max_steps(u64::MAX);
-        for intent in scripted() {
-            rt.queue(intent);
-        }
-        rt.advance(200_000);
-
-        let (replayed, past) = Runtime::replay(555, 20, rt.trace());
-        assert_eq!(state_hash(&replayed), rt.state_hash());
-        assert_eq!(&past, rt.history(), "and the same run has the same past");
-    }
-
-    #[test]
-    fn a_driven_run_keeps_its_past() {
-        // The world buffers one tick and drops it if nobody drains. Before the
-        // driver recorded, every shipped run had a present and no history.
-        let mut rt = Runtime::new(4_242, 40, 60);
-        rt.step(200);
-
-        assert!(!rt.history().is_empty(), "two hundred ticks left a record");
-        assert!(!rt.readings().is_empty(), "and it comes to something");
-    }
-
-    #[test]
-    fn ending_an_epoch_notes_what_the_run_did() {
-        let mut rt = Runtime::new(4_242, 40, 60);
-        rt.step(200);
-
-        assert_eq!(rt.world().record().filled(), 0);
-        let readings = rt.end_epoch();
-        assert!(!readings.is_empty());
-        assert!(rt.world().record().filled() > 0, "the record has it now");
-        assert_eq!(rt.world().epoch, 1);
-    }
-
-    #[test]
-    fn receipts_match_when_runs_match() {
-        let run = |max: u64, chunks: &[u64]| {
-            let mut rt = Runtime::new(8, 12, 60).with_max_steps(max);
-            for intent in scripted() {
-                rt.queue(intent);
-            }
-            for c in chunks {
-                rt.advance(*c);
-            }
-            rt.receipt()
-        };
-        let a = run(u64::MAX, &[100_000]);
-        let b = run(2, &[100_000, 0, 0, 0, 0, 0, 0, 0, 0]);
-        assert_eq!(a, b);
-    }
-
-    #[test]
-    fn manual_stepping_matches_clocked_stepping() {
-        let clocked = {
-            let mut rt = Runtime::new(41, 10, 60).with_max_steps(u64::MAX);
-            for intent in scripted() {
-                rt.queue(intent);
-            }
-            // Exactly six steps at 60 Hz is 100_000 us, not 16_666 * 6. The
-            // clock is drift-free, so the shortfall would run five.
-            rt.advance(100_000);
-            rt.state_hash()
-        };
-        let manual = {
-            let mut rt = Runtime::new(41, 10, 60);
-            for intent in scripted() {
-                rt.queue(intent);
-            }
-            rt.step(6);
-            rt.state_hash()
-        };
-        assert_eq!(clocked, manual);
-    }
-}
+mod tests;
