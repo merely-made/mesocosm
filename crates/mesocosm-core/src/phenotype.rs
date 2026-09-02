@@ -406,8 +406,17 @@ impl BodyPhenotype {
     /// all of it or none of it. A refusal leaves body, allocation and revision
     /// byte-identical; an acceptance bumps the revision and returns the record
     /// of what changed hands.
-    pub fn develop(&mut self, proposal: &AllocationProposal) -> Result<Development, Refusal> {
-        let validated = develop::validate(self, proposal)?;
+    ///
+    /// `registry` is **the ruleset this body's world admitted** (PD4), and the
+    /// only place a definition may be resolved from. A caller inside a world
+    /// passes [`World::ruleset`](crate::World::ruleset); nothing here reaches
+    /// for a global.
+    pub fn develop(
+        &mut self,
+        registry: &Registry,
+        proposal: &AllocationProposal,
+    ) -> Result<Development, Refusal> {
+        let validated = develop::validate(registry, self, proposal)?;
         let revision = self.revision + 1;
         let mut sites = Vec::new();
         for (part, desired) in validated.rewrites {

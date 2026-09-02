@@ -364,8 +364,12 @@ fn direct_and_automatic_fixtures_lower_the_same_candidate_the_same_way() {
 
     let mut by_hand = world.phenotype().unwrap().clone();
     let mut by_game = by_hand.clone();
-    let hand = by_hand.develop(&direct).expect("it validates");
-    let game = by_game.develop(&automatic).expect("and so does it");
+    let hand = by_hand
+        .develop(mesocosm_core::Registry::native(), &direct)
+        .expect("it validates");
+    let game = by_game
+        .develop(mesocosm_core::Registry::native(), &automatic)
+        .expect("and so does it");
     assert_eq!(
         hand.instruction, game.instruction,
         "one candidate, one instruction, whoever proposed it"

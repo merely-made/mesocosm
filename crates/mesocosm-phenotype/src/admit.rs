@@ -155,12 +155,40 @@ pub fn admit(root: &Path, manifest: &Manifest) -> Result<Registry, Admission> {
         defs.push(lower(relative, &file)?);
         declared.insert(path);
     }
+    // The PD4 arms. Not lowered into the ruleset — a script proposes and a
+    // fixture checks, and neither is a rule — but path-checked and counted as
+    // declared, so a pack cannot reach out of itself and an undeclared file
+    // beside them is still refused.
+    for relative in manifest.expression.iter().chain(&manifest.fixtures) {
+        declared.insert(inside(root, relative)?);
+    }
 
     // Every definition file in the pack is declared, or the ruleset depends on
     // what is lying about rather than on what was written down.
     undeclared(root, &declared)?;
 
     Registry::admit(defs).map_err(|id: ProcessId| Admission::DuplicateId { id: id.qualified() })
+}
+
+/// One declared asset's path inside the pack. (PD4)
+///
+/// **The only way to open a pack file.** A relative path the manifest did not
+/// declare is refused as `UndeclaredFile` and a path that leaves the root as
+/// `PathEscape`, so a host cannot be talked into reading a sibling of the pack
+/// after admission has validated it.
+pub fn asset(root: &Path, manifest: &Manifest, relative: &str) -> Result<PathBuf, Admission> {
+    if !manifest
+        .processes
+        .iter()
+        .chain(&manifest.expression)
+        .chain(&manifest.fixtures)
+        .any(|declared| declared == relative)
+    {
+        return Err(Admission::UndeclaredFile {
+            path: relative.to_string(),
+        });
+    }
+    inside(root, relative)
 }
 
 /// Resolves a declared path and refuses one that leaves the root.

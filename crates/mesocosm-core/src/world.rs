@@ -125,6 +125,20 @@ pub const INSTINCT_IDLE_TICKS: u32 = 30;
 /// can notice, play out of, and be caught by.
 pub const STARVED_UPKEEP_TICKS: u64 = 100;
 
+/// This build's own definitions, as a world carries them. (PD4)
+///
+/// Built once. A world founded without an explicitly admitted pack runs the
+/// natives, and a world decoded outside [`crate::snapshot::restore_under`] gets
+/// them too — that raw door is documented as a same-process round trip, and the
+/// checked one replaces this with whatever the caller admitted.
+pub fn native_ruleset() -> std::sync::Arc<crate::process::Registry> {
+    static NATIVE: std::sync::LazyLock<std::sync::Arc<crate::process::Registry>> =
+        std::sync::LazyLock::new(|| {
+            std::sync::Arc::new(crate::process::Registry::native().clone())
+        });
+    std::sync::Arc::clone(&NATIVE)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct World {
     pub tick: u64,
@@ -140,6 +154,25 @@ pub struct World {
     /// through [`crate::snapshot::restore_under`].
     #[serde(default)]
     rules: crate::rules::WorldRules,
+    /// The definitions those rules *are*. (PD4)
+    ///
+    /// **The set, beside the identity.** PD3 gave a world its ruleset digest
+    /// and left [`BodyPhenotype::develop`](crate::BodyPhenotype::develop)
+    /// resolving against `Registry::native()`, which was honest only while the
+    /// shipped pack lowered to exactly that registry. This is the other half:
+    /// the validator resolves against what this world admitted, so a body
+    /// citing a definition this world does not hold is refused by name rather
+    /// than validated against somebody else's biology.
+    ///
+    /// **Not serialized, and deliberately.** A world records the identity, not
+    /// a copy (see [`crate::rules::WorldRules`]) — inlining five definitions
+    /// into every snapshot would make the pack's own file the second place a
+    /// rule lives. So the set is runtime carriage that a save re-enters
+    /// through [`crate::snapshot::restore_under`], which is the door that
+    /// checks the digest before it attaches anything. Skipping it also means
+    /// PD4 moved no state hash.
+    #[serde(skip, default = "native_ruleset")]
+    ruleset: std::sync::Arc<crate::process::Registry>,
     rng: Rng,
     /// Which organism the player is, if any.
     ///
@@ -416,6 +449,26 @@ impl World {
     /// against. See [`crate::rules::WorldRules`].
     pub fn rules(&self) -> crate::rules::WorldRules {
         self.rules
+    }
+
+    /// The definitions this world admitted. (PD4)
+    ///
+    /// The set [`Self::rules`] is the identity of, and the only ruleset any
+    /// development on a body in this world is validated against.
+    pub fn ruleset(&self) -> &crate::process::Registry {
+        &self.ruleset
+    }
+
+    /// The same set, shareable, for a host that has to hand it somewhere.
+    pub fn admitted(&self) -> std::sync::Arc<crate::process::Registry> {
+        std::sync::Arc::clone(&self.ruleset)
+    }
+
+    /// Re-attaches a decoded world's definitions. **Crate-private, and only
+    /// [`crate::snapshot::restore_under`] calls it** — which has already
+    /// compared the digest, so this cannot swap a living world's biology.
+    pub(crate) fn reattach_ruleset(&mut self, ruleset: std::sync::Arc<crate::process::Registry>) {
+        self.ruleset = ruleset;
     }
 
     /// What the most recent tick did to the enclosure.

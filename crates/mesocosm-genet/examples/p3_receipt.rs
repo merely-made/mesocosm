@@ -252,7 +252,7 @@ fn donor(world: &mut World) -> (PartId, PartId) {
     };
     corpse
         .phenotype
-        .develop(&proposal)
+        .develop(Registry::native(), &proposal)
         .expect("valid on the donor");
     world.organisms.push(corpse);
     (frond, tip)

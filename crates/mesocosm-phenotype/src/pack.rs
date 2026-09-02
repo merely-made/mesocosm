@@ -41,6 +41,21 @@ pub struct Manifest {
     pub note: String,
     /// Every declared definition file, relative to the pack root.
     pub processes: Vec<String>,
+    /// Every declared expression script, relative to the pack root. (PD4)
+    ///
+    /// The `expression/` arm plan §5 sketched and left for this gate. Declared
+    /// rather than discovered, for the same reason a definition is: a host may
+    /// open exactly the scripts the manifest names, so a file that happens to
+    /// be lying in the directory is not code this game will run.
+    #[serde(default)]
+    pub expression: Vec<String>,
+    /// Every declared fixture, relative to the pack root. (PD4)
+    ///
+    /// A fixture is a claim about what a script does, so an undeclared one is
+    /// refused by the same rule an undeclared definition is: admission would
+    /// otherwise depend on what was left in the directory.
+    #[serde(default)]
+    pub fixtures: Vec<String>,
 }
 
 /// One `processes/<name>.json`.

@@ -137,7 +137,34 @@ impl World {
         organism_count: u32,
         founding: Founding,
     ) -> Result<Self, DevelopmentError> {
-        Self::found(seed, organism_count, founding.palette(), founding)
+        Self::found(
+            seed,
+            organism_count,
+            founding.palette(),
+            founding,
+            crate::world::native_ruleset(),
+        )
+    }
+
+    /// Builds a world under an explicitly admitted ruleset. (PD4)
+    ///
+    /// **What a pack door founds through.** The definitions become the world's
+    /// own, its [`WorldRules`](crate::rules::WorldRules) become their digest,
+    /// and every development on every body in it is validated against exactly
+    /// this set. A definition it does not hold is refused rather than resolved
+    /// somewhere else, which is the whole reason the set travels beside the
+    /// digest.
+    ///
+    /// Immutable for the world's life, per plan §5: there is no setter. Editing
+    /// a pack means founding again, or restoring through
+    /// [`restore_under`](crate::snapshot::restore_under).
+    pub fn founded_on(
+        seed: u64,
+        organism_count: u32,
+        founding: Founding,
+        ruleset: std::sync::Arc<crate::process::Registry>,
+    ) -> Result<Self, DevelopmentError> {
+        Self::found(seed, organism_count, founding.palette(), founding, ruleset)
     }
 
     /// Builds a world under an explicitly admitted developmental palette.
@@ -154,7 +181,13 @@ impl World {
         organism_count: u32,
         development_palette: PartPalette,
     ) -> Result<Self, DevelopmentError> {
-        Self::found(seed, organism_count, development_palette, Founding::Drawn)
+        Self::found(
+            seed,
+            organism_count,
+            development_palette,
+            Founding::Drawn,
+            crate::world::native_ruleset(),
+        )
     }
 
     fn found(
@@ -162,6 +195,7 @@ impl World {
         organism_count: u32,
         development_palette: PartPalette,
         founding: Founding,
+        ruleset: std::sync::Arc<crate::process::Registry>,
     ) -> Result<Self, DevelopmentError> {
         let mut rng = Rng::from_seed(seed);
 
@@ -430,10 +464,12 @@ impl World {
         let mut world = Self {
             tick: 0,
             epoch: 0,
-            // What biology this world realized (PD3). A world founds under
-            // this build's own admitted ruleset; a host that admitted a pack
-            // instead compares its digest against this one rather than hoping.
-            rules: crate::rules::WorldRules::native(),
+            // What biology this world realized (PD3), and the definitions it
+            // is (PD4). The digest is saved; the set is runtime carriage the
+            // one validator resolves against, so the two cannot disagree
+            // about what this world admitted.
+            rules: crate::rules::WorldRules::of(&ruleset),
+            ruleset,
             rng,
             controlled: Some(OrganismId(0)),
             control_lost: None,

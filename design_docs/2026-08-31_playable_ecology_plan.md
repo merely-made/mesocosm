@@ -458,10 +458,14 @@ itself.
 
 ### PE3: the lineage checkpoint turns discovery into a descendant
 
-**P3 landed 2026-09-01**, so this gate now waits on PD3 and PD4 alone; PE2's
-residue that live subtree transfer was P3's is discharged for the corpse case,
-and what a *live* one would still need is written down in the phenotype plan's
-P3 entry.
+**P3, PD3 and PD4 have all landed (2026-09-01), so this gate's owning path is
+clear and PE3 is the next link.** A discovered candidate has a bounded door, a
+packed definition, and now an authored one, and all three walk the same
+validator — what is still missing is the *review*: choosing among several
+candidates, previewing what each would cost, and doing it at a lineage
+checkpoint rather than mid-tick. PE2's residue that live subtree transfer was
+P3's is discharged for the corpse case, and what a *live* one would still need
+is written down in the phenotype plan's P3 entry.
 
 Follow the owning phenotype and ProcessDef order through P3 branch transfer,
 PD3 static pack admission, PD4 authoring parity, P4's adaptation bridge, and

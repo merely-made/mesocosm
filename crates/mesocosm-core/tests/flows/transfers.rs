@@ -156,7 +156,7 @@ fn branched_carcass(
     };
     corpse
         .phenotype
-        .develop(&proposal)
+        .develop(mesocosm_core::Registry::native(), &proposal)
         .expect("valid on the donor");
     world.organisms.push(corpse);
     // The two lines share a domain, so the carry is native and the branch

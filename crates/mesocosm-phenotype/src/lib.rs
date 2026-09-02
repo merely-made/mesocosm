@@ -48,9 +48,19 @@
 //! schema, an unreadable or undeclared file, an unknown format ABI, an
 //! unqualified or colliding id, an unknown role or seeding word, and an empty
 //! pack. Admission is all-or-nothing: a pack with one bad file admits nothing.
+//!
+//! # Authored development (PD4)
+//!
+//! [`express`] is the second door, and it sits *beside* admission rather than
+//! underneath it. A pack may also declare Lua that proposes what a body should
+//! express; the sandbox is bounded, its entropy is the host's, and what comes
+//! back is a proposal the core's one validator accepts or refuses. Lua reaches
+//! no world, holds no handle, and registers no host function — see that
+//! module's own note on why that is structural rather than a promise.
 
 mod admit;
+pub mod express;
 mod pack;
 
-pub use admit::{Admission, MANIFEST, admit, admit_dir, discover};
+pub use admit::{Admission, MANIFEST, admit, admit_dir, asset, discover};
 pub use pack::{Manifest, ProcessFile, SUPPORTED_ABI};

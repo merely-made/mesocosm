@@ -217,12 +217,22 @@ pub(super) struct Validated {
     pub(super) cost_by_part: Vec<(PartId, u32)>,
 }
 
-/// **The one validator.** Direct and automatic arrangement both land here.
+/// **The one validator.** Direct, automatic and authored arrangement all land
+/// here.
+///
+/// **It resolves against the ruleset it is handed, never a global one** (PD4).
+/// PD3 could read `Registry::native()` here honestly, because the shipped pack
+/// lowered to a registry `==` to it; that stopped being honest the moment a
+/// door existed that could carry a different admitted set. A world hands its
+/// own [`Registry`], so a proposal citing a definition this world did not admit
+/// is [`Refusal::UnknownProcess`] — the stale-ruleset boundary plan §4 names —
+/// rather than a definition somebody else's build happened to hold.
 ///
 /// Checks are ordered so the first boundary that fails is the one reported,
 /// and the order is part of the contract: two callers submitting the same
 /// invalid candidate must receive the same refusal.
 pub(super) fn validate(
+    registry: &Registry,
     phenotype: &BodyPhenotype,
     proposal: &AllocationProposal,
 ) -> Result<Validated, Refusal> {
@@ -241,13 +251,6 @@ pub(super) fn validate(
     }
 
     let body = phenotype.body();
-    // **This build's ruleset, and PD3 proved that is the admitted one.** The
-    // shipped pack lowers to a registry `==` to this, so a world running on
-    // pack data validates against exactly what it admitted. It stops being
-    // true the moment a pack mints a definition the natives do not hold, and
-    // PD4's first step is therefore taking a `&Registry` here and carrying the
-    // admitted one on the world.
-    let registry = Registry::native();
     for part in &proposal.parts {
         let Some(found) = body.part(*part) else {
             return Err(Refusal::NoSuchPart(*part));

@@ -312,7 +312,7 @@ fn a_snapshot_names_the_exact_admitted_ruleset() {
     );
 
     let bytes = mesocosm_core::snapshot(&world).expect("encodes");
-    let restored = mesocosm_core::restore_under(&bytes, WorldRules::of(&packed()))
+    let restored = mesocosm_core::restore_under(&bytes, std::sync::Arc::new(packed()))
         .expect("the same ruleset restores");
     assert_eq!(restored.rules(), world.rules());
     assert_eq!(
@@ -340,19 +340,20 @@ fn a_replay_against_a_different_admitted_ruleset_is_refused_identifiably() {
     let other = Registry::admit(defs).expect("no collision");
     assert_ne!(other.digest(), packed().digest());
 
-    let refused = mesocosm_core::restore_under(&bytes, WorldRules::of(&other));
+    let other_digest = other.digest();
+    let refused = mesocosm_core::restore_under(&bytes, std::sync::Arc::new(other));
     assert_eq!(
         refused.err(),
         Some(SnapshotError::Ruleset {
             expected: world.rules().processes,
-            found: other.digest(),
+            found: other_digest,
         }),
         "it must say which ruleset it wanted, not simply fail"
     );
 
     // And the same bytes still restore under the ruleset they ran under, so
     // the refusal is about the biology rather than about the save.
-    assert!(mesocosm_core::restore_under(&bytes, world.rules()).is_ok());
+    assert!(mesocosm_core::restore_under(&bytes, world.admitted()).is_ok());
 }
 
 #[test]

@@ -415,14 +415,23 @@ The durable boundary is typed request, typed proposal, validation, and commit.
 ## 5. Pack and ruleset shape
 
 The first pack is deliberately plain and inspectable. **Built at PD3,
-2026-09-01**, as `packs/mesocosm/`, and smaller than this sketch because Lua is
-not involved yet — the `expression/` and `fixtures/` arms arrive with PD4:
+2026-09-01**, and completed at PD4 the same day with the `expression/` and
+`fixtures/` arms this sketch reserved:
 
 ```text
 mesocosm-pack.json          pack id, version, abi, license, note, files
 processes/
   contract.json  fix.json  intake.json  secrete.json  sense.json
+expression/
+  gland.lua                 express(request, entropy) -> proposal
+fixtures/
+  gland_rich_ground.json  gland_lean_ground.json
 ```
+
+Every arm is **declared**, and `mesocosm_phenotype::asset` is the only way to
+open one: a relative path the manifest does not name is `UndeclaredFile`
+before it is ever resolved, so a host cannot be talked into running a script
+sitting beside the pack.
 
 JSON, because the workspace already reads and writes it (traces, receipts,
 rosters) and a data-only pack should not cost a new parser. One file per
@@ -938,7 +947,7 @@ executed. See the 2026-09-01 Progress entry for the format and why, what
 admission refuses, what is rule-bearing in the ruleset digest, the parity
 receipt, and the residues PD4 and PE3 inherit.
 
-### PD4. Piccolo authoring parity
+### PD4. Piccolo authoring parity: **LANDED 2026-09-01**
 
 Add the typed request/proposal bridge, native validator, bounded runner, and one
 declared fixture pair for the process already proven at PD2 and packed at PD3.
@@ -949,6 +958,15 @@ draw trace; contrasting developmental contexts can produce different
 phenotypes from the same body plan; unknown ids, invalid parts, excessive
 output, and exhausted fuel refuse cleanly; Lua has no direct world mutation
 path; and the temporary native authoring path is gone.
+
+**All met.** `piccolo = "0.3"` (0.3.3, the version Isometry proves), the
+`expression/` and `fixtures/` arms of §5's pack sketch are built, and PD3's
+own residue is what the slice opened with: `BodyPhenotype::develop` takes a
+`&Registry` and a `World` carries the set it admitted, so a stale ruleset is a
+reachable refusal rather than an argument. See the 2026-09-01 Progress entry
+for the Request and Proposal shapes, the runner's policy numbers, the fixture
+pair and its draw trace, why "Lua cannot mutate" is structural, and what PE3
+inherits.
 
 ### PD5. Filial expression
 
@@ -1121,6 +1139,220 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-09-01, PD4 complete: an author gets a say, and the validator keeps
+  the last word.**
+
+  **PD3's residue first, because everything else rests on it.**
+  `BodyPhenotype::develop` takes a `&Registry` now, and `World` carries the set
+  it admitted rather than only its digest. PD3's own entry said this was
+  honest only while the shipped pack lowered to `Registry::native()`; a door
+  that can hand the validator a proposal is exactly the thing that stops it
+  being honest, so it was the first change of this slice rather than the last.
+  `World::founded_on(seed, count, founding, Arc<Registry>)` is what a pack door
+  founds through, `World::ruleset()` is what the validator reads, and
+  `Refusal::UnknownProcess` is now reachable from the played door:
+  `a_world_validates_against_the_ruleset_it_admitted` founds a world on a
+  ruleset with the gland removed, lets its line come to the native candidate,
+  and gets the definition named back rather than substituted.
+
+  **The set is carried, not saved, and that is why no hash moved.** A world
+  records the *identity* (PD3's ruling, unchanged); the definitions are
+  `#[serde(skip)]` runtime carriage. `snapshot::restore_under` therefore
+  widened from taking a `WorldRules` to taking the `Arc<Registry>` itself: it
+  compares the digest first and attaches the set only if it is the one the save
+  ran under, so a restored world cannot hold definitions it did not admit.
+  Nothing in the serialized world changed, so the whole-world hash is still
+  `1b1f866cb9138d40` and no fixture was re-recorded.
+
+  **The Request: a frozen picture, and nothing borrowed.** `trigger` (one
+  variant, `Discovery`, because one is played), `ruleset` digest, body
+  `revision`, the `expect` digest a lowered proposal must carry, every admitted
+  `definitions` entry as id / `expressed_by` / `seeding`, every living part as
+  `{ part, role, cells, free, cell_mg, sites }`, the `candidates` the line has
+  come to as qualified ids, an integer `material_mg`, and declared
+  `conditions`. **One condition today, `ground_mg`** — what the soil column
+  under the body holds — because that is what PD2's played process already
+  reads, rather than a knob invented to give a script something to branch on.
+  Every field is an owned copy; there is no handle to follow back to a live
+  value, which is how "scripts cannot inspect hidden world state" becomes a
+  property rather than a rule.
+
+  **The Proposal: three fields, and no fourth.** `{ part, process, cells }` per
+  site — plan §4's *which admitted process on which part at what bounded
+  capacity*. Not a cost (the door prices the accepted instruction), not a cell
+  address (`lower` lays tissue out), not a revision (the host froze one in).
+  What a script could get wrong and the game would then have to live with is
+  simply not expressible. `lower` resolves ids against the world's ruleset,
+  hands out cells from the high end of the lattice downward in the order the
+  script listed them, and leaves unclaimed tissue doing what it did — the same
+  suffix rule `Candidate::propose` uses, and **in the same order**, which is
+  what makes the authored and the native proposal produce one `Instruction`
+  rather than two that merely look alike. The validator hands out site ids in
+  proposal order, so that order is rule-bearing at the mosaic; it cost one
+  failing assertion to find and is stated in `lower`'s own comment now.
+
+  **The runner's policy, in numbers.** Fuel **8,192** for the whole call, the
+  chunk's own top level included; **4,096** output bytes, measured after
+  decoding rather than on the wire; nesting **8**; collection length **64**;
+  and **4** entropy draws. Small because the job is small — this decides where
+  a handful of cells go on one organ. Named refusals: `NoEntrypoint`, `Fuel`,
+  `Output`, `Depth`, `Collection`, `Malformed`, `Script`, `UnknownProcess`,
+  `UnknownPart`, `TooMuchTissue`, and `Validator(Refusal)` — the last carrying
+  the one validator's own boundaries whole rather than restating them, because
+  direct, automatic and authored arrangement are three proposal sources over
+  one developmental authority.
+  `the_validator_still_owns_its_own_boundaries` asks for a gland on a bulk root
+  and is refused `SiteMismatch` at the validator, not at this door.
+
+  **Lua cannot mutate, and it is four structural facts rather than a promise.**
+  (1) The runner registers **no host function at all**: there is no callback
+  into Rust, so there is no Rust value a script can reach. (2) `Lua::core()`
+  omits `io`, and piccolo 0.3 has no `os`, `require`, `dofile`, `loadfile`,
+  `load`, `package` or `debug` — the probe in `lua_has_no_world_mutation_path`
+  counts all ten from inside and gets zero. (3) **`math.random` and
+  `math.randomseed` are deleted at load**, which the donor does not do: piccolo
+  seeds them from `SmallRng::from_entropy()`, so an authored script in an
+  unmodified `Lua::core()` has a real source of OS randomness and the same
+  context would not produce the same proposal. That is the one place this
+  runner is deliberately stricter than Isometry's. (4) The API takes
+  `&Request` and `&Entropy` and returns a `Proposal`; the same test pins both
+  function signatures, so growing a mutable argument stops it compiling.
+
+  **Entropy is drawn before the call, not on demand.** `Entropy::from_seed`
+  takes `DRAWS = 4` numbers off the core's own `Rng` — SplitMix64, the stream
+  every other seeded decision in this game comes out of, so no second generator
+  was invented — and hands them over as plain integers. A draw-on-demand
+  callback would have been a host function in the globals, which is exactly the
+  thing point (1) says there are none of; a fixed tape is the stronger
+  arrangement and makes the recorded trace exactly what crossed the boundary.
+  **A deliberate divergence from the donor**, whose `EntropyTape` is a
+  host-side cell the runtime draws from during the call.
+
+  **The fixture pair, and the contrast is the ground.** One body plan — the
+  bulk consumer carrying the twelve-cell `[6, 4, 1]` frond PD2's fixtures grow,
+  so `cell_mg` is 23 and a five-cell gland holds 115 mg — one script, one seed
+  (**2**, whose draws are `10905525725756348110`, `13819372491320860226`,
+  `10987583248141275951`, `14119491246550939236`), and two declared grounds.
+  `gland_rich_ground.json` at 400 mg: the ground can charge what the line is
+  minded to spend, so **five cells of the frond become a gland** — exactly what
+  the native fixture's `GLAND_CELLS` proposed, lowering to the same complete
+  desired state and the same `Instruction`. `gland_lean_ground.json` at 20 mg:
+  it cannot, so the line keeps a **one-cell** gland and eleven cells go on
+  fixing. Two valid phenotypes with different digests, from one plan and one
+  seed. Nothing in the script is a constant the request does not already carry:
+  it reads the definition's own `expressed_by` to decide which shape to look
+  for, and the part's own `cell_mg` to decide whether the ground can charge the
+  ask.
+
+  **The temporary native authoring path: nothing left to delete, and the
+  deletion this gate did make.** PD3 executed §9's whole checklist —
+  `Intent::Rearrange`, `Allocate`, `World::rearrange`, `world/rearrange.rs`,
+  `Outcome::Rearranged`, `Event::Rearranged`, `pd2_receipt.rs` — so there is no
+  second authoring surface for Piccolo to replace. Verified rather than
+  assumed: a sweep for temporary-path markers across both crates finds only
+  PD3's own historical notes. What PD4 deleted is `Registry::native()`
+  **inside the validator**, which was the last place a development resolved
+  against something other than the world it was happening in. `arrange` /
+  `Aim` and `Candidate::propose` are not temporary and were not touched: they
+  are plan §7's other two proposal sources, and the parity receipt is a claim
+  *about* them.
+
+  **Receipts.**
+  - `mesocosm-phenotype`: **40** green across three suites (was 23) —
+    `tests/admission.rs` (16, unchanged), `tests/packed_gland.rs` (7,
+    unchanged), and `tests/authored_gland.rs` (**17** new), one test per
+    done-condition and named for it:
+    `lua_proposes_the_same_accepted_allocation_as_the_native_fixture`,
+    `the_authored_proposal_walks_the_played_door_to_the_same_development`,
+    `the_same_context_and_entropy_produce_the_same_proposal_and_draw_trace`,
+    `contrasting_developmental_contexts_grow_different_phenotypes_from_one_plan`,
+    `an_unknown_id_refuses_cleanly`, `an_invalid_part_refuses_cleanly`,
+    `excessive_output_refuses_cleanly`,
+    `an_overlong_collection_refuses_cleanly`,
+    `exhausted_fuel_refuses_cleanly`, `a_missing_entrypoint_refuses_cleanly`,
+    `a_malformed_proposal_refuses_cleanly`,
+    `the_validator_still_owns_its_own_boundaries`,
+    `a_stale_ruleset_refuses_at_the_one_validator`,
+    `a_world_validates_against_the_ruleset_it_admitted`,
+    `lua_has_no_world_mutation_path`,
+    `the_script_the_pack_declares_is_the_script_that_runs`, and
+    `a_script_cannot_express_what_the_line_has_not_come_to`.
+  - `mesocosm-core` lib **359** green, unchanged in count: threading the
+    registry moved call sites, not claims, and
+    `a_restore_under_a_different_ruleset_is_refused_by_name` was restated
+    against a real ruleset rather than a digest with no definitions behind it.
+  - `cargo test -p mesocosm-core --test matter --test flows --test succession
+    --test embodied`: **6 + 11 + 7 + 49** green, the same counts as PD3.
+  - **No fixture moved.** The admitted set is `serde(skip)`, so the whole-world
+    hash is still `1b1f866cb9138d40`. Headed `--replay` runs the recorded
+    3,100-step trace over 775 frames and matches, exit 0; a hash falsified by
+    one bit reports the mismatch and exits 1. Ground revision 17, 33 body
+    parts, 40 drawn roster — every number in the receipt is P3's and PD3's.
+    The demo's own census is unchanged because the recording is: Move 2,726,
+    Deposit 244, Carve 73, Idle 40, Metabolize 12, Resume 3, Graft 1,
+    TakeControl 1 — its discovery, its branch transfer, its three births and
+    its succession all survive.
+  - `cargo test --workspace --release`: **40 suites, 746 tests, 0 failures**
+    (was 39 / 729), mesocosm-lens's 45 included and passing in the ordinary
+    parallel run. Clippy `-D warnings` clean in both profiles; `cargo fmt
+    --all --check` clean; `cargo check -p paredros-room --features r1-proof`
+    builds with its one pre-existing `dead_code` warning on
+    `brick::retarget_from_ground`.
+  - **The instrument is unmoved.** The drawn baseline was re-run over all ten
+    seeds and compared against `dc4_roster.json` seed for seed — verdict,
+    start, peak, peak tick, end, cumulative births and cumulative deaths each
+    identical on every one. **0 breathes / 10 thins / 0 boil / 0 collapse**
+    stands. It could not have moved by construction — the instrument drives
+    with `Intent::Idle` only and never reaches a development — and the
+    admitted set is skipped from the snapshot, so no hash it reads changed
+    either. The run was stopped after the baseline batch rather than carried
+    through the other five, so it could not overwrite `dc4_roster.json` with
+    new timing on an unmoved result.
+  - **piccolo 0.3.3**, resolved from `piccolo = "0.3"` — the exact version
+    `isometry-system` proves — and it builds on this workspace's toolchain,
+    rustc 1.97.1. Five new crates in the lock (`piccolo`, `gc-arena`,
+    `gc-arena-derive`, `hashbrown`, `sptr`), all from crates.io: this is a
+    third-party library rather than a Merely one, so the workspace's git-first
+    rule for the cambium and eidetic families does not reach it.
+
+  **Splits at the ceiling**, per the workspace rule: `express.rs` opens onto
+  `express/{request,proposal,marshal,runner,fixture}.rs` rather than growing
+  one file, and `tests/authored_gland/refusals.rs` took done-conditions 4 and 5
+  when the suite passed 600 lines.
+
+  **Residues, and what PE3 inherits.**
+  - **PE3 is the review this door is waiting for.** `Request::of` freezes one
+    discovered condition on the played body; choosing among several, previewing
+    what each would cost, and doing it at a lineage checkpoint are still PE3's
+    — and there are *two* proposal sources to review over now rather than one,
+    the game's candidate and an author's script, which is a screen over
+    `candidate_proposal` and `Runner::propose` rather than a new intent.
+  - **The authored proposal has no `Intent` yet, deliberately.** A test lowers
+    it and calls `develop` directly, the same way `develop_played` does. Giving
+    a host a way to say "run this script now" before PE3 decides *when* a
+    review happens would be inventing the checkpoint from the wrong end.
+  - **Four readings still resolve against `Registry::native()`**, and each
+    belongs to its own gate rather than to this one: `Mosaic::seed` (the
+    seeding rule), `discovery::conditions` (the condition table's granted
+    reference), `BodyPhenotype::gland_reference` and `explain`, and `Kingdom`'s
+    fixing reference. None is the validator, so none can admit a development;
+    the honest consequence today is that a world founded on a ruleset the
+    natives do not match *refuses* rather than substitutes, which
+    `a_world_validates_against_the_ruleset_it_admitted` receipts. Threading
+    them is PE4's, when a pack actually mints something new.
+  - **One declared world condition.** `ground_mg` is the only quantized reading
+    a script can branch on. A second arrives when a gate plays one; the shape
+    (`name`, integer `value`, sorted) already takes it.
+  - **The graft-affinity pack door is still unopened**, and still for PD3's
+    reason: the ruling about whether a pack-declared affinity overrides
+    `Founding` or the reverse is Mark's. It has moved from PD4 to PE4.
+  - **PD8's extraction audit has its first real comparison now.** The runner,
+    the fuel and output policy, and the tagged marshalling are recognisably
+    Isometry's pattern; the entropy handling is not — a pre-drawn tape against
+    a host-side draw — and the request, proposal, validator and lowering are
+    sovereign game code as §4 requires. The stop rule holds: nothing is
+    extracted.
 
 - **2026-09-01, PD3 complete: the definition gets a packed door, and the
   editor operation is deleted.**

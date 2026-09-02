@@ -46,23 +46,32 @@ pub fn restore(bytes: &[u8]) -> Result<World, SnapshotError> {
 }
 
 /// Restores a world and checks it against the ruleset the caller is holding.
-/// (PD3)
+/// (PD3, widened at PD4)
 ///
 /// The door a save, a replay or a peer comes through. [`restore`] is the raw
 /// decode and stays for round trips within one process; this is what anything
 /// that could be carrying a different biology must use, because a ruleset
 /// mismatch has to be an answer rather than a silent divergence.
+///
+/// **It takes the definitions, not only their digest** (PD4). A snapshot
+/// carries the identity — the set is not serialized, because a world records
+/// which biology it ran rather than a second copy of it — so this is where the
+/// set comes back: the digest is compared first, and the registry is attached
+/// only if it is the one the save ran under. That makes it impossible to
+/// restore a world holding definitions it did not admit.
 pub fn restore_under(
     bytes: &[u8],
-    rules: crate::rules::WorldRules,
+    ruleset: std::sync::Arc<crate::process::Registry>,
 ) -> Result<World, SnapshotError> {
-    let world = decode::<World>(bytes)?;
-    if world.rules() != rules {
+    let mut world = decode::<World>(bytes)?;
+    let offered = crate::rules::WorldRules::of(&ruleset);
+    if world.rules() != offered {
         return Err(SnapshotError::Ruleset {
             expected: world.rules().processes,
-            found: rules.processes,
+            found: offered.processes,
         });
     }
+    world.reattach_ruleset(ruleset);
     Ok(world)
 }
 
@@ -125,16 +134,25 @@ mod tests {
         // digests rather than continued against whatever this build holds.
         let world = World::new(31, 10);
         let bytes = snapshot(&world).unwrap();
-        assert!(restore_under(&bytes, world.rules()).is_ok());
+        let restored = restore_under(&bytes, world.admitted()).expect("the same ruleset restores");
+        assert_eq!(
+            restored.ruleset(),
+            world.ruleset(),
+            "the checked door hands the set back, not only the digest"
+        );
 
-        let other = crate::rules::WorldRules {
-            processes: crate::rules::RulesetDigest(world.rules().processes.0 ^ 1),
-        };
+        // A real ruleset that differs, rather than a digest with no
+        // definitions behind it: PD4 attaches the set, so the offered thing
+        // has to be one.
+        let mut defs: Vec<_> = world.ruleset().all().cloned().collect();
+        defs.retain(|def| def.id.name != "secrete");
+        let other = std::sync::Arc::new(crate::process::Registry::admit(defs).unwrap());
+        let found = crate::rules::WorldRules::of(&other).processes;
         assert_eq!(
             restore_under(&bytes, other),
             Err(SnapshotError::Ruleset {
                 expected: world.rules().processes,
-                found: other.processes,
+                found,
             })
         );
     }

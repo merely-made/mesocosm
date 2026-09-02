@@ -69,7 +69,10 @@ impl World {
         // development does not land half of itself. The clone is one body, at
         // a developmental moment, not per tick.
         let mut candidate = me.phenotype.clone();
-        let development = match candidate.develop(&proposal) {
+        // **This world's admitted ruleset, never a global one** (PD4). A
+        // definition this world did not admit is refused by name here rather
+        // than resolved against whatever this build happens to hold.
+        let development = match candidate.develop(self.ruleset(), &proposal) {
             Ok(development) => development,
             Err(refusal) => return Outcome::Rejected(Rejection::Refused(refusal)),
         };

@@ -190,7 +190,8 @@ impl World {
         // A candidate, so a refusal costs nothing. One clone of one body at a
         // deliberate moment, the same discipline the developmental verb uses.
         let mut candidate = me.phenotype.clone();
-        let graftage = match candidate.receive(&branch, site, self.epoch, lowering) {
+        let graftage = match candidate.receive(self.ruleset(), &branch, site, self.epoch, lowering)
+        {
             Ok(graftage) => graftage,
             Err(refusal) => return Outcome::Rejected(Rejection::Refused(refusal)),
         };

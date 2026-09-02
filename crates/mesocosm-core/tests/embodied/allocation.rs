@@ -128,8 +128,12 @@ fn one_validator_serves_the_player_and_the_game() {
         ..by_game.clone()
     };
 
-    let there = automatic.develop(&by_game).expect("valid");
-    let here = direct.develop(&by_hand).expect("valid");
+    let there = automatic
+        .develop(mesocosm_core::Registry::native(), &by_game)
+        .expect("valid");
+    let here = direct
+        .develop(mesocosm_core::Registry::native(), &by_hand)
+        .expect("valid");
     assert_eq!(there.instruction, here.instruction);
     assert_eq!(
         snapshot::encode(&automatic).unwrap(),
@@ -146,8 +150,12 @@ fn one_validator_serves_the_player_and_the_game() {
         ..bad_game.clone()
     };
     assert_eq!(
-        game_refused.develop(&bad_game).unwrap_err(),
-        hand_refused.develop(&bad_hand).unwrap_err(),
+        game_refused
+            .develop(mesocosm_core::Registry::native(), &bad_game)
+            .unwrap_err(),
+        hand_refused
+            .develop(mesocosm_core::Registry::native(), &bad_hand)
+            .unwrap_err(),
         "one refusal, whoever asked"
     );
 }

@@ -56,13 +56,17 @@ fn develop_played(
     proposal: &mesocosm_core::AllocationProposal,
 ) -> Result<mesocosm_core::Development, mesocosm_core::Refusal> {
     let me = world.controlled_id().expect("embodied");
+    // The world's own admitted ruleset (PD4), which is what the door hands
+    // the validator. Taken first, so the shared handle outlives the mutable
+    // borrow of the roster.
+    let ruleset = world.admitted();
     world
         .organisms
         .iter_mut()
         .find(|o| o.id == me)
         .expect("still in the roster")
         .phenotype
-        .develop(proposal)
+        .develop(&ruleset, proposal)
 }
 
 /// Empties the played critter's budget. Since TD4 the body routes its own

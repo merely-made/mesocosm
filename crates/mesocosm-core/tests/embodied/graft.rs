@@ -146,7 +146,7 @@ fn donor(world: &mut World) -> (PartId, PartId) {
     };
     corpse
         .phenotype
-        .develop(&proposal)
+        .develop(mesocosm_core::Registry::native(), &proposal)
         .expect("the donor's own arrangement is valid on the donor");
     assert!(corpse.phenotype.expresses_on(frond, gland()));
 

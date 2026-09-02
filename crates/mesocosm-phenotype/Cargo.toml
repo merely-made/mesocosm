@@ -19,6 +19,7 @@ publish = false
 # deterministic, integer-only, I/O-free core must not have.
 [dependencies]
 mesocosm-core = { workspace = true }
+piccolo = "0.3"
 serde = { workspace = true }
 # The pack format. JSON because this workspace already reads and writes it
 # (traces, receipts, rosters), so a data-only pack costs no new parser.

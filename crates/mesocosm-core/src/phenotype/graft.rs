@@ -244,6 +244,7 @@ impl BodyPhenotype {
     /// try to undo itself.
     pub fn receive(
         &mut self,
+        registry: &crate::process::Registry,
         branch: &Branch,
         at: Attachment,
         epoch: u64,
@@ -302,7 +303,7 @@ impl BodyPhenotype {
             parts: parts.clone(),
             sites,
         };
-        let development = self.develop(&proposal)?;
+        let development = self.develop(registry, &proposal)?;
         // **PD2's price, one part at a time.** A cell is worth what its own
         // part's tissue is worth, so a multi-part development cannot be priced
         // at one part's rate; the validator counted the cells whose expression

@@ -21,7 +21,8 @@ PD1b allocation -> PD2 one embodied process -> PE2 embodied discovery
 
 PE0 + PE1 + PE2
   -> P3 branch transfer [LANDED 2026-09-01]
-  -> PD3 pack admission [LANDED 2026-09-01] -> PD4 authoring parity
+  -> PD3 pack admission [LANDED 2026-09-01]
+  -> PD4 Piccolo authoring parity [LANDED 2026-09-01]
   -> PE3 lineage review + P4/PD5 filial expression
   -> PE4 world-generated biology
   -> PE5 second form + durable relationship
@@ -48,7 +49,7 @@ order):
 
 ```text
 PD1b -> PD2 (one native played process) -> P3 (branch transfer)
-     -> PD3 (static packs) [all LANDED] -> PD4 (Piccolo) -> P4
+     -> PD3 (static packs) -> PD4 (Piccolo) [all LANDED] -> P4
 ```
 
 PD1b also unblocks the general model's **E1 acceptance gate** (feeding as
@@ -125,6 +126,15 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-09-01:** PD4 Piccolo authoring parity landed, so **PE3's lineage
+  review has its prerequisites met**: PD3/PD4 both stand, and the chain's next
+  link is PE3 over `candidate_proposal` (plus P4/PD5 filial expression). It
+  closed PD3's residue — `BodyPhenotype::develop` takes a `&Registry` and a
+  world carries the set it admitted, so a stale ruleset refuses by name — and
+  added a bounded piccolo 0.3 host in `mesocosm-phenotype` whose proposals go
+  through the same one validator every other proposal source does. The
+  graft-affinity ruling PD3 recorded is still open and is now PE4's.
 
 - **2026-09-01:** PD3 static pack admission landed, so the chain's next link is
   PD4's Piccolo authoring parity before PE3's lineage review. It added the

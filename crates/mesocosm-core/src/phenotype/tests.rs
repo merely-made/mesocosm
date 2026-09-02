@@ -186,7 +186,9 @@ fn a_stale_proposal_is_refused_and_moves_nothing() {
     proposal.expect ^= 1;
     let before = crate::snapshot::encode(&phenotype).unwrap();
 
-    let refusal = phenotype.develop(&proposal).unwrap_err();
+    let refusal = phenotype
+        .develop(Registry::native(), &proposal)
+        .unwrap_err();
 
     assert!(matches!(refusal, Refusal::Stale { .. }));
     assert_eq!(
@@ -212,8 +214,10 @@ fn direct_and_automatic_lower_the_same_candidate_the_same_way() {
     };
     assert_eq!(by_game.source, Arrangement::Automatic);
 
-    let there = automatic.develop(&by_game).expect("valid");
-    let here = direct.develop(&by_hand).expect("valid");
+    let there = automatic
+        .develop(Registry::native(), &by_game)
+        .expect("valid");
+    let here = direct.develop(Registry::native(), &by_hand).expect("valid");
 
     assert_eq!(there.instruction, here.instruction, "one instruction");
     assert_ne!(there.source, here.source, "two authors");
@@ -241,12 +245,12 @@ fn direct_and_automatic_earn_the_same_refusal() {
     };
 
     assert_eq!(
-        automatic.develop(&by_game).unwrap_err(),
-        direct.develop(&by_hand).unwrap_err(),
+        automatic.develop(Registry::native(), &by_game).unwrap_err(),
+        direct.develop(Registry::native(), &by_hand).unwrap_err(),
         "the same invalid candidate earns the same refusal"
     );
     assert_eq!(
-        automatic.develop(&by_game).unwrap_err(),
+        automatic.develop(Registry::native(), &by_game).unwrap_err(),
         Refusal::NoSuchCell {
             part: limb,
             cell: CellId(99)
@@ -266,7 +270,9 @@ fn a_part_cannot_acquire_a_capability_by_editing_a_number() {
     }
 
     assert_eq!(
-        phenotype.develop(&proposal).unwrap_err(),
+        phenotype
+            .develop(Registry::native(), &proposal)
+            .unwrap_err(),
         Refusal::SiteMismatch {
             part: frond,
             process: reference(Process::Contract)
@@ -291,7 +297,9 @@ fn every_refusal_names_the_boundary_that_failed() {
         let mut proposal = sound.clone();
         edit(&mut proposal);
         proposal.expect = phenotype.digest();
-        phenotype.develop(&proposal).unwrap_err()
+        phenotype
+            .develop(Registry::native(), &proposal)
+            .unwrap_err()
     };
 
     assert_eq!(
@@ -363,7 +371,9 @@ fn an_invalid_multipart_development_leaves_everything_unchanged() {
     let before = crate::snapshot::encode(&phenotype).unwrap();
 
     assert_eq!(
-        phenotype.develop(&proposal).unwrap_err(),
+        phenotype
+            .develop(Registry::native(), &proposal)
+            .unwrap_err(),
         Refusal::Disconnected(frond),
         "corner to corner is not one organ"
     );
@@ -380,7 +390,9 @@ fn an_unknown_definition_is_refused_rather_than_substituted() {
     proposal.sites[0].process = foreign;
 
     assert_eq!(
-        phenotype.develop(&proposal).unwrap_err(),
+        phenotype
+            .develop(Registry::native(), &proposal)
+            .unwrap_err(),
         Refusal::UnknownProcess(foreign)
     );
 }
@@ -393,14 +405,18 @@ fn a_severed_part_cannot_be_rearranged() {
     // Staleness catches it first, which is the point of the expected digest;
     // re-authoring against the injured body then names the real boundary.
     assert!(matches!(
-        phenotype.develop(&proposal).unwrap_err(),
+        phenotype
+            .develop(Registry::native(), &proposal)
+            .unwrap_err(),
         Refusal::Stale { .. }
     ));
     let mut reauthored = arrange(&phenotype, Aim::Spare);
     reauthored.parts.push(limb);
     reauthored.parts.sort_unstable();
     assert_eq!(
-        phenotype.develop(&reauthored).unwrap_err(),
+        phenotype
+            .develop(Registry::native(), &reauthored)
+            .unwrap_err(),
         Refusal::SeveredPart(limb)
     );
 }
@@ -411,7 +427,9 @@ fn rearrangement_is_ordered_and_on_the_record() {
     assert_eq!(phenotype.revision(), 0);
 
     let spare = arrange(&phenotype, Aim::Spare);
-    let first = phenotype.develop(&spare).expect("valid");
+    let first = phenotype
+        .develop(Registry::native(), &spare)
+        .expect("valid");
     assert_eq!(first.instruction.revision, 1);
     assert_eq!(phenotype.revision(), 1);
     assert_eq!(
@@ -428,7 +446,9 @@ fn rearrangement_is_ordered_and_on_the_record() {
     // Free tissue exists now, and expressing it again is a second event.
     assert!(phenotype.allocations().any(|(_, m)| m.free() > 0));
     let express = arrange(&phenotype, Aim::Express);
-    let second = phenotype.develop(&express).expect("valid");
+    let second = phenotype
+        .develop(Registry::native(), &express)
+        .expect("valid");
     assert_eq!(second.instruction.revision, 2);
     assert!(phenotype.allocations().all(|(_, m)| m.free() == 0));
     assert_ne!(
@@ -441,7 +461,7 @@ fn rearrangement_is_ordered_and_on_the_record() {
 fn a_phenotype_round_trips() {
     let (mut phenotype, _) = critter();
     phenotype
-        .develop(&arrange(&phenotype, Aim::Spare))
+        .develop(Registry::native(), &arrange(&phenotype, Aim::Spare))
         .expect("valid");
     let bytes = crate::snapshot::encode(&phenotype).unwrap();
     let restored: BodyPhenotype = crate::snapshot::decode(&bytes).unwrap();
