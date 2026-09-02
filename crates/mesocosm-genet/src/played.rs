@@ -151,6 +151,10 @@ pub struct PlayedReceipt {
     pub slab_half_height: f32,
     pub trace: Option<String>,
     pub capture: Option<String>,
+    /// Whether `--dev` was set for this run (DT1, ruled 2026-09-02). A played
+    /// receipt says so out loud, so a playtest cannot be quietly assisted by
+    /// time control without it showing.
+    pub dev: bool,
 }
 
 /// `Code/testing/<repo>/`, the workspace's headed-verify home. Derived from

@@ -1,8 +1,7 @@
 # Dev tools: sitting in a run and interrogating it
 
-**Status (2026-09-02): accepted, DT1 queued.** Both §4 decisions ruled. DT1
-dispatches once PE3b lands, because both touch the genet host's input and
-lanes and one working tree holds one agent at a time.
+**Status (2026-09-02): DT1 landed.** Both §4 decisions ruled and built. DT2
+(follow and inspect) is next.
 
 ## 0. Objective
 
@@ -136,9 +135,40 @@ of them. Each phase is one agent round on a non-Fable model.
   and widgets (cambium) for a dev lane, and no run-time dev tools at all in
   any game. Mesocosm's replay harness is the only headless evaluation tooling
   and it is app-local.
+- **2026-09-02 (DT1):** `workbench` (genet, `components/workbench`) is a
+  host-owned tree and reducer only — there is no genet-side surface that
+  renders a `TileTree` to pixels, draws a tab strip, or turns a drag into a
+  `TileEvent`. DT1 never needed one (its tree never holds more than the dev
+  lane's one tile), but DT2's second dev pane is what would. See
+  `mesocosm-genet/src/dev.rs`'s module docs.
 
 ## Progress
 
 - **2026-09-01:** assessment written from a read-only inventory of mesocosm,
   isometry, genet, cambium and mere, verified against file paths above. No
   code dispatched.
+- **2026-09-02 (DT1 landed):** `--dev` (off by default; recorded in the
+  receipt as `dev: bool`) adds a fifth chrome lane — a cambium detail panel,
+  top left, built the way `mesocosm-views::vitals` is — and five keys, live
+  only while the flag is set: `P` pauses or unpauses the clock, `.` steps
+  once and `,` steps `DEV_STEP_N` (10), both off the clock, and `[`/`]` move
+  a five-rung speed ladder (1/4, 1/2, 1, 2, 4) that scales the elapsed
+  microseconds the host passes to `Runtime::advance`. All three are host-only
+  pacing: pause drops the elapsed time the same way a checkpoint hold already
+  does, speed scales it before the clock ever sees it, and step calls
+  `Runtime::step` directly — none of the three reaches `Runtime::queue`, so
+  none can enter the trace or move a hash. `mesocosm-runtime`'s
+  `pauses_speed_changes_and_manual_steps_do_not_change_the_hash` drives the
+  same intents through pauses, speed changes and manual steps interleaved
+  with `advance` and checks the hash against a straight run; `step`'s
+  existing "N unless a checkpoint holds it, then fewer" contract is reused
+  unmodified and stated explicitly now in `tests/checkpoint.rs`. Ruled §4.2:
+  the dev lane's placement is a `workbench::TileTree`'s own geometry (one
+  tile today; see the finding above), not a hand-rolled corner constant like
+  the other three lanes'. `--dev --frames 200 --capture` was read: the panel
+  reads "state / speed / tick / stepped", sits top left clear of the minimap
+  (top right) and vitals (bottom left), and the whole frame is sane.
+  `--replay` of the untouched `ps1_played.trace.json` fixture still exits 0
+  at `081b4ba4bdc46190` with `--dev` off; a falsified hash still exits 1. The
+  receipt's new `dev` field does not move the state hash. `cargo test
+  --workspace`, clippy `-D warnings` (both profiles) and fmt are clean.

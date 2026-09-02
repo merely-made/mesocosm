@@ -48,6 +48,21 @@
 //! ([`Runtime::queue`] called straight from the recorded list), bypassing this
 //! module entirely. What was queued and dropped at the keyboard cannot move a
 //! replay's hash, only how quickly a played session answers a key.
+//!
+//! # Dev keys (DT1)
+//!
+//! Live only while `--dev` is set. Five, chosen clear of every key play
+//! already owns (WASD, E, Space, Q, C, the arrows, Tab, R, Enter, Escape):
+//!
+//! - `P` — pause or unpause the clock.
+//! - `.` (period) — one step, off the clock.
+//! - `,` (comma) — [`crate::app::DEV_STEP_N`] steps, off the clock.
+//! - `[` — one rung slower on the speed ladder.
+//! - `]` — one rung faster.
+//!
+//! None of the five reaches [`Runtime::queue`]: they are host pacing over
+//! `Runtime::advance` and `Runtime::step`, not intents, so none can enter the
+//! trace. See [`DevKey`] and [`dev_key`].
 
 use mesocosm_core::{Intent, Placement, World};
 use mesocosm_mesh::VolumeMap;
@@ -185,6 +200,41 @@ pub fn intent_for(world: &World, volumes: &VolumeMap, key: &Key) -> Option<Inten
     }
 }
 
+/// A dev-only time-control action a key maps to. Host-only: none of these
+/// reaches [`mesocosm_runtime::Runtime::queue`], so none can enter the trace
+/// or move a replay's hash. See the module docs and the dev tools plan's DT1.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DevKey {
+    /// `P`. Toggles whether the host passes elapsed time to the clock at
+    /// all.
+    TogglePause,
+    /// `.` (period). Runs exactly one step, off the clock, whatever the
+    /// pause state.
+    Step,
+    /// `,` (comma). Runs [`crate::app::DEV_STEP_N`] steps the same way.
+    StepN,
+    /// `[`. One rung slower on the speed ladder, floored at its slowest.
+    SlowDown,
+    /// `]`. One rung faster, capped at its fastest.
+    SpeedUp,
+}
+
+/// Turns a key into a dev action. `None` for every other key, which then
+/// falls through to the board, the checkpoint, or the ordinary play keys.
+pub fn dev_key(key: &Key) -> Option<DevKey> {
+    match key {
+        Key::Character(c) => match c.as_str() {
+            "p" | "P" => Some(DevKey::TogglePause),
+            "." => Some(DevKey::Step),
+            "," => Some(DevKey::StepN),
+            "[" => Some(DevKey::SlowDown),
+            "]" => Some(DevKey::SpeedUp),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// The next meal in reach. `None` when nothing is close enough.
 ///
 /// One meal, one key. Where it goes is the body's answer, not a second
@@ -245,6 +295,33 @@ mod tests {
             }),
             Urgency::Deliberate
         );
+    }
+
+    /// The five dev keys, and nothing else on the same row of the keyboard,
+    /// resolve to a dev action.
+    #[test]
+    fn the_five_dev_keys_resolve_and_nothing_play_owns_collides() {
+        assert_eq!(
+            dev_key(&Key::Character("p".into())),
+            Some(DevKey::TogglePause)
+        );
+        assert_eq!(
+            dev_key(&Key::Character("P".into())),
+            Some(DevKey::TogglePause)
+        );
+        assert_eq!(dev_key(&Key::Character(".".into())), Some(DevKey::Step));
+        assert_eq!(dev_key(&Key::Character(",".into())), Some(DevKey::StepN));
+        assert_eq!(dev_key(&Key::Character("[".into())), Some(DevKey::SlowDown));
+        assert_eq!(dev_key(&Key::Character("]".into())), Some(DevKey::SpeedUp));
+
+        // Every key play already owns falls through undisturbed.
+        for key in ["w", "a", "s", "d", "e", "q", "c", "t", "r"] {
+            assert_eq!(dev_key(&Key::Character(key.into())), None, "{key}");
+        }
+        assert_eq!(dev_key(&Key::Named(NamedKey::Space)), None);
+        assert_eq!(dev_key(&Key::Named(NamedKey::Tab)), None);
+        assert_eq!(dev_key(&Key::Named(NamedKey::Enter)), None);
+        assert_eq!(dev_key(&Key::Named(NamedKey::Escape)), None);
     }
 
     #[test]

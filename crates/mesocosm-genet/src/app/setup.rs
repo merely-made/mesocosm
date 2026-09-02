@@ -121,6 +121,7 @@ impl Host {
             vitals: crate::vitals::VitalsChrome::new(&device),
             checkpoint: crate::succession::SuccessionChrome::new(&device),
             board: crate::review::BoardChrome::new(&device),
+            dev: crate::dev::DevChrome::new(&device),
             device,
         });
 

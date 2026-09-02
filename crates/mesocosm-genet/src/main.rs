@@ -18,6 +18,11 @@
 //! offer). At the epoch boundary the trait board comes up instead: Tab moves
 //! among the candidates, R commits the selected one, Enter goes back to the
 //! terrarium.
+//!
+//! `--dev` (DT1) adds a fifth chrome lane and five keys, live only while it
+//! is set: P pauses or unpauses the clock, `.` steps once and `,` steps ten,
+//! both off the clock, and `[`/`]` move the clock's speed down or up a rung.
+//! See [`mesocosm_genet::input`] for the exact mapping.
 
 use std::path::PathBuf;
 
@@ -54,6 +59,9 @@ fn main() {
                     seed_given = true;
                 }
             }
+            // The dev lane and its keys (DT1). Off by default; recorded in
+            // the receipt either way.
+            "--dev" => config.dev = true,
             "--help" | "-h" => {
                 println!("{}", HELP);
                 return;
@@ -134,6 +142,7 @@ mesocosm-genet: run Mesocosm in a window
   --auto-eat N    metabolize automatically every N steps
   --seed N        world seed
   --slab H        section slab half-height in voxels (presentation only, default 28)
+  --dev           enable the dev lane and its keys (DT1); off by default
 
 controls: WASD move, E/Space eat, Q deposit, C dig, arrows pan, Esc quit
 at a checkpoint the world stops and the keys narrow:
@@ -142,4 +151,11 @@ at a checkpoint the world stops and the keys narrow:
 at the epoch boundary the trait board comes up instead:
   Tab    move among the candidates
   R      commit the selected candidate to your line
-  Enter  back to the terrarium";
+  Enter  back to the terrarium
+with --dev, five more keys are live (host-only; none of them ever reaches
+the trace, so a replay's hash cannot move because of one):
+  P      pause or unpause the clock
+  .      step once, off the clock
+  ,      step ten, off the clock
+  [      one rung slower on the speed ladder (1/4, 1/2, 1, 2, 4)
+  ]      one rung faster";

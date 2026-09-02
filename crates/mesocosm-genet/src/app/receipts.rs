@@ -41,6 +41,11 @@ impl Host {
                 lanes
                     .vitals
                     .capture_composite(&lanes.device, format, encoder, target, frame);
+                if self.config.dev {
+                    lanes
+                        .dev
+                        .capture_composite(&lanes.device, format, encoder, target, frame);
+                }
                 lanes
                     .checkpoint
                     .capture_composite(&lanes.device, format, encoder, target, frame);
@@ -177,6 +182,7 @@ impl Host {
                 .capture
                 .as_ref()
                 .map(|path| path.display().to_string()),
+            dev: self.config.dev,
         }
     }
 }

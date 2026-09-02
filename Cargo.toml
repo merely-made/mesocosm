@@ -62,6 +62,11 @@ genet-scripted-dom = { git = "https://github.com/merely-made/genet.git", branch 
 # ScriptedDom now. Isometry's host still names the old crate, so read that one
 # for the shape and this for the calls.
 genet-livery = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+# Reusable split-and-tab tile arrangement (ruled 2026-09-02, dev tools plan
+# §4): the dev lane's placement is a `workbench::TileTree`'s own geometry
+# rather than a hand-rolled corner constant. Same git source and reference as
+# cambium, for the reason stated above it.
+workbench = { git = "https://github.com/merely-made/genet.git", branch = "main" }
 # The HUD lane (route A, ruled 2026-08-02): leaves paint PaintCmds,
 # paint_list_render lowers them, netrender rasterizes on the game's own
 # device. The wgpu-29 pin below exists for exactly this sharing.

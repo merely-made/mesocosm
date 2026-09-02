@@ -18,15 +18,17 @@
 //! live world (PS1). Camera motion is presentation only and never enters the
 //! trace, which is what lets a recorded session replay to the same hash.
 
-//! Four chrome lanes ride the frame, all through [`chrome`]: the painted
+//! Five chrome lanes ride the frame, all through [`chrome`]: the painted
 //! minimap ([`hud`]), the cambium vitals panel ([`vitals`], landed 2026-08-29),
-//! the individual checkpoint ([`succession`], PE1) and the trait board
-//! ([`review`], PE3b). The last two draw only while the driver is holding the
-//! world at a question, and never both at once. None of them touches the
-//! world, so none can reach the trace.
+//! the individual checkpoint ([`succession`], PE1), the trait board
+//! ([`review`], PE3b), and the dev lane ([`dev`], DT1). The checkpoint and the
+//! board draw only while the driver is holding the world at a question, and
+//! never both at once; the dev lane draws only while `--dev` is set. None of
+//! them touches the world, so none can reach the trace.
 
 pub mod app;
 pub mod chrome;
+pub mod dev;
 pub mod fixture;
 pub mod hud;
 pub mod input;

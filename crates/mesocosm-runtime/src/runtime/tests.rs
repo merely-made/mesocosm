@@ -154,6 +154,102 @@ fn receipts_match_when_runs_match() {
     assert_eq!(a, b);
 }
 
+/// DT1's determinism receipt: pause (dropped elapsed time) and speed (scaled
+/// elapsed time) are host pacing over `advance`, and the manual step keys are
+/// `step` off the clock entirely — none of the three is a second input to
+/// the simulation, only a second way of asking for the same one. A run driven
+/// through the identical intents with pauses, speed changes and manual steps
+/// interleaved between calls reaches the same hash as one driven straight.
+///
+/// `uneven_frames_do_not_change_the_simulation` above already proves ragged
+/// `advance` chunks agree; this adds the two things DT1 introduces that test
+/// does not exercise — a chunk of exactly zero (a pause) and `step` mixed
+/// into the same run as `advance` (the step keys) — and states the claim in
+/// the plan's own terms.
+#[test]
+fn pauses_speed_changes_and_manual_steps_do_not_change_the_hash() {
+    // Six intents, repeated: long enough to run through every pacing shape
+    // below more than once, short enough that nothing here grows a body far
+    // enough to open a checkpoint (see `tests/checkpoint.rs` for what
+    // `step`'s contract does once one stands).
+    let intents: Vec<Intent> = scripted().into_iter().cycle().take(42).collect();
+    let ticks_per_second = 10;
+    let nominal_us = 1_000_000 / ticks_per_second as u64;
+
+    let straight = {
+        let mut rt = Runtime::new(9_001, 20, ticks_per_second).with_max_steps(u64::MAX);
+        for intent in &intents {
+            rt.queue(intent.clone());
+        }
+        for _ in 0..intents.len() {
+            rt.advance(nominal_us);
+        }
+        rt
+    };
+
+    let paced = {
+        let mut rt = Runtime::new(9_001, 20, ticks_per_second).with_max_steps(u64::MAX);
+        for intent in &intents {
+            rt.queue(intent.clone());
+        }
+        let total = intents.len() as u64;
+        let mut taken = 0u64;
+        let mut cycle = 0usize;
+        while taken < total {
+            // Every branch is capped at what remains, so a chunk near the
+            // end of the run can never authorise a tick past the recording's
+            // last one and pull in a synthetic `Idle` the straight run never
+            // saw. The cap changes nothing about what a call is *asked* for
+            // in the ordinary case — `remaining` only binds at the tail.
+            let remaining = total - taken;
+            taken += match cycle % 5 {
+                // Paused: elapsed time dropped rather than banked, same as a
+                // checkpoint hold — nothing runs. Never needs the cap: zero
+                // can never overshoot.
+                0 => rt.advance(0),
+                // Quarter speed: on its own this authorises nothing (a
+                // quarter tick is under the clock's threshold); several in a
+                // row carry the remainder past a whole tick. Never needs the
+                // cap either: the clock's own remainder is always under one
+                // tick between calls, so a single quarter-tick addition can
+                // push it past at most one boundary.
+                1 => rt.advance(nominal_us / 4),
+                // Ordinary speed: exactly one tick.
+                2 => rt.advance(remaining.min(1) * nominal_us),
+                // Quadruple speed: several ticks in one call.
+                3 => rt.advance(remaining.min(4) * nominal_us),
+                // The manual step key, off the clock entirely.
+                _ => rt.step(remaining.min(3)),
+            };
+            cycle += 1;
+        }
+        rt
+    };
+
+    assert_eq!(
+        straight.trace(),
+        paced.trace(),
+        "the same intents in the same order, however the host paced them"
+    );
+    assert_eq!(straight.state_hash(), paced.state_hash());
+}
+
+/// The pause half of DT1's contract, isolated: no elapsed time authorises no
+/// steps. This is what a host does every frame while paused — it still calls
+/// `advance`, but with nothing in it.
+#[test]
+fn advancing_with_zero_elapsed_time_takes_no_steps() {
+    let mut rt = Runtime::new(9, 8, 60).with_max_steps(u64::MAX);
+    rt.queue(Intent::Idle);
+    assert_eq!(
+        rt.advance(0),
+        0,
+        "no elapsed time authorises no steps — a host-side pause looks \
+         exactly like a very slow frame"
+    );
+    assert!(rt.trace().is_empty());
+}
+
 #[test]
 fn manual_stepping_matches_clocked_stepping() {
     let clocked = {

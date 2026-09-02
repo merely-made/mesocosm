@@ -22,78 +22,24 @@ use winit::window::{Window, WindowId};
 use crate::chrome::Chrome;
 use crate::fixture;
 use crate::input;
-use crate::played::PlayedTrace;
 use crate::section::{self, Pan, Section, SectionFrame};
 
+mod config;
+mod devtime;
 mod receipts;
 mod setup;
 
-#[derive(Clone, Debug)]
-pub struct HostConfig {
-    pub seed: u64,
-    pub organisms: u32,
-    pub ticks_per_second: u32,
-    pub width: u32,
-    pub height: u32,
-    /// Run this many frames and exit. Makes the windowed path verifiable
-    /// without a person sitting in front of it.
-    pub frames: Option<u32>,
-    /// Write the last frame here before exiting.
-    pub capture: Option<PathBuf>,
-    /// Write the session's intent trace here before exiting. Skipped on a
-    /// replay, whose trace is an input rather than a result.
-    pub trace: Option<PathBuf>,
-    /// Write the run's receipt here before exiting.
-    pub receipt: Option<PathBuf>,
-    /// Drive the run from this trace instead of the keyboard. The self-driving
-    /// receipt: exactly one recorded intent per fixed step, then a hash
-    /// assertion against what the trace recorded.
-    pub replay: Option<PlayedTrace>,
-    /// Metabolize automatically every N steps, so a capture run has something
-    /// to show without keyboard input.
-    pub auto_eat_every: Option<u64>,
-    /// Half the height of the section's orthographic slab, in voxels — how much
-    /// world the terrarium view frames.
-    ///
-    /// The default is ruled ([`section::SLAB_HALF_HEIGHT`], 28 since
-    /// 2026-08-29); the knob stays so every framing remains reproducible from
-    /// the tree. Presentation only: it never reaches an intent, so it cannot
-    /// move a replay hash.
-    pub slab_half_height: f32,
-}
-
-impl Default for HostConfig {
-    fn default() -> Self {
-        Self {
-            seed: 0x00A7_7AC4,
-            // The world's own area-scaled cohort, not a literal: S1 tied the
-            // founding population to the enclosure's floor area so a wider
-            // terrarium is bigger rather than emptier.
-            organisms: mesocosm_core::world::FOUNDERS,
-            // The canonical played tempo (TD2, ruled 2026-08-29). Sixty was
-            // never chosen; it was the frame rate, and driving the ecology's
-            // tick-tuned life history at it mapped a whole lifetime onto
-            // seventeen seconds. Ten gives 100ms input granularity and puts a
-            // starter's life at about five minutes. Headless labs and the
-            // population instrument keep their own rates.
-            ticks_per_second: 10,
-            width: 960,
-            height: 540,
-            frames: None,
-            capture: None,
-            trace: None,
-            receipt: None,
-            replay: None,
-            auto_eat_every: None,
-            slab_half_height: section::SLAB_HALF_HEIGHT,
-        }
-    }
-}
+pub use config::HostConfig;
 
 /// Recorded steps a replay frame drives. Exact, not throttled: the queue is
 /// topped up with precisely this many intents and precisely this many steps
 /// run, so a replay's trace is the recording's trace and nothing else.
 const REPLAY_STEPS_PER_FRAME: usize = 4;
+
+/// Steps the dev "step N" key runs at once (DT1). One named constant, per
+/// the plan, rather than a literal at each call site. See [`devtime`] for
+/// the rest of DT1's host-only time control.
+pub const DEV_STEP_N: u64 = 10;
 
 /// One drawable thing in the world: its geometry, where it sits, and how
 /// brightly it reads.
@@ -160,6 +106,15 @@ pub struct Host {
     /// Process exit code. Nonzero only when a replay landed on a different
     /// hash than the one its trace recorded.
     code: i32,
+    /// Host-only time control (DT1); see `app::devtime`. None of it is in
+    /// the snapshot, the trace, or the hash.
+    dev_paused: bool,
+    /// Index into devtime's speed ladder.
+    dev_speed_idx: usize,
+    /// Ticks taken through the dev step keys this session, shown on the dev
+    /// lane. `steps` already counts them; this counts how many arrived by
+    /// hand.
+    dev_manual_steps: u64,
 }
 
 struct Gpu {
@@ -174,16 +129,18 @@ struct Gpu {
     chrome: Option<Lanes>,
 }
 
-/// The four chrome lanes over one netrender instance and one blend pass: the
-/// painted minimap, the cambium vitals panel, the individual checkpoint, and
-/// the trait board. The last two draw only while the world is holding at a
-/// question, and never both: a lineage checkpoint is the board's.
+/// The five chrome lanes over one netrender instance and one blend pass: the
+/// painted minimap, the cambium vitals panel, the individual checkpoint, the
+/// trait board, and the dev lane. The checkpoint and the board draw only
+/// while the world is holding at a question, and never both: a lineage
+/// checkpoint is the board's. The dev lane draws only while `--dev` is set.
 pub(crate) struct Lanes {
     device: Chrome,
     hud: crate::hud::Hud,
     vitals: crate::vitals::VitalsChrome,
     checkpoint: crate::succession::SuccessionChrome,
     board: crate::review::BoardChrome,
+    dev: crate::dev::DevChrome,
 }
 
 /// The shipped pack's root, derived from this crate's own location rather than
@@ -230,6 +187,9 @@ impl Host {
             body_capsules_dropped: 0,
             board_row: 0,
             code: 0,
+            dev_paused: false,
+            dev_speed_idx: devtime::DEV_SPEED_DEFAULT_IDX,
+            dev_manual_steps: 0,
         }
     }
 
@@ -312,6 +272,9 @@ impl Host {
             .map(|then| now.duration_since(then).as_micros() as u64)
             .unwrap_or(0);
         self.last = Some(now);
+        // Host-only time control (DT1): pause and speed applied to this
+        // frame's elapsed time before the clock ever sees it. See `devtime`.
+        let elapsed_us = self.dev_paced_elapsed(elapsed_us);
 
         // Auto-eat lets a capture run grow a body with nobody at the keyboard.
         // It stops at a checkpoint like a hand would: an unattended run reaches
@@ -421,6 +384,9 @@ impl Host {
             _ => 0,
         };
         self.board_row = board_row;
+        // The dev lane's own reading (DT1). `None` outside `--dev`, which is
+        // also when nothing below touches `lanes.dev` at all.
+        let dev = self.dev_reading();
 
         let world = self.runtime.world();
         let Some(gpu) = &mut self.gpu else { return };
@@ -481,6 +447,10 @@ impl Host {
             lanes
                 .vitals
                 .composite(&lanes.device, &mut encoder, &view, frame);
+            // The dev lane (DT1). Ordinary chrome beside the vitals panel,
+            // not a stopped-world overlay, so it sits with it rather than
+            // with the checkpoint and the board below.
+            devtime::composite_dev_lane(lanes, dev.as_ref(), &mut encoder, &view, frame);
             // Last, and over everything: while either of these is up the world
             // is not running, and it should look that way. The board takes the
             // lineage checkpoint and the checkpoint panel takes the rest, so
@@ -537,6 +507,13 @@ impl ApplicationHandler for Host {
                     // key contributes its initial keydown and nothing more
                     // while it stays down.
                     key if self.config.replay.is_none() && !event.repeat => {
+                        // Dev keys first: none of the five collides with a
+                        // play key (see `input`'s module docs), but checking
+                        // here means a dev build's controls never drift one
+                        // key handler's accident away from live.
+                        if self.try_dev_key(key) {
+                            return;
+                        }
                         // At a checkpoint the keyboard narrows to the answers:
                         // the world is stopped, so a move has nothing to move
                         // and would only go stale in the queue. At a lineage

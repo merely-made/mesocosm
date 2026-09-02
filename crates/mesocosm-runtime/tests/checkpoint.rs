@@ -185,6 +185,28 @@ fn the_world_holds_until_the_question_is_answered() {
     assert!(rt.checkpoint().is_some());
 }
 
+/// DT1's second determinism claim, in exactly the words the dev tools plan
+/// states it: `step(N)` runs `N` unless a checkpoint holds it, and then it
+/// runs fewer. This is the dev "step" and "step N" keys' whole contract —
+/// they call `Runtime::step` unmodified — so this is the receipt for both.
+#[test]
+fn step_n_runs_exactly_n_unless_a_checkpoint_holds_it_and_then_fewer() {
+    let mut rt = Runtime::new(4_242, 60, 10);
+    assert_eq!(rt.step(37), 37, "nothing holds an idle terrarium");
+
+    let (mut rt, _, _) = run_to_a_birth(11);
+    assert_eq!(
+        rt.step(10),
+        0,
+        "a standing question takes fewer than asked — here, none, because \
+         the front of an empty queue defaults to `Idle` and `Idle` does not \
+         answer a checkpoint"
+    );
+
+    rt.queue(Intent::Resume);
+    assert_eq!(rt.step(1), 1, "and answering it releases exactly one");
+}
+
 /// One recorded choice resumes play, and it is in the trace afterwards.
 #[test]
 fn one_recorded_choice_resumes_play() {

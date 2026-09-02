@@ -20,12 +20,14 @@
 //! leaves — the view fn and its sheet live here, host-agnostic, and the host
 //! decides only where the result lands.
 
+pub mod dev;
 pub mod leaf;
 pub mod minimap;
 pub mod review;
 pub mod succession;
 pub mod vitals;
 
+pub use dev::{Dev, DevChild, dev_css, dev_root};
 pub use leaf::MinimapLeaf;
 pub use minimap::{
     MINIMAP_ADAPTER, dominant_lineages, lineage_tint, minimap_leaf, minimap_scene, minimap_score,
