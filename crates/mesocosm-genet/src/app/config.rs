@@ -47,6 +47,15 @@ pub struct HostConfig {
     /// Off by default (DT1). On, the dev lane draws and its keys go live;
     /// recorded in the receipt either way.
     pub dev: bool,
+    /// Which critter the section starts centred on (DT2).
+    ///
+    /// **Only where the camera starts.** `N`, `B` and `M` move it from here
+    /// like any other frame, and a target that is not alive is reported and
+    /// dropped on the first frame. It exists so an unattended `--frames` run
+    /// can be captured with the follow target off the played body, which is
+    /// what DT2's headed receipt has to show; nothing about it reaches an
+    /// intent, so it cannot move a replay hash.
+    pub follow: Option<u32>,
 }
 
 impl Default for HostConfig {
@@ -74,6 +83,7 @@ impl Default for HostConfig {
             auto_eat_every: None,
             slab_half_height: section::SLAB_HALF_HEIGHT,
             dev: false,
+            follow: None,
         }
     }
 }

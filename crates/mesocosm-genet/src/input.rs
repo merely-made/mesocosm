@@ -49,20 +49,28 @@
 //! module entirely. What was queued and dropped at the keyboard cannot move a
 //! replay's hash, only how quickly a played session answers a key.
 //!
-//! # Dev keys (DT1)
+//! # Dev keys (DT1, DT2)
 //!
-//! Live only while `--dev` is set. Five, chosen clear of every key play
-//! already owns (WASD, E, Space, Q, C, the arrows, Tab, R, Enter, Escape):
+//! Live only while `--dev` is set. Eight, chosen clear of every key play
+//! already owns (WASD, E, Space, Q, C, the arrows, Tab, R, T, Enter, Escape):
 //!
-//! - `P` — pause or unpause the clock.
+//! - `P` — pause or unpause the clock. (DT1)
 //! - `.` (period) — one step, off the clock.
 //! - `,` (comma) — [`crate::app::DEV_STEP_N`] steps, off the clock.
 //! - `[` — one rung slower on the speed ladder.
 //! - `]` — one rung faster.
+//! - `N` — follow the next living critter in id order, wrapping. (DT2)
+//! - `B` — follow the previous one, wrapping the other way.
+//! - `M` — snap follow back to the critter under the hand.
 //!
-//! None of the five reaches [`Runtime::queue`]: they are host pacing over
-//! `Runtime::advance` and `Runtime::step`, not intents, so none can enter the
-//! trace. See [`DevKey`] and [`dev_key`].
+//! None of the eight reaches [`Runtime::queue`]: they are host pacing over
+//! `Runtime::advance` and `Runtime::step`, and a host-side camera centre, not
+//! intents, so none can enter the trace. See [`DevKey`] and [`dev_key`].
+//!
+//! **Follow is not control.** `N`, `B` and `M` move where the section's slab is
+//! centred and nothing else: the played body stays the played body, no intent
+//! is queued, and `T` — the one key that does move control, and only at a
+//! checkpoint — is untouched.
 
 use mesocosm_core::{Intent, Placement, World};
 use mesocosm_mesh::VolumeMap;
@@ -217,6 +225,12 @@ pub enum DevKey {
     SlowDown,
     /// `]`. One rung faster, capped at its fastest.
     SpeedUp,
+    /// `N`. The next living critter in id order, wrapping. (DT2)
+    FollowNext,
+    /// `B`. The previous one, wrapping the other way.
+    FollowBack,
+    /// `M`. Back to the critter under the hand.
+    FollowSelf,
 }
 
 /// Turns a key into a dev action. `None` for every other key, which then
@@ -229,6 +243,9 @@ pub fn dev_key(key: &Key) -> Option<DevKey> {
             "," => Some(DevKey::StepN),
             "[" => Some(DevKey::SlowDown),
             "]" => Some(DevKey::SpeedUp),
+            "n" | "N" => Some(DevKey::FollowNext),
+            "b" | "B" => Some(DevKey::FollowBack),
+            "m" | "M" => Some(DevKey::FollowSelf),
             _ => None,
         },
         _ => None,
@@ -297,10 +314,9 @@ mod tests {
         );
     }
 
-    /// The five dev keys, and nothing else on the same row of the keyboard,
-    /// resolve to a dev action.
+    /// The eight dev keys, and nothing else, resolve to a dev action.
     #[test]
-    fn the_five_dev_keys_resolve_and_nothing_play_owns_collides() {
+    fn the_dev_keys_resolve_and_nothing_play_owns_collides() {
         assert_eq!(
             dev_key(&Key::Character("p".into())),
             Some(DevKey::TogglePause)
@@ -313,8 +329,26 @@ mod tests {
         assert_eq!(dev_key(&Key::Character(",".into())), Some(DevKey::StepN));
         assert_eq!(dev_key(&Key::Character("[".into())), Some(DevKey::SlowDown));
         assert_eq!(dev_key(&Key::Character("]".into())), Some(DevKey::SpeedUp));
+        // DT2's three, in both cases.
+        assert_eq!(
+            dev_key(&Key::Character("n".into())),
+            Some(DevKey::FollowNext)
+        );
+        assert_eq!(
+            dev_key(&Key::Character("N".into())),
+            Some(DevKey::FollowNext)
+        );
+        assert_eq!(
+            dev_key(&Key::Character("b".into())),
+            Some(DevKey::FollowBack)
+        );
+        assert_eq!(
+            dev_key(&Key::Character("m".into())),
+            Some(DevKey::FollowSelf)
+        );
 
-        // Every key play already owns falls through undisturbed.
+        // Every key play already owns falls through undisturbed — `t` above
+        // all, because it is the one key that does move control.
         for key in ["w", "a", "s", "d", "e", "q", "c", "t", "r"] {
             assert_eq!(dev_key(&Key::Character(key.into())), None, "{key}");
         }

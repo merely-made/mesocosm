@@ -222,3 +222,57 @@ fn every_variant_names_its_subjects() {
         assert!(!event.subjects().is_empty(), "{event:?} names nobody");
     }
 }
+
+/// The ending reading: the record's own event, and the tick off its envelope.
+/// (DT2)
+#[test]
+fn an_ending_is_the_records_own_event_with_its_tick() {
+    let mut history = History::new();
+    history.record(at(1, born(A, None)));
+    history.record(at(1, born(B, None)));
+
+    // Still alive: this past holds no ending for either of them.
+    assert_eq!(history.ending(A), None);
+    assert_eq!(history.ending(B), None);
+
+    history.record(at(
+        812,
+        Event::Died {
+            organism: A,
+            species: SPECIES,
+        },
+    ));
+    assert_eq!(
+        history.ending(A),
+        Some(Ending {
+            organism: A,
+            tick: 812,
+            how: Passing::Died,
+        })
+    );
+    assert_eq!(history.ending(B), None, "somebody else's death is not B's");
+
+    // Eaten to nothing leaves no corpse, and the record says so with the other
+    // event.
+    history.record(at(900, Event::Returned { organism: B }));
+    assert_eq!(
+        history.ending(B),
+        Some(Ending {
+            organism: B,
+            tick: 900,
+            how: Passing::Returned,
+        })
+    );
+
+    // A corpse that finishes decaying returns after it died, and the later of
+    // the two is the one that is true now.
+    history.record(at(1_100, Event::Returned { organism: A }));
+    assert_eq!(
+        history.ending(A),
+        Some(Ending {
+            organism: A,
+            tick: 1_100,
+            how: Passing::Returned,
+        })
+    );
+}

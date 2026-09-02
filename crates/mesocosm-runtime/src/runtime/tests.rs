@@ -272,3 +272,57 @@ fn manual_stepping_matches_clocked_stepping() {
     };
     assert_eq!(clocked, manual);
 }
+
+/// DT2's determinism receipt, DT1's stated in the same terms: watching a body
+/// reduces the stream the readings already reduce and writes nothing back, so
+/// a run with an inspector on it and one without are the same world.
+#[test]
+fn watching_a_body_does_not_change_the_hash() {
+    let intents: Vec<Intent> = scripted().into_iter().cycle().take(24).collect();
+    let run = |watch: Option<OrganismId>| {
+        let mut rt = Runtime::new(9_001, 20, 10).with_max_steps(u64::MAX);
+        rt.watch(watch);
+        for intent in &intents {
+            rt.queue(intent.clone());
+        }
+        rt.step(intents.len() as u64);
+        rt
+    };
+    let unwatched = run(None);
+    let watched = run(Some(OrganismId(0)));
+    assert_eq!(unwatched.trace(), watched.trace());
+    assert_eq!(unwatched.state_hash(), watched.state_hash());
+
+    // And the window is a real reading: it covers exactly the ticks it was
+    // watched for, and the played body pays rent in every one of them.
+    let accounts = watched.accounts();
+    assert_eq!(accounts.ticks, intents.len() as u64);
+    assert!(
+        accounts.rent_mg > 0,
+        "a living body spends something on standing still"
+    );
+    assert_eq!(unwatched.accounts(), mesocosm_core::Accounts::default());
+}
+
+/// Watching is idempotent, and a change of subject starts the window over —
+/// figures carried across one would be somebody else's.
+#[test]
+fn rewatching_the_same_body_keeps_its_window_and_a_new_one_starts_over() {
+    let mut rt = Runtime::new(9_001, 20, 10).with_max_steps(u64::MAX);
+    rt.watch(Some(OrganismId(0)));
+    rt.step(10);
+    assert_eq!(rt.accounts().ticks, 10);
+
+    rt.watch(Some(OrganismId(0)));
+    assert_eq!(rt.accounts().ticks, 10, "the same body keeps its window");
+    assert_eq!(rt.watched(), Some(OrganismId(0)));
+
+    rt.watch(Some(OrganismId(1)));
+    assert_eq!(rt.accounts(), mesocosm_core::Accounts::default());
+    rt.step(4);
+    assert_eq!(rt.accounts().ticks, 4);
+
+    rt.watch(None);
+    assert_eq!(rt.accounts(), mesocosm_core::Accounts::default());
+    assert_eq!(rt.watched(), None);
+}

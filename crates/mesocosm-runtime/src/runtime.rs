@@ -12,7 +12,9 @@
 
 use std::collections::VecDeque;
 
-use mesocosm_core::{History, Intent, Outcome, Reading, Trend, World, state_hash};
+use mesocosm_core::{
+    Accounts, History, Intent, OrganismId, Outcome, Reading, Trend, World, state_hash,
+};
 
 use crate::clock::Clock;
 use crate::readings::FlowWindows;
@@ -45,6 +47,19 @@ pub struct Runtime {
     /// put a presentation reading inside the replay hash. `Runtime::replayed`
     /// rebuilds it, which is that claim made executable.
     readings: FlowWindows,
+    /// The one body whose own accounts are being reduced beside the ecology's,
+    /// and what they read. (DT2)
+    ///
+    /// **One body, because an inspector looks at one.** A per-organism ring for
+    /// every creature in the enclosure would be a reading nobody asked for at
+    /// nine hundred times the cost; this is three integers and an id. Reset
+    /// whenever the id changes, so a window always covers the body it names.
+    ///
+    /// Beside the world like the readings above it: nothing here is written
+    /// back, so watching a body cannot move the trace or the hash. A caller
+    /// that never watches pays one `Option` comparison per tick.
+    watched: Option<OrganismId>,
+    accounts: Accounts,
     /// The question the world is holding at, if it is holding at one.
     ///
     /// **The pause lives here and nowhere else.** Stepping is the driver's job,
@@ -99,6 +114,8 @@ impl Runtime {
             trace: Vec::new(),
             history: History::new(),
             readings: FlowWindows::new(),
+            watched: None,
+            accounts: Accounts::default(),
             checkpoint: None,
             review: None,
             authored: None,
@@ -239,6 +256,11 @@ impl Runtime {
         let events = self.world.drain_events();
         let flows = self.world.drain_flows();
         self.readings.absorb(&events, &flows);
+        // The watched body's own half of the same tick, through core's split.
+        // (DT2)
+        if let Some(watched) = self.watched {
+            self.accounts.absorb(watched, &flows);
+        }
         // Recorded before the question is put, so a line that gained a
         // descendant on the same tick it lost its body can still be continued
         // through that descendant.
@@ -325,6 +347,35 @@ impl Runtime {
     /// What those windows currently read: facts and the windows they cover.
     pub fn trend(&self) -> Trend {
         self.readings.trend()
+    }
+
+    /// Reduces one body's own accounts beside the ecology's windows. (DT2)
+    ///
+    /// Idempotent: watching the body already watched keeps the window it has,
+    /// so a host may call this every frame. Naming a different body — or none —
+    /// starts the window over, because figures carried across a change of
+    /// subject would be somebody else's.
+    ///
+    /// Presentation only. It reduces the same drained stream the readings do
+    /// and writes nothing back, so a run that watches a body and one that never
+    /// does are the same world and the same state hash.
+    pub fn watch(&mut self, organism: Option<OrganismId>) {
+        if self.watched == organism {
+            return;
+        }
+        self.watched = organism;
+        self.accounts = Accounts::default();
+    }
+
+    /// Which body is being watched, if any.
+    pub fn watched(&self) -> Option<OrganismId> {
+        self.watched
+    }
+
+    /// What the watched body's accounts read, over the ticks since it was
+    /// watched. All zero, over zero ticks, when nobody is.
+    pub fn accounts(&self) -> Accounts {
+        self.accounts
     }
 
     /// What each lineage has done, without noting any of it.

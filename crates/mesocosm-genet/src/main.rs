@@ -19,10 +19,13 @@
 //! among the candidates, R commits the selected one, Enter goes back to the
 //! terrarium.
 //!
-//! `--dev` (DT1) adds a fifth chrome lane and five keys, live only while it
-//! is set: P pauses or unpauses the clock, `.` steps once and `,` steps ten,
-//! both off the clock, and `[`/`]` move the clock's speed down or up a rung.
-//! See [`mesocosm_genet::input`] for the exact mapping.
+//! `--dev` adds a fifth chrome lane and eight keys, live only while it is set.
+//! DT1's five drive time: P pauses or unpauses the clock, `.` steps once and
+//! `,` steps ten, both off the clock, and `[`/`]` move the clock's speed down
+//! or up a rung. DT2's three drive the camera: N and B cycle the follow target
+//! through the living roster in id order, and M snaps it back to the critter
+//! under your hand. Following moves the camera and nothing else — control
+//! stays where it is. See [`mesocosm_genet::input`] for the exact mapping.
 
 use std::path::PathBuf;
 
@@ -62,6 +65,9 @@ fn main() {
             // The dev lane and its keys (DT1). Off by default; recorded in
             // the receipt either way.
             "--dev" => config.dev = true,
+            // Where the camera starts (DT2). Presentation only, and only a
+            // starting point: the follow keys move it from here.
+            "--follow" => config.follow = args.next().and_then(|v| v.parse().ok()),
             "--help" | "-h" => {
                 println!("{}", HELP);
                 return;
@@ -142,7 +148,9 @@ mesocosm-genet: run Mesocosm in a window
   --auto-eat N    metabolize automatically every N steps
   --seed N        world seed
   --slab H        section slab half-height in voxels (presentation only, default 28)
-  --dev           enable the dev lane and its keys (DT1); off by default
+  --dev           enable the dev lane and its keys (DT1, DT2); off by default
+  --follow ID     start the camera on this critter (DT2; needs --dev to be
+                  worth anything, presentation only)
 
 controls: WASD move, E/Space eat, Q deposit, C dig, arrows pan, Esc quit
 at a checkpoint the world stops and the keys narrow:
@@ -152,10 +160,14 @@ at the epoch boundary the trait board comes up instead:
   Tab    move among the candidates
   R      commit the selected candidate to your line
   Enter  back to the terrarium
-with --dev, five more keys are live (host-only; none of them ever reaches
+with --dev, eight more keys are live (host-only; none of them ever reaches
 the trace, so a replay's hash cannot move because of one):
   P      pause or unpause the clock
   .      step once, off the clock
   ,      step ten, off the clock
   [      one rung slower on the speed ladder (1/4, 1/2, 1, 2, 4)
-  ]      one rung faster";
+  ]      one rung faster
+  N      follow the next living critter in id order, wrapping
+  B      follow the previous one
+  M      snap the camera back to the critter under your hand
+following moves the camera and nothing else: control stays where it is";

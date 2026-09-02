@@ -86,12 +86,12 @@ pub use discovery::{
 };
 pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use flow::{
-    Account, Carrier, Envelope, FlowEvent, Ledger, RecordedEvent, RecordedFlow, Subject, Trend,
-    WARN_AFTER_TICKS,
+    Account, Accounts, Carrier, Envelope, FlowEvent, Ledger, RecordedEvent, RecordedFlow, Subject,
+    Trend, WARN_AFTER_TICKS,
 };
 pub use graft::{Affinity, Crossing, Domain, Verdict};
 pub use growth::{Growth, resolve};
-pub use history::{Event, History, MealKind};
+pub use history::{Ending, Event, History, MealKind, Passing};
 pub use organism::{
     FaunaDecisionTrace, FaunaDrive, FaunaDriveScores, FaunaPolicy, FaunaSenses, FaunaTraits,
     Kingdom, Organism, OrganismId, Signal, Stage, Tally,

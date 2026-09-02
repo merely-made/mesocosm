@@ -53,8 +53,11 @@ impl Host {
 
     /// The whole of the key handler's dev interception: off outside
     /// `--dev`, and `true` (having already applied the action) for one of
-    /// the five keys `--dev` makes live. Kept off unless the flag is set, so
+    /// the eight keys `--dev` makes live. Kept off unless the flag is set, so
     /// an ordinary build's keyboard is exactly what it was before DT1.
+    ///
+    /// The three follow keys are handed to [`super::follow`]; none of the
+    /// eight reaches `Runtime::queue` either way.
     pub(super) fn try_dev_key(&mut self, key: &winit::keyboard::Key) -> bool {
         if !self.config.dev {
             return false;
@@ -69,6 +72,10 @@ impl Host {
             input::DevKey::SlowDown => self.dev_speed_idx = self.dev_speed_idx.saturating_sub(1),
             input::DevKey::SpeedUp => {
                 self.dev_speed_idx = (self.dev_speed_idx + 1).min(DEV_SPEED_LADDER.len() - 1);
+            }
+            // DT2: the camera's centre, and nothing else.
+            input::DevKey::FollowNext | input::DevKey::FollowBack | input::DevKey::FollowSelf => {
+                self.follow_key(action)
             }
         }
         true
@@ -85,12 +92,21 @@ impl Host {
 
     /// The dev lane's reading, taken fresh each frame. `None` when `--dev` is
     /// off, which is also when nothing calls into `crate::dev` at all.
+    ///
+    /// The time half is this module's; the follow half is `super::follow`'s,
+    /// and every line of it comes back out of a core query.
     pub(super) fn dev_reading(&self) -> Option<mesocosm_views::Dev> {
-        self.config.dev.then(|| mesocosm_views::Dev {
+        if !self.config.dev {
+            return None;
+        }
+        let (follow, lost) = self.follow_reading();
+        Some(mesocosm_views::Dev {
             running: !self.dev_paused,
             speed: DEV_SPEED_LADDER[self.dev_speed_idx].1,
             tick: self.steps,
             manual_steps: self.dev_manual_steps,
+            follow,
+            lost,
         })
     }
 }

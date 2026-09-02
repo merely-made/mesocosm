@@ -26,6 +26,7 @@ use crate::section::{self, Pan, Section, SectionFrame};
 
 mod config;
 mod devtime;
+mod follow;
 mod receipts;
 mod setup;
 
@@ -115,6 +116,17 @@ pub struct Host {
     /// lane. `steps` already counts them; this counts how many arrived by
     /// hand.
     dev_manual_steps: u64,
+    /// The critter the section's slab is centred on, when it is not the one
+    /// under the hand (DT2). `None` means the controlled critter, which is
+    /// where the camera goes back to when its target dies or `M` is pressed.
+    ///
+    /// Host state, outside the snapshot: it moves the camera and nothing else,
+    /// so it can no more reach the trace than the pan beside it. See
+    /// `app::follow`.
+    follow: Option<mesocosm_core::OrganismId>,
+    /// A followed critter that stopped being one, kept so the tile can report
+    /// it after follow has snapped back.
+    follow_lost: Option<mesocosm_views::Lost>,
 }
 
 struct Gpu {
@@ -171,6 +183,11 @@ impl Host {
                 runtime
             }
         };
+        // A fixed follow target for an unattended capture run (DT2). It is
+        // only where the camera starts: the ordinary keys move it from here,
+        // and a target that is not alive is reported and dropped on the first
+        // frame like any other.
+        let follow = config.follow.map(mesocosm_core::OrganismId);
         Self {
             config,
             runtime,
@@ -190,6 +207,8 @@ impl Host {
             dev_paused: false,
             dev_speed_idx: devtime::DEV_SPEED_DEFAULT_IDX,
             dev_manual_steps: 0,
+            follow,
+            follow_lost: None,
         }
     }
 
@@ -331,12 +350,26 @@ impl Host {
     }
 
     fn frame(&mut self, event_loop: &ActiveEventLoop) {
+        // Point the driver's per-body window at whoever is being followed
+        // before this frame's ticks run, so the accounts on the dev tile cover
+        // them (DT2). Nothing outside `--dev` calls it.
+        self.watch_followed();
         let replay_done = self.advance();
+        // A follow target that stopped being alive is reported and dropped
+        // here, before anything reads the centre.
+        self.update_follow();
 
         // Presentation reads of the stepped world, taken before the device is
         // borrowed: the section follows the critter, the HUD backdrop wants
         // the meshed scene, and neither is world state.
-        let at = self.runtime.world().position().unwrap_or([0, 0, 0]);
+        //
+        // **The follow centre, not the played position**: `--dev` may have put
+        // the camera on somebody else, and `follow_at` falls back to the
+        // played body when it has not.
+        let at = self.follow_at();
+        // Where the *played* body stands, which is a different question and
+        // the one the HUD backdrop's own scene item asks.
+        let played_at = self.runtime.world().position().unwrap_or(at);
         let half = section::half_height_or_default(self.config.slab_half_height);
         let centre = section::centre_on(at, self.pan, half);
         let tint = self
@@ -426,7 +459,7 @@ impl Host {
             let frame = (gpu.config.width, gpu.config.height);
             if let Some((body, loose)) = &scene {
                 let mut items = Vec::with_capacity(loose.len() + 1);
-                items.push(SceneItem::new(body, at));
+                items.push(SceneItem::new(body, played_at));
                 for (mesh, place, tint, warns, colour, scale) in loose {
                     items.push(SceneItem::creature(
                         mesh, *place, *tint, *warns, *colour, *scale,

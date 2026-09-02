@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! The dev lane, hosted. (DT1)
+//! The dev lane, hosted. (DT1, DT2)
 //!
 //! Same arrangement as [`crate::vitals`] and [`crate::succession`]:
 //! [`mesocosm_views::dev_root`] diffed into a `ScriptedDom`, Livery resolving
@@ -39,6 +39,15 @@
 //! divider they could drag, needs that missing surface piece and is out of
 //! this phase's reach for exactly that reason — reported here rather than
 //! built, per the plan's stop rule against a new stack widget.
+//!
+//! **DT2 stayed inside the one tile for exactly that reason**, and it is what
+//! moved the dock. DT1's dock was the top-left corner, which is 196 pixels tall
+//! before it reaches the vitals panel below it; an inspector with a dozen rows
+//! does not fit there and covering the vitals panel would not be an
+//! improvement. The dock is now the right column under the minimap — the other
+//! region no lane claims — and the tile still takes it through [`rect_of`]
+//! rather than a hardcoded rectangle. The corner was never a ruling: §4.2 rules
+//! that the placement is the tree's, and this is the same tree.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -56,11 +65,15 @@ use workbench::{ContentSource, SplitAxis, Tile, TileId, TileTree};
 
 use crate::chrome::{Chrome, Raster};
 
-/// The panel's box, in pixels, and the raster's size with it. Four rows and
-/// nothing that wraps, so it stays small next to the vitals panel it shares
-/// a corner strategy with.
-const WIDTH: u32 = 200;
-const HEIGHT: u32 = 128;
+/// The panel's box, in pixels, and the raster's size with it.
+///
+/// Sized for DT2's inspector rather than DT1's four rows: the tile carries the
+/// time section, nine fixed follow rows and up to
+/// [`MAX_PART_ROWS`](mesocosm_views::dev::MAX_PART_ROWS) part rows, at the
+/// smaller type the sheet sets. The width matches the vitals panel's so the
+/// two chrome surfaces read as one system.
+const WIDTH: u32 = 300;
+const HEIGHT: u32 = 332;
 
 /// Distance from the frame's corner, matching the other lanes' own margin.
 const MARGIN: f32 = 12.0;
@@ -81,7 +94,8 @@ pub struct DevChrome {
     device: Device,
     generation: u64,
     /// The reading the raster currently holds. A frame whose dev state is
-    /// unchanged pays a comparison and no raster.
+    /// unchanged pays a comparison and no raster — which is most frames while
+    /// paused, and is why the inspector's dozen rows cost nothing to leave up.
     shown: Option<Dev>,
     /// The workbench tree the lane's one tile lives in. See the module docs.
     tree: TileTree,
@@ -122,8 +136,8 @@ impl DevChrome {
         if self.shown.as_ref() == Some(dev) {
             return;
         }
-        self.runner.update(|state| *state = *dev);
-        self.shown = Some(*dev);
+        self.runner.update(|state| *state = dev.clone());
+        self.shown = Some(dev.clone());
         self.raster_panel(chrome);
     }
 
@@ -184,11 +198,26 @@ impl DevChrome {
     }
 
     /// The dev tile's rect, read off the workbench tree rather than a
-    /// hardcoded corner. Top left — the one corner none of the other three
-    /// lanes claims: the minimap sits top right, the vitals panel bottom
-    /// left, and the checkpoint/board sit centre when either stands.
-    fn placement(&self, _frame: (u32, u32)) -> (f32, f32, f32, f32) {
-        let dock = (MARGIN, MARGIN, WIDTH as f32, HEIGHT as f32);
+    /// hardcoded corner.
+    ///
+    /// The dock is the right column under the minimap — the region none of the
+    /// other lanes claims once DT2's inspector is too tall for the top-left
+    /// corner: the minimap sits above it, the vitals panel is bottom left, and
+    /// the checkpoint and board sit centre when either stands. Clamped so a
+    /// window shorter than the dock still puts the tile on screen, exactly as
+    /// the vitals panel clamps its own.
+    fn placement(&self, frame: (u32, u32)) -> (f32, f32, f32, f32) {
+        let x = frame.0 as f32 - WIDTH as f32 - MARGIN;
+        // Under the minimap, but never past the bottom of a short window: a
+        // tile drawn off the frame is worse than one crowding the map above.
+        let under_the_minimap = MARGIN + crate::hud::SIDE as f32 + MARGIN;
+        let lowest = (frame.1 as f32 - HEIGHT as f32 - MARGIN).max(0.0);
+        let dock = (
+            x.max(0.0),
+            under_the_minimap.min(lowest),
+            WIDTH as f32,
+            HEIGHT as f32,
+        );
         rect_of(&self.tree, DEV_TILE, dock).unwrap_or(dock)
     }
 

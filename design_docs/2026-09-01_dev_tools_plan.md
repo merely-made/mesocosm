@@ -1,7 +1,7 @@
 # Dev tools: sitting in a run and interrogating it
 
-**Status (2026-09-02): DT1 landed.** Both §4 decisions ruled and built. DT2
-(follow and inspect) is next.
+**Status (2026-09-02): DT1 and DT2 landed.** Both §4 decisions ruled and built.
+DT3 (force and end) is next; DT4 is independent and can go beside it.
 
 ## 0. Objective
 
@@ -141,6 +141,32 @@ of them. Each phase is one agent round on a non-Fable model.
   `TileEvent`. DT1 never needed one (its tree never holds more than the dev
   lane's one tile), but DT2's second dev pane is what would. See
   `mesocosm-genet/src/dev.rs`'s module docs.
+- **2026-09-02 (DT2), three gaps found and each handled differently.**
+  1. **Two core readings were genuinely missing** and were added there with
+     tests, per principle 3. `flow::Accounts`
+     (`mesocosm-core/src/flow/accounts.rs`) reduces one *body's* income, rent
+     and outflow off the flow record, making exactly the split `Score` already
+     makes for a *line* — written once so the two cannot come to disagree.
+     `History::ending` answers when and which way a creature stopped living,
+     off the record's own `Died`/`Returned` event and its envelope's tick. The
+     driver holds the per-body window (`Runtime::watch`/`::accounts`) because
+     it already drains the stream the ecology's own windows reduce; a world
+     buffers one tick and the host never sees it.
+  2. **A world's discoveries are world-scoped, not per line.** `World::observe`
+     records against whoever is under the hand, so a world holds *one*
+     discovery list and it is the played line's. The tile shows that list and
+     says so; a per-line discovery ledger is reported here rather than
+     invented in the panel. It is what DT3 or a later phase would need before
+     the row can honestly be labelled "this critter's line".
+  3. **Click-to-select in the section needs picking machinery the host does
+     not have.** The pieces exist elsewhere — `mesocosm-runtime`'s
+     `TactileWorld` raycasts ground and critter capsules, and
+     `mesocosm-lens`'s `t1_picking` example judges a sweep on the CPU — but
+     `mesocosm-genet`'s `Section` holds no hit data and builds no
+     `GroundVoxelProfile`, so a click would need a tactile world synchronized
+     with every carve, every roster body presented under its organism id each
+     frame, and an unprojection through the orthographic slab. Left out, as
+     the slice allows; roster cycling is the path.
 
 ## Progress
 
@@ -172,3 +198,67 @@ of them. Each phase is one agent round on a non-Fable model.
   at `081b4ba4bdc46190` with `--dev` off; a falsified hash still exits 1. The
   receipt's new `dev` field does not move the state hash. `cargo test
   --workspace`, clippy `-D warnings` (both profiles) and fmt are clean.
+- **2026-09-02 (DT2 landed):** three more keys, live only under `--dev` and
+  clear of everything play owns: `N` follows the next living critter in id
+  order, `B` the previous, both wrapping, and `M` snaps the camera back to the
+  critter under the hand. **Following moves the section's follow centre and
+  nothing else** — `Host::follow` is host state beside the pan, control does
+  not move, no intent is queued, and `mesocosm-genet`'s
+  `following_does_not_move_control_and_queues_nothing` asserts the controlled
+  id, the queue length, the trace and the state hash are all unchanged after a
+  follow. The played body is still posed at full fidelity where *it* stands;
+  only the slab's centre moves, so `frame` now reads a follow centre and a
+  separate played position.
+
+  The one dev tile (DT1's `TileTree` still holds exactly one) shows, for the
+  followed critter and entirely from core queries: **id** and whether it is the
+  controlled one (`World::controlled_id`), **species** with the registry's name
+  (`Lineages::get`), **position**, the two accounts `flow::Account` names —
+  **reserve** (`Organism::energy_mg`) and **substance** (`biomass_mg()`) —
+  **flows** (income, rent, outflow, from the new `flow::Accounts`) with its
+  **window** on a line of its own, the line's **revision**
+  (`Species::program().current()`, or `founding`), the world's **discovered**
+  conditions by name (`World::discoveries` through `discovery::name_of`), and
+  the **parts** count plus one row per part giving its role
+  (`plan::classify`), half-extent, and sites with process name and cell count
+  (`BodyPhenotype::explain`). Three part rows, then `more +N parts` — the
+  roster's own truncate-with-a-count, because the tile is one tile. A
+  `mesocosm-views` test puts every one of those lines beside the query it came
+  from.
+
+  A followed critter that dies is **reported, then dropped**: `update_follow`
+  takes `History::ending`, keeps it as a notice the tile prints
+  (`critter 640 died at tick 812`), and snaps follow back to the controlled
+  critter; following anybody else clears the notice. The succession lane is
+  untouched — a death of the *controlled* critter is still the driver's
+  checkpoint and behaves exactly as before.
+
+  **The dock moved, and the tile still takes it off the tree.** DT1 put the
+  lane in the top-left corner, which is 196 pixels tall before it reaches the
+  vitals panel; an inspector with a dozen rows does not fit there. The dock is
+  now the right column under the minimap, the other region no lane claims, and
+  `rect_of` still walks the `TileTree` for it. §4.2 rules that the placement is
+  the tree's; the corner was never a ruling.
+
+  Two things were left out and are recorded as findings above: click-to-select
+  in the section (it needs picking machinery `mesocosm-genet` does not have),
+  and a per-line discovery ledger (a world's discovery list is the played
+  line's, and the tile shows it as that).
+
+  Receipts. `--dev --frames 300 --follow 640` was read at
+  `Code/testing/mesocosm/dt2_inspect.png`: the tile reads `id 640`,
+  `species 5`, `at -10, 22, -57`, `reserve 464 mg`, `substance 590 mg`,
+  `flows in 552, rent 101, out 393`, `window 20 ticks`, `revision founding`,
+  `discovered none`, `parts 33`, three part rows and `more +30 parts`; it sits
+  in the right column clear of the minimap above and the vitals panel opposite,
+  and the whole frame is the terrarium DT1's capture shows. A second run with
+  `--follow 5` (a critter that died at tick 20) was read too and showed
+  `critter 5 died at tick 20` under a tile snapped back to `id 0 (controlled)`.
+  `--follow ID` is a new presentation-only flag that only says where the camera
+  starts, added because a scripted trace has no dev keys in it. `--replay` of
+  the untouched `ps1_played.trace.json` fixture exits 0 at `081b4ba4bdc46190`
+  with explicit non-default receipt and capture paths; a falsified recorded
+  hash exits 1. `cargo test --workspace`, clippy `-D warnings` (both profiles)
+  and fmt are clean. `flow.rs` was split at the six-hundred-line ceiling to
+  make room for `flow/accounts.rs`, and the host's follow state lives in
+  `app/follow.rs` beside DT1's `app/devtime.rs` for the same reason.

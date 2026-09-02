@@ -27,7 +27,9 @@ pub mod review;
 pub mod succession;
 pub mod vitals;
 
-pub use dev::{Dev, DevChild, dev_css, dev_root};
+pub use dev::{
+    Dev, DevChild, Follow, Lost, dev_css, dev_root, follow_of, lost_of, lost_words, role_word,
+};
 pub use leaf::MinimapLeaf;
 pub use minimap::{
     MINIMAP_ADAPTER, dominant_lineages, lineage_tint, minimap_leaf, minimap_scene, minimap_score,

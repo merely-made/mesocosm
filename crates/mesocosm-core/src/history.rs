@@ -259,6 +259,33 @@ impl Event {
     }
 }
 
+/// Which way a creature stopped living. (DT2)
+///
+/// The record's own two endings, not a third classification over them: the
+/// ecology writes [`Event::Died`] when a body starved or aged out and left a
+/// corpse, and [`Event::Returned`] when there was nothing left of it to leave
+/// one. Anything finer — starved against aged — is not in the record, so it is
+/// not offered here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Passing {
+    /// It starved or aged out, and a corpse was left where it stood.
+    Died,
+    /// Nothing was left of it, and what there was went back to the world.
+    Returned,
+}
+
+/// When a creature stopped living, and which way. (DT2)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Ending {
+    pub organism: OrganismId,
+    /// The tick the record was stamped with, off the same [`Envelope`] every
+    /// other reading takes a tick from.
+    ///
+    /// [`Envelope`]: crate::flow::Envelope
+    pub tick: u64,
+    pub how: Passing,
+}
+
 /// The world's past.
 ///
 /// Entries are [`RecordedEvent`]s: the event plus when and where it happened.
@@ -352,6 +379,32 @@ impl History {
     /// Whether neither event led to the other.
     pub fn concurrent(&self, a: Seq, b: Seq) -> bool {
         self.log.concurrent(a, b)
+    }
+
+    /// How a creature's life ended, if this record holds the moment. (DT2)
+    ///
+    /// **The event the record already carries**, with the tick off its own
+    /// envelope — not a state read of the roster, which cannot say when, and
+    /// which a body eaten to nothing has already left. `None` means this past
+    /// has no ending for it: it is still alive, or it ended before this record
+    /// began.
+    ///
+    /// The most recent one, walking back, because a `Died` is followed by a
+    /// `Returned` when the corpse finishes decaying and the later of the two is
+    /// the one that is true now.
+    pub fn ending(&self, organism: OrganismId) -> Option<Ending> {
+        self.log.entries().iter().rev().find_map(|recorded| {
+            let how = match recorded.record {
+                Event::Died { organism: who, .. } if who == organism => Passing::Died,
+                Event::Returned { organism: who } if who == organism => Passing::Returned,
+                _ => return None,
+            };
+            Some(Ending {
+                organism,
+                tick: recorded.tick,
+                how,
+            })
+        })
     }
 
     /// An organism's own line, oldest first.
