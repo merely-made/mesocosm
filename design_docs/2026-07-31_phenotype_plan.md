@@ -956,7 +956,12 @@ holds and has not given:
   "unplayed lineages use the same **evaluator**", both need *what scores a
   candidate phenotype*. Nothing here scores anything. That is the same ruling
   D4's condition 3 waits on, and building a placeholder scorer would have made
-  the array's deletion receipt depend on a number nobody chose.
+  the array's deletion receipt depend on a number nobody chose. **Ruled by
+  Mark, 2026-09-01:** a candidate is scored by growing it in a headless copy
+  of the world for a bounded run and reading its flow record, income against
+  rent. No static formula over body readings, and no new scoring vocabulary.
+  That is P4b's slice. Revision cost stays flat for PE3, also ruled
+  2026-09-01: life-stage pricing waits (epoch boundary plan §8 question 4).
 - **Several candidates at once.** Reviewing more than one candidate, and
   pricing the choice, is PE3's review screen — which in turn needs the epoch
   trigger (playable ecology plan §6 ruling 2). `World::revision_admitted_now`

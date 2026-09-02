@@ -606,8 +606,14 @@ have measured receipts.
    placeholder default in for the ruling: `Checkpoint::default_answer` continues
    the parent, because that is the only answer that can be taken back. It is one
    function, and ruling otherwise is a one-line change there.
-2. What deterministic condition ends an epoch? Timer, world condition,
-   lineage event, configurable rule, or a composition of them?
+2. ~~What deterministic condition ends an epoch? Timer, world condition,
+   lineage event, configurable rule, or a composition of them?~~ **Ruled by
+   Mark, 2026-09-01: three separate rules, each a versioned world rule, not a
+   composition.** *Timed* ends the epoch when a fixed tick budget is spent and
+   is built first. *Gated* ends it when named conditions are all met, and
+   comes second. *Player-triggered* ends it on demand and is a dev tool (see
+   the [dev tools plan](2026-09-01_dev_tools_plan.md) DT3), never play. PE3
+   realizes Timed and replaces `World::revision_admitted_now` with it.
 3. Are fungal networks, clonal stands, and microbial colonies genuine
    multi-anchor subjects or connected local critters at the first proof?
 4. Which generated-material scheme from the elements memo is the first one

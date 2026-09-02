@@ -580,6 +580,9 @@ executable.
 4. **Does plasticity apply to anatomy, temperament, or both?** The life-stage
    ruling was made about temperament, but the same trade would work for
    developmental change, and P4's adaptation bridge is where that decides.
+   **Partly ruled by Mark, 2026-09-01: flat first.** PE3 prices a revision
+   flat; whether youth later buys developmental change more cheaply stays
+   open. The one place a multiplier would land is `program::express`.
 5. **How does ancestral distance survive a world boundary?** A chronicle
    carries part provenance by species id; two worlds' species ids mean nothing
    to each other, so cross-world distance needs the wing contract's subject
