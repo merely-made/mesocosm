@@ -51,10 +51,15 @@ is not decided, so they are out of scope here.
 3. **The lane invents no readings.** Every value shown is read from `Runtime`
    or `World`. If a fact is not readable, the gap is filled in core with a
    test, not papered over in the panel.
-4. **Consolidate into the stack.** The bespoke replay and demo harness folds
-   toward genet-probe rather than growing. Layout, when more than one pane is
-   wanted, uses workbench. No hand-rolled panel code where cambium has the
-   widget.
+4. **Consolidate into the stack, and grow it when needed.** The bespoke replay
+   and demo harness folds toward genet-probe rather than growing. Layout,
+   when more than one pane is wanted, uses workbench. No hand-rolled panel
+   code where cambium has the widget. Where the stack lacks a piece (a
+   time-control strip, an inspector tree over readings), build it as a stack
+   component in cambium or genet-probe's own idiom, not as mesocosm-local
+   code, so the next game finds one implementation. Ruled by Mark
+   2026-09-02: broadening the stack is fine; duplicated or irreconcilable
+   runs at the same problem are what the rule forbids.
 5. **A played receipt tells the truth.** A run that used a world-changing dev
    action is labelled as such in its receipt, so a playtest cannot be quietly
    assisted.
