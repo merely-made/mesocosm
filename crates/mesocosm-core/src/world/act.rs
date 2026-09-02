@@ -190,6 +190,23 @@ impl World {
             // ruleset and the line's discoveries rather than from the host.
             Intent::Express { condition } => self.express(condition),
 
+            // The lineage verb (P4). Next door in `world::revise`, which owns
+            // the commit; an unplayed line reaches the same transaction with
+            // nobody in it, so this arm is only the played half of the door.
+            Intent::Revise { condition } => {
+                let Some((me, species)) = self.controlled().map(|o| (o.id, o.species)) else {
+                    return Outcome::Rejected(Rejection::Disembodied);
+                };
+                match self.revise_by(species, condition, Some(me)) {
+                    Ok(revision) => Outcome::Revised {
+                        species,
+                        revision,
+                        condition,
+                    },
+                    Err(why) => Outcome::Rejected(Rejection::Unrevised(why)),
+                }
+            }
+
             // **Enriching the ground**, since TD6. It used to spawn a carcass
             // — a scrap of loose matter waiting for a decomposer — which was
             // the only detritus the enclosure had. Now the enclosure has a

@@ -26,16 +26,19 @@ mod act;
 mod consume;
 mod discover;
 mod express;
+mod filial;
 mod genesis;
 mod graft;
 mod intent;
 mod read;
 mod records;
+mod revise;
 
 pub use genesis::Founding;
 pub use graft::Graft;
 pub use intent::{Ineligible, Intent, Outcome, Placement, Rejection, Route};
 pub use read::Gland;
+pub use revise::Unrevised;
 
 /// How far the enclosure reaches from its middle, in voxels.
 ///
@@ -386,6 +389,9 @@ impl World {
         let focus = self.position();
         let held = self.held();
         let tick = self.tick;
+        // Read before the ecology allocates any, so the birth pass's newborns
+        // are addressable afterwards without a scan. (PD5)
+        let before_births = self.next_organism;
         let mut records =
             crate::flow::Records::new(tick, Some(&self.places), &mut self.pending, &mut self.flows);
         self.last_tally = crate::organism::ecology::step_with_ground(
@@ -401,6 +407,14 @@ impl World {
             focus,
             held,
         );
+
+        // **Filial expression** (PD5). A descendant of a line that has
+        // committed a revision is developed under it here, in the tick it was
+        // born in and before anything reads the world: the ecology owns making
+        // a body, and what that body's program says it should be doing is the
+        // world's, because it needs the admitted ruleset, the soil and both
+        // records. A line with no revision reaches nothing below.
+        self.express_filially(before_births);
 
         // What you reach, you keep. The frontier rises with the body you are
         // holding and never falls, so a lineage dying out costs you that body

@@ -447,6 +447,32 @@ Retire the trait array when all of these are true:
 5. the old array can be deleted with its tests rather than maintained as a
    compatibility layer.
 
+**Receipt, 2026-09-02 (P4a/PD5): three of the five are met, and the array
+stays.**
+
+- **1. Met.** `program::Revision` states *declared sites* — a part role, an
+  admitted `ProcessRef`, a bounded cell count — and nothing scalar. Nothing in
+  the commit path reads or writes a number that stands for fitness;
+  `World::revise` builds the revision out of the discovery's own `Candidate`
+  and refuses rather than substituting.
+- **2. Met.** `program::preview` realizes the recipe and develops the declared
+  sites into a `BodyPhenotype`, and a birth under a revision produces the same
+  body through the same `program::express`. Both are receipted:
+  `a_founder_preview_is_the_same_body_twice` and
+  `a_birth_expresses_its_lines_revision_and_pays_for_it`.
+- **3. Not met, and deliberately not built.** *What scores a candidate
+  phenotype* is Mark's ruling and was not taken in this slice. There is no
+  scorer, no fitness term, and no ranking anywhere in `program.rs`.
+- **4. Met.** `World::revise` is one transaction and `World::express_filially`
+  reads no `controlled`; `an_unplayed_lineage_takes_the_same_path` commits on an
+  NPC line and watches its next birth arrive expressing it, by the identical
+  code.
+- **5. Not met.** `epoch::Trait` and its tests are untouched, which is what this
+  entry says: deletion is Mark's, and it waits on 3.
+
+So the array **remains explicitly provisional**, which is what PD5's fourth
+done-condition asks for and is the honest state until the scorer is ruled.
+
 **Cost.** For a time the adaptation lab remains explicitly provisional. This
 is preferable to deleting its only working vocabulary before the replacement
 can express the same questions.
@@ -896,7 +922,7 @@ for exactly that reason and the refusal still stands: a severed branch's mass
 has already left the account. None of that is P3's, and none of it is needed
 for what P3 claims.
 
-### P4. Adaptation bridge
+### P4. Adaptation bridge — **PARTIAL 2026-09-02**
 
 Grow several candidate developmental changes and score their phenotypes in one
 authored world.
@@ -907,6 +933,39 @@ a body snapshot, and reproduces its founder preview under identical declared
 inputs. A changed environment may realize a legibly different phenotype from
 that same program; unplayed lineages use the same evaluator; and the old trait
 array has a concrete deletion receipt.
+
+**What landed (P4a, the lineage program).** A lineage carries a versioned,
+append-only development program; a commit is a recorded intent
+(`Intent::Revise`) over a world transaction (`World::revise`); a descendant is
+born expressing it through the one validator, or is born anyway with the
+record naming the revision it could not express and why; and a founder preview
+realizes the same program from declared inputs alone. So five of the seven
+clauses stand: the mutation cites a lived scarcity (`program::Citation` carries
+the condition and the discovery digest), the descendant is mechanically
+different (it secretes, and the bite is what eats it pays), a program is
+committed rather than a snapshot (declared sites, never cells), the preview
+reproduces under identical declared inputs, and rich versus lean ground grows
+one program into two legibly different phenotypes. Unplayed lineages use the
+same *path*, and the trait array has three of its five deletion conditions
+(§D4).
+
+**What remains, and why it was not built.** Two clauses need rulings Mark
+holds and has not given:
+
+- **Scoring.** "Grow several candidates and score their phenotypes", and
+  "unplayed lineages use the same **evaluator**", both need *what scores a
+  candidate phenotype*. Nothing here scores anything. That is the same ruling
+  D4's condition 3 waits on, and building a placeholder scorer would have made
+  the array's deletion receipt depend on a number nobody chose.
+- **Several candidates at once.** Reviewing more than one candidate, and
+  pricing the choice, is PE3's review screen — which in turn needs the epoch
+  trigger (playable ecology plan §6 ruling 2). `World::revision_admitted_now`
+  is the one function standing in for that gate meanwhile.
+
+Life-stage pricing of change (epoch-boundary plan §8 q4) is the third open
+ruling touching this gate: today a revision costs the run nothing and the
+descendant pays only the ordinary development price. When plasticity is ruled,
+it multiplies that price in one place.
 
 ### P5. Contested flow
 
@@ -1405,6 +1464,23 @@ rather than part of it.
   part origins. Neither carries the current anatomy tree.
 
 ## Progress
+
+- **2026-09-02, P4 partial (P4a, the lineage program): a line commits a
+  program, and its descendants are born under it.** `mesocosm-core::program`
+  holds a versioned, append-only development program on each `Species`:
+  immutable `Revision`s that declare *sites* (part role, admitted
+  `ProcessRef`, bounded cells) and cite the discovery they were committed
+  against. `Intent::Revise` is the played door over one `World::revise`
+  transaction; `World::express_filially` develops each newborn under its line's
+  current revision through the one validator, charging the child's own reserve
+  into the ground under it; `Species::preview` realizes a founder from declared
+  inputs alone. Rich versus lean ground grows one program (same digest) into
+  two phenotypes (different digests), which is 2026-08-03's ruling made
+  executable. **What is not built is what needs a ruling**: no scorer, no epoch
+  trigger, no plasticity multiplier, no review screen — see the P4 gate for
+  which clause each blocks and §D4 for the deletion receipt (conditions 1, 2
+  and 4 met; `epoch::Trait` untouched). The ProcessDef plan's 2026-09-02 PD5
+  entry carries the shapes and the full receipts.
 
 - **2026-09-01, P3 landed: a branch changes bodies.** `Intent::Graft` harvests
   a living subtree off a carcass, remaps its ids, preserves its joints and its

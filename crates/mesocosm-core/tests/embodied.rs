@@ -33,6 +33,8 @@ mod gland;
 mod gland_use;
 #[path = "embodied/graft.rs"]
 mod graft;
+#[path = "embodied/lineage.rs"]
+mod lineage;
 #[path = "embodied/part_meal.rs"]
 mod part_meal;
 

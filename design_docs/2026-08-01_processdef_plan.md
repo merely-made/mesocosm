@@ -968,7 +968,7 @@ for the Request and Proposal shapes, the runner's policy numbers, the fixture
 pair and its draw trace, why "Lua cannot mutate" is structural, and what PE3
 inherits.
 
-### PD5. Filial expression
+### PD5. Filial expression: **LANDED 2026-09-02**
 
 Connect the authored process to P4's adaptation bridge. Metabolized source
 material widens the candidate bank, a chosen developmental change references
@@ -978,6 +978,24 @@ that lived source, and the descendant regrows a phenotype that may express it.
 are distinct records; unplayed lineages use the same expression path; the
 source provenance survives; and the old trait array has either met every
 deletion condition or remains explicitly provisional.
+
+**All four met.** The **development program** — the second of §2's three
+compiled programs — is `mesocosm-core::program`: an append-only list of
+immutable revisions on a lineage, each declaring *sites* (a part role, an
+admitted `ProcessRef`, a bounded cell count) rather than a body. A birth under
+one runs it through `BodyPhenotype::develop`, so a descendant of a line that
+came to the gland is born secreting. The four done-conditions in order:
+`Event::Grew`/`Event::Expressed`, `Event::Discovered` and `Event::Inherited`
+are three different records over one walked line
+(`incorporation_discovery_and_filial_expression_are_three_records`);
+`World::express_filially` reads no `controlled`, and
+`an_unplayed_lineage_takes_the_same_path` receipts it; provenance survives as
+`program::Citation`, which carries the condition **and** the discovery digest,
+so a revision resolves to the exact realized candidate it was committed
+against; and §D4 of the phenotype plan carries the deletion receipt — three of
+five conditions met, `epoch::Trait` untouched and explicitly provisional. See
+the 2026-09-02 Progress entry for the shapes, the refusal vocabulary, and what
+PE3 inherits.
 
 ### PD6. Channels under pressure
 
@@ -1139,6 +1157,166 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-09-02, PD5 complete (with P4a): a line commits, and its descendants
+  arrive already carrying it.**
+
+  **The second compiled program, and it is not a `ProcessDef`.**
+  `mesocosm-core/src/program.rs` holds it: a `Program` is an append-only list
+  of `Revision`s on a `Species`, and a `Revision` is `{ id, parent, cites,
+  sites, founded, digest }`. What it declares is `DeclaredSite { role, process,
+  cells }` — **a role, never a part id**, because the descendant that grows
+  under it has not been developed yet and its part 3 is nobody's to predict.
+  That is §2's development program, in the shape §3 already had a vocabulary
+  for: a `Candidate` is *which admitted process, on what shape, at what bounded
+  capacity*, so `DeclaredSite::of` is those same three fields and committing
+  needed no second vocabulary.
+
+  **The founding revision is stored nowhere, and that is the design rather than
+  an omission.** What a body does with no program — allocation seeded from
+  geometry — *is* the founding revision: no parent, no citation, no declared
+  site. Writing it down would put a record in every snapshot for the absence of
+  one, so `Program::current()` answers `None` for it and the committed list
+  starts empty. The consequence for the fixture is measured below.
+
+  **Immutability is structural.** `Program::commit` appends and is the only
+  mutation the type has; there is no `&mut Revision` anywhere, and
+  `Species::commit` is `pub(crate)` with `World::revise` as its only caller —
+  so a revision is a world transaction with a record, not a field a host sets.
+  Epoch-boundary plan §2's *neither result edits the parent* is therefore a
+  property of the API rather than a discipline. `parent` is `Option` and its
+  `None` occurs: the first commit on a line descends from the founding
+  revision, which has no record to name.
+
+  **Filial expression, and what a refusal records.** `World::express_filially`
+  runs after the ecology's birth pass, over exactly the ids that pass
+  allocated — read from `next_organism` before the step, so nothing scans for
+  something that looks new. For each newborn whose line has a current revision
+  it calls `program::express`, which builds the same `AllocationProposal`
+  `Candidate::propose` builds and offers it to `BodyPhenotype::develop`. On
+  acceptance the price is PD2's, unchanged — cells whose expression changed, at
+  the part's own `cell_mg` — out of the child's reserve and into the column
+  under it, with a `flow::Process::Develop` record and an `Event::Inherited`.
+  On refusal the birth **still happens**, under geometry seeding, and
+  `Event::Unexpressed` names the revision and the reason:
+  `NoSite { role }` (the ordinary case — a bulk consumer has nowhere to put a
+  gland), `Refused(Refusal)` (the validator's own boundary, carried whole), or
+  `Unaffordable { needed_mg, held_mg }`. Nothing is published on a refusal: the
+  development runs on a candidate copy and the price is read off the validated
+  instruction, the same ordering `World::express` uses.
+
+  **The ground charges what a line grows, and it is not a new number.**
+  `Conditions::affords` asks `Organism::charged_mg`'s own rule one step
+  earlier: an acquired process works only where the column could replace what
+  it holds, so a founder does not grow more than the ground it founds on can
+  charge, and keeps a one-cell site where it cannot. That is the rule PD4's
+  `gland.lua` already reads, which is why the packed fixtures' **400 mg** and
+  **20 mg** grounds mean the same thing in the core: on a plate whose tissue is
+  worth 21 mg a cell, a five-cell declared site costs 105 mg, so rich grows
+  five and lean grows one. Measured, on one program `0a8205a233fc757b` and one
+  seed: rich grows a five-cell gland costing 105 mg to phenotype
+  **`c71c8b16cfa97c56`**, lean a one-cell gland costing 21 mg to
+  **`8e0f1d2ff8e31dbe`**.
+  `one_program_grows_two_bodies_on_rich_and_lean_ground` asserts the two
+  phenotype digests differ and **the program digest does not** — which is the
+  ruling of 2026-08-03 made executable: the variance is expression of one
+  inherited program, never an implicit mutation.
+
+  **Three records, and one test walks all three.** Somatic incorporation
+  (`Event::Grew`, `Event::Expressed`), dormant acquisition
+  (`Event::Discovered`) and filial expression (`Event::Inherited`) are separate
+  events with separate references — a part, a condition, a revision — and
+  `incorporation_discovery_and_filial_expression_are_three_records` takes one
+  line through all four (the commit's `Event::Revised` included) and asserts
+  the birth is neither a discovery nor a meal.
+
+  **Receipts.**
+  - `mesocosm-core` lib **365** green (+6: `program/tests.rs`).
+    `tests/embodied` **60** (+11, the new `embodied/lineage.rs`), one test per
+    claim: the founding program declares nothing and changes no birth; a second
+    commit appends and leaves the first untouched; a birth expresses its line's
+    revision and pays for it; a child with nowhere to put it is born anyway and
+    the record says why; a founder preview is the same body twice; one program
+    grows two bodies on rich and lean ground; an unplayed lineage takes the
+    same path; three records; the commit is ungated and says so in one place;
+    and the two commit refusals by name.
+  - `tests/flows` **12** (+1):
+    `a_filially_expressed_birth_reconciles_to_the_milligram` — PE0's
+    whole-compartment reconciliation across the birth tick, plus one `Develop`
+    record out of the child's reserve for exactly what `Event::Inherited` says
+    it cost, and the child's reserve equal to what the birth gave it less that.
+  - Standing gates `matter/flows/succession/embodied`: **6 + 12 + 7 + 60**
+    green. `cargo test -p mesocosm-phenotype`: **40** green, unchanged
+    (16 + 17 + 7).
+  - `cargo test --workspace --release`: **40 suites, 764 tests, 0 failures**
+    (was 40 / 746). Clippy `-D warnings` clean in both profiles, `cargo fmt
+    --all --check` clean, `cargo check -p paredros-room --features r1-proof`
+    builds with its one pre-existing `dead_code` warning on
+    `brick::retarget_from_ground`.
+  - **The instrument is unmoved.** The drawn baseline was re-run over all ten
+    seeds and compared against `dc4_roster.json` seed for seed — verdict,
+    start, peak, peak tick, end, cumulative births, cumulative deaths, end
+    kingdom counts and end biomass identical on every one, and `outside 0 -> 0`
+    on every sample of every seed. **0 breathes / 10 thins / 0 boil / 0
+    collapse** stands. It could not have moved by construction: the instrument
+    drives with `Intent::Idle` only, so no line ever discovers anything, no
+    line ever commits, and `World::express_filially` returns on its first
+    comparison every tick. The run was stopped after the baseline batch, before
+    it could rewrite `dc4_roster.json` with new timing on an unmoved result;
+    the file is byte-identical to what DC4 recorded.
+  - **The fixture hash moved, and the run did not.** `Species` gaining a
+    `program` field costs one postcard varint per lineage in the snapshot, so
+    the whole-world hash went `1b1f866cb9138d40` -> **`fb358a75a0b0bff6`** and
+    the trace was re-recorded. The demo carries no `Revise`, every lineage in
+    it holds the founding program, and the recorded intent stream is **byte
+    identical** to PD4's — 3,100 intents, seed 7, 916 founders, compared
+    element by element — so what moved is the serialized shape and nothing the
+    world did. `the_founding_program_declares_nothing_and_changes_no_birth`
+    pins both halves: an uncommitted program encodes to one byte, and a birth
+    under it writes neither filial record. Headed `--replay` runs the
+    re-recorded 3,100-step trace over **775** frames and matches, exit 0; a
+    hash falsified by one bit reports the mismatch and exits 1. Ground revision
+    17, 33 body parts, 40 drawn roster — PD4's numbers, unchanged. The demo's
+    census is unchanged too: Move 2,726, Deposit 244, Carve 73, Idle 40,
+    Metabolize 12, Resume 3, Graft 1, TakeControl 1, so its discovery, its
+    branch transfer, its three births and its succession all survive
+    (`mesocosm-genet` lib **18** green, the demo tests included).
+  - **Splits at the ceiling**, per the workspace rule: `history/tests.rs` out
+    of `history.rs`, and `world/revise.rs` and `world/filial.rs` as their own
+    rooms rather than growing `world/act.rs`.
+  - **One file outside the slice's stated scope**, and it was forced:
+    `mesocosm-views::refusal_words` matches `Rejection` exhaustively, so the
+    new `Rejection::Unrevised` arm had to be given its four plain sentences or
+    the workspace would not compile. Nothing else in the view lane was touched.
+
+  **Residues, and what PE3 inherits.**
+  - **The commit is ungated, in one named function.**
+    `World::revision_admitted_now` returns `true` and says why: PE3 gates a
+    revision to the lineage checkpoint, a checkpoint needs a deterministic
+    condition that ends an epoch, and that is playable ecology plan §6 ruling 2
+    and Mark's. Ruling otherwise is a one-line change there — the same
+    placeholder arrangement PE1 used for `Checkpoint::default_answer`. It has
+    **two consumers** so that one line actually lands: `World::revise` consults
+    it and refuses `Unrevised::NotYet`, and a host reads it to know whether the
+    verb is on offer. `NotYet` is unreachable today and is present for
+    `Miss::AnotherTook`'s reason — a door with no way to say *not now* would
+    have to grow one after the ruling, making the refusal vocabulary depend on
+    which answer arrived.
+  - **An authored script is not yet a revision source.** A revision's declared
+    sites come from the discovery record. PD4's residue stands unchanged: the
+    authored proposal has no `Intent`, and giving a host one before PE3 decides
+    *when* a review happens would be inventing the checkpoint from the wrong
+    end. What PE3 reviews is two proposal sources over one screen.
+  - **A revision declares one site today**, because a discovery grants one
+    candidate. `Revision::sites` is a `Vec` and `program::express` loops, so a
+    second arrives without a shape change.
+  - **Two declared conditions, both with consumers**: `ground_mg` decides how
+    much of a program a founder expresses, `material_mg` pays for it. They are
+    the same two names PD4's `Request` carries, so a preview and an authored
+    proposal are declared against one context.
+  - **Nothing scores anything.** The scorer, the epoch trigger and life-stage
+    pricing were left untouched deliberately; see the phenotype plan's P4 entry
+    for which of its clauses each blocks.
 
 - **2026-09-01, PD4 complete: an author gets a say, and the validator keeps
   the last word.**

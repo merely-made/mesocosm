@@ -186,6 +186,29 @@ pub enum Intent {
     Express {
         condition: crate::discovery::ConditionId,
     },
+    /// Commit what this line has come to, so its descendants are born with it.
+    /// (P4)
+    ///
+    /// **The lineage verb, and it is not [`Express`].** Expressing changes the
+    /// body you are standing in and costs that body a development; revising
+    /// changes what the *line* grows and costs the run nothing except that
+    /// every descendant now arrives under it. Phenotype plan §3 keeps the two
+    /// apart in so many words: an eaten limb is not automatically a heritable
+    /// limb.
+    ///
+    /// It names a condition for [`Express`]'s reason: what the revision is
+    /// comes from the admitted ruleset and the line's own discovery record, so
+    /// a host cannot author a program over the wire.
+    ///
+    /// **When one may be committed is PE3's**, and
+    /// [`World::revision_admitted_now`](crate::World::revision_admitted_now)
+    /// is the one function standing in for that ruling until the epoch trigger
+    /// is chosen.
+    ///
+    /// [`Express`]: Intent::Express
+    Revise {
+        condition: crate::discovery::ConditionId,
+    },
 }
 
 /// Why an intent could not be applied. Rejections are part of the recorded
@@ -256,6 +279,12 @@ pub enum Rejection {
     /// and re-encoding fifteen named boundaries as three would throw that away
     /// at the one door a player actually knocks on.
     Refused(Refusal),
+    /// The lineage revision would not commit, and this is why. (P4)
+    ///
+    /// Carried whole for [`Self::Refused`]'s reason: the commit door names its
+    /// own boundaries, and re-encoding them here would give the same refusal
+    /// two vocabularies.
+    Unrevised(super::Unrevised),
 }
 
 /// Why an organism cannot be inhabited.
@@ -352,6 +381,17 @@ pub enum Outcome {
         /// The phenotype revision this development created, so a receipt can
         /// point at the ordering rather than only at the fact.
         revision: u32,
+    },
+    /// A line committed a revision of its development program. (P4)
+    ///
+    /// It cost the body nothing, which is the ruling: founding a continuation
+    /// *is* the prize (epoch-boundary plan §2). What it costs is that every
+    /// descendant of this line now arrives under it and the line can be held
+    /// to it.
+    Revised {
+        species: SpeciesId,
+        revision: crate::program::RevisionId,
+        condition: crate::discovery::ConditionId,
     },
     Rejected(Rejection),
 }

@@ -23,7 +23,8 @@ PE0 + PE1 + PE2
   -> P3 branch transfer [LANDED 2026-09-01]
   -> PD3 pack admission [LANDED 2026-09-01]
   -> PD4 Piccolo authoring parity [LANDED 2026-09-01]
-  -> PE3 lineage review + P4/PD5 filial expression
+  -> P4a lineage program + PD5 filial expression [LANDED 2026-09-02]
+  -> PE3 lineage review [blocked on three rulings, not on code]
   -> PE4 world-generated biology
   -> PE5 second form + durable relationship
   -> PE6 cohort scale + ecological zoom
@@ -49,7 +50,9 @@ order):
 
 ```text
 PD1b -> PD2 (one native played process) -> P3 (branch transfer)
-     -> PD3 (static packs) -> PD4 (Piccolo) [all LANDED] -> P4
+     -> PD3 (static packs) -> PD4 (Piccolo)
+     -> P4a lineage program + PD5 filial expression [all LANDED]
+     -> P4's scorer half (ruling-blocked)
 ```
 
 PD1b also unblocks the general model's **E1 acceptance gate** (feeding as
@@ -126,6 +129,18 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-09-02:** P4a + PD5 landed — a lineage carries a versioned development
+  program, a commit is a recorded intent over one world transaction that
+  unplayed lines take too, and a descendant is born expressing it through the
+  one validator. **PE3 is now waiting only on rulings**: what scores a
+  candidate phenotype, what deterministic condition ends an epoch (§6 ruling 2),
+  and life-stage pricing of change. None was taken; `World::revision_admitted_now`
+  is the single named placeholder for the trigger. Phenotype P4 stays
+  **partial** for the scorer, and `epoch::Trait` keeps three of its five
+  deletion conditions met and is untouched. The demo fixture hash moved to
+  `fb358a75a0b0bff6` because `Species` gained a field; the recorded intent
+  stream is byte-identical.
 
 - **2026-09-01:** PD4 Piccolo authoring parity landed, so **PE3's lineage
   review has its prerequisites met**: PD3/PD4 both stand, and the chain's next

@@ -17,7 +17,7 @@
 use cambium::{AnyView, DetailRow, DetailSection, GenetCtx, GenetElement, detail_panel, el, text};
 use mesocosm_core::{
     Crossing, Discovery, Gland, Graft, Ineligible, Observation, Outcome, Refusal, Rejection, Trend,
-    World,
+    Unrevised, World,
 };
 
 /// A view in the vitals tree. Inert: nothing here takes a click, because
@@ -410,6 +410,15 @@ pub fn refusal_words(rejection: &Rejection) -> &'static str {
             Refusal::UnknownProcess(_) => "nothing here knows that process",
             Refusal::Stale { .. } => "the body moved under it",
             _ => "it would not develop",
+        },
+        // P4's lineage verb. A commit refuses for what the *line* has, not for
+        // what the body is: it has not come to that, this world does not hold
+        // it, or there is no such line at all.
+        Rejection::Unrevised(why) => match why {
+            Unrevised::Undiscovered(_) => "your line has not come to that",
+            Unrevised::Nothing => "nothing here to pass on",
+            Unrevised::NoSuchSpecies(_) => "no such line",
+            Unrevised::NotYet => "not at this point in the run",
         },
     }
 }

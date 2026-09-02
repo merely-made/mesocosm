@@ -55,6 +55,7 @@ pub mod phenotype;
 pub mod places;
 pub mod plan;
 pub mod process;
+pub mod program;
 pub mod record;
 pub mod rng;
 pub mod rules;
@@ -106,6 +107,10 @@ pub use process::{
     BULK_REACH, Capability, DefinitionDigest, FeedingMode, NATIVE_ABI, Process, ProcessDef,
     ProcessId, ProcessRef, Registry, Seeding, Unmet,
 };
+pub use program::{
+    Citation, Conditions, DeclaredSite, Filial, Founder, Preview, Program, Revision, RevisionId,
+    Unexpressed,
+};
 pub use record::{Feat, Mark, Scale, WorldRecord};
 pub use rng::Rng;
 pub use rules::{RulesetDigest, WorldRules};
@@ -115,5 +120,5 @@ pub use species::{Lineages, Species};
 pub use wire::{WireError, frame, unframe};
 pub use world::{
     Founding, Gland, Graft, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement, Rejection,
-    Route, STARVED_UPKEEP_TICKS, World,
+    Route, STARVED_UPKEEP_TICKS, Unrevised, World,
 };

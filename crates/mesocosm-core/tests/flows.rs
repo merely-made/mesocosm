@@ -415,6 +415,160 @@ fn a_birth_reconciles_to_the_milligram() {
 }
 
 #[test]
+fn a_filially_expressed_birth_reconciles_to_the_milligram() {
+    // **PD5's conservation case.** A descendant born under its line's revision
+    // is developed in the tick it arrived in, and that development costs
+    // milligrams: what it pays leaves its own reserve and lands in the column
+    // under it, because nothing evaporates (TD6). `stepped` reconciles every
+    // account against the stream on every tick below, so the claim this test
+    // adds on top is the narrower one — the child's expressed sites cost
+    // exactly what the flow record says, and exactly what the record of the
+    // birth says they cost.
+    let mut world = World::new(4_242, 24);
+    let me = world.controlled_id().expect("a played critter");
+    // A plain bulk consumer, so the horizon below is reached by not eating
+    // rather than raced by a canopy's own income. The same substitution
+    // `tests/embodied.rs` makes, and for the same reason.
+    let organism = world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == me)
+        .expect("here");
+    let (species, position) = (organism.species, organism.position);
+    *organism = mesocosm_core::Organism {
+        stage: mesocosm_core::Stage::Mature,
+        ..mesocosm_core::Organism::founding(
+            me,
+            species,
+            mesocosm_core::Kingdom::Consumer,
+            mesocosm_core::VolumeRef::from_tag(1),
+            [2, 2, 2],
+            position,
+            1_500,
+        )
+    };
+
+    // Come to the gland the way the game does: through the starvation horizon,
+    // with a hand on the body. Doctoring the budget is what `endure` is for
+    // and is why it happens *before* the reconciled loop rather than inside
+    // it — a test that wrote a reserve between two `stepped` calls would be
+    // handing the check a mutation nobody claimed.
+    for _ in 0..=mesocosm_core::discovery::HUNGER_TICKS {
+        let upkeep = world.controlled().expect("alive").upkeep_mg();
+        world
+            .organisms
+            .iter_mut()
+            .find(|o| o.id == me)
+            .expect("in the roster")
+            .energy_mg = upkeep * (mesocosm_core::STARVED_UPKEEP_TICKS - 1);
+        world.apply(Intent::Resume);
+    }
+    let condition = world
+        .discoveries()
+        .first()
+        .expect("the line came through the horizon")
+        .condition;
+
+    // A line whose descendants grow the shape the declared site needs, and a
+    // committed program that declares it.
+    world.lineages_mut().set_recipe(
+        species,
+        mesocosm_core::Recipe::of(vec![mesocosm_core::Tagma::new(
+            1,
+            mesocosm_core::Appendage::Plate,
+        )]),
+    );
+    let revision = match world.apply(Intent::Revise { condition }) {
+        mesocosm_core::Outcome::Revised { revision, .. } => revision,
+        other => panic!("the commit was refused: {other:?}"),
+    };
+
+    let parent = world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == me)
+        .expect("here");
+    parent.stage = mesocosm_core::Stage::Mature;
+    parent.since_offspring = u32::MAX;
+    parent.energy_mg = 100_000;
+    assert!(
+        parent.can_reproduce(),
+        "the ecology's own gate is satisfied"
+    );
+    world.drain_events();
+    world.drain_flows();
+
+    for tick in 0..40 {
+        let flows = stepped(&mut world, Intent::Idle, &format!("on birth tick {tick}"));
+        let events = world.drain_events();
+        let Some(child) = events.iter().find_map(|recorded| match recorded.record {
+            mesocosm_core::history::Event::Born {
+                organism,
+                parent: Some(who),
+                ..
+            } if who == me => Some(organism),
+            _ => None,
+        }) else {
+            continue;
+        };
+
+        let recorded_cost = events
+            .iter()
+            .find_map(|recorded| match recorded.record {
+                mesocosm_core::history::Event::Inherited {
+                    organism,
+                    revision: under,
+                    cost_mg,
+                    ..
+                } if organism == child && under == revision => Some(cost_mg),
+                _ => None,
+            })
+            .expect("the child was born expressing its line's revision");
+        assert!(recorded_cost > 0, "and expressing it cost milligrams");
+
+        let developed: Vec<u64> = flows
+            .iter()
+            .map(|flow| &flow.record)
+            .filter(|record| {
+                record.process == Process::Develop
+                    && record.from.map(|from| from.organism) == Some(child)
+            })
+            .map(|record| {
+                assert_eq!(record.source, Account::Reserve, "out of the child's budget");
+                assert_eq!(record.destination, Account::Soil, "and into the ground");
+                record.amount_mg
+            })
+            .collect();
+        assert_eq!(
+            developed,
+            vec![recorded_cost],
+            "one record, for exactly what the birth record says it cost"
+        );
+
+        // The other half of the same milligram: the child's reserve is what the
+        // birth gave it, less what its program cost.
+        let given = flows
+            .iter()
+            .map(|flow| &flow.record)
+            .find(|record| {
+                record.process == Process::Birth
+                    && record.destination == Account::Reserve
+                    && record.to.map(|to| to.organism) == Some(child)
+            })
+            .expect("a birth provisions a reserve")
+            .amount_mg;
+        let newborn = world.living().find(|o| o.id == child).expect("alive");
+        assert_eq!(newborn.energy_mg, given - recorded_cost);
+        assert!(
+            newborn.phenotype.secretory_mg() > 0,
+            "and it has the organ it paid for"
+        );
+        return;
+    }
+    panic!("no birth in forty ticks");
+}
+
+#[test]
 fn the_check_catches_a_mutation_the_stream_did_not_record() {
     // **The positive control.** A seam that moves matter without emitting is
     // exactly the failure this file exists against, so the check is shown one.

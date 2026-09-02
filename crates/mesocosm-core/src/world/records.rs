@@ -88,6 +88,10 @@ pub(super) fn event_for(
             from,
             founder,
         }),
+        // A committed revision writes its own event, inside the transaction
+        // that made it, because an unplayed lineage takes that transaction and
+        // never reaches this function. One record, one writer. (P4)
+        Outcome::Revised { .. } => None,
         // Resuming is a decision, and the ordered trace is where decisions are
         // kept. A history records what happened to a creature, and carrying on
         // unchanged did not happen to one.

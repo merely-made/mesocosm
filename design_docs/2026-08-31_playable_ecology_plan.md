@@ -477,6 +477,15 @@ budget, previews a founder, and commits a program for future descendants. At
 least one unplayed lineage takes a turn through the same proposal and validator
 path.
 
+**P4a and PD5 landed 2026-09-02, so what PE3 still owns is the review
+itself.** A lineage now carries a versioned development program, `Intent::Revise`
+commits a revision over one `World::revise` transaction that unplayed lines take
+too, and a descendant is born expressing it through the same validator — or born
+anyway with the record naming the revision it could not express. What is still
+missing is choosing among several candidates, pricing the choice, and doing it
+at a checkpoint: `World::revision_admitted_now` returns `true` and is the one
+function standing in for ruling 2 below.
+
 The epoch trigger is a versioned world rule and remains to be chosen. PE3 adds
 that minimal realized rule before PE4 generalizes world-law generation. It is
 not implicitly every reproduction.

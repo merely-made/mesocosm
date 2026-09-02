@@ -81,11 +81,53 @@ pub struct Species {
     /// line does not change what it is made of.
     #[serde(default)]
     pub domain: crate::graft::Domain,
+    /// What this line's descendants are born expressing. (P4/PD5)
+    ///
+    /// **Heritable, immutable, append-only.** A revision states declared sites
+    /// rather than a body snapshot, so two descendants of one program may
+    /// realize differently; a fork inherits the whole program, because
+    /// splitting a line is a commitment rather than a fresh start. Empty is
+    /// the founding program — allocation seeded from geometry, which is what
+    /// every birth in this world does until a line commits.
+    #[serde(default)]
+    program: crate::program::Program,
 }
 
 impl Species {
     pub fn is_named(&self) -> bool {
         self.name.is_some()
+    }
+
+    /// This line's development program.
+    pub fn program(&self) -> &crate::program::Program {
+        &self.program
+    }
+
+    /// Commits a revision on this line. **The only way a program moves**, and
+    /// [`World::revise`](crate::World) is its only production caller: a
+    /// revision is a world transaction with a record, not a field a host sets.
+    pub(crate) fn commit(
+        &mut self,
+        cites: crate::program::Citation,
+        sites: Vec<crate::program::DeclaredSite>,
+        at: u64,
+    ) -> crate::program::RevisionId {
+        self.program.commit(cites, sites, at)
+    }
+
+    /// One founder, realized from this line's recipe and developed under its
+    /// current revision.
+    ///
+    /// A prediction and an explanation receipt (phenotype plan §3): the same
+    /// declared inputs reproduce it, and a different ground or provisioning
+    /// may realize the same program as a legibly different body.
+    pub fn preview(
+        &self,
+        registry: &crate::process::Registry,
+        founder: crate::program::Founder,
+        seed: u64,
+    ) -> Result<crate::program::Preview, DevelopmentError> {
+        crate::program::preview(self, registry, founder, seed)
     }
 
     /// Realizes one phenotype from this lineage's developmental program.
@@ -133,6 +175,7 @@ impl Lineages {
             parent: None,
             founded: 0,
             domain: crate::graft::Domain::default(),
+            program: crate::program::Program::default(),
         })
     }
 
@@ -153,6 +196,11 @@ impl Lineages {
         // A fork inherits what its parent is made of. Splitting a line is a
         // commitment, not a change of tissue.
         let domain = self.species[&parent].domain;
+        // And what its parent had come to grow. Epoch-boundary plan §2: a
+        // branch shares the parent revision it split from, so the program
+        // carries across and the two lines diverge by committing rather than
+        // by one of them forgetting.
+        let program = self.species[&parent].program.clone();
         self.species.insert(
             id,
             Species {
@@ -163,6 +211,7 @@ impl Lineages {
                 parent: Some(parent),
                 founded: at,
                 domain,
+                program,
             },
         );
         Some(id)
