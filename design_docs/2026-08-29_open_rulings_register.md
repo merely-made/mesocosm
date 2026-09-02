@@ -163,6 +163,13 @@ dispatched" until it was.
 
 ### 8. Wire the epoch boundary and succession (PS2)
 
+**Answered 2026-09-02, and the question dissolved rather than being resolved.**
+`Runtime::end_epoch` never got a production caller: PE3 made the world end its
+own epochs on a versioned world rule, DT3 gave a hand `Intent::EndEpoch`, and
+DT4 deleted both `Runtime::end_epoch` and `World::end_epoch` because they ran a
+*different* boundary from the one `World::apply` runs — no adaptation round, and
+`at_boundary` left false. There is one door now. Succession was wired by PE1.
+
 **Ask.** `Runtime::end_epoch` has exactly one caller and it is a unit test, and
 nothing calls `control_lost()` from any host — so `world.epoch` never leaves 0
 and `WorldRecord` stays empty in real play. The first playtest hit the death

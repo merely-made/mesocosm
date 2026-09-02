@@ -7,9 +7,14 @@
 //!
 //! ```text
 //! cargo run -p mesocosm-genet
-//! cargo run -p mesocosm-genet -- --record-demo
 //! cargo run -p mesocosm-genet -- --replay <trace>
+//! cargo run -p mesocosm-genet -- --scenario <scenario>
 //! ```
+//!
+//! `--scenario` drives the run from a text scenario through genet-probe's
+//! shared driver (DT4). It is where `--record-demo` and `--auto-eat` went: both
+//! are now actions a scenario asks for by name. See [`mesocosm_genet::app::drive`]
+//! for the verbs and [`mesocosm_genet::app::actions`] for the names.
 //!
 //! Controls: WASD moves, E or Space metabolizes what is in reach, Q deposits,
 //! C digs, the arrow keys pan the section, Escape writes the receipts and
@@ -41,8 +46,6 @@ fn main() {
     let mut config = HostConfig::default();
     let mut args = std::env::args().skip(1);
     let mut replay: Option<PathBuf> = None;
-    let mut record_demo = false;
-    let mut seed_given = false;
     let mut trace = None;
     let mut receipt = None;
     let mut capture = None;
@@ -54,8 +57,21 @@ fn main() {
             "--trace" => trace = args.next().map(PathBuf::from),
             "--receipt" => receipt = args.next().map(PathBuf::from),
             "--replay" => replay = args.next().map(PathBuf::from),
-            "--record-demo" => record_demo = true,
-            "--auto-eat" => config.auto_eat_every = args.next().and_then(|v| v.parse().ok()),
+            // The scenario driver (DT4). It replaces `--record-demo` and
+            // `--auto-eat`, which are now the `demo` and `hunt` actions.
+            "--scenario" => {
+                let Some(path) = args.next().map(PathBuf::from) else {
+                    eprintln!("--scenario wants a path");
+                    std::process::exit(1);
+                };
+                match std::fs::read_to_string(&path) {
+                    Ok(text) => config.scenario = Some(text),
+                    Err(error) => {
+                        eprintln!("scenario: {}: {error}", path.display());
+                        std::process::exit(1);
+                    }
+                }
+            }
             // Presentation only; the default is ruled and this varies it.
             "--slab" => {
                 if let Some(half) = args.next().and_then(|v| v.parse::<f32>().ok()) {
@@ -65,7 +81,6 @@ fn main() {
             "--seed" => {
                 if let Some(seed) = args.next().and_then(|v| v.parse().ok()) {
                     config.seed = seed;
-                    seed_given = true;
                 }
             }
             // The dev lane and its keys (DT1). Off by default; recorded in
@@ -86,33 +101,6 @@ fn main() {
     let trace_path = trace.unwrap_or_else(played::default_trace_path);
     config.capture = Some(capture.unwrap_or_else(played::default_capture_path));
     config.receipt = Some(receipt.unwrap_or_else(played::default_receipt_path));
-
-    if record_demo {
-        // Headless: the demo trace exists so the headed receipt below needs
-        // nobody at the keyboard. It records in its own world unless told
-        // otherwise, because the loop it has to demonstrate does not happen in
-        // every enclosure — see `played::DEMO_SEED`.
-        if !seed_given {
-            config.seed = played::DEMO_SEED;
-        }
-        let recorded = played::record_demo(
-            config.seed,
-            config.organisms,
-            config.ticks_per_second,
-            played::DEMO_STEPS,
-        );
-        if let Err(error) = played::write_json(&trace_path, &recorded) {
-            eprintln!("record-demo: {error}");
-            std::process::exit(1);
-        }
-        println!(
-            "recorded {} intents to {}, hash {:016x}",
-            recorded.intents.len(),
-            trace_path.display(),
-            recorded.state_hash
-        );
-        return;
-    }
 
     if let Some(path) = replay {
         match played::read_trace(&path) {
@@ -150,8 +138,7 @@ mesocosm-genet: run Mesocosm in a window
   --trace PATH    write (or, with --replay, read) the intent trace
   --receipt PATH  write the run's receipt
   --replay PATH   drive the run from a recorded trace and assert its hash
-  --record-demo   write a scripted trace headlessly and exit
-  --auto-eat N    metabolize automatically every N steps
+  --scenario PATH drive the run from a text scenario and exit 1 if it fails
   --seed N        world seed
   --slab H        section slab half-height in voxels (presentation only, default 28)
   --dev           enable the dev lane and its keys (DT1, DT2, DT3); off by
@@ -184,4 +171,21 @@ the trace, replay with it, and are counted on the receipt:
   F      force a birth from the followed critter
   K      kill the followed critter
   G      put matter into the ground under the followed critter
-a run that applied any of the four prints as assisted";
+a run that applied any of the four prints as assisted
+
+a scenario is one verb a line (blank lines and # comments skipped):
+  act NAME        one of the key letters above (w, e, x, ...), or one of five
+                  host actions: follow ID, follow-nearest, follow-child,
+                  hunt EVERY, demo STEPS
+  settle N        pump N frames
+  wait [CAP]      hold until the host reports quiet (a replay spent, a demo or
+                  hunt finished, the queue empty); CAP is a hang-stop
+  assert text S   S is on a chrome lane that is on screen
+  assert snap F OP V   a run field: hash, expected, matches, mode, tick, steps,
+                  frames, epoch, dev, dev-intents, assisted, queued, controlled,
+                  follow, living, checkpoint, boundary, paused. OP is == >= <= ~
+                  (assisted reads 'unassisted' or 'assisted (N dev intents)')
+  assert event S  S is in what the world answered
+  capture NAME    a PNG, at NAME if it is a path or beside the fixtures if not
+  log WORDS       into the run's log
+the process exits 1 if any assertion fails or the scenario runs out of frames";

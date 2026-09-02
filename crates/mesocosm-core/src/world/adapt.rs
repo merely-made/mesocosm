@@ -44,6 +44,20 @@
 //! do is *reckon*: [`World::reckon`] reads the past, and history lives beside a
 //! world rather than inside it, so whoever holds the past does that half.
 //!
+//! # One boundary, one door (DT4)
+//!
+//! There used to be a second one. `World::end_epoch(history)` reckoned, bumped
+//! the epoch and restarted the budget — but it never ran the adaptation round
+//! and it left `at_boundary` *false*, so an epoch closed through it gave the
+//! unplayed lines no turn and stood at no lineage checkpoint. The boundary
+//! block in [`World::apply`] does both. Two doors that disagreed about what a
+//! boundary is are one authority too many, so the manual one is **deleted**:
+//! the epoch ends when the world's own rule says so, or when a hand asks
+//! through `Intent::EndEpoch`, and both are that block. A caller that wants the
+//! epoch closed now applies the intent; a caller that wants to know what an
+//! epoch came to calls [`World::reckon`], which is the read-the-past half and
+//! was always separate.
+//!
 //! # What an unplayed line may consider
 //!
 //! **Inherited or already-discovered candidates only** (playable ecology plan
@@ -185,7 +199,8 @@ fn best_of(considered: &[(Option<ConditionId>, Score)]) -> Option<ConditionId> {
     best.map(|(condition, _)| condition)
 }
 
-/// The epoch's two ends: reckoning what it came to, and closing it.
+/// Reckoning what an epoch came to. **Closing one is not here** — see the
+/// module docs and [`World::apply`]'s boundary block, which is the only door.
 impl World {
     /// Reckons what the epoch came to, and writes it into the world's record.
     ///
@@ -203,19 +218,6 @@ impl World {
                 self.record
                     .note(reading.feat, reading.scale, reading.value, reading.species);
         }
-        readings
-    }
-
-    /// Reckons the epoch and closes it here, whatever its budget said.
-    ///
-    /// The manual door, and what it was before the Timed rule existed. Bodies
-    /// change between epochs and not during them, so ending one early restarts
-    /// the budget from this tick rather than shortening only the next epoch.
-    pub fn end_epoch(&mut self, history: &crate::history::History) -> Vec<Reading> {
-        let readings = self.reckon(history);
-        self.epoch += 1;
-        self.epoch_began = self.tick;
-        self.at_boundary = false;
         readings
     }
 

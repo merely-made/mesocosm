@@ -89,7 +89,7 @@ fn a_lineage_that_has_not_moved_is_local() {
     let mine = world.controlled().expect("embodied").species;
     assert_eq!(world.range(mine).len(), 1, "one critter, one region");
 
-    let readings = world.end_epoch(&history);
+    let readings = world.reckon(&history);
     for reading in readings.iter().filter(|r| r.species == mine) {
         assert_eq!(reading.scale, Scale::Local);
     }
@@ -100,7 +100,7 @@ fn a_scale_is_the_reach_of_whoever_did_it() {
     let (mut world, history) = lived(300);
     let places = world.places().clone();
 
-    for reading in world.end_epoch(&history) {
+    for reading in world.reckon(&history) {
         assert_eq!(
             reading.scale,
             places.scale(&world.range(reading.species)),
@@ -109,15 +109,31 @@ fn a_scale_is_the_reach_of_whoever_did_it() {
     }
 }
 
+/// **The boundary and the reckoning, in the order the driver does them** (DT4).
+/// There is one door into a boundary — `World::apply`'s block, reached by the
+/// world's own epoch rule or by a hand's `Intent::EndEpoch` — and the reckoning
+/// is the separate read-the-past call after it. The manual `World::end_epoch`
+/// that used to do both at once is deleted; it skipped the adaptation round and
+/// left the world standing at no checkpoint, which is two answers to one
+/// question.
 #[test]
 fn ending_an_epoch_finally_writes_the_record() {
     let (mut world, history) = lived(300);
     assert_eq!(world.record().filled(), 0, "nothing has been noted yet");
+    assert_eq!(world.epoch, 0, "the budget is nowhere near spent");
 
-    let readings = world.end_epoch(&history);
-    assert!(!readings.is_empty(), "an epoch of living came to something");
+    assert_eq!(
+        world.apply(Intent::EndEpoch),
+        mesocosm_core::Outcome::EpochEnded { epoch: 0 }
+    );
     assert_eq!(world.epoch, 1);
+    assert!(
+        world.at_boundary(),
+        "and standing at its lineage checkpoint"
+    );
 
+    let readings = world.reckon(&history);
+    assert!(!readings.is_empty(), "an epoch of living came to something");
     assert!(world.record().filled() > 0, "and the record has it now");
     for reading in &readings {
         let mark = world
@@ -133,7 +149,7 @@ fn the_first_of_anything_takes_the_record() {
     // What an epoch-boundary screen is made of: not the numbers, but which of
     // them nobody had reached before.
     let (mut world, history) = lived(200);
-    let readings = world.end_epoch(&history);
+    let readings = world.reckon(&history);
     assert!(
         readings.iter().any(|r| r.took),
         "an empty record is all firsts"
@@ -147,10 +163,10 @@ fn reckoning_twice_changes_nothing() {
     // that lets two worlds hand each other records without a protocol, seen
     // from inside one world.
     let (mut world, history) = lived(250);
-    world.end_epoch(&history);
+    world.reckon(&history);
     let after = world.record().clone();
 
-    let again = world.end_epoch(&history);
+    let again = world.reckon(&history);
     assert_eq!(*world.record(), after, "a second reckoning moved a mark");
     assert!(
         again.iter().all(|r| !r.took),
@@ -163,7 +179,7 @@ fn nobody_has_built_anything_yet() {
     // Two axes stay open, and that is the point: `untouched` answers "has
     // anyone ever", so writing a zero would close the question permanently.
     let (mut world, history) = lived(300);
-    world.end_epoch(&history);
+    world.reckon(&history);
 
     for scale in [Scale::Local, Scale::Regional, Scale::Worldwide] {
         assert!(world.record().untouched(Feat::Construction, scale));
@@ -177,7 +193,7 @@ fn a_world_carries_its_record_and_its_regions() {
     // Both belong in the snapshot: a few integers and nine sites, so whole-state
     // capture stays the cheap thing the wing's rollback thinking rests on.
     let (mut world, history) = lived(150);
-    world.end_epoch(&history);
+    world.reckon(&history);
 
     let bytes = snapshot(&world).unwrap();
     let restored: World = mesocosm_core::restore(&bytes).unwrap();
@@ -189,6 +205,6 @@ fn a_world_carries_its_record_and_its_regions() {
 fn the_same_seed_reckons_the_same() {
     let (mut a_world, a) = lived(150);
     let (mut b_world, b) = lived(150);
-    assert_eq!(a_world.end_epoch(&a), b_world.end_epoch(&b));
+    assert_eq!(a_world.reckon(&a), b_world.reckon(&b));
     assert_eq!(a_world.record(), b_world.record());
 }

@@ -211,6 +211,21 @@ impl VitalsChrome {
         (MARGIN, y.max(0.0), WIDTH as f32, HEIGHT as f32)
     }
 
+    /// This lane's retained DOM, where it sits in the window, and the sheet it
+    /// lays out under — what a `genet_probe::ProbeSurface` is made of. (DT4)
+    ///
+    /// The driver searches and asserts against exactly the tree this lane draws
+    /// from, so an `assert text` is a claim about what is on screen rather than
+    /// about a second rendering of it. See [`crate::drive`].
+    pub fn probe(&self, frame: (u32, u32)) -> (cambium::DomHandle, [f32; 4], &'static str) {
+        let (x, y, w, h) = Self::placement(frame);
+        (
+            self.runner.dom(),
+            [x, y, w, h],
+            mesocosm_views::vitals_css(),
+        )
+    }
+
     pub fn composite(
         &self,
         chrome: &Chrome,

@@ -470,7 +470,11 @@ is written down in the phenotype plan's P3 entry.
 Follow the owning phenotype and ProcessDef order through P3 branch transfer,
 PD3 static pack admission, PD4 authoring parity, P4's adaptation bridge, and
 PD5 filial expression. Give `Runtime::end_epoch` a production caller and open
-the route-B review over the same world. Replace the provisional scalar
+the route-B review over the same world. (**Superseded 2026-09-02 by DT4's
+reconciliation**: `Runtime::end_epoch` and `World::end_epoch` are deleted rather
+than given a caller. The boundary block in `World::apply` is the one door —
+reached by the world's own epoch rule or by a hand's `Intent::EndEpoch` — and
+`World::reckon` is the separate read-the-past half. See the dev tools plan, DT0.) Replace the provisional scalar
 adaptation result with a validated developmental-program revision. The player
 reviews ecology readings and discovery evidence, spends a finite lineage
 budget, previews a founder, and commits a program for future descendants. At

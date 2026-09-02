@@ -194,6 +194,22 @@ pub fn default_capture_path() -> PathBuf {
     default_out_dir().join("ps1_played.png")
 }
 
+/// What a run's assistance reads as, in one place. (DT3, moved here by DT4.)
+///
+/// Empty for an unaided run, and `assisted (N dev intents)` for one that ended
+/// an epoch, forced a birth, killed something or placed matter. Written once
+/// because two things say it now: the line the host prints on the way out, and
+/// the `assisted` field a scenario asserts against ([`crate::drive`]). A label
+/// that could differ between the two would let a scenario pass a run the
+/// receipt calls assisted.
+pub fn assisted_label(dev_intents: u64) -> String {
+    if dev_intents > 0 {
+        format!("assisted ({dev_intents} dev intents)")
+    } else {
+        String::new()
+    }
+}
+
 fn ensure_parent(path: &Path) -> Result<(), String> {
     let Some(parent) = path.parent() else {
         return Ok(());
@@ -225,6 +241,31 @@ pub fn write_png(path: &Path, width: u32, height: u32, pixels: &[u8]) -> Result<
         .map_err(|error| error.to_string())
 }
 
+/// **One step of the demo, and the only place it is driven.** (DT4)
+///
+/// A checkpoint holds the world, so a recording that ignored one would simply
+/// stop advancing. Answering it is the demo's whole point: the choice is an
+/// ordinary intent, so it lands in the trace beside the moves and the meals and
+/// replays with them.
+///
+/// One intent per step, off the clock: a recording has no frame rate. That is
+/// what lets the headed scenario driver pump this from a frame loop
+/// ([`crate::drive`]'s `demo` action) and reach the same hash the headless
+/// [`record_demo`] loop below reaches — the two are one driver with two pumps,
+/// rather than a script written twice.
+pub fn demo_step(runtime: &mut Runtime, volumes: &VolumeMap, step: u64, script: &mut Script) {
+    let intent = match runtime.checkpoint() {
+        Some(checkpoint) => answer(checkpoint),
+        None => demo_intent(runtime.world(), volumes, step, script),
+    };
+    let grafting = matches!(intent, Intent::Graft { .. });
+    runtime.queue(intent);
+    runtime.step(1);
+    if grafting && runtime.world().last_graft().is_some() {
+        script.grafts += 1;
+    }
+}
+
 /// Builds a trace headlessly, so the headed receipt runs with nobody at the
 /// keyboard. Every verb the slice claims appears in it: moves in each
 /// direction, metabolize, deposit, carve — and a stretch of doing nothing at
@@ -234,21 +275,7 @@ pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32, steps: u64)
     let mut runtime = Runtime::new(seed, organisms, ticks_per_second);
     let mut script = Script::default();
     for step in 0..steps {
-        // A checkpoint holds the world, so a recording that ignored one would
-        // simply stop advancing. Answering it is the demo's whole point: the
-        // choice is an ordinary intent, so it lands in the trace beside the
-        // moves and the meals and replays with them.
-        let intent = match runtime.checkpoint() {
-            Some(checkpoint) => answer(checkpoint),
-            None => demo_intent(runtime.world(), &volumes, step, &mut script),
-        };
-        let grafting = matches!(intent, Intent::Graft { .. });
-        runtime.queue(intent);
-        // One intent per step, off the clock: a recording has no frame rate.
-        runtime.step(1);
-        if grafting && runtime.world().last_graft().is_some() {
-            script.grafts += 1;
-        }
+        demo_step(&mut runtime, &volumes, step, &mut script);
     }
     PlayedTrace {
         seed,

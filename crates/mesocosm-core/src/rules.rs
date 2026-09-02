@@ -123,24 +123,22 @@ impl EpochRule {
     ///
     /// **Timed accepts the demand as an early end, and that is the ruling.**
     /// The alternative — admit it only under [`Self::PlayerTriggered`] — was
-    /// rejected for two reasons. First, [`World::end_epoch`] has always been
-    /// able to close a Timed epoch early and restart its budget from that
-    /// tick; a dev key that could not do what the driver's own manual door
-    /// already does would be a weaker tool guarded by a stricter rule, and the
-    /// two would then disagree about what a boundary is. Second, refusing
-    /// would mean the dev tool only worked in a world founded under a rule the
-    /// game does not ship, so the one thing it exists to exercise — the
-    /// boundary path PE3a built, in the world play actually runs — could never
-    /// be reached with it. Ending early restarts the budget from this tick,
-    /// exactly as `World::end_epoch` documents, because bodies change between
-    /// epochs rather than during them.
+    /// rejected for two reasons. First, closing a Timed epoch early has always
+    /// been something a driver could ask for, back when a manual door existed
+    /// beside this one (deleted in DT4; see `world::adapt`'s module docs): a
+    /// dev key that could not do what that door did would be a weaker tool
+    /// guarded by a stricter rule, and the two would then disagree about what
+    /// a boundary is. Second, refusing would mean the dev tool only worked in
+    /// a world founded under a rule the game does not ship, so the one thing
+    /// it exists to exercise — the boundary path PE3a built, in the world play
+    /// actually runs — could never be reached with it. Ending early restarts
+    /// the budget from this tick, because bodies change between epochs rather
+    /// than during them.
     ///
     /// [`Self::Gated`] refuses. It has no condition behind it yet, and a
     /// demand standing in for conditions nobody has named would make it
     /// indistinguishable from [`Self::PlayerTriggered`] — two rules the
     /// playable ecology plan §6 deliberately keeps apart.
-    ///
-    /// [`World::end_epoch`]: crate::World::end_epoch
     pub fn admits_demand(self) -> bool {
         match self {
             Self::Timed { .. } | Self::PlayerTriggered => true,

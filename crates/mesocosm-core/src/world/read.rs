@@ -143,7 +143,7 @@ impl World {
     /// out of the past, because `Event::Born` has always carried its parent;
     /// eligibility comes out of [`Self::eligibility`], because control has one
     /// gate and a descendant does not get a private one. The past is a
-    /// parameter for the reason [`end_epoch`] takes one: a world can say what
+    /// parameter for the reason [`reckon`] takes one: a world can say what
     /// is, never what happened.
     ///
     /// This is a **reading**, not a roster: it names living organisms that go
@@ -151,7 +151,7 @@ impl World {
     /// nothing here reserves, removes or freezes one. Siblings stay in the
     /// ecology. (PE1.)
     ///
-    /// [`end_epoch`]: World::end_epoch
+    /// [`reckon`]: World::reckon
     pub fn heirs(&self, history: &crate::history::History, of: OrganismId) -> Vec<OrganismId> {
         history
             .descendants(of)

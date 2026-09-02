@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
-use mesocosm_core::{Intent, Kingdom, Organism, Placement, Signal, Stage};
+use mesocosm_core::{Kingdom, Organism, Signal, Stage};
 use mesocosm_mesh::{BodyMesh, VolumeMap, VolumeSource, mesh_body};
 use mesocosm_render::{SceneItem, deadened, kingdom_colour};
 use mesocosm_runtime::Runtime;
@@ -21,16 +21,18 @@ use winit::window::{Window, WindowId};
 
 use crate::chrome::Chrome;
 use crate::fixture;
-use crate::input;
 use crate::section::{self, Pan, Section, SectionFrame};
 
+pub mod actions;
 mod config;
 mod devtime;
 mod devworld;
+pub mod drive;
 mod follow;
 mod receipts;
 mod setup;
 
+pub use actions::{NEIGHBOUR_MIN_MG, PUMP_STEPS_PER_FRAME};
 pub use config::HostConfig;
 pub use devworld::DEV_PLACE_MG;
 
@@ -129,6 +131,29 @@ pub struct Host {
     /// A followed critter that stopped being one, kept so the tile can report
     /// it after follow has snapped back.
     follow_lost: Option<mesocosm_views::Lost>,
+    /// The scenario driving this run, when `--scenario` gave it one. (DT4)
+    ///
+    /// `None` for an ordinary session at the keyboard, and for a bare
+    /// `--replay`. While it is `Some`, the scenario decides when the run ends;
+    /// see [`drive`].
+    scenario: Option<genet_probe::Scenario>,
+    /// Semantic events since the driver last drained them. Presentation of a
+    /// sort: it is written from what the world already answered and read only
+    /// by `assert event`, so nothing in it reaches an intent.
+    events: Vec<String>,
+    /// Scripted steps still to take, off the clock. (DT4)
+    ///
+    /// Where `--auto-eat` and `--record-demo` both went: a scenario asks for a
+    /// stretch of hunting or a stretch of the recorded demo by name, and gets
+    /// exactly the ticks it asked for rather than however many a frame rate
+    /// happened to deliver. See [`actions::Pump`].
+    pump: Option<actions::Pump>,
+    /// Intents the driver has already turned into events, so a frame and an
+    /// action cannot record the same outcome twice.
+    noted: usize,
+    /// The offspring the last accepted forced birth produced, so a scenario can
+    /// follow what it just made. (DT4)
+    last_child: Option<mesocosm_core::OrganismId>,
 }
 
 struct Gpu {
@@ -190,6 +215,16 @@ impl Host {
         // and a target that is not alive is reported and dropped on the first
         // frame like any other.
         let follow = config.follow.map(mesocosm_core::OrganismId);
+        // Parsed once, here, so a typo in a scenario stops the run before a
+        // window opens rather than three verbs into it. (DT4)
+        let scenario = match config.scenario.as_deref().map(genet_probe::Scenario::parse) {
+            Some(Ok(scenario)) => Some(scenario),
+            Some(Err(why)) => {
+                eprintln!("scenario: {why}");
+                std::process::exit(1);
+            }
+            None => None,
+        };
         Self {
             config,
             runtime,
@@ -211,6 +246,11 @@ impl Host {
             dev_manual_steps: 0,
             follow,
             follow_lost: None,
+            scenario,
+            events: Vec::new(),
+            pump: None,
+            noted: 0,
+            last_child: None,
         }
     }
 
@@ -287,6 +327,15 @@ impl Host {
                 && (ran == 0 || self.runtime.queued_len() == 0);
         }
 
+        // A scripted stretch, while a scenario is pumping one (DT4). Off the
+        // clock and one intent per step, exactly as the headless recording
+        // runs it — which is what lets the two reach the same hash, and what
+        // makes a scripted run the same run at any frame rate.
+        if self.pump.is_some() {
+            self.pump_frame();
+            return false;
+        }
+
         let now = Instant::now();
         let elapsed_us = self
             .last
@@ -297,58 +346,8 @@ impl Host {
         // frame's elapsed time before the clock ever sees it. See `devtime`.
         let elapsed_us = self.dev_paced_elapsed(elapsed_us);
 
-        // Auto-eat lets a capture run grow a body with nobody at the keyboard.
-        // It stops at a checkpoint like a hand would: an unattended run reaches
-        // the question and stays there, which is how a capture of one is taken.
-        if let Some(every) = self.config.auto_eat_every
-            && self.runtime.checkpoint().is_none()
-            && self.steps / every > (self.steps.saturating_sub(1)) / every
-            && self.runtime.queued_len() == 0
-        {
-            let world = self.runtime.world();
-            if let Some(target) = fixture::reachable(world) {
-                // An unattended run eats what it can reach; whether that grows
-                // a body or refills a budget is the body's to decide.
-                let intent = fixture::metabolize(world, target, &self.volumes, Placement::Planned);
-                self.runtime.queue(intent);
-            } else if let Some(step) = fixture::toward_prey(world) {
-                // **Hunt, do not wait.** Reach became anatomy in P2, so a
-                // starting critter touches about three voxels. An unattended
-                // run that stood still grew nothing in nine hundred frames.
-                self.runtime.queue(Intent::Move { delta: step });
-            }
-        }
-
         self.steps += self.runtime.advance(elapsed_us);
         false
-    }
-
-    /// The trait board's own keys, while it is standing. (PE3b)
-    ///
-    /// `None` means the board did not take this key and it falls through to the
-    /// checkpoint's answers. `Some(None)` means the board took it and produced
-    /// no intent — moving the cursor is presentation, and putting a cursor
-    /// move in the queue would be putting it in the trace.
-    fn board_key(&mut self, key: &winit::keyboard::Key) -> Option<Option<Intent>> {
-        let action = input::board_key(key)?;
-        let review = self.runtime.review()?;
-        match action {
-            // `Review::commit` refuses the status quo and every untakeable row,
-            // so the key cannot send a revision the world would only reject.
-            input::BoardKey::Commit => Some(review.commit(self.board_row)),
-            input::BoardKey::Next => {
-                // Wrapping, and over every row including the untakeable ones:
-                // a candidate you cannot take yet is a thing to read, and
-                // skipping it would hide the reason it is there for.
-                let rows = review.rows.len();
-                self.board_row = if rows == 0 {
-                    0
-                } else {
-                    (self.board_row + 1) % rows
-                };
-                Some(None)
-            }
-        }
     }
 
     fn frame(&mut self, event_loop: &ActiveEventLoop) {
@@ -357,6 +356,9 @@ impl Host {
         // them (DT2). Nothing outside `--dev` calls it.
         self.watch_followed();
         let replay_done = self.advance();
+        // What the world answered this frame, as the describe-strings an
+        // `assert event` matches. (DT4)
+        self.note_outcomes();
         // A follow target that stopped being alive is reported and dropped
         // here, before anything reads the centre.
         self.update_follow();
@@ -508,7 +510,14 @@ impl Host {
 
         self.frames += 1;
         let hit_limit = self.config.frames.is_some_and(|limit| self.frames >= limit);
-        if replay_done || hit_limit {
+        // **A scenario decides when its own run ends** (DT4). It is pumped
+        // after the frame is drawn, so an `assert text` reads what was just on
+        // screen and a `capture` writes exactly that frame; and neither a
+        // finished replay nor a frame limit closes the window under it, or the
+        // assertions after the last step would never run.
+        if self.scenario.is_some() {
+            self.drive_scenario(event_loop, hit_limit);
+        } else if replay_done || hit_limit {
             self.finish(event_loop);
         }
     }
@@ -541,33 +550,7 @@ impl ApplicationHandler for Host {
                     // module docs for the backlog it used to build): a held
                     // key contributes its initial keydown and nothing more
                     // while it stays down.
-                    key if self.config.replay.is_none() && !event.repeat => {
-                        // Dev keys first: none of the five collides with a
-                        // play key (see `input`'s module docs), but checking
-                        // here means a dev build's controls never drift one
-                        // key handler's accident away from live.
-                        if self.try_dev_key(key) {
-                            return;
-                        }
-                        // At a checkpoint the keyboard narrows to the answers:
-                        // the world is stopped, so a move has nothing to move
-                        // and would only go stale in the queue. At a lineage
-                        // checkpoint the board's own two keys come first — one
-                        // of which sends no intent at all.
-                        let intent = match self.board_key(key) {
-                            Some(taken) => taken,
-                            None => match self.runtime.checkpoint() {
-                                Some(checkpoint) => input::answer_for(checkpoint, key),
-                                None => input::intent_for(self.runtime.world(), &self.volumes, key),
-                            },
-                        };
-                        if let Some(intent) = intent {
-                            let urgency = input::urgency_of(&intent);
-                            if input::admits(urgency, self.runtime.queued_len()) {
-                                self.runtime.queue(intent);
-                            }
-                        }
-                    }
+                    key if self.config.replay.is_none() && !event.repeat => self.press_key(key),
                     _ => {}
                 }
             }

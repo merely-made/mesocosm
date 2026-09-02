@@ -27,10 +27,24 @@ impl Host {
         event_loop.exit();
     }
 
-    /// The frame the player was last looking at, chrome included.
+    /// The frame the player was last looking at, chrome included, at the path
+    /// the run was told to write.
     fn write_capture(&self) {
-        let (Some(path), Some(gpu)) = (&self.config.capture, &self.gpu) else {
+        let Some(path) = self.config.capture.clone() else {
             return;
+        };
+        if let Err(error) = self.capture_to(&path) {
+            eprintln!("capture: {error}");
+        }
+    }
+
+    /// The same frame, at any path. **The one capture path** — a scenario's
+    /// `capture <name>` verb comes through here too (DT4), so a screenshot a
+    /// script asks for is byte-for-byte the one the receipt writes rather than
+    /// a second read-back that could composite a different set of lanes.
+    pub(crate) fn capture_to(&self, path: &std::path::Path) -> Result<(), String> {
+        let Some(gpu) = &self.gpu else {
+            return Err("there is no device to read a frame back from".into());
         };
         let frame = (gpu.config.width, gpu.config.height);
         let shot = gpu.section.capture(|encoder, target, format| {
@@ -57,12 +71,9 @@ impl Host {
             }
         });
         let Some((width, height, pixels)) = shot else {
-            eprintln!("capture: the section could not be read back");
-            return;
+            return Err("the section could not be read back".into());
         };
-        if let Err(error) = played::write_png(path, width, height, &pixels) {
-            eprintln!("capture: {error}");
-        }
+        played::write_png(path, width, height, &pixels)
     }
 
     /// A replay's trace is an input; only a played session writes one.
@@ -90,10 +101,9 @@ impl Host {
             // A run that ended an epoch, forced a birth, killed something or
             // placed matter is not an unaided playtest, and the line that
             // reports it should not be able to be skimmed as one.
-            if receipt.dev_intents > 0 {
-                format!("assisted ({} dev intents) ", receipt.dev_intents)
-            } else {
-                String::new()
+            match played::assisted_label(receipt.dev_intents) {
+                label if label.is_empty() => label,
+                label => format!("{label} "),
             },
             receipt.mode,
             receipt.steps,
@@ -128,6 +138,17 @@ impl Host {
         }
     }
 
+    /// `replay` for a run a trace drives, `played` for every other. One
+    /// definition, because the receipt and a scenario's `assert snap mode` both
+    /// ask.
+    pub(crate) fn mode(&self) -> &'static str {
+        if self.config.replay.is_some() {
+            "replay"
+        } else {
+            "played"
+        }
+    }
+
     fn receipt(&self) -> PlayedReceipt {
         let run = self.runtime.receipt();
         // Only a replay that reached the end of its trace has a hash to be held
@@ -143,11 +164,7 @@ impl Host {
             .map(|trace| trace.state_hash);
         let world = self.runtime.world();
         PlayedReceipt {
-            mode: if self.config.replay.is_some() {
-                "replay"
-            } else {
-                "played"
-            },
+            mode: self.mode(),
             seed: run.seed,
             organisms: run.organisms,
             steps: run.steps,

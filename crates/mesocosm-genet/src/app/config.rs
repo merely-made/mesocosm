@@ -33,9 +33,12 @@ pub struct HostConfig {
     /// receipt: exactly one recorded intent per fixed step, then a hash
     /// assertion against what the trace recorded.
     pub replay: Option<PlayedTrace>,
-    /// Metabolize automatically every N steps, so a capture run has something
-    /// to show without keyboard input.
-    pub auto_eat_every: Option<u64>,
+    /// The scenario text driving this run, when `--scenario` gave it one. (DT4)
+    ///
+    /// The text rather than a parsed [`genet_probe::Scenario`], because a
+    /// config is cloned and compared and a parsed scenario is neither. `Host::new`
+    /// parses it, so a typo stops the run before a window opens.
+    pub scenario: Option<String>,
     /// Half the height of the section's orthographic slab, in voxels — how much
     /// world the terrarium view frames.
     ///
@@ -80,7 +83,7 @@ impl Default for HostConfig {
             trace: None,
             receipt: None,
             replay: None,
-            auto_eat_every: None,
+            scenario: None,
             slab_half_height: section::SLAB_HALF_HEIGHT,
             dev: false,
             follow: None,

@@ -26,6 +26,14 @@
 //! never both at once; the dev lane draws only while `--dev` is set. None of
 //! them touches the world, so none can reach the trace.
 
+//! **The harness is genet-probe's** (DT4). This host implements `Automatable`
+//! and `Driveable`, so a text `genet_probe::Scenario` drives a run: see
+//! [`app::drive`] for what each verb means here and [`app::actions`] for what
+//! `act` can ask for. The four cambium lanes above hand the driver the retained
+//! trees they draw from, so an `assert text` is a claim about what is on
+//! screen. `--record-demo`, `--auto-eat` and the DT3 example are gone; they are
+//! scenario actions now.
+
 pub mod app;
 pub mod chrome;
 pub mod dev;

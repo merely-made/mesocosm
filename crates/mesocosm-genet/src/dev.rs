@@ -221,6 +221,13 @@ impl DevChrome {
         rect_of(&self.tree, DEV_TILE, dock).unwrap_or(dock)
     }
 
+    /// This lane's retained DOM, its dock, and its sheet. See
+    /// [`crate::vitals::VitalsChrome::probe`]. (DT4)
+    pub fn probe(&self, frame: (u32, u32)) -> (cambium::DomHandle, [f32; 4], &'static str) {
+        let (x, y, w, h) = self.placement(frame);
+        (self.runner.dom(), [x, y, w, h], mesocosm_views::dev_css())
+    }
+
     pub fn composite(
         &self,
         chrome: &Chrome,

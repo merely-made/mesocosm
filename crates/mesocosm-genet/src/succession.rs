@@ -128,6 +128,17 @@ impl SuccessionChrome {
         self.shown.is_some()
     }
 
+    /// This lane's retained DOM, its box, and its sheet. See
+    /// [`crate::vitals::VitalsChrome::probe`]. (DT4)
+    pub fn probe(&self, frame: (u32, u32)) -> (cambium::DomHandle, [f32; 4], &'static str) {
+        let (x, y, w, h) = Self::placement(frame);
+        (
+            self.runner.dom(),
+            [x, y, w, h],
+            mesocosm_views::succession_css(),
+        )
+    }
+
     fn raster_panel(&mut self, chrome: &Chrome) {
         self.generation = self.generation.saturating_add(1);
         let dom = self.runner.dom();

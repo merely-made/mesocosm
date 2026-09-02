@@ -67,6 +67,12 @@ genet-livery = { git = "https://github.com/merely-made/genet.git", branch = "mai
 # rather than a hand-rolled corner constant. Same git source and reference as
 # cambium, for the reason stated above it.
 workbench = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+# The shared automatability substrate and scenario driver (DT4): `Automatable`,
+# `Driveable`, and a text `Scenario` over the cambium surfaces this workspace
+# already emits. It replaces the bespoke replay-and-demo harness rather than
+# sitting beside it — the dev tools plan's principle 4. Same git source and
+# reference as cambium, for the reason stated above workbench.
+genet-probe = { git = "https://github.com/merely-made/genet.git", branch = "main" }
 # The HUD lane (route A, ruled 2026-08-02): leaves paint PaintCmds,
 # paint_list_render lowers them, netrender rasterizes on the game's own
 # device. The wgpu-29 pin below exists for exactly this sharing.

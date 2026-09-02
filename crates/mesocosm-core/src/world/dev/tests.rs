@@ -118,6 +118,59 @@ fn a_gated_world_refuses_the_demand_by_name() {
     assert_eq!(world.last_round().turns.len(), 0, "no round ran");
 }
 
+/// **One boundary, one door** (DT4), proven by the two doors landing on the
+/// same world.
+///
+/// There used to be a third: `World::end_epoch(history)`, a manual door that
+/// bumped the epoch and restarted the budget but never ran the adaptation round
+/// and left `at_boundary` *false* — so an epoch closed through it gave the
+/// unplayed lines no turn and stood at no lineage checkpoint. It is deleted.
+/// What is left is this block in [`World::apply`], reached two ways, and the
+/// claim is that the way does not matter.
+///
+/// Both worlds run the identical intent stream but for the last tick, and both
+/// intents are pure: `Resume` and an accepted `EndEpoch` each move nothing,
+/// write no event, and reset the idle run. So a difference between the two
+/// worlds afterwards could only be the boundary itself.
+#[test]
+fn the_demand_and_the_spent_budget_leave_the_same_world() {
+    const BUDGET: u64 = 60;
+    let rule = EpochRule::Timed { ticks: BUDGET };
+
+    // The budget's own door: nobody asks, and the epoch ends when it is spent.
+    let mut by_budget = unhurried(11, 40, rule);
+    for _ in 0..BUDGET {
+        by_budget.apply(Intent::Resume);
+    }
+
+    // A hand's door, on the same tick: one intent short of the budget, then the
+    // demand instead of the filler.
+    let mut by_demand = unhurried(11, 40, rule);
+    for _ in 0..BUDGET - 1 {
+        by_demand.apply(Intent::Resume);
+    }
+    assert_eq!(
+        by_demand.apply(Intent::EndEpoch),
+        Outcome::EpochEnded { epoch: 0 }
+    );
+
+    // Both closed one epoch, both stand at the checkpoint, both ran the round.
+    assert_eq!(by_budget.epoch, 1);
+    assert!(by_budget.at_boundary());
+    assert_eq!(by_budget.last_round().epoch, 1);
+    assert_eq!(by_demand.epoch, 1);
+    assert!(by_demand.at_boundary());
+    assert_eq!(by_demand.last_round().epoch, 1);
+
+    // And they are the same world, to the byte the hash reads.
+    assert_eq!(
+        crate::state_hash(&by_budget),
+        crate::state_hash(&by_demand),
+        "two doors, one boundary"
+    );
+    assert_eq!(by_budget, by_demand);
+}
+
 // -------------------------------------------------------------- ForceBirth
 
 /// A forced birth is the ordinary birth: the child arrives the way the tick's

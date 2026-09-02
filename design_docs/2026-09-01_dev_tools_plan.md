@@ -1,8 +1,9 @@
 # Dev tools: sitting in a run and interrogating it
 
-**Status (2026-09-02): DT1, DT2 and DT3 landed.** Both §4 decisions ruled and
-built. DT4 (harness consolidation into genet-probe) is what remains, and it was
-always independent.
+**Status (2026-09-02): DT1, DT2, DT3 and DT4 all landed. The plan is
+complete.** Both §4 decisions ruled and built. DT4 folded the bespoke replay
+and demo harness into genet-probe's `Automatable`/`Driveable`/`Scenario`, and
+reconciled the epoch boundary's two disagreeing doors into one on the way.
 
 ## 0. Objective
 
@@ -108,6 +109,19 @@ Express `--replay`, `--record-demo` and `--auto-eat` through genet-probe's
 the recorded hash; the bespoke code it replaces is deleted and the deletion is
 listed; the headed-verify home under `Code/testing/mesocosm` still receives
 receipts and captures.
+
+### DT0. One boundary, one door
+
+Not a phase of its own — a reconciliation DT3 turned up and DT4 carried out.
+Two doors ended an epoch and they disagreed: `World::end_epoch(history)`
+reckoned, bumped the epoch and restarted the budget but never ran the
+adaptation round and left `at_boundary` *false*, while `Intent::EndEpoch` and a
+spent `Timed` budget ran the whole PE3a boundary.
+
+**Done when:** the boundary block in `World::apply` is the only door; any
+manual door calls exactly it or is gone; the reckoning stays the separate
+read-the-past call; a test shows the two remaining routes leave equal worlds;
+and the golden fixture's hash has not moved.
 
 **Order.** DT1, then DT2, then DT3. DT4 is independent and can go beside any
 of them. Each phase is one agent round on a non-Fable model.
@@ -408,3 +422,188 @@ of them. Each phase is one agent round on a non-Fable model.
   beside `app/devtime.rs` and `app/follow.rs`, `flow/accounts.rs` took
   `Account`'s two reductions, and `tests/flows.rs` shed `flows/dev.rs` and
   `flows/refusals.rs` (it was already at 602 lines).
+- **2026-09-02 (DT0 landed, the reconciliation DT3 found):** **there is one
+  boundary and one door.** `World::end_epoch(history)` is deleted, and so is
+  `Runtime::end_epoch` above it. What is left is the boundary block in
+  `World::apply` — reached by the world's own epoch rule, or by a hand through
+  `Intent::EndEpoch` — plus `World::reckon`, the separate read-the-past call
+  PE3a made it.
+
+  **The callers, and what happened to each.** `Runtime::end_epoch` had exactly
+  one caller and it was a unit test (`runtime/tests.rs`'s
+  `ending_an_epoch_notes_what_the_run_did`), which now queues `Intent::EndEpoch`
+  and reads `Runtime::reckoning` — the driver's own `reckon_if_ended` does the
+  rest, exactly as it does for a spent budget. `World::end_epoch` had that one
+  and eight sites in `mesocosm-core/tests/reckoning.rs`, every one of which
+  wanted the *reckoning* rather than the closing and now calls `reckon`; the one
+  that also asserted `world.epoch == 1` goes through `apply(Intent::EndEpoch)`
+  first, in the order the driver does it. The open rulings register's item 8
+  asked in August who would give `Runtime::end_epoch` a production caller: the
+  answer is that nobody does, because the door it was is now the intent.
+
+  **What the disagreement actually was.** The manual door bumped the epoch and
+  restarted the budget, but it never ran `World::adapt_round` and it left
+  `at_boundary` **false** — so an epoch closed through it gave every unplayed
+  line no turn and stood the world at no lineage checkpoint. Two answers to one
+  question, and the second authority the plan's stop rules forbid.
+  `world::dev`'s `the_demand_and_the_spent_budget_leave_the_same_world` is the
+  claim now: two worlds, the same intent stream but for the last tick, one
+  closed by a spent `Timed` budget and one by the demand, and they are equal to
+  the byte the hash reads. It is provable because both `Intent::Resume` and an
+  accepted `Intent::EndEpoch` are pure — no state, no event, and both reset the
+  idle run — so the only thing that could differ between the two worlds is the
+  boundary.
+
+  The golden fixture's hash did not move: the demo never used the manual door,
+  and `--replay` of the untouched `ps1_played.trace.json` still lands on
+  `081b4ba4bdc46190`.
+- **2026-09-02 (DT4 landed): the harness is genet-probe's now.**
+  `mesocosm-genet` implements `Automatable` and `Driveable`
+  (`app/drive.rs`), and `--scenario <path>` pumps a `genet_probe::Scenario`
+  one step per rendered frame. genet was not edited: `genet-probe` is a git
+  dependency on the same branch and rev the rest of the cambium family already
+  resolves to, so nothing else in the lock moved.
+
+  **The `act` mapping is the host's own key names**, not a second vocabulary of
+  intent names and fields. `act e` is the E key, `act x` is the X key, and the
+  reason is not brevity: `Host::press_key` is the *same* function the window's
+  keyboard handler calls, so a scripted act goes through `input::intent_for`,
+  the checkpoint's answers, the board's two keys, the dev-key split and the
+  queue's backlog cap in the order a person's keypress does. A mapping that
+  built intents directly would have been a second input policy. The twelve dev
+  keys and the twelve play keys are all reachable, and
+  `app/actions.rs`'s own test asserts every dev name resolves through
+  `input::dev_key` rather than a table of its own.
+
+  **Five host-side names for what no key says**, per the plan's instruction to
+  express a missing verb through `act` rather than grow genet: `follow <id>`
+  (`--follow`'s job; the keys only cycle), `follow-nearest` (the nearest living
+  neighbour of the played critter carrying at least `NEIGHBOUR_MIN_MG`, so `act
+  f` reaches somebody that can actually bear), `follow-child` (whatever the last
+  accepted `ForceBirth` produced — the plan's own example of a verb the stack
+  lacks), `hunt <steps>` and `demo <steps>`.
+
+  **`busy` is scripted work in flight**: a replay whose cursor has trace left, a
+  pump still running, or an intent still in the queue. **A checkpoint holding
+  the world with nothing queued is quiet, not busy**, and that is the decision
+  rather than an oversight — nothing about a checkpoint resolves on its own, so
+  reporting busy would burn the whole `wait` cap and proceed anyway. It is
+  exactly the moment `act enter` is needed, so `wait` hands the script its turn.
+
+  **The two pumps run off the clock, and that is what makes a scripted run
+  assertable.** `--auto-eat N` metabolized every N steps while wall time drove
+  the ticks, so how much of an enclosure a capture run had eaten depended on the
+  frame rate it was captured at. `act hunt 40` takes forty ticks through
+  `Runtime::step`, the way DT1's manual step key does. Paired with `act p`,
+  nothing but the pump moves the world — which is why the dt3 scenario lands on
+  the same hash at 34 frames and at 35.
+
+  **Deletions, every one.** `World::end_epoch` and `Runtime::end_epoch` (above);
+  `examples/dt3_script.rs` (176 lines, whole file); the `--record-demo` flag and
+  its headless block in `main.rs`; the `--auto-eat` flag and
+  `HostConfig::auto_eat_every`; the auto-eat block inside `Host::advance`; the
+  hand-written key-routing arm in `Host::window_event` (moved whole into
+  `press_key`, which is now the one route); and the duplicated
+  `assisted (N dev intents)` and `replay`/`played` strings in `app/receipts.rs`,
+  which are `played::assisted_label` and `Host::mode` now because a scenario
+  asserts against both. `played::record_demo` was **kept** — it is the golden
+  fixture's content, not harness, and all eight `played/tests.rs` claims (PE1's
+  loop, PE2's discovery, P3's branch, TD4's hands-off run) rest on it — but its loop
+  is now one call to `played::demo_step`, the same function `act demo` pumps a
+  frame at a time. `app/actions.rs`'s
+  `a_frame_pumped_demo_reaches_the_headless_recordings_hash` is what says the two
+  pumps are one driver.
+
+  **`--replay` survives, and deliberately.** A scenario is pumped inside an app
+  that already exists, so a trace's seed and roster have to be a flag: there is
+  no verb that can found the world the scenario is running in. Three lines in
+  `main.rs` is smaller than any sugar that would load a scenario to do the same,
+  and the flag alone still works and still exits 1 on a mismatch. What moved is
+  that the fixture's *claim* is now a scenario's to make.
+
+  **Stack gaps for genet-probe, reported rather than built.** (1) **Pointer
+  delivery.** `Automatable` requires `press`/`moved`/`release` and this host has
+  nowhere to route a window point — DT2 already found click-to-select needs
+  picking machinery it does not have, and the chrome lanes are rasters
+  composited over the frame with no hit-test path back into cambium. The three
+  are **attributed no-ops** that record `pointer-unrouted x y`, so a `click`
+  resolves its selector correctly and then loudly goes nowhere instead of
+  silently passing. That is this host's state, not a defect in genet-probe.
+  (2) **No verb founds a world** (above). (3) **No loop or repeat verb**, which
+  is why `hunt` and `demo` take a count instead of a scenario saying "again".
+  (4) **No `assert snap` against an empty value** — the grammar's `splitn(3)`
+  needs three tokens — so the snapshot spells an unaided run `unassisted` rather
+  than leaving the field empty.
+
+  **Scenario files.** `Code/testing/mesocosm/ps1_played.scenario` and
+  `Code/testing/mesocosm/dt3.scenario`, beside the fixtures they are about, in
+  the headed-verify home that still receives every receipt and capture.
+
+  Receipts (DT4). The golden fixture, `--replay ps1_played.trace.json
+  --scenario ps1_played.scenario` with explicit non-default receipt and capture
+  paths, printed `scenario: waited 772 frames` / `scenario: ok` and
+  `replay 3100 steps over 783 frames, hash 081b4ba4bdc46190 (matches the
+  recorded hash)`, **exit 0**. The same scenario with the hash literal falsified
+  to `...91` (a copy in a scratch directory; the fixture was never touched)
+  printed both `FAIL: assert snap hash` and `FAIL: assert snap expected` by name
+  and **exit 1**. The same scenario under `--frames 5` printed
+  `the frame limit ran out with steps left` and **exit 1** too — a run cut short
+  asserted nothing about the rest of itself, and reporting it as ok would be the
+  one way a green scenario could mean nothing. `dt3.scenario` under `--dev`, applying the four dev intents
+  through `act g`, `act k`, `act f` and `act x` with `follow-nearest` and
+  `follow-child` between them, printed `scenario: ok` and
+  `assisted (4 dev intents) played 64 steps over 35 frames, hash
+  0e4d40ff36fe0566`, **exit 0** — sixty-four steps, exactly the deleted
+  example's count. **The hash is re-derived and `5a87b85625e1a3f7` is retired**:
+  the example precomputed both neighbours from one snapshot and killed the
+  *second* nearest while bearing from the first, where the scenario kills the
+  nearest and then bears from whoever is nearest after it, and its `hunt` filler
+  walks toward prey where the example's only ever resumed. Same four intents in
+  the same order, different neighbours, different trace.
+  `Code/testing/mesocosm/dt4_scenario.png` was read whole: the trait board is up
+  in the middle reading **"the epoch is over / epoch 1 ended"** with the four
+  noted marks and the status-quo row, the dev tile is in the right column under
+  the minimap reading `state paused`, `tick 64`, `stepped 4`, `id 0
+  (controlled)`, `reserve 3814 mg`, `substance 18330 mg`, `parts 83` and
+  `more +80 parts`, the vitals panel is bottom left with `energy 3814 mg` and a
+  `burned` notice, the minimap is top right, and the terrarium under all of it is
+  the same section DT1, DT2 and DT3's captures show. The scenario asserts
+  `follow >= 916` right after `act follow-child`, so the camera provably went to
+  the newborn; the tile reads the controlled critter at the end because the child
+  did not survive the twenty ticks that followed, which is this enclosure's
+  standing churn (`248 died in 64 ticks`) and is what DT3's own capture showed
+  too.
+
+  Sixteen new tests carry the slice: eight in `app/drive/tests.rs` (a recorded
+  trace replayed through the driver at its hash, a falsified hash failing the
+  same scenario, `busy` in each of its states, a checkpoint being quiet, the
+  snapshot, an `assert text` against a chrome lane's own retained tree, capture
+  naming, and the attributed pointer no-op) and eight in `app/actions.rs` (the
+  key table matching `input`'s, an `act` and a press taking the same route to
+  the same hash, unknown names refused, `follow-nearest`, `follow-child`,
+  `hunt`'s exact tick count, two `follow-nearest` in a row, and the frame-pumped
+  demo reaching the headless recording's hash).
+
+  **The population instrument is unmoved, and this time the check has a
+  control.** All 55 runs of `dc4_roster.json`'s six batches were re-run against
+  this tree and compared field for field against the committed receipt, timing
+  excluded: **identical**, and every batch's verdict tally is the one DT3
+  recorded — baseline 10 thins, archetype 6 thins / 4 collapse, roster 2 thins /
+  8 collapse, stand 10 thins, fauna 2 thins / 8 collapse, control all collapse.
+  `dc4_roster.json` was restored rather than rewritten, so the committed file is
+  not carrying new timing on an unmoved result.
+
+  The control matters because the first attempt at this **produced a false
+  pass**. That run was killed one batch from the end and never wrote
+  `dc4_roster.json`, so the naive comparison compared the untouched committed
+  file against itself and reported "unmoved" — an absence of difference that was
+  really an absence of a run. The comparison now refuses to report anything
+  until the file's mtime has actually moved, and the passing run says so
+  (`1788377354 -> 1788384722`) before it says anything else.
+
+  Nothing was split at the ceiling this round: `app.rs` came *down* to 574 lines
+  because the key-routing arm moved into `press_key`, and the two new files are
+  335 and 513. **Three examples were left alone and deliberately**:
+  `examples/grow.rs`, `p3_receipt.rs` and `pe2_receipt.rs` are offscreen
+  rasterizers that compose contact sheets over a headless device, not ways of
+  driving a run — which is what `dt3_script.rs` was and why it went.

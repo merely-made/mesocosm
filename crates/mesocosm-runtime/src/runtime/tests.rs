@@ -214,16 +214,30 @@ fn a_driven_run_keeps_its_past() {
     assert!(!rt.readings().is_empty(), "and it comes to something");
 }
 
+/// **One boundary, one door** (DT4). The driver has no manual `end_epoch` any
+/// more: a caller that wants the epoch closed now queues `Intent::EndEpoch`,
+/// the world's own boundary block runs, and the driver reckons it through
+/// `reckon_if_ended` exactly as it reckons a spent budget's. What used to be
+/// two code paths that disagreed about whether the unplayed lines get a turn is
+/// this one.
 #[test]
 fn ending_an_epoch_notes_what_the_run_did() {
     let mut rt = Runtime::new(4_242, 40, 60);
     rt.step(200);
 
     assert_eq!(rt.world().record().filled(), 0);
-    let readings = rt.end_epoch();
-    assert!(!readings.is_empty());
+    rt.queue(Intent::EndEpoch);
+    rt.step(1);
+
+    assert!(!rt.reckoning().is_empty(), "the driver reckoned it");
     assert!(rt.world().record().filled() > 0, "the record has it now");
     assert_eq!(rt.world().epoch, 1);
+    assert!(
+        rt.world().at_boundary(),
+        "and the world stands at its lineage checkpoint, which the deleted \
+         manual door never left it doing"
+    );
+    assert_eq!(rt.world().last_round().epoch, 1, "the round ran");
 }
 
 #[test]

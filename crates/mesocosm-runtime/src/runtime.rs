@@ -84,6 +84,13 @@ pub struct Runtime {
     /// The world ends its own epochs, because the rule that ends them is a
     /// world rule; the *reckoning* reads the past, which lives here, so this
     /// is how the driver notices there is one to do.
+    ///
+    /// **It is how the driver notices every boundary, and there is only one
+    /// kind** (DT4). A budget that spent itself and a hand that asked through
+    /// `Intent::EndEpoch` both come through `World::apply`'s boundary block and
+    /// both are found here; the manual `Runtime::end_epoch` that used to reckon
+    /// a boundary of its own is deleted. See `mesocosm_core`'s `world::adapt`
+    /// module docs.
     epoch_seen: u64,
     /// What the most recent boundary came to.
     reckoning: Vec<Reading>,
@@ -405,19 +412,6 @@ impl Runtime {
     /// ending an epoch to find it out.
     pub fn readings(&self) -> Vec<Reading> {
         mesocosm_core::readings(&self.world, &self.history)
-    }
-
-    /// Ends the epoch early and writes what it came to into the world's record.
-    ///
-    /// The manual door. Since PE3 the world ends its own epochs on the budget
-    /// its rules name, so this is for a caller that wants one closed now —
-    /// and it tells the driver it has been reckoned, so the boundary is not
-    /// counted twice.
-    pub fn end_epoch(&mut self) -> Vec<Reading> {
-        let readings = self.world.end_epoch(&self.history);
-        self.epoch_seen = self.world.epoch;
-        self.reckoning = readings.clone();
-        readings
     }
 
     /// The ordered trace of applied intents. Together with the seed and organism
