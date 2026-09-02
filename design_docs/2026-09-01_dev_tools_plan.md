@@ -1,7 +1,8 @@
 # Dev tools: sitting in a run and interrogating it
 
-**Status (2026-09-01): plan. Assessment done, nothing dispatched.** Waits on
-Mark's acceptance and the two decisions in §4.
+**Status (2026-09-02): accepted, DT1 queued.** Both §4 decisions ruled. DT1
+dispatches once PE3b lands, because both touch the genet host's input and
+lanes and one working tree holds one agent at a time.
 
 ## 0. Objective
 
@@ -106,13 +107,15 @@ receipts and captures.
 **Order.** DT1, then DT2, then DT3. DT4 is independent and can go beside any
 of them. Each phase is one agent round on a non-Fable model.
 
-## 4. Decisions for Mark
+## 4. Decisions, ruled by Mark 2026-09-02
 
-1. **How the lane is enabled.** A `--dev` runtime flag (recommended: one
-   binary, receipt records it) or a cargo feature (player builds cannot carry
-   it at all).
-2. **Where the lane sits.** A docked side panel like isometry's, or an overlay
-   toggled by a key. Recommended: docked, since it is read while playing.
+1. **How the lane is enabled.** A `--dev` runtime flag. One binary; the
+   receipt records the flag.
+2. **Where the lane sits.** Look to cambium, not to isometry. Isometry's side
+   panel is app code that happens to sit on cambium, a precedent for "docked"
+   and not a component to reuse. The dev lane is a workbench tile holding
+   cambium widgets, and its placement is whatever workbench's split-and-tab
+   tree gives; no hand-rolled panel frame, no isometry code copied across.
 
 ## 5. Stop rules
 
