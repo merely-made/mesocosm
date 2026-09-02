@@ -27,6 +27,15 @@
 //!   Carving air changes the first and not the second, which is why
 //!   `Intent::Carve` moves no matter and is checked here saying so.
 //!
+//! # The dev source is an account, not an exception (DT3)
+//!
+//! `Intent::PlaceMatter` is the one route by which the enclosure's total
+//! changes, and it is a recorded transfer out of
+//! [`Account::Dev`](mesocosm_core::flow::Account::Dev). So the conserved
+//! quantity is *the enclosure's total less what that account issued*, read off
+//! the flow record and subtracted exactly — never a tolerance, and the control
+//! below shows what happens to a placement nobody counted.
+//!
 //! # The instrument is proved, not assumed
 //!
 //! An absence is evidence only beside a positive control in the same run, so
@@ -199,6 +208,107 @@ fn the_check_catches_a_leak() {
     assert!(
         complaint.contains("leaked"),
         "the check must name the direction: {complaint}"
+    );
+}
+
+/// **The four dev intents conserve matter too** (DT3), and the one that brings
+/// matter in from outside says so through its own account.
+///
+/// A forced birth is a transfer out of a parent, a dev kill releases a reserve
+/// into the ground and leaves a corpse holding the rest, a demanded epoch
+/// boundary moves nothing at all, and a placement moves exactly what the dev
+/// source issued. The expected total is raised by that issue and by nothing
+/// else, milligram-exact.
+#[test]
+fn matter_is_conserved_through_the_dev_verbs() {
+    let mut world = World::new(11, 40);
+    world.apply(Intent::Idle);
+    let opening = world.total_matter_mg();
+    let mut issued = 0u64;
+
+    let parent = world
+        .living()
+        .find(|o| Some(o.id) != world.controlled_id() && o.biomass_mg() > 400)
+        .expect("somebody has a body to divide")
+        .id;
+    let doomed = world
+        .living()
+        .find(|o| Some(o.id) != world.controlled_id() && o.id != parent)
+        .expect("somebody else is alive")
+        .id;
+    let here = world.position().expect("a played critter");
+
+    let trace = vec![
+        Intent::ForceBirth { organism: parent },
+        Intent::Kill { organism: doomed },
+        Intent::EndEpoch,
+        Intent::PlaceMatter {
+            at: here,
+            mass_mg: 900,
+        },
+        // The refusals, because a refusal that leaked would be the worse
+        // defect: over the bound, off the grid, and a body that is already
+        // dead.
+        Intent::PlaceMatter {
+            at: here,
+            mass_mg: u64::MAX,
+        },
+        Intent::PlaceMatter {
+            at: [10_000, 0, 0],
+            mass_mg: 100,
+        },
+        Intent::Kill { organism: doomed },
+    ];
+
+    for (step, intent) in trace.into_iter().enumerate() {
+        world.apply(intent);
+        // The ledger holds one tick, reopened at the top of every one, so this
+        // reads exactly what this tick issued and cannot double-count.
+        issued += mesocosm_core::flow::Account::issued_mg(world.flows());
+        conserved(&world, opening + issued, &format!("after dev step {step}")).expect("conserved");
+    }
+    assert_eq!(
+        issued, 900,
+        "one accepted placement, and nothing else issued"
+    );
+
+    // And the ticks after them: a corpse decaying, a newborn growing, and a
+    // fresh epoch running.
+    for tick in 1..=200 {
+        world.apply(Intent::Idle);
+        issued += mesocosm_core::flow::Account::issued_mg(world.flows());
+        conserved(&world, opening + issued, &format!("on dev tick {tick}")).expect("conserved");
+    }
+    assert_eq!(issued, 900, "and an ordinary tick issues nothing");
+}
+
+/// **The control for the subtraction.** A placement the check does not count
+/// must read as conjured matter, or "subtract what the dev source issued" would
+/// be a blanket tolerance wearing an account's name.
+#[test]
+fn the_check_catches_a_placement_the_dev_source_did_not_account_for() {
+    let mut world = World::new(1, 60);
+    world.apply(Intent::Idle);
+    let opening = world.total_matter_mg();
+    let here = world.position().expect("a played critter");
+
+    world.apply(Intent::PlaceMatter {
+        at: here,
+        mass_mg: 700,
+    });
+    let issued = mesocosm_core::flow::Account::issued_mg(world.flows());
+    assert_eq!(issued, 700, "the account says what it issued");
+    conserved(&world, opening + issued, "counting the dev source").expect("conserved");
+
+    let complaint = conserved(&world, opening, "not counting the dev source")
+        .expect_err("an uncounted placement must not pass");
+    assert!(
+        complaint.contains("conjured"),
+        "the check must name the direction: {complaint}"
+    );
+    assert!(
+        complaint.contains("700"),
+        "and the size of the discrepancy: {complaint}"
     );
 }
 

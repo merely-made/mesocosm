@@ -19,13 +19,19 @@
 //! among the candidates, R commits the selected one, Enter goes back to the
 //! terrarium.
 //!
-//! `--dev` adds a fifth chrome lane and eight keys, live only while it is set.
+//! `--dev` adds a fifth chrome lane and twelve keys, live only while it is set.
 //! DT1's five drive time: P pauses or unpauses the clock, `.` steps once and
 //! `,` steps ten, both off the clock, and `[`/`]` move the clock's speed down
 //! or up a rung. DT2's three drive the camera: N and B cycle the follow target
 //! through the living roster in id order, and M snaps it back to the critter
 //! under your hand. Following moves the camera and nothing else — control
-//! stays where it is. See [`mesocosm_genet::input`] for the exact mapping.
+//! stays where it is.
+//!
+//! DT3's four change the world, and are the only dev keys that do: X ends the
+//! epoch now, F forces a birth from the followed critter, K kills it, and G
+//! puts matter into the ground under it. Each queues an ordinary intent, so it
+//! is in the trace, it replays, and the receipt counts it — a run that used one
+//! prints as **assisted**. See [`mesocosm_genet::input`] for the exact mapping.
 
 use std::path::PathBuf;
 
@@ -148,7 +154,8 @@ mesocosm-genet: run Mesocosm in a window
   --auto-eat N    metabolize automatically every N steps
   --seed N        world seed
   --slab H        section slab half-height in voxels (presentation only, default 28)
-  --dev           enable the dev lane and its keys (DT1, DT2); off by default
+  --dev           enable the dev lane and its keys (DT1, DT2, DT3); off by
+                  default
   --follow ID     start the camera on this critter (DT2; needs --dev to be
                   worth anything, presentation only)
 
@@ -160,8 +167,8 @@ at the epoch boundary the trait board comes up instead:
   Tab    move among the candidates
   R      commit the selected candidate to your line
   Enter  back to the terrarium
-with --dev, eight more keys are live (host-only; none of them ever reaches
-the trace, so a replay's hash cannot move because of one):
+with --dev, eight host-only keys are live (none of them ever reaches the
+trace, so a replay's hash cannot move because of one):
   P      pause or unpause the clock
   .      step once, off the clock
   ,      step ten, off the clock
@@ -170,4 +177,11 @@ the trace, so a replay's hash cannot move because of one):
   N      follow the next living critter in id order, wrapping
   B      follow the previous one
   M      snap the camera back to the critter under your hand
-following moves the camera and nothing else: control stays where it is";
+following moves the camera and nothing else: control stays where it is
+and four world-changing ones, which queue ordinary intents and so do enter
+the trace, replay with it, and are counted on the receipt:
+  X      end the epoch now (refused where the world's epoch rule says so)
+  F      force a birth from the followed critter
+  K      kill the followed critter
+  G      put matter into the ground under the followed critter
+a run that applied any of the four prints as assisted";

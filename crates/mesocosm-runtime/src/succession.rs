@@ -262,7 +262,10 @@ pub(crate) fn opened(
         match record.destination {
             Account::Substance => substance_mg += record.amount_mg,
             Account::Reserve => reserve_mg += record.amount_mg,
-            Account::Soil => {}
+            // Neither is a body's account, so neither is a provisioning: a
+            // birth never lands in the ground, and the dev source is only ever
+            // a *source*.
+            Account::Soil | Account::Dev => {}
         }
     }
 

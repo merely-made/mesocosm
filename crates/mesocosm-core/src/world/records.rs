@@ -92,6 +92,18 @@ pub(super) fn event_for(
         // that made it, because an unplayed lineage takes that transaction and
         // never reaches this function. One record, one writer. (P4)
         Outcome::Revised { .. } => None,
+        // DT3's forced birth and dev kill write their own too, and for exactly
+        // the same reason twice over: the transaction is the ecology's, the
+        // ecology reaches it without a hand, and the record it leaves must not
+        // be able to say which door asked. A `Born` or a `Died` written here
+        // as well would be the same fact twice, and a *different* event would
+        // be the tell that makes a dev death read as something else.
+        Outcome::Bore { .. } | Outcome::Killed { .. } => None,
+        // Ending an epoch did not happen to a creature, and matter entering
+        // the ground did not either. What the boundary came to is the world
+        // record's and `last_round`'s; where the matter went is the flow
+        // stream's.
+        Outcome::EpochEnded { .. } | Outcome::Placed { .. } => None,
         // Resuming is a decision, and the ordered trace is where decisions are
         // kept. A history records what happened to a creature, and carrying on
         // unchanged did not happen to one.

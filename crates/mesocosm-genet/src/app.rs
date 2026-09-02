@@ -26,11 +26,13 @@ use crate::section::{self, Pan, Section, SectionFrame};
 
 mod config;
 mod devtime;
+mod devworld;
 mod follow;
 mod receipts;
 mod setup;
 
 pub use config::HostConfig;
+pub use devworld::DEV_PLACE_MG;
 
 /// Recorded steps a replay frame drives. Exact, not throttled: the queue is
 /// topped up with precisely this many intents and precisely this many steps

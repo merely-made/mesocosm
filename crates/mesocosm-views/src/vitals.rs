@@ -420,6 +420,13 @@ pub fn refusal_words(rejection: &Rejection) -> &'static str {
             Unrevised::NoSuchSpecies(_) => "no such line",
             Unrevised::NotYet => "not at this point in the run",
         },
+        // DT3's dev intents. They refuse in the same lane every other verb
+        // refuses in, because they are ordinary intents and a dev tool that
+        // failed silently would be worse than no tool.
+        Rejection::EpochNotOnDemand(_) => "this world's epoch does not end on demand",
+        Rejection::NotLiving(_) => "that one is not alive",
+        Rejection::OffGrid(_) => "that is outside the enclosure",
+        Rejection::OverBound { .. } => "more than one placement may carry",
     }
 }
 
@@ -456,6 +463,13 @@ pub fn notice_in(outcomes: &[Outcome]) -> Option<&'static str> {
             crossing: Crossing::Regrow,
             ..
         } => Some("regrew the branch"),
+        // DT3's four, said in the same plain words as everything else — a dev
+        // action that landed silently would be indistinguishable from one that
+        // was quietly dropped at the keyboard.
+        Outcome::EpochEnded { .. } => Some("ended the epoch"),
+        Outcome::Bore { .. } => Some("forced a birth"),
+        Outcome::Killed { .. } => Some("killed it"),
+        Outcome::Placed { .. } => Some("placed matter"),
         _ => None,
     })
 }

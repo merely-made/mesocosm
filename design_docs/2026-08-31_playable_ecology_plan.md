@@ -700,6 +700,14 @@ have measured receipts.
    condition — `built()` answers `false` and `spent()` answers `false` at every
    tick — so a world holding one runs on in its first epoch rather than ending
    it on a guess. `World::revision_admitted_now` now reads `at_boundary`.
+   **Player-triggered built 2026-09-02 (dev tools DT3):** `Intent::EndEpoch`
+   runs the same boundary a spent budget runs, admitted where
+   `EpochRule::admits_demand` says so — under *Player-triggered*, which now
+   ends only on the demand and answers `built() == true`, and under *Timed*,
+   which takes it as an early end and restarts its budget from that tick, the
+   way `World::end_epoch` always has. *Gated* refuses it, because a demand
+   standing in for conditions nobody has named would make the two rules the
+   same rule. It is a dev tool and never play.
 3. Are fungal networks, clonal stands, and microbial colonies genuine
    multi-anchor subjects or connected local critters at the first proof?
 4. Which generated-material scheme from the elements memo is the first one

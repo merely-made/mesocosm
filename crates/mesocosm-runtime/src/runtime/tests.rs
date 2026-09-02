@@ -114,6 +114,95 @@ fn trace_replays_to_the_same_world() {
     assert_eq!(&past, rt.history(), "and the same run has the same past");
 }
 
+/// **A trace carrying dev intents replays like any other** (DT3), and the
+/// replay counts the same dev intents the recording did.
+///
+/// This is the whole of the plan's second principle at the world-changing end:
+/// a dev action that changed the world is an ordinary `Intent` in the trace, so
+/// it reproduces exactly, and the count on the receipt is a function of the
+/// trace rather than of who was at the keyboard.
+#[test]
+fn a_trace_carrying_dev_intents_replays_to_the_same_world_and_the_same_count() {
+    let mut rt = Runtime::new(555, 20, 60).with_max_steps(u64::MAX);
+    let parent = rt
+        .world()
+        .living()
+        .find(|o| Some(o.id) != rt.world().controlled_id() && o.biomass_mg() > 400)
+        .expect("somebody has a body to divide")
+        .id;
+    let doomed = rt
+        .world()
+        .living()
+        .find(|o| Some(o.id) != rt.world().controlled_id() && o.id != parent)
+        .expect("somebody else is alive")
+        .id;
+    let here = rt.world().position().expect("a played critter");
+
+    for intent in [
+        Intent::ForceBirth { organism: parent },
+        Intent::Kill { organism: doomed },
+        Intent::PlaceMatter {
+            at: here,
+            mass_mg: 400,
+        },
+        // One the world refuses, which must not be counted.
+        Intent::Kill { organism: doomed },
+        // Last, because the boundary it opens holds the world: an intent
+        // queued behind it would wait for the question to be answered, which
+        // is the checkpoint doing its job rather than a dev intent failing.
+        Intent::EndEpoch,
+    ] {
+        rt.queue(intent);
+    }
+    assert_eq!(rt.step(5), 5, "nothing held the world until the last one");
+    assert_eq!(
+        rt.dev_intents(),
+        4,
+        "four applied, and the refused one is not one of them"
+    );
+    assert_eq!(
+        rt.trace().iter().filter(|i| i.is_dev()).count(),
+        5,
+        "all five are in the trace, refused or not"
+    );
+    // **The demand runs PE3a's boundary and stops at PE3a's question.**
+    assert!(matches!(
+        rt.checkpoint().map(|held| held.occasion),
+        Some(crate::succession::Occasion::Epoch(_))
+    ));
+    assert_eq!(rt.world().epoch, 1);
+
+    let (replayed, past) = Runtime::replay(555, 20, rt.trace());
+    assert_eq!(
+        state_hash(&replayed),
+        rt.state_hash(),
+        "a dev intent replays like every other intent"
+    );
+    assert_eq!(&past, rt.history(), "and leaves the same past");
+
+    // The driven route too, which is what `--replay` takes: it counts the same
+    // four, because it is counting the world's answers rather than a keyboard.
+    let mut driven = Runtime::new(555, 20, 60).with_max_steps(u64::MAX);
+    for intent in rt.trace() {
+        driven.queue(intent.clone());
+    }
+    driven.step(rt.trace().len() as u64);
+    assert_eq!(driven.state_hash(), rt.state_hash());
+    assert_eq!(driven.dev_intents(), 4);
+}
+
+/// A run with no dev intents in it counts none.
+#[test]
+fn an_ordinary_run_applies_no_dev_intents() {
+    let mut rt = Runtime::new(555, 20, 60).with_max_steps(u64::MAX);
+    for intent in scripted() {
+        rt.queue(intent);
+    }
+    rt.advance(200_000);
+    rt.step(50);
+    assert_eq!(rt.dev_intents(), 0);
+}
+
 #[test]
 fn a_driven_run_keeps_its_past() {
     // The world buffers one tick and drops it if nobody drains. Before the

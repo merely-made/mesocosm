@@ -49,9 +49,9 @@
 //! module entirely. What was queued and dropped at the keyboard cannot move a
 //! replay's hash, only how quickly a played session answers a key.
 //!
-//! # Dev keys (DT1, DT2)
+//! # Dev keys (DT1, DT2, DT3)
 //!
-//! Live only while `--dev` is set. Eight, chosen clear of every key play
+//! Live only while `--dev` is set. Twelve, chosen clear of every key play
 //! already owns (WASD, E, Space, Q, C, the arrows, Tab, R, T, Enter, Escape):
 //!
 //! - `P` — pause or unpause the clock. (DT1)
@@ -62,15 +62,26 @@
 //! - `N` — follow the next living critter in id order, wrapping. (DT2)
 //! - `B` — follow the previous one, wrapping the other way.
 //! - `M` — snap follow back to the critter under the hand.
+//! - `X` — end the epoch now. (DT3)
+//! - `F` — force a birth from the followed critter.
+//! - `K` — kill the followed critter.
+//! - `G` — put matter into the ground under the followed critter.
 //!
-//! None of the eight reaches [`Runtime::queue`]: they are host pacing over
-//! `Runtime::advance` and `Runtime::step`, and a host-side camera centre, not
-//! intents, so none can enter the trace. See [`DevKey`] and [`dev_key`].
+//! **The eight and the four are two different kinds of key, and the split is
+//! the dev tools plan's second principle.** DT1's and DT2's eight never reach
+//! [`Runtime::queue`]: they are host pacing over `Runtime::advance` and
+//! `Runtime::step`, and a host-side camera centre, so none can enter the trace
+//! and a run paused a hundred times hashes like one never paused. DT3's four
+//! change the world, so every one of them queues an ordinary `Intent` through
+//! `Runtime::queue` and lands in the trace — a replay reproduces it, and the
+//! receipt counts it. There is no third kind. See [`DevKey`] and [`dev_key`].
 //!
 //! **Follow is not control.** `N`, `B` and `M` move where the section's slab is
 //! centred and nothing else: the played body stays the played body, no intent
 //! is queued, and `T` — the one key that does move control, and only at a
-//! checkpoint — is untouched.
+//! checkpoint — is untouched. `F`, `K` and `G` act on *the followed* critter
+//! rather than the played one, which is what makes the inspector and the three
+//! verbs one tool: what the tile is showing is what the key acts on.
 
 use mesocosm_core::{Intent, Placement, World};
 use mesocosm_mesh::VolumeMap;
@@ -208,9 +219,13 @@ pub fn intent_for(world: &World, volumes: &VolumeMap, key: &Key) -> Option<Inten
     }
 }
 
-/// A dev-only time-control action a key maps to. Host-only: none of these
-/// reaches [`mesocosm_runtime::Runtime::queue`], so none can enter the trace
-/// or move a replay's hash. See the module docs and the dev tools plan's DT1.
+/// A dev-only action a key maps to.
+///
+/// **Two kinds, and [`DevKey::changes_the_world`] is which.** The first eight
+/// are host-only — time control and the camera — and none of them reaches
+/// [`mesocosm_runtime::Runtime::queue`], so none can enter the trace or move a
+/// replay's hash. The last four are DT3's world-changing intents and every one
+/// of them does queue. See the module docs and the dev tools plan's §2.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DevKey {
     /// `P`. Toggles whether the host passes elapsed time to the clock at
@@ -231,6 +246,31 @@ pub enum DevKey {
     FollowBack,
     /// `M`. Back to the critter under the hand.
     FollowSelf,
+    /// `X`. End the epoch now. (DT3)
+    EndEpoch,
+    /// `F`. Bear an offspring from the followed critter now.
+    ForceBirth,
+    /// `K`. End the followed critter's life now.
+    Kill,
+    /// `G`. Put [`crate::app::DEV_PLACE_MG`] into the ground under the followed
+    /// critter.
+    PlaceMatter,
+}
+
+impl DevKey {
+    /// Whether this key queues an intent rather than moving host state.
+    ///
+    /// The two kinds the dev tools plan keeps apart, in one predicate. `true`
+    /// for DT3's four and `false` for DT1's and DT2's eight, and there is
+    /// nothing in between — a host-only action that queued, or a
+    /// world-changing one that did not, would each break a different half of
+    /// principle 2.
+    pub fn changes_the_world(self) -> bool {
+        matches!(
+            self,
+            Self::EndEpoch | Self::ForceBirth | Self::Kill | Self::PlaceMatter
+        )
+    }
 }
 
 /// Turns a key into a dev action. `None` for every other key, which then
@@ -246,6 +286,10 @@ pub fn dev_key(key: &Key) -> Option<DevKey> {
             "n" | "N" => Some(DevKey::FollowNext),
             "b" | "B" => Some(DevKey::FollowBack),
             "m" | "M" => Some(DevKey::FollowSelf),
+            "x" | "X" => Some(DevKey::EndEpoch),
+            "f" | "F" => Some(DevKey::ForceBirth),
+            "k" | "K" => Some(DevKey::Kill),
+            "g" | "G" => Some(DevKey::PlaceMatter),
             _ => None,
         },
         _ => None,
@@ -314,7 +358,7 @@ mod tests {
         );
     }
 
-    /// The eight dev keys, and nothing else, resolve to a dev action.
+    /// The twelve dev keys, and nothing else, resolve to a dev action.
     #[test]
     fn the_dev_keys_resolve_and_nothing_play_owns_collides() {
         assert_eq!(
@@ -347,6 +391,21 @@ mod tests {
             Some(DevKey::FollowSelf)
         );
 
+        // DT3's four, in both cases.
+        for (key, action) in [
+            ("x", DevKey::EndEpoch),
+            ("f", DevKey::ForceBirth),
+            ("k", DevKey::Kill),
+            ("g", DevKey::PlaceMatter),
+        ] {
+            assert_eq!(dev_key(&Key::Character(key.into())), Some(action), "{key}");
+            assert_eq!(
+                dev_key(&Key::Character(key.to_uppercase().into())),
+                Some(action),
+                "{key} uppercase"
+            );
+        }
+
         // Every key play already owns falls through undisturbed — `t` above
         // all, because it is the one key that does move control.
         for key in ["w", "a", "s", "d", "e", "q", "c", "t", "r"] {
@@ -356,6 +415,33 @@ mod tests {
         assert_eq!(dev_key(&Key::Named(NamedKey::Tab)), None);
         assert_eq!(dev_key(&Key::Named(NamedKey::Enter)), None);
         assert_eq!(dev_key(&Key::Named(NamedKey::Escape)), None);
+    }
+
+    /// **The two kinds of dev key, and the line between them** (dev tools plan
+    /// §2, principle 2). DT3's four queue an intent; DT1's and DT2's eight
+    /// never do, which is what keeps a paused run hashing like a straight one.
+    #[test]
+    fn only_the_four_world_changing_dev_keys_say_they_change_the_world() {
+        for action in [
+            DevKey::EndEpoch,
+            DevKey::ForceBirth,
+            DevKey::Kill,
+            DevKey::PlaceMatter,
+        ] {
+            assert!(action.changes_the_world(), "{action:?}");
+        }
+        for action in [
+            DevKey::TogglePause,
+            DevKey::Step,
+            DevKey::StepN,
+            DevKey::SlowDown,
+            DevKey::SpeedUp,
+            DevKey::FollowNext,
+            DevKey::FollowBack,
+            DevKey::FollowSelf,
+        ] {
+            assert!(!action.changes_the_world(), "{action:?}");
+        }
     }
 
     #[test]

@@ -511,6 +511,7 @@ impl World {
             epoch_began: 0,
             at_boundary: false,
             last_round: crate::world::Round::default(),
+            forced_birth: None,
             scoring: false,
         };
 

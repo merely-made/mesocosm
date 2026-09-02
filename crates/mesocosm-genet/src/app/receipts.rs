@@ -85,7 +85,16 @@ impl Host {
     fn write_receipt(&mut self) {
         let receipt = self.receipt();
         println!(
-            "{} {} steps over {} frames, hash {:016x}{}",
+            "{}{} {} steps over {} frames, hash {:016x}{}",
+            // **The label goes first, where it cannot be read past** (DT3).
+            // A run that ended an epoch, forced a birth, killed something or
+            // placed matter is not an unaided playtest, and the line that
+            // reports it should not be able to be skimmed as one.
+            if receipt.dev_intents > 0 {
+                format!("assisted ({} dev intents) ", receipt.dev_intents)
+            } else {
+                String::new()
+            },
             receipt.mode,
             receipt.steps,
             receipt.frames,
@@ -183,6 +192,10 @@ impl Host {
                 .as_ref()
                 .map(|path| path.display().to_string()),
             dev: self.config.dev,
+            // Off the driver, which counts what the world accepted rather than
+            // what a key asked for — so a replay of an assisted trace reports
+            // the same number, and a refused dev intent reports none. (DT3)
+            dev_intents: self.runtime.dev_intents(),
         }
     }
 }

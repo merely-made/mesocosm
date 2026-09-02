@@ -25,9 +25,21 @@ impl World {
     pub(super) fn resolve(&mut self, intent: Intent) -> Outcome {
         // Every acting intent needs somebody to act. Nobody home is a
         // refusal, not a panic: a world can outlive whoever was in it.
+        // DT3's four are exempt for the same reason the three above are: none
+        // of them is an act of the played body. Ending the epoch is a world
+        // rule's, and the other three name whichever body or cell they are
+        // about — a dev tool that could only reach the enclosure through a
+        // living hand would be unusable in exactly the states worth
+        // interrogating.
         if !matches!(
             intent,
-            Intent::Idle | Intent::Resume | Intent::TakeControl { .. }
+            Intent::Idle
+                | Intent::Resume
+                | Intent::TakeControl { .. }
+                | Intent::EndEpoch
+                | Intent::ForceBirth { .. }
+                | Intent::Kill { .. }
+                | Intent::PlaceMatter { .. }
         ) && !self.is_embodied()
         {
             return Outcome::Rejected(Rejection::Disembodied);
@@ -242,6 +254,14 @@ impl World {
                 );
                 Outcome::Deposited { organism: id }
             }
+
+            // DT3's four. Each is a validator in front of a transaction that
+            // already existed; `world::dev` holds them together so the claim
+            // that none has its own physics is one file's worth of reading.
+            Intent::EndEpoch => self.demand_epoch_end(),
+            Intent::ForceBirth { organism } => self.force_birth(organism),
+            Intent::Kill { organism } => self.kill(organism),
+            Intent::PlaceMatter { at, mass_mg } => self.place_matter(at, mass_mg),
         }
     }
 

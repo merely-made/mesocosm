@@ -26,6 +26,13 @@
 //! only thing the enclosure moves; PE4's generated materials are what it exists
 //! to be extended by.
 //!
+//! DT3 added a fourth account, [`Account::Dev`], and it sits **outside** that
+//! sum rather than inside it: a dev tool that puts matter into a column is the
+//! one route by which the enclosure's total changes, and the account is what
+//! makes the change a recorded transfer instead of a silent one. The conserved
+//! quantity is therefore the three compartments less what that account issued,
+//! which is [`Account::issued_mg`] and is checked with no tolerance at all.
+//!
 //! # The envelope carries when and where
 //!
 //! [`Envelope`] stamps a record with its tick and its region rather than copying
@@ -98,6 +105,9 @@ pub enum Carrier {
 /// Exactly TD6's conserved sum, split: the ground store, what a body weighs,
 /// and what it has banked. A transfer names two of these, so summing the stream
 /// per account reproduces what the compartments did.
+///
+/// [`Dev`](Self::Dev) is the fourth, and it is outside the enclosure rather
+/// than in it — see its own note.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Account {
     /// The enclosure's per-column matter store.
@@ -106,6 +116,24 @@ pub enum Account {
     Substance,
     /// A body's banked budget.
     Reserve,
+    /// The dev source: matter a dev tool put into the enclosure from outside
+    /// it. (DT3)
+    ///
+    /// **An account, not an exception.** `Intent::PlaceMatter` could have
+    /// written milligrams straight into a column and left the flow record
+    /// silent, and then the enclosure's total would rise with nothing in the
+    /// stream saying why — exactly the failure `tests/flows.rs` exists
+    /// against. Naming the source instead keeps the reconciliation exact: the
+    /// soil's gain is claimed by a transfer, and the transfer says it came
+    /// from outside.
+    ///
+    /// Its balance is not held anywhere, because it does not need to be: the
+    /// account's whole history is the stream, so what it has issued over a run
+    /// is the sum of the transfers that name it, and
+    /// [`Account::issued_mg`] is that sum. Nothing about it enters a snapshot,
+    /// so a world that had matter placed in it hashes as a world holding that
+    /// much matter — which is what it is.
+    Dev,
 }
 
 /// Why matter moved.
@@ -151,6 +179,14 @@ pub enum Process {
     /// and a reading that could not tell them apart could not say whether a
     /// lineage is building or merely standing still.
     Develop,
+    /// A dev tool putting matter into a column, out of [`Account::Dev`]. (DT3)
+    ///
+    /// Distinct from [`Self::Deposit`] on purpose, and the distinction is the
+    /// whole point of the account: a deposit is the *player* moving matter the
+    /// enclosure already held, and this is matter arriving from outside it. A
+    /// reading that could not tell them apart could not say whether a run was
+    /// assisted.
+    Place,
 }
 
 /// One side of a flow, when that side is a body.
@@ -218,6 +254,24 @@ impl FlowEvent {
             destination: Account::Soil,
             amount_mg,
             from: Some(from),
+            to: None,
+        }
+    }
+
+    /// Out of the dev source and into the ground. (DT3)
+    ///
+    /// Names no [`Subject`] on either end, exactly as [`Self::uptake`] names
+    /// none on the soil end: neither account belongs to a body, so a
+    /// reconciliation over bodies passes this by and the soil's own claim is
+    /// the whole of it.
+    pub fn placed(amount_mg: u64) -> Self {
+        Self {
+            process: Process::Place,
+            carrier: Carrier::Matter,
+            source: Account::Dev,
+            destination: Account::Soil,
+            amount_mg,
+            from: None,
             to: None,
         }
     }
@@ -474,6 +528,28 @@ mod tests {
         held.record(None, FlowEvent::uptake(subject(), Account::Reserve, 9));
         assert_eq!(drained, held);
         assert_eq!(drained.take(), Vec::new());
+    }
+
+    /// The dev source is an account: it names no body, it lands in the soil,
+    /// and what it has issued is the sum of the stream. (DT3)
+    #[test]
+    fn the_dev_source_is_an_account_outside_the_enclosure() {
+        let placed = FlowEvent::placed(400);
+        assert_eq!(placed.net_on(Account::Soil), 400);
+        assert_eq!(placed.net_on(Account::Dev), -400);
+        assert_eq!(placed.net_on(Account::Substance), 0);
+        assert!(placed.from.is_none() && placed.to.is_none());
+        assert!(!Account::Dev.is_body(), "and it is not a body's account");
+        assert!(!Account::Soil.is_body());
+        assert!(Account::Substance.is_body() && Account::Reserve.is_body());
+
+        let stream = vec![
+            Envelope::new(1, None, placed),
+            Envelope::new(1, None, FlowEvent::placed(75)),
+            // An ordinary transfer inside the enclosure issues nothing.
+            Envelope::new(1, None, FlowEvent::uptake(subject(), Account::Reserve, 900)),
+        ];
+        assert_eq!(Account::issued_mg(&stream), 475);
     }
 
     #[test]

@@ -72,21 +72,22 @@ pub const DEFAULT_SCORE_TICKS: u64 = crate::organism::ecology::GESTATION_BASE as
 /// What deterministic condition ends an epoch.
 ///
 /// **Three separate rules, not a composition** (playable ecology plan §6,
-/// ruled by Mark 2026-09-01). Only [`Timed`](Self::Timed) is built; the other
-/// two are named here as data so that the vocabulary, the serialized shape and
-/// the digest are settled before either arrives, and a world holding one
-/// simply never ends an epoch on its own — which [`Self::built`] says out loud
-/// rather than leaving a caller to infer from silence.
+/// ruled by Mark 2026-09-01). [`Timed`](Self::Timed) was built first and
+/// [`PlayerTriggered`](Self::PlayerTriggered) is built as of DT3;
+/// [`Gated`](Self::Gated) is still named-only data, so that the vocabulary,
+/// the serialized shape and the digest are settled before it arrives, and a
+/// world holding it simply never ends an epoch — which [`Self::built`] says
+/// out loud rather than leaving a caller to infer from silence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum EpochRule {
     /// The epoch ends when a fixed tick budget is spent. **Built first.**
     Timed { ticks: u64 },
     /// The epoch ends when named world conditions are all met. **Not built**;
-    /// it comes second, and it needs the conditions named first.
+    /// it needs the conditions named first.
     Gated,
-    /// The epoch ends on demand. **Not built, and never play**: it is the dev
-    /// tools plan's DT3, and it is listed here so nothing later mistakes it
-    /// for a rule a shipped world could hold.
+    /// The epoch ends on demand, and on nothing else. **Built by DT3, and
+    /// never play**: `Intent::EndEpoch` is a dev tool, and a world holding this
+    /// rule runs one unbounded epoch until somebody asks for the boundary.
     PlayerTriggered,
 }
 
@@ -99,20 +100,51 @@ impl Default for EpochRule {
 }
 
 impl EpochRule {
-    /// Whether this rule is implemented. `false` for the two named-only ones.
+    /// Whether this rule is implemented. `false` for the one named-only rule.
     pub fn built(self) -> bool {
-        matches!(self, Self::Timed { .. })
+        matches!(self, Self::Timed { .. } | Self::PlayerTriggered)
     }
 
     /// Whether `elapsed` ticks of the current epoch spend its budget.
     ///
-    /// An unbuilt rule answers `false` at every tick, which is the honest
-    /// behaviour for a rule with no condition behind it: the epoch does not
-    /// end rather than ending on a guess.
+    /// A rule that ends on something other than a tick count answers `false`
+    /// at every tick, which is the honest behaviour: the epoch does not end
+    /// rather than ending on a guess. For [`Self::PlayerTriggered`] that is
+    /// the rule itself, not a gap in it — the only thing that ends its epoch
+    /// is the demand.
     pub fn spent(self, elapsed: u64) -> bool {
         match self {
             Self::Timed { ticks } => ticks > 0 && elapsed >= ticks,
             Self::Gated | Self::PlayerTriggered => false,
+        }
+    }
+
+    /// Whether this rule lets `Intent::EndEpoch` close the epoch now. (DT3)
+    ///
+    /// **Timed accepts the demand as an early end, and that is the ruling.**
+    /// The alternative — admit it only under [`Self::PlayerTriggered`] — was
+    /// rejected for two reasons. First, [`World::end_epoch`] has always been
+    /// able to close a Timed epoch early and restart its budget from that
+    /// tick; a dev key that could not do what the driver's own manual door
+    /// already does would be a weaker tool guarded by a stricter rule, and the
+    /// two would then disagree about what a boundary is. Second, refusing
+    /// would mean the dev tool only worked in a world founded under a rule the
+    /// game does not ship, so the one thing it exists to exercise — the
+    /// boundary path PE3a built, in the world play actually runs — could never
+    /// be reached with it. Ending early restarts the budget from this tick,
+    /// exactly as `World::end_epoch` documents, because bodies change between
+    /// epochs rather than during them.
+    ///
+    /// [`Self::Gated`] refuses. It has no condition behind it yet, and a
+    /// demand standing in for conditions nobody has named would make it
+    /// indistinguishable from [`Self::PlayerTriggered`] — two rules the
+    /// playable ecology plan §6 deliberately keeps apart.
+    ///
+    /// [`World::end_epoch`]: crate::World::end_epoch
+    pub fn admits_demand(self) -> bool {
+        match self {
+            Self::Timed { .. } | Self::PlayerTriggered => true,
+            Self::Gated => false,
         }
     }
 
@@ -268,21 +300,54 @@ mod tests {
         assert_ne!(quick.digest(), native.digest(), "so is the score window");
     }
 
-    /// Timed is built; the other two are named data and end nothing.
+    /// Only Timed ends an epoch on the clock; Gated is still named-only data.
     #[test]
-    fn only_the_timed_rule_ends_an_epoch() {
+    fn only_the_timed_rule_ends_an_epoch_on_its_own() {
         let timed = EpochRule::Timed { ticks: 3 };
         assert!(timed.built());
         assert!(!timed.spent(2), "not before the budget is spent");
         assert!(timed.spent(3), "and exactly when it is");
 
-        for unbuilt in [EpochRule::Gated, EpochRule::PlayerTriggered] {
-            assert!(!unbuilt.built());
+        for other in [EpochRule::Gated, EpochRule::PlayerTriggered] {
             assert!(
-                !unbuilt.spent(u64::MAX),
-                "a rule with no condition behind it does not end an epoch on a guess"
+                !other.spent(u64::MAX),
+                "a rule that does not end on a tick count never spends a budget"
             );
         }
+        assert!(
+            EpochRule::PlayerTriggered.built(),
+            "DT3 built the demand behind it"
+        );
+        assert!(!EpochRule::Gated.built(), "and left this one named-only");
+    }
+
+    /// Which rules admit `Intent::EndEpoch`, and the reasoning is on
+    /// [`EpochRule::admits_demand`]. (DT3)
+    #[test]
+    fn the_demand_is_admitted_by_timed_and_player_triggered_and_refused_by_gated() {
+        assert!(
+            EpochRule::Timed { ticks: 1_000 }.admits_demand(),
+            "an early end, restarting the budget from that tick"
+        );
+        assert!(
+            EpochRule::PlayerTriggered.admits_demand(),
+            "and it is the only thing that ends this one at all"
+        );
+        assert!(
+            !EpochRule::Gated.admits_demand(),
+            "a demand must not stand in for conditions nobody has named"
+        );
+    }
+
+    /// The demand is not rule-bearing on its own: the three rules still digest
+    /// differently, which is what keeps two worlds from agreeing wrongly.
+    #[test]
+    fn the_three_epoch_rules_still_have_three_identities() {
+        let native = WorldRules::native();
+        let gated = native.ending(EpochRule::Gated);
+        let demanded = native.ending(EpochRule::PlayerTriggered);
+        assert_ne!(gated.digest(), demanded.digest());
+        assert_ne!(native.digest(), demanded.digest());
     }
 
     #[test]

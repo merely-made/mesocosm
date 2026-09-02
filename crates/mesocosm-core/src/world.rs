@@ -24,6 +24,7 @@ use crate::rng::Rng;
 mod act;
 mod adapt;
 mod consume;
+mod dev;
 mod discover;
 mod express;
 mod filial;
@@ -36,6 +37,7 @@ mod review;
 mod revise;
 
 pub use adapt::{Round, Score, Turn};
+pub use dev::PLACE_MATTER_MAX_MG;
 pub use genesis::Founding;
 pub use graft::Graft;
 pub use intent::{Ineligible, Intent, Outcome, Placement, Rejection, Route};
@@ -362,6 +364,18 @@ pub struct World {
     /// decisions *did* survives as `Event::Revised` in the past.
     #[serde(default)]
     last_round: adapt::Round,
+    /// A forced birth, waiting to join the roster. (DT3)
+    ///
+    /// **A handoff inside one `apply`, and empty at every tick boundary.**
+    /// `Intent::ForceBirth` runs the ordinary birth while the intent is being
+    /// resolved, which is before the tick's own passes; a child appended there
+    /// would be aged, rented and dispersed in the tick it was born in, and a
+    /// natural newborn is not, because the birth pass appends after all of
+    /// that. So the child waits here and joins where `ecology::breed`'s
+    /// newborns do. Not serialized: nothing outside [`Self::apply`] can observe
+    /// it holding anything, so it cannot move a state hash.
+    #[serde(skip)]
+    forced_birth: Option<Organism>,
     /// Whether this world is a scoring copy. (P4b)
     ///
     /// **Not serialized, never true in a world anyone holds.** A copy grown to
@@ -406,12 +420,20 @@ impl World {
         // matter, so the act and the ecology write into the same stamped
         // stream.
         self.flows.open(self.tick);
+        // Read before anything can allocate an id, so both routes to a birth —
+        // the ecology's pass and DT3's forced one, inside `resolve` — leave
+        // their newborns addressable to the filial pass below. (PD5, DT3.)
+        let before_births = self.next_organism;
         // Where the act's own consequences begin. Resolving can record
         // events of its own (learning a word from a meal), and those follow
         // from the act rather than preceding it, so the act is inserted at
         // this boundary rather than pushed after them.
         let boundary = self.pending.len();
         let outcome = self.resolve(intent);
+        // Whether a hand asked for the boundary below. Read off the outcome
+        // rather than kept as a flag: only an accepted `Intent::EndEpoch`
+        // produces this, and a refused one is a rejection like any other. (DT3)
+        let demanded = matches!(outcome, Outcome::EpochEnded { .. });
 
         // Recorded before the ecology steps, because that is the order these
         // happened in and a history that reversed them would let a creature's
@@ -431,9 +453,6 @@ impl World {
         let focus = self.position();
         let held = self.held();
         let tick = self.tick;
-        // Read before the ecology allocates any, so the birth pass's newborns
-        // are addressable afterwards without a scan. (PD5)
-        let before_births = self.next_organism;
         let mut records =
             crate::flow::Records::new(tick, Some(&self.places), &mut self.pending, &mut self.flows);
         self.last_tally = crate::organism::ecology::step_with_ground(
@@ -449,6 +468,14 @@ impl World {
             focus,
             held,
         );
+
+        // A forced birth joins the roster here: the same point `breed`'s own
+        // newborns reach it, so a child a hand asked for is not run through the
+        // tick it was born in and a natural one is not either. (DT3)
+        if let Some(child) = self.forced_birth.take() {
+            self.organisms.push(child);
+            self.last_tally.born += 1;
+        }
 
         // **Filial expression** (PD5). A descendant of a line that has
         // committed a revision is developed under it here, in the tick it was
@@ -505,10 +532,14 @@ impl World {
         // The *reckoning* is not here. It reads the past, and history lives
         // beside a world rather than inside it, so whoever holds the past does
         // that half through [`Self::reckon`].
+        // **Or a hand asked for it** (DT3). `Intent::EndEpoch` runs this exact
+        // path and adds nothing to it: the rule that admits the demand is the
+        // world's own (`EpochRule::admits_demand`), and what follows is the
+        // round, the boundary and the reckoning PE3a built.
         if !revising {
             self.at_boundary = false;
         }
-        if !self.scoring && self.rules.epoch.spent(self.tick - self.epoch_began) {
+        if !self.scoring && (demanded || self.rules.epoch.spent(self.tick - self.epoch_began)) {
             self.epoch += 1;
             self.epoch_began = self.tick;
             // Set before the round, so every unplayed line commits through the

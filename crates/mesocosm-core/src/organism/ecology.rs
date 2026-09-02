@@ -40,7 +40,11 @@ use movement::{
     disperse, living_cells,
 };
 
+/// The two transactions DT3's dev intents reach, so a forced birth is the
+/// ordinary birth and a dev-caused death is the ordinary death.
+pub use breeding::bear;
 pub(crate) use breeding::filial_seed;
+pub use flows::perish;
 pub(crate) use rates::*;
 use rates::{CROWD_CELL, CROWD_COMFORT, UPKEEP_BASE_MG};
 
@@ -492,16 +496,10 @@ fn step_inner(
                     );
                     tally.returned += 1;
                 } else if starved || aged {
-                    organism.stage = Stage::Carrion;
-                    release_reserve(organism, soil, records);
-                    records.event(
-                        organism.position,
-                        Event::Died {
-                            organism: organism.id,
-                            species: organism.species,
-                        },
-                    );
-                    organism.since_offspring = 0;
+                    // Through the one death, which `Intent::Kill` also reaches
+                    // (DT3): the corpse and the record it leaves cannot tell
+                    // which door asked.
+                    flows::perish(organism, soil, records);
                     tally.died += 1;
                 }
             }

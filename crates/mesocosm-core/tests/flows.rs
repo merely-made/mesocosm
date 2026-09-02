@@ -30,6 +30,10 @@ use mesocosm_core::{Intent, OrganismId, Placement, World, state_hash};
 // keeps the split files beside the suite they belong to.
 #[path = "flows/boundary.rs"]
 mod boundary;
+#[path = "flows/dev.rs"]
+mod dev;
+#[path = "flows/refusals.rs"]
+mod refusals;
 #[path = "flows/transfers.rs"]
 mod transfers;
 
@@ -61,24 +65,26 @@ fn claimed(flows: &[RecordedFlow]) -> (i128, BTreeMap<OrganismId, (i128, i128)>)
         let record = &flow.record;
         soil += record.net_on(Account::Soil);
         let amount = i128::from(record.amount_mg);
+        // `is_body` rather than a soil comparison since DT3: the dev source
+        // is the second account that belongs to nobody.
         if let Some(from) = record.from
-            && record.source != Account::Soil
+            && record.source.is_body()
         {
             let entry = bodies.entry(from.organism).or_default();
             match record.source {
                 Account::Substance => entry.0 -= amount,
                 Account::Reserve => entry.1 -= amount,
-                Account::Soil => unreachable!("guarded above"),
+                Account::Soil | Account::Dev => unreachable!("guarded above"),
             }
         }
         if let Some(to) = record.to
-            && record.destination != Account::Soil
+            && record.destination.is_body()
         {
             let entry = bodies.entry(to.organism).or_default();
             match record.destination {
                 Account::Substance => entry.0 += amount,
                 Account::Reserve => entry.1 += amount,
-                Account::Soil => unreachable!("guarded above"),
+                Account::Soil | Account::Dev => unreachable!("guarded above"),
             }
         }
     }
@@ -188,69 +194,6 @@ fn the_stream_accounts_for_the_played_verbs_too() {
     for (step, intent) in trace.into_iter().enumerate() {
         stepped(&mut world, intent, &format!("after played step {step}"));
     }
-}
-
-#[test]
-fn an_accepted_deposit_is_in_the_stream_and_a_refused_one_is_not() {
-    // Accepted and refused transactions cannot disagree with the stream,
-    // because they share a commit point: the accepted branch emits, the refused
-    // one returns before reaching it.
-    let mut world = World::new(11, 40);
-    world.apply(Intent::Idle);
-
-    let flows = stepped(
-        &mut world,
-        Intent::Deposit { mass_mg: 60 },
-        "on the deposit",
-    );
-    let deposits: Vec<u64> = flows
-        .iter()
-        .filter(|f| f.record.process == Process::Deposit)
-        .map(|f| f.record.amount_mg)
-        .collect();
-    assert_eq!(deposits, vec![60], "one deposit, for what was deposited");
-
-    let refused = stepped(
-        &mut world,
-        Intent::Deposit { mass_mg: u64::MAX },
-        "on the refused deposit",
-    );
-    assert!(
-        !refused.iter().any(|f| f.record.process == Process::Deposit),
-        "a refusal moved nothing, so it recorded nothing"
-    );
-}
-
-#[test]
-fn a_refused_meal_leaves_the_prey_out_of_the_stream() {
-    let mut world = World::new(11, 40);
-    world.apply(Intent::Idle);
-
-    let here = world.position().expect("embodied");
-    let far = world
-        .living()
-        .filter(|o| Some(o.id) != world.controlled_id())
-        .max_by_key(|o| (0..3).map(|a| (o.position[a] - here[a]).abs()).max())
-        .map(|o| o.id)
-        .expect("something is out of reach in a wide enclosure");
-
-    let flows = stepped(
-        &mut world,
-        Intent::Metabolize {
-            organism: far,
-            placement: Placement::Planned,
-        },
-        "on the refused meal",
-    );
-    assert!(
-        world.living().any(|o| o.id == far),
-        "the refusal left it alive"
-    );
-    assert!(
-        !flows.iter().any(|f| f.record.process == Process::Feeding
-            && f.record.from.is_some_and(|s| s.organism == far)),
-        "nothing was taken out of it, so nothing was recorded"
-    );
 }
 
 #[test]

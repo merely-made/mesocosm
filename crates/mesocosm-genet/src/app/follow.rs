@@ -309,6 +309,83 @@ mod tests {
         assert_eq!(host.follow_lost, None);
     }
 
+    /// **A dev kill reads on the tile exactly as a natural death does** (DT3).
+    ///
+    /// The DT2 done-condition was that a followed critter that dies is
+    /// reported rather than silently dropped; the DT3 claim on top is that the
+    /// report cannot tell which death it was. Both are taken here from the
+    /// same fixture — one body killed by the `K` key, one left to the ecology —
+    /// and the tile's notice is compared word for word.
+    #[test]
+    fn a_dev_kill_is_reported_on_the_tile_the_way_a_natural_death_is() {
+        let mut host = host();
+        let target = host
+            .runtime
+            .world()
+            .living()
+            .find(|o| Some(o.id) != host.runtime.world().controlled_id())
+            .expect("somebody else is alive")
+            .id;
+        host.follow = Some(target);
+
+        assert!(host.try_dev_key(&Key::Character("k".into())));
+        host.runtime.step(1);
+        assert!(matches!(
+            host.runtime.last_outcomes().first(),
+            Some(mesocosm_core::Outcome::Killed { .. })
+        ));
+
+        host.update_follow();
+        assert_eq!(host.follow, None, "follow snapped back, as it does anyway");
+        let killed = host.follow_lost.expect("the death was reported");
+        assert_eq!(killed.id, target.0);
+        assert_eq!(
+            killed.how, "died",
+            "the record's own word, and it is the natural death's word"
+        );
+        let ending = host
+            .runtime
+            .history()
+            .ending(target)
+            .expect("a dev kill leaves the ordinary ending in the record");
+        assert_eq!(
+            killed.tick, ending.tick,
+            "the record's tick, not the frame's"
+        );
+
+        // Beside it, a death the ecology took: same shape, same words but for
+        // the id, and nothing anywhere says a hand was involved.
+        let natural = host
+            .runtime
+            .world()
+            .living()
+            .find(|o| Some(o.id) != host.runtime.world().controlled_id())
+            .expect("somebody else is still alive")
+            .id;
+        for _ in 0..4_000 {
+            host.runtime.step(1);
+            if host.runtime.history().ending(natural).is_some() {
+                break;
+            }
+        }
+        let natural_ending = host
+            .runtime
+            .history()
+            .ending(natural)
+            .expect("a founder's life ends inside four thousand ticks");
+        let natural_lost =
+            mesocosm_views::lost_of(natural, Some(natural_ending), host.runtime.world().tick);
+        assert_eq!(
+            natural_lost.how, killed.how,
+            "one word for one kind of thing happening"
+        );
+        assert_eq!(
+            mesocosm_views::lost_words(killed),
+            format!("critter {} died at tick {}", target.0, ending.tick),
+            "and the tile's sentence is the same sentence"
+        );
+    }
+
     /// A world's own death, end to end: a critter that really dies is reported
     /// with the tick and the word the record carries.
     #[test]

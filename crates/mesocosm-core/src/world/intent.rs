@@ -209,6 +209,81 @@ pub enum Intent {
     Revise {
         condition: crate::discovery::ConditionId,
     },
+    /// End the epoch now. **A dev tool** (DT3), and the built meaning of
+    /// [`EpochRule::PlayerTriggered`].
+    ///
+    /// Admitted only where this world's [`EpochRule`] says so
+    /// ([`EpochRule::admits_demand`], which carries the ruling and its
+    /// reasons): a Timed epoch ends early and restarts its budget from this
+    /// tick, a PlayerTriggered one ends *only* here, and a Gated one refuses.
+    ///
+    /// It runs exactly the boundary PE3a built and adds nothing to it — the
+    /// same adaptation round, the same `at_boundary`, and the same reckoning
+    /// by whoever holds the past. The one thing that is different about it is
+    /// that a hand asked.
+    ///
+    /// [`EpochRule`]: crate::rules::EpochRule
+    /// [`EpochRule::PlayerTriggered`]: crate::rules::EpochRule::PlayerTriggered
+    /// [`EpochRule::admits_demand`]: crate::rules::EpochRule::admits_demand
+    EndEpoch,
+    /// Bear an offspring from this body now. **A dev tool** (DT3).
+    ///
+    /// **The ordinary birth, with the clock taken off it.** What it skips is
+    /// the ecology's *timing* gate — adult stage, gestation, brood mass — and
+    /// nothing else: the transaction is
+    /// [`ecology::bear`](crate::organism::ecology::bear), the one the birth
+    /// pass runs, so the child is realized under the same filial seed, scattered
+    /// by the same draw, provisioned out of the same two accounts, recorded as
+    /// the same `Event::Born`, and developed under its line's revision by the
+    /// same filial pass.
+    ///
+    /// **Provisioning still binds.** A parent that cannot pay for its line's
+    /// recipe out of a quarter of its own body is refused with
+    /// [`Rejection::InsufficientMass`], which is exactly the condition a
+    /// natural birth waits on rather than a second rule written for this door.
+    ForceBirth { organism: OrganismId },
+    /// End this body's life now. **A dev tool** (DT3).
+    ///
+    /// The ordinary death, through
+    /// [`ecology::perish`](crate::organism::ecology::perish): the body becomes
+    /// carrion holding exactly the substance it had, its reserve goes back into
+    /// the column under it as a `Process::Death` flow, and the record gets the
+    /// same `Event::Died` a starved or aged body writes. Nothing about the
+    /// corpse it leaves says how it died, which is the point — a dev-caused
+    /// death has to read as a natural one or the tool is lying about the world.
+    ///
+    /// A body that is already carrion, spent, or absent is refused by name.
+    /// Killing the *controlled* critter is allowed and loses control exactly as
+    /// any other death does.
+    Kill { organism: OrganismId },
+    /// Put matter into the ground at a cell. **A dev tool** (DT3).
+    ///
+    /// The one route by which the enclosure's matter total changes, and it is
+    /// a recorded transfer rather than a hole: the milligrams come out of
+    /// [`Account::Dev`](crate::flow::Account::Dev) and into the soil, so the
+    /// flow record still accounts for every account and a conservation check
+    /// subtracts what that source issued instead of tolerating it.
+    ///
+    /// Bounded by [`PLACE_MATTER_MAX_MG`](crate::world::PLACE_MATTER_MAX_MG)
+    /// per intent, and refused off the grid rather than clamped onto its edge:
+    /// `Soil::column_at` clamps as insurance against a leak, and a dev tool
+    /// that leaned on it would silently pile matter against the wall.
+    PlaceMatter { at: [i32; 3], mass_mg: u64 },
+}
+
+impl Intent {
+    /// Whether this is one of DT3's world-changing dev intents.
+    ///
+    /// **The world does not branch on it**, and nothing here does either: each
+    /// of the four is applied, refused and recorded like every other intent.
+    /// What reads this is a receipt, so a run that used one is labelled
+    /// assisted (dev tools plan §2, principle 5).
+    pub fn is_dev(&self) -> bool {
+        matches!(
+            self,
+            Self::EndEpoch | Self::ForceBirth { .. } | Self::Kill { .. } | Self::PlaceMatter { .. }
+        )
+    }
 }
 
 /// Why an intent could not be applied. Rejections are part of the recorded
@@ -285,6 +360,32 @@ pub enum Rejection {
     /// own boundaries, and re-encoding them here would give the same refusal
     /// two vocabularies.
     Unrevised(super::Unrevised),
+    /// This world's epoch rule does not admit a demand. (DT3)
+    ///
+    /// Carries the rule, because *which* rule refused is the fact worth having:
+    /// a Gated world says so, and the answer would be different in a world
+    /// founded under either of the other two.
+    EpochNotOnDemand(crate::rules::EpochRule),
+    /// That body is not alive, so it cannot bear and cannot be killed. (DT3)
+    ///
+    /// The mirror of [`Self::StillLiving`], and both dev intents that name a
+    /// body share it: a corpse has no offspring to provision, and a corpse
+    /// cannot die twice.
+    NotLiving(OrganismId),
+    /// That cell is outside the enclosure. (DT3)
+    ///
+    /// Refused rather than clamped. `Soil::column_at` clamps as insurance
+    /// against a leak at the wall, and a dev intent that leaned on it would
+    /// silently pile every mistaken placement into one edge column.
+    OffGrid([i32; 3]),
+    /// More matter than one placement may carry. (DT3)
+    ///
+    /// Says both numbers, because a bound a caller cannot read is a bound it
+    /// cannot work inside.
+    OverBound {
+        mass_mg: u64,
+        max_mg: u64,
+    },
 }
 
 /// Why an organism cannot be inhabited.
@@ -392,6 +493,41 @@ pub enum Outcome {
         species: SpeciesId,
         revision: crate::program::RevisionId,
         condition: crate::discovery::ConditionId,
+    },
+    /// The epoch was ended on demand. (DT3)
+    ///
+    /// Names the epoch that **closed**, which is the one a reader was watching;
+    /// the world is in the next one by the time anybody sees this.
+    EpochEnded {
+        epoch: u64,
+    },
+    /// A birth was taken now rather than when the ecology would have taken it.
+    /// (DT3)
+    ///
+    /// Both ends, because that is what a birth is. No `Event` follows from this
+    /// outcome: the transaction writes the ordinary `Event::Born` inside
+    /// itself, so the record has one writer — the arrangement
+    /// [`Self::Revised`] already uses.
+    Bore {
+        parent: OrganismId,
+        offspring: OrganismId,
+    },
+    /// A body's life was ended now. (DT3)
+    ///
+    /// `substance_mg` is what the corpse it left weighs and `reserve_mg` is
+    /// what its death put back into the ground — the two halves of the ordinary
+    /// death, said out loud so a receipt can check them against a natural one
+    /// rather than re-deriving them. The `Event::Died` is written inside the
+    /// transaction, for [`Self::Bore`]'s reason.
+    Killed {
+        organism: OrganismId,
+        substance_mg: u64,
+        reserve_mg: u64,
+    },
+    /// Matter entered the ground at a cell, out of the dev source. (DT3)
+    Placed {
+        at: [i32; 3],
+        mass_mg: u64,
     },
     Rejected(Rejection),
 }

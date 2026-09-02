@@ -46,6 +46,42 @@ pub(super) fn breed(
         .map(|(index, _)| index)
         .collect();
     for index in ready {
+        if let Some(child) = bear(
+            organisms, index, next_id, rng, records, lineages, palette, ground,
+        ) {
+            newborns.push(child);
+            tally.born += 1;
+        }
+    }
+}
+
+/// **One birth, and the only one there is.**
+///
+/// Split out of [`breed`]'s loop for DT3, which needs a birth from a named
+/// parent *now* and must not have a second one written for it: the dev tools
+/// plan's stop rule is that a forced birth is the ordinary birth. `breed` calls
+/// this for every parent the timing gate admits; `Intent::ForceBirth` calls it
+/// for the one parent a hand named, and skips nothing else.
+///
+/// Returns the newborn for the caller to append — a child cannot be born into
+/// the pass that made it — having already debited the parent and written both
+/// records. `None` is the birth not happening: this line is not in the registry,
+/// or **provisioning would not cover the recipe**, which is the binding
+/// condition a natural birth waits on rather than a rule this door invented.
+/// It spends no entropy when it refuses, so a refused birth cannot move a later
+/// one.
+#[allow(clippy::too_many_arguments)]
+pub fn bear(
+    organisms: &mut [Organism],
+    index: usize,
+    next_id: &mut u32,
+    rng: &mut Rng,
+    records: &mut Records<'_>,
+    lineages: &Lineages,
+    palette: PartPalette,
+    ground: Option<&Ground>,
+) -> Option<Organism> {
+    let (child, cost, endowment) = {
         let parent = &organisms[index];
         let cost = parent.biomass_mg() / OFFSPRING_COST;
         // A child's opening budget is **provisioned**, out of the parent's own
@@ -57,14 +93,12 @@ pub(super) fn breed(
         let endowment = parent.energy_mg.min(cost);
         let child_id = OrganismId(*next_id);
         let development_seed = filial_seed(parent.development_seed, child_id);
-        let Some(lineage) = lineages.get(parent.species) else {
-            continue;
-        };
+        let lineage = lineages.get(parent.species)?;
         // Provisioning is binding. A complex recipe may need more positive-
         // mass parts than a quarter of this parent can pay for; in that case
         // the birth waits, spending neither matter nor ecology entropy.
         let Ok(mut body) = lineage.realize(development_seed, cost, palette) else {
-            continue;
+            return None;
         };
         body.plan.symmetry = parent.body().plan.symmetry;
         // Wide enough to leave a crowded cell. Dispersal is how a stand
@@ -125,39 +159,39 @@ pub(super) fn breed(
             guise: parent.guise,
         };
         *next_id += 1;
-        let born_at = child.position;
-        let heir = Subject::of(&child);
         records.event(
-            born_at,
+            child.position,
             Event::Born {
                 organism: child.id,
                 species: child.species,
                 parent: Some(parent.id),
             },
         );
-        newborns.push(child);
+        (child, cost, endowment)
+    };
 
-        let parent = &mut organisms[index];
-        let forebear = Subject::of(parent);
-        // `can_reproduce` requires more than `STARVATION_MG * OFFSPRING_COST`
-        // of body, and cost is a quarter of that body, so the debit is always
-        // payable in full; a shortfall here would be matter out of nothing.
-        let short = parent.spend_mass(cost);
-        debug_assert_eq!(short, 0, "a birth outran its parent");
-        parent.energy_mg -= endowment;
-        parent.since_offspring = 0;
-        tally.born += 1;
+    let born_at = child.position;
+    let heir = Subject::of(&child);
+    let parent = &mut organisms[index];
+    let forebear = Subject::of(parent);
+    // `cost` is a quarter of what this body weighs, so the debit is always
+    // payable in full whichever door asked for the birth; a shortfall here
+    // would be matter out of nothing.
+    let short = parent.spend_mass(cost);
+    debug_assert_eq!(short, 0, "a birth outran its parent");
+    parent.energy_mg -= endowment;
+    parent.since_offspring = 0;
 
-        // A birth is a transfer, not a spawn. Both halves come out of the
-        // parent's own accounts and land in the matching account of the child,
-        // which is what TD6 made true and this is what says so.
-        for (account, mg) in [(Account::Substance, cost), (Account::Reserve, endowment)] {
-            records.flow(
-                born_at,
-                FlowEvent::between(Process::Birth, forebear, account, heir, account, mg),
-            );
-        }
+    // A birth is a transfer, not a spawn. Both halves come out of the
+    // parent's own accounts and land in the matching account of the child,
+    // which is what TD6 made true and this is what says so.
+    for (account, mg) in [(Account::Substance, cost), (Account::Reserve, endowment)] {
+        records.flow(
+            born_at,
+            FlowEvent::between(Process::Birth, forebear, account, heir, account, mg),
+        );
     }
+    Some(child)
 }
 
 const FILIAL_SALT: u64 = 0x4649_4C49_414C_0001;

@@ -87,6 +87,19 @@ pub struct Runtime {
     epoch_seen: u64,
     /// What the most recent boundary came to.
     reckoning: Vec<Reading>,
+    /// World-changing dev intents this run actually applied. (DT3)
+    ///
+    /// **A fact about how the run was driven, not about what it did.** The
+    /// world does not branch on it and cannot see it; what reads it is the
+    /// receipt, so a playtest that ended an epoch, forced a birth, killed
+    /// something or placed matter is labelled assisted rather than passing for
+    /// an unaided one (dev tools plan §2, principle 5).
+    ///
+    /// Counted here rather than in a host because it is a pure function of the
+    /// trace and the world's answers — which is why a replay of a trace that
+    /// carries dev intents arrives at the same number the recording did.
+    /// Refused ones do not count: nothing was applied.
+    dev_intents: u64,
     last: Vec<Outcome>,
     max_steps: u64,
     seed: u64,
@@ -121,6 +134,7 @@ impl Runtime {
             authored: None,
             epoch_seen: 0,
             reckoning: Vec::new(),
+            dev_intents: 0,
             last: Vec::new(),
             max_steps: DEFAULT_MAX_STEPS_PER_ADVANCE,
             seed,
@@ -236,7 +250,14 @@ impl Runtime {
         // what the review is about, so the reading is rebuilt rather than left
         // describing the program the line no longer has.
         let revised = matches!(intent, Intent::Revise { .. });
+        // Read before the intent is consumed, and counted only where the world
+        // accepted it: a refused dev intent applied nothing, so a run that only
+        // ever asked for something impossible was not assisted. (DT3)
+        let dev = intent.is_dev();
         let outcome = self.world.apply(intent.clone());
+        if dev && !matches!(outcome, Outcome::Rejected(_)) {
+            self.dev_intents += 1;
+        }
         self.trace.push(intent);
         self.absorb(hand, revised);
         self.last.push(outcome);
@@ -403,6 +424,15 @@ impl Runtime {
     /// count this reproduces the run exactly.
     pub fn trace(&self) -> &[Intent] {
         &self.trace
+    }
+
+    /// World-changing dev intents this run applied. (DT3)
+    ///
+    /// Zero for a run that used none, which is every run without `--dev` and
+    /// most runs with it. A nonzero count is what makes a receipt say the run
+    /// was assisted.
+    pub fn dev_intents(&self) -> u64 {
+        self.dev_intents
     }
 
     /// Outcomes from the most recent `advance` or `step`.

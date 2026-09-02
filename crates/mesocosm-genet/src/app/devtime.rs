@@ -53,11 +53,13 @@ impl Host {
 
     /// The whole of the key handler's dev interception: off outside
     /// `--dev`, and `true` (having already applied the action) for one of
-    /// the eight keys `--dev` makes live. Kept off unless the flag is set, so
+    /// the twelve keys `--dev` makes live. Kept off unless the flag is set, so
     /// an ordinary build's keyboard is exactly what it was before DT1.
     ///
-    /// The three follow keys are handed to [`super::follow`]; none of the
-    /// eight reaches `Runtime::queue` either way.
+    /// The three follow keys are handed to [`super::follow`] and DT3's four to
+    /// [`super::devworld`]. The split is the dev tools plan's principle 2:
+    /// nothing above the last arm reaches `Runtime::queue`, and everything in
+    /// it does nothing but.
     pub(super) fn try_dev_key(&mut self, key: &winit::keyboard::Key) -> bool {
         if !self.config.dev {
             return false;
@@ -77,6 +79,10 @@ impl Host {
             input::DevKey::FollowNext | input::DevKey::FollowBack | input::DevKey::FollowSelf => {
                 self.follow_key(action)
             }
+            // DT3: an ordinary intent, queued. The only arm here that can
+            // reach the world at all.
+            action if action.changes_the_world() => self.dev_world_key(action),
+            _ => {}
         }
         true
     }

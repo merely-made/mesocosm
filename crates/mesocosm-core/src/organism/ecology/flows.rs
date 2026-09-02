@@ -134,6 +134,35 @@ pub(super) fn pay_travel(
 /// and by whatever eats the corpse.
 ///
 /// [`Stage::Carrion`]: crate::organism::Stage::Carrion
+/// **One death, and the only one there is.**
+///
+/// Split out of the tick's own life-history pass for DT3, which needs a body's
+/// life ended *now* and must not have a second death written for it: the dev
+/// tools plan's stop rule is that a dev-caused death reads as a natural one.
+/// The tick calls this when a body starves or ages out; `Intent::Kill` calls it
+/// when a hand asks. Neither can tell afterwards which it was, because the
+/// corpse and the record carry nothing that says.
+///
+/// What it does is exactly what dying is here: the body becomes carrion holding
+/// the substance it had, its reserve goes back into the column under it, the
+/// record gets [`Event::Died`], and its gestation clock is cleared. Counting
+/// the death is the caller's, because only the tick keeps a [`Tally`].
+///
+/// [`Event::Died`]: crate::history::Event::Died
+/// [`Tally`]: crate::organism::Tally
+pub fn perish(organism: &mut Organism, soil: &mut Soil, records: &mut Records<'_>) {
+    organism.stage = crate::organism::Stage::Carrion;
+    release_reserve(organism, soil, records);
+    records.event(
+        organism.position,
+        crate::history::Event::Died {
+            organism: organism.id,
+            species: organism.species,
+        },
+    );
+    organism.since_offspring = 0;
+}
+
 pub(super) fn release_reserve(organism: &mut Organism, soil: &mut Soil, records: &mut Records<'_>) {
     let column = soil.column_at(organism.position);
     soil.deposit(column, organism.energy_mg);

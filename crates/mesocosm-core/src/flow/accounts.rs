@@ -3,21 +3,49 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! One body's accounts, reduced off the flow record. (DT2)
+//! Reducing the flow record into what an account did. (DT2, DT3)
 //!
 //! Split out of `flow.rs` at the six-hundred-line ceiling, the same
-//! split-before-adding move `world/` and `phenotype/` already made.
+//! split-before-adding move `world/` and `phenotype/` already made, and kept
+//! growing there rather than back in `flow.rs` for the same reason.
 //!
 //! The dev lane's inspector needs what a *body* earned and spent, and
 //! [`Score`](crate::Score) already separates exactly that for a *line*. The
 //! split is written down once, here, so the two cannot come to disagree about
-//! which side of the ledger a transfer is on.
+//! which side of the ledger a transfer is on. [`Account`]'s own two questions —
+//! whether an account belongs to a body at all, and what the dev source has
+//! issued — are reductions of the same kind and live beside it.
 
 use serde::{Deserialize, Serialize};
 
 use crate::organism::OrganismId;
 
-use super::{Process, RecordedFlow};
+use super::{Account, Process, RecordedFlow};
+
+impl Account {
+    /// Whether this account belongs to a body.
+    ///
+    /// The soil and the dev source do not: they are the two ends matter enters
+    /// and leaves the roster through, and neither names a
+    /// [`Subject`](super::Subject).
+    pub fn is_body(self) -> bool {
+        matches!(self, Self::Substance | Self::Reserve)
+    }
+
+    /// What the dev source issued over a stream of flows. (DT3)
+    ///
+    /// A run's conserved quantity is the enclosure's total *less* this, so a
+    /// conservation check subtracts it rather than tolerating it. Written here
+    /// so the check and any panel reading the same stream cannot come to
+    /// disagree about what counts.
+    pub fn issued_mg(flows: &[RecordedFlow]) -> u64 {
+        flows
+            .iter()
+            .filter(|flow| flow.record.source == Account::Dev)
+            .map(|flow| flow.record.amount_mg)
+            .sum()
+    }
+}
 
 /// What one body's three accounts did over a window of ticks. (DT2)
 ///
@@ -81,7 +109,7 @@ impl Accounts {
 mod tests {
     use super::*;
     use crate::body::SpeciesId;
-    use crate::flow::{Account, Envelope, FlowEvent, Subject};
+    use crate::flow::{Envelope, FlowEvent, Subject};
     use crate::organism::Kingdom;
 
     const A: OrganismId = OrganismId(1);

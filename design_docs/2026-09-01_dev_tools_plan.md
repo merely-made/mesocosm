@@ -1,7 +1,8 @@
 # Dev tools: sitting in a run and interrogating it
 
-**Status (2026-09-02): DT1 and DT2 landed.** Both §4 decisions ruled and built.
-DT3 (force and end) is next; DT4 is independent and can go beside it.
+**Status (2026-09-02): DT1, DT2 and DT3 landed.** Both §4 decisions ruled and
+built. DT4 (harness consolidation into genet-probe) is what remains, and it was
+always independent.
 
 ## 0. Objective
 
@@ -168,6 +169,30 @@ of them. Each phase is one agent round on a non-Fable model.
      frame, and an unprojection through the orthographic slab. Left out, as
      the slice allows; roster cycling is the path.
 
+- **2026-09-02 (DT3), one ordering fact worth writing down.** A dev intent is
+  resolved at the *top* of a tick and the ecology's own passes run after it, so
+  "now" means something slightly different at each of the two doors, and the
+  two verbs answer it differently.
+  - **A forced birth is deferred, deliberately.** The tick's birth pass appends
+    its newborns *after* rent, feeding, dispersal and the life-history pass, so
+    a natural child is never run through the tick it was born in. A forced
+    child appended where it was made would be — aged, rented, possibly walked
+    somewhere — and would not be the ordinary child the stop rule requires. So
+    `World` holds a one-tick `forced_birth` handoff (`serde(skip)`, empty at
+    every tick boundary, so it cannot reach a snapshot or a hash) and the child
+    joins the roster at exactly the point `breed`'s newborns do. `PD5`'s filial
+    expression covers it too: the `before_births` read moved to the top of
+    `apply`, so both routes to a birth are addressable to it.
+  - **A dev kill is not deferred, and does differ by an ordering.** The body is
+    carrion before the tick's passes see it, so it skips that tick's rent and
+    enters the decay arm one tick earlier than a body the ecology takes at the
+    end of the same tick. That is the same "now" every acting intent already
+    has — `Intent::Metabolize` removes a body at the top of a tick too — and it
+    moves no matter: the corpse, the record and the released reserve are
+    identical, which is what the tests compare. Recorded here rather than
+    engineered away, because deferring the death would have meant a body that
+    was dead and still paying rent.
+
 ## Progress
 
 - **2026-09-01:** assessment written from a read-only inventory of mesocosm,
@@ -245,7 +270,7 @@ of them. Each phase is one agent round on a non-Fable model.
   and a per-line discovery ledger (a world's discovery list is the played
   line's, and the tile shows it as that).
 
-  Receipts. `--dev --frames 300 --follow 640` was read at
+  Receipts (DT2). `--dev --frames 300 --follow 640` was read at
   `Code/testing/mesocosm/dt2_inspect.png`: the tile reads `id 640`,
   `species 5`, `at -10, 22, -57`, `reserve 464 mg`, `substance 590 mg`,
   `flows in 552, rent 101, out 393`, `window 20 ticks`, `revision founding`,
@@ -262,3 +287,124 @@ of them. Each phase is one agent round on a non-Fable model.
   and fmt are clean. `flow.rs` was split at the six-hundred-line ceiling to
   make room for `flow/accounts.rs`, and the host's follow state lives in
   `app/follow.rs` beside DT1's `app/devtime.rs` for the same reason.
+- **2026-09-02 (DT3 landed):** four more keys, live only under `--dev` and
+  clear of everything play and the other two phases own: **`X`** ends the epoch
+  now, **`F`** forces a birth from the followed critter, **`K`** ends its life,
+  and **`G`** puts `DEV_PLACE_MG` (5,000 mg, half the world's per-intent bound)
+  into the ground under it. **These four are the other kind of dev action**, and
+  the split from DT1's and DT2's eight is principle 2 made structural: those
+  eight never reach `Runtime::queue` and this file's `input::DevKey` now says so
+  in one predicate (`changes_the_world`), while every one of these does nothing
+  but build an ordinary `Intent` and queue it. So all four are in the trace,
+  replay reproduces them, refusals come back through `Outcome::Rejected` in the
+  vitals lane's own plain words, and there is still no third kind.
+
+  **None of them has its own physics**, which is `world/dev.rs`'s whole job:
+  each is a validator in front of a transaction that already existed and is
+  already reached by something else. `Intent::EndEpoch` runs the boundary block
+  in `World::apply` — the round, `at_boundary`, and the reckoning by whoever
+  holds the past — exactly as a spent budget does. `Intent::ForceBirth` calls
+  `ecology::bear`, split out of `breeding::breed`'s loop so the birth pass and
+  the dev door are one function: same filial seed, same scatter draw, same
+  provisioning out of both accounts, same `Event::Born`, and the child joins the
+  roster at the point `breed`'s newborns do rather than being run through the
+  tick it was born in. `Intent::Kill` calls `ecology::perish`, split out of the
+  tick's life-history pass the same way. `Intent::PlaceMatter` is
+  `Soil::deposit` plus one recorded transfer. No dev intent writes an `Event`
+  variant of its own — a forced birth writes the ordinary `Born` and a dev kill
+  the ordinary `Died`, from inside the shared transaction — which is what makes
+  a dev-caused death read as a natural one everywhere downstream.
+
+  **The EndEpoch rule choice, and why.** `EpochRule::admits_demand` admits the
+  intent under **`PlayerTriggered`**, which is now built and ends its epoch on
+  the demand and on nothing else, **and under `Timed`**, which takes it as an
+  early end and restarts its budget from that tick. Timed accepts for two
+  reasons, both in that function's doc comment: `World::end_epoch` has always
+  been able to close a Timed epoch early, so a dev key that could not would be a
+  weaker tool under a stricter rule and the two would disagree about what a
+  boundary is; and refusing would mean the tool only worked in a world founded
+  under a rule the game does not ship, so the boundary it exists to exercise
+  could never be reached with it. **`Gated` refuses** — it has no condition
+  behind it yet, and a demand standing in for conditions nobody has named would
+  make it indistinguishable from `PlayerTriggered`, which the playable ecology
+  plan §6 deliberately keeps apart. All three are tested.
+
+  **The dev source account, and how reconciliation closes.** `Account::Dev` is a
+  fourth account and it sits *outside* the enclosure rather than in it: a
+  placement is a `Process::Place` transfer from `Dev` to `Soil` naming no
+  `Subject` on either end, so `tests/flows.rs` claims the soil's gain the way it
+  claims every other and attributes nothing to a body (`Account::is_body` is the
+  predicate that replaced the soil comparison there). Conservation is therefore
+  the three compartments **less what that account issued**, read off the stream
+  by `Account::issued_mg` and subtracted with no tolerance — and the control
+  `the_check_catches_a_placement_the_dev_source_did_not_account_for` shows an
+  uncounted placement reading as conjured matter, so the subtraction is an
+  account and not a blanket allowance. Nothing about it is world state: it never
+  enters a snapshot, so DT3 moved no state hash, and the golden fixture still
+  replays at `081b4ba4bdc46190`.
+
+  Refusals, by name: `EpochNotOnDemand(rule)` (a Gated world), `NotLiving(id)`
+  (a corpse can neither bear nor die twice), `NoSuchOrganism(id)`,
+  `InsufficientMass` (a parent that cannot provision its line's recipe out of a
+  quarter of itself — `bear`'s own gate, not a second one, and the condition a
+  natural birth waits on; also a placement of nothing), `OffGrid(at)` (refused
+  rather than clamped onto the wall, because `Soil::column_at`'s clamp is
+  insurance against a leak and a dev tool leaning on it would pile every mistyped
+  coordinate into one edge column) and `OverBound { mass_mg, max_mg }` against
+  `PLACE_MATTER_MAX_MG` (10,000 mg: a hundred columns of genesis soil, or ten
+  founding bodies).
+
+  **The receipt.** `PlayedReceipt` gained `dev_intents: u64` beside DT1's
+  `dev: bool` — the flag says the tools were available, the count says they were
+  used — and the host's receipt line leads with `assisted (N dev intents)` where
+  it is nonzero, first in the line so it cannot be skimmed past. It is counted
+  by the driver off the world's answers rather than off a keyboard, so a refused
+  dev intent counts nothing and a `--replay` of an assisted trace reports the
+  same number the recording did.
+
+  Receipts (DT3). `mesocosm-genet/examples/dt3_script.rs` records a 64-intent
+  trace headlessly — the `--record-demo` arrangement, because dev keys are keys
+  and an unattended `--frames` run cannot press them — that eats its way through
+  forty ticks, places 5,000 mg, kills the nearest neighbour, forces a birth from
+  the next nearest, plays on twenty more ticks and ends with `EndEpoch`. Replayed
+  headed with `--dev` and explicit non-default receipt, capture and trace paths,
+  it printed `assisted (4 dev intents) replay 64 steps over 16 frames, hash
+  5a87b85625e1a3f7 (matches the recorded hash)` and the receipt carries
+  `dev: true, dev_intents: 4`. Both are kept beside the capture as
+  `dt3_forced.json` and `dt3_forced.trace.json`; a falsified hash on *that*
+  trace exits 1 too, still labelled assisted.
+  `Code/testing/mesocosm/dt3_forced.png` was read
+  whole: the trait board is up in the middle reading **"the epoch is over /
+  epoch 1 ended"** with the boundary's four noted marks and the status-quo row —
+  the PE3a boundary, opened by a dev key — the dev tile is in the right column
+  under the minimap still reading its DT2 inspector (`id 0 (controlled)`,
+  `reserve 4263 mg`, `substance 17987 mg`, `flows in 23902, rent 1296, out
+  2356`, `parts 84`, `more +81 parts`), the vitals panel is bottom left with
+  `energy 4263 mg` and a `grew` notice, the minimap is top right, and the
+  terrarium under all of it is the same section the DT1 and DT2 captures show.
+  The `247 died in 64 ticks` on the panels is this seed's own churn at 917
+  founders — the enclosure's standing verdict, not the one dev kill in it.
+
+  The golden `ps1_played.trace.json` fixture, untouched, still exits 0 at
+  `081b4ba4bdc46190` with explicit non-default receipt and capture paths and no
+  `assisted` label; a falsified recorded hash exits 1. The `Intent` enum gaining
+  four variants moved nothing, as expected: intents are not in the snapshot, and
+  a JSON trace is variant-name-tagged, so a recorded trace reads back identically.
+
+  **The population instrument is unmoved.** All 45 runs of `dc4_roster.json`'s
+  five batches were re-run against this tree and compared field for field
+  against the committed receipt, timing excluded: every batch identical, run for
+  run and sample for sample — baseline 0 breathes / 10 thins, archetype 6 thins
+  / 4 collapse, roster 2 thins / 8 collapse, stand 10 thins, fauna 2 thins / 8
+  collapse, control all collapse. `dc4_roster.json` was restored rather than
+  rewritten, so the committed file is not carrying new timing on an unmoved
+  result.
+
+  `cargo test --workspace` is green with no thread cap, clippy `-D warnings` is
+  clean in both profiles, fmt is clean, and
+  `cargo check -p paredros-room --features r1-proof` is clean. Four files were
+  split before adding, per the ceiling: `world/dev.rs` holds the four
+  transactions in core, `app/devworld.rs` holds the four keys in the host
+  beside `app/devtime.rs` and `app/follow.rs`, `flow/accounts.rs` took
+  `Account`'s two reductions, and `tests/flows.rs` shed `flows/dev.rs` and
+  `flows/refusals.rs` (it was already at 602 lines).

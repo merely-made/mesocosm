@@ -155,6 +155,20 @@ pub struct PlayedReceipt {
     /// receipt says so out loud, so a playtest cannot be quietly assisted by
     /// time control without it showing.
     pub dev: bool,
+    /// World-changing dev intents this run applied. (DT3)
+    ///
+    /// **The flag above says the tools were available; this says they were
+    /// used.** Zero for every run without `--dev`, and for most runs with it —
+    /// pause, step, speed and follow are host-only and change nothing, so a
+    /// nonzero count means the epoch was ended, a birth forced, something
+    /// killed, or matter placed. A run with any of those is labelled
+    /// **assisted** in the line the host prints (dev tools plan §2, principle
+    /// 5).
+    ///
+    /// Refused ones are not counted: nothing was applied. Counted by the
+    /// driver off its own trace, so a replay of an assisted trace reports the
+    /// same number the recording did.
+    pub dev_intents: u64,
 }
 
 /// `Code/testing/<repo>/`, the workspace's headed-verify home. Derived from
