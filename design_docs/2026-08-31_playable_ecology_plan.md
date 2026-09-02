@@ -255,7 +255,15 @@ new generator and hope to recover the old world.
 
 `WorldRules` is a working label for this immutable record, not a settled Rust
 type name. The existing `process::Registry` and its digest are its first proven
-component.
+component. **Built at PD3, 2026-09-01** (`mesocosm-core::rules`): a world
+carries a `WorldRules { processes: RulesetDigest }`, serialized and hashed with
+everything else, and `snapshot::restore_under` refuses a save whose ruleset is
+not the one offered — `SnapshotError::Ruleset`, both digests named — rather
+than continuing against whatever biology the build happens to hold. It carries
+the identity, not the definitions, the same way `ProcessRef` does one scale
+down. Material and field definitions, environmental schedules and the generator
+version join it as their own gates land; P3's graft affinity is the first
+candidate and is still open (see the processdef plan's PD3 residues).
 
 ### Simulation detail changes; authority does not
 

@@ -241,6 +241,12 @@ pub(super) fn validate(
     }
 
     let body = phenotype.body();
+    // **This build's ruleset, and PD3 proved that is the admitted one.** The
+    // shipped pack lowers to a registry `==` to this, so a world running on
+    // pack data validates against exactly what it admitted. It stops being
+    // true the moment a pack mints a definition the natives do not hold, and
+    // PD4's first step is therefore taking a `&Registry` here and carrying the
+    // admitted one on the world.
     let registry = Registry::native();
     for part in &proposal.parts {
         let Some(found) = body.part(*part) else {

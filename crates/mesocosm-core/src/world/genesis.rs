@@ -430,6 +430,10 @@ impl World {
         let mut world = Self {
             tick: 0,
             epoch: 0,
+            // What biology this world realized (PD3). A world founds under
+            // this build's own admitted ruleset; a host that admitted a pack
+            // instead compares its digest against this one rather than hoping.
+            rules: crate::rules::WorldRules::native(),
             rng,
             controlled: Some(OrganismId(0)),
             control_lost: None,

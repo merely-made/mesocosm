@@ -297,7 +297,7 @@ impl BodyPhenotype {
                     process: site.process,
                     // `None` is the missing-ruleset diagnostic, not a licence
                     // to name a similar local process instead.
-                    named: registry.resolve(site.process).map(|def| def.id),
+                    named: registry.resolve(site.process).map(|def| def.id.clone()),
                     cells: site.cells.len() as u32,
                     cause: site.cause,
                 })

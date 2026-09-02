@@ -183,10 +183,12 @@ impl World {
                 crossing,
             } => self.graft(organism, part, crossing),
 
-            // The developmental verb (PD2). It lives next door in
-            // `world::rearrange`, which owns the price, the payment and the
-            // record; the validator under it is the phenotype's.
-            Intent::Rearrange { part, ref sites } => self.rearrange(part, sites),
+            // The developmental verb (PD3's bounded door, PD2's transaction).
+            // It lives next door in `world::express`, which owns the price,
+            // the payment and the record; the validator under it is the
+            // phenotype's, and what it may express comes from the admitted
+            // ruleset and the line's discoveries rather than from the host.
+            Intent::Express { condition } => self.express(condition),
 
             // **Enriching the ground**, since TD6. It used to spawn a carcass
             // — a scrap of loose matter waiting for a decomposer — which was

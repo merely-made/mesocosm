@@ -14,26 +14,35 @@
 //! 2. **allocation locates it on a part and charges its cost** — a named part,
 //!    a counted number of cells, a milligram out of the reserve and into the
 //!    ground, and a standing rent from then on;
-//! 3. **world conditions can make it useful or dormant** — a gland makes its
-//!    toxin out of the ground under the body, and goes dry where that ground
-//!    cannot supply what it holds, without losing a cell or a milligram of
-//!    rent;
-//! 4. **severing its dependency removes the consequence** — and the branch can
-//!    still say what it used to do.
+//! 3. **world conditions can make it useful or dormant** and
+//! 4. **severing its dependency removes the consequence** are next door in
+//!    `gland_use.rs`, split off at the 600-line ceiling. The fixtures below
+//!    are shared with it.
+//!
+//! # Two routes, since PD3 deleted the editor operation
+//!
+//! PD2 proved these through `Intent::Rearrange`, which carried a complete
+//! hand-authored allocation. That door is gone: `Intent::Express` names a
+//! discovered condition, and the arrangement comes from the admitted ruleset
+//! and the discovery record. So each claim here goes through whichever
+//! boundary actually decides it — the world door for what a development costs
+//! and records, [`develop_played`](super::develop_played) for what a body a
+//! host could never author *is*. One validator underneath both, unchanged.
 
 use mesocosm_core::{
-    Allocate, Attachment, CellId, Intent, Organism, OrganismId, Outcome, PartId, Placement,
-    Process, ProcessRef, Provenance, Refusal, Registry, Rejection, Stage, VolumeRef, World, Yaw,
+    AllocationProposal, Arrangement, Attachment, CellId, ConditionId, Intent, Outcome, PartId,
+    Process, ProcessRef, ProposedSite, Provenance, Refusal, Registry, VolumeRef, World, Yaw,
 };
 
-use super::bulk_world;
+use super::discovery::{endure, hunger};
+use super::{bulk_world, develop_played};
 
 /// The acquired definition, addressed the way a phenotype addresses it.
-fn gland() -> ProcessRef {
+pub(crate) fn gland() -> ProcessRef {
     Registry::native().of_native(Process::Secrete).reference()
 }
 
-fn fixing() -> ProcessRef {
+pub(crate) fn fixing() -> ProcessRef {
     Registry::native().of_native(Process::Fix).reference()
 }
 
@@ -45,18 +54,18 @@ fn fixing() -> ProcessRef {
 /// holds more than a fresh soil column does, which is what lets one fixture
 /// show a charged gland and a dry one without waiting for the enclosure to
 /// draw itself down.
-const FROND: [i32; 3] = [6, 4, 1];
+pub(crate) const FROND: [i32; 3] = [6, 4, 1];
 
 /// A world whose played critter carries one frond held up in a canopy
 /// position — so it reads as a producer, and carries the only shape that
 /// admits a gland.
-fn fronded_world(seed: u64) -> World {
+pub(crate) fn fronded_world(seed: u64) -> World {
     let mut world = bulk_world(seed, 24);
     frond_on(&mut world);
     world
 }
 
-fn frond_on(world: &mut World) -> PartId {
+pub(crate) fn frond_on(world: &mut World) -> PartId {
     let me = world.controlled_id().expect("embodied");
     let organism = world.organisms.iter_mut().find(|o| o.id == me).unwrap();
     let root = organism.body().root;
@@ -80,7 +89,7 @@ fn frond_on(world: &mut World) -> PartId {
 }
 
 /// The played critter's only frond.
-fn frond_of(world: &World) -> PartId {
+pub(crate) fn frond_of(world: &World) -> PartId {
     let body = world.body().expect("embodied");
     body.living()
         .map(|part| part.id)
@@ -91,12 +100,15 @@ fn frond_of(world: &World) -> PartId {
         .expect("the fixture attached one")
 }
 
-/// Asks for a frond split between fixing and a gland of `cells` cells, taken
-/// off the high end of the lattice.
-fn split(world: &World, part: PartId, cells: u32) -> Intent {
-    let capacity = world
-        .phenotype()
-        .expect("embodied")
+/// A frond split between fixing and a gland of `cells` cells, taken off the
+/// high end of the lattice.
+///
+/// A proposal rather than an intent since PD3: no host can say this, so it is
+/// stated to the validator directly. The candidate the game actually grants
+/// takes [`GLAND_CELLS`] and comes through the door.
+fn split(world: &World, part: PartId, cells: u32) -> AllocationProposal {
+    let phenotype = world.phenotype().expect("embodied");
+    let capacity = phenotype
         .mosaic(part)
         .expect("a living part carries a mosaic")
         .capacity();
@@ -106,16 +118,54 @@ fn split(world: &World, part: PartId, cells: u32) -> Intent {
         .collect();
     let mut sites = Vec::new();
     if !kept.is_empty() {
-        sites.push(Allocate {
+        sites.push(ProposedSite {
+            part,
             process: fixing(),
             cells: kept,
         });
     }
-    sites.push(Allocate {
+    sites.push(ProposedSite {
+        part,
         process: gland(),
         cells: taken,
     });
-    Intent::Rearrange { part, sites }
+    AllocationProposal {
+        expect: phenotype.digest(),
+        source: Arrangement::Direct,
+        parts: vec![part],
+        sites,
+    }
+}
+
+/// Cells the granted candidate takes. The discovery table's number, read
+/// rather than repeated, so a fixture cannot drift from the rule.
+pub(crate) fn gland_cells() -> u32 {
+    mesocosm_core::discovery::resolve(hunger())
+        .expect("the table holds it")
+        .grants
+        .cells
+}
+
+/// A world whose played critter carries a frond **and** whose line has come
+/// through hunger, so the gland is available to express.
+///
+/// The frond goes on after the stress, exactly as `discovery.rs` does it: a
+/// canopy earns while the body is meant to be going without.
+pub(crate) fn ready_world(seed: u64) -> (World, PartId) {
+    let mut world = bulk_world(seed, 24);
+    endure(&mut world, mesocosm_core::discovery::HUNGER_TICKS + 1);
+    assert!(world.discovered(hunger()), "the line came through hunger");
+    let part = frond_on(&mut world);
+    (world, part)
+}
+
+/// Expresses the discovered gland through the one door a host has. (PD3)
+pub(crate) fn express(world: &mut World, condition: ConditionId) -> Outcome {
+    let intent = world
+        .candidate_intent(condition)
+        .expect("the body is somewhere to put it");
+    assert_eq!(intent, Intent::Express { condition });
+    world.apply(intent)
 }
 
 // ---------------------------------------------------------------------------
@@ -146,19 +196,18 @@ fn the_tissue_has_to_come_off_something() {
     // A seeded part arrives fully committed, so the first development that
     // wants a second process takes tissue from the first. That is the choice,
     // and it is visible as an exchange of cells rather than as an addition.
-    let mut world = fronded_world(4_242);
-    let part = frond_of(&world);
+    let (mut world, part) = ready_world(4_242);
     let before = world.phenotype().unwrap().mosaic(part).unwrap().free();
     assert_eq!(before, 0, "a seeded frond has nothing spare");
 
     assert!(matches!(
-        world.apply(split(&world.clone(), part, 4)),
-        Outcome::Rearranged { .. }
+        express(&mut world, hunger()),
+        Outcome::Expressed { .. }
     ));
     let mosaic = world.phenotype().unwrap().mosaic(part).unwrap();
     assert_eq!(mosaic.free(), 0, "and it still has nothing spare");
     assert_eq!(mosaic.sites().len(), 2, "it does two things now");
-    assert_eq!(world.gland().unwrap().cells, 4);
+    assert_eq!(world.gland().unwrap().cells, gland_cells());
 }
 
 #[test]
@@ -175,9 +224,11 @@ fn converting_the_whole_frond_costs_the_body_its_living() {
         "the frond is what makes it one"
     );
 
+    // A whole frond of poison is more than any candidate grants, so it is
+    // stated to the validator: the claim is what the body then *is*.
     let capacity = world.phenotype().unwrap().mosaic(part).unwrap().capacity();
-    let outcome = world.apply(split(&world.clone(), part, capacity));
-    assert!(matches!(outcome, Outcome::Rearranged { .. }));
+    let proposal = split(&world, part, capacity);
+    develop_played(&mut world, &proposal).expect("a plate admits a gland");
 
     assert!(!world.phenotype().unwrap().canopy());
     assert_ne!(
@@ -197,63 +248,63 @@ fn a_part_still_cannot_acquire_a_capability_by_editing_a_number() {
     // still have to give it the shape that secretes.
     let mut world = fronded_world(4_242);
     let root = world.body().unwrap().root;
-    let outcome = world.apply(Intent::Rearrange {
-        part: root,
-        sites: vec![Allocate {
+    let proposal = AllocationProposal {
+        expect: world.phenotype().unwrap().digest(),
+        source: Arrangement::Direct,
+        parts: vec![root],
+        sites: vec![ProposedSite {
+            part: root,
             process: gland(),
             cells: vec![CellId(0)],
         }],
-    });
+    };
     assert!(
         matches!(
-            outcome,
-            Outcome::Rejected(Rejection::Refused(Refusal::SiteMismatch { .. }))
+            develop_played(&mut world, &proposal),
+            Err(Refusal::SiteMismatch { .. })
         ),
-        "{outcome:?}"
+        "bulk is not a shape that secretes"
     );
     assert_eq!(world.gland(), None, "and nothing was allocated");
 }
 
 #[test]
 fn a_refusal_names_its_boundary_and_moves_nothing() {
-    // The refusal contract survives the trip through an intent: PD1b made the
-    // boundary the answer, and the world door carries it whole rather than
-    // flattening fifteen named refusals into one word.
+    // PD1b made the boundary the answer rather than a single word, and both of
+    // these are proposals no door could carry now: a site that is not one
+    // piece of tissue, and a definition this world's ruleset does not hold.
+    // The refusal still names which.
     let mut world = fronded_world(4_242);
     let part = frond_of(&world);
     let before = world.phenotype().unwrap().clone();
+    let one = |process, cells| AllocationProposal {
+        expect: before.digest(),
+        source: Arrangement::Direct,
+        parts: vec![part],
+        sites: vec![ProposedSite {
+            part,
+            process,
+            cells,
+        }],
+    };
 
-    let outcome = world.apply(Intent::Rearrange {
-        part,
-        sites: vec![Allocate {
-            process: gland(),
-            // Not a connected region: an organ is a piece of tissue.
-            cells: vec![CellId(0), CellId(2)],
-        }],
-    });
-    assert!(
-        matches!(
-            outcome,
-            Outcome::Rejected(Rejection::Refused(Refusal::Disconnected(_)))
-        ),
-        "{outcome:?}"
+    // Not a connected region: an organ is a piece of tissue.
+    let scattered = one(gland(), vec![CellId(0), CellId(2)]);
+    assert!(matches!(
+        develop_played(&mut world, &scattered),
+        Err(Refusal::Disconnected(_))
+    ));
+    // Never substituted for the nearest thing this world does hold.
+    let unknown = one(
+        ProcessRef {
+            definition: mesocosm_core::DefinitionDigest(0xDEAD),
+        },
+        vec![CellId(0)],
     );
-    let unknown = world.apply(Intent::Rearrange {
-        part,
-        sites: vec![Allocate {
-            process: ProcessRef {
-                definition: mesocosm_core::DefinitionDigest(0xDEAD),
-            },
-            cells: vec![CellId(0)],
-        }],
-    });
-    assert!(
-        matches!(
-            unknown,
-            Outcome::Rejected(Rejection::Refused(Refusal::UnknownProcess(_)))
-        ),
-        "{unknown:?}"
-    );
+    assert!(matches!(
+        develop_played(&mut world, &unknown),
+        Err(Refusal::UnknownProcess(_))
+    ));
     assert_eq!(
         world.phenotype().unwrap().revision(),
         before.revision(),
@@ -267,14 +318,12 @@ fn a_refusal_names_its_boundary_and_moves_nothing() {
 
 #[test]
 fn the_development_is_located_paid_for_and_on_the_record() {
-    let mut world = fronded_world(4_242);
-    let part = frond_of(&world);
+    let (mut world, part) = ready_world(4_242);
     let cell_mg = world.phenotype().unwrap().cell_mg(part);
     let matter_before = world.total_matter_mg();
-    let energy_before = world.energy_mg().unwrap();
 
-    let outcome = world.apply(split(&world.clone(), part, 4));
-    let Outcome::Rearranged {
+    let outcome = express(&mut world, hunger());
+    let Outcome::Expressed {
         part: on,
         cost_mg,
         revision,
@@ -285,12 +334,25 @@ fn the_development_is_located_paid_for_and_on_the_record() {
 
     // Located: on a named part, and the reading says which.
     assert_eq!(on, part);
-    assert_eq!(world.gland().unwrap().sites, vec![(part, 4)]);
+    assert_eq!(world.gland().unwrap().sites, vec![(part, gland_cells())]);
     // Charged: the cells whose expression changed, priced in that part's own
-    // tissue. Four cells changed hands, and nothing else on the part did.
-    assert_eq!(cost_mg, 4 * cell_mg);
-    assert!(energy_before - world.energy_mg().unwrap() >= cost_mg);
-    assert_eq!(revision, 1, "and the rearrangement is ordered");
+    // tissue. The candidate's cells changed hands, and nothing else did.
+    assert_eq!(cost_mg, u64::from(gland_cells()) * cell_mg);
+    assert_eq!(revision, 1, "and the development is ordered");
+
+    // Paid: out of the reserve, on this tick, for exactly that. Read off the
+    // flow record rather than off the reserve, because a tick that develops
+    // also earns and spends rent, and the claim here is what the development
+    // itself moved.
+    let paid: Vec<_> = world
+        .flows()
+        .iter()
+        .map(|recorded| recorded.record)
+        .filter(|flow| flow.process == mesocosm_core::flow::Process::Develop)
+        .collect();
+    assert_eq!(paid.len(), 1, "one development, one payment: {paid:?}");
+    assert_eq!(paid[0].amount_mg, cost_mg);
+    assert_eq!(paid[0].source, mesocosm_core::Account::Reserve);
 
     // The milligram went into the ground, it did not evaporate. Ecology moves
     // matter between accounts on the same tick; the sum is what must not move.
@@ -306,271 +368,14 @@ fn carrying_a_gland_costs_rent_every_tick() {
     // The standing cost, and the reason a gland is a decision rather than a
     // free upgrade. Same body, same mass, same ceiling; the only difference is
     // what its tissue is doing.
-    let mut world = fronded_world(4_242);
-    let part = frond_of(&world);
+    let (mut world, _part) = ready_world(4_242);
     let plain = world.controlled().unwrap().upkeep_mg();
 
-    world.apply(split(&world.clone(), part, 4));
+    express(&mut world, hunger());
     let armed = world.controlled().unwrap().upkeep_mg();
     assert!(
         armed > plain,
         "rent {armed} should exceed the {plain} the same body paid without a gland"
     );
     assert_eq!(world.gland().unwrap().rent_mg, armed - plain);
-}
-
-// ---------------------------------------------------------------------------
-// 3. Useful, and dormant
-// ---------------------------------------------------------------------------
-
-/// A neighbour the played critter can reach, with a gland of `cells` cells on
-/// a frond of its own.
-fn armed_neighbour(world: &mut World, cells: u32) -> OrganismId {
-    let here = world.position().unwrap();
-    let at = [here[0] + 1, here[1], here[2]];
-    let id = OrganismId(9_200);
-    let mut prey = Organism {
-        stage: Stage::Mature,
-        ..Organism::founding(
-            id,
-            world.controlled().unwrap().species,
-            mesocosm_core::Kingdom::Consumer,
-            VolumeRef::from_tag(1),
-            [2, 2, 2],
-            at,
-            1_200,
-        )
-    };
-    let root = prey.body().root;
-    let part = prey
-        .phenotype
-        .attach(
-            VolumeRef::from_tag(7),
-            300,
-            FROND,
-            Attachment {
-                parent: root,
-                offset: [0, 7, 0],
-                yaw: Yaw::Zero,
-            },
-            Provenance::founding(),
-        )
-        .expect("attaches");
-    if cells > 0 {
-        let capacity = prey.phenotype.mosaic(part).unwrap().capacity();
-        let proposal = mesocosm_core::AllocationProposal {
-            expect: prey.phenotype.digest(),
-            source: mesocosm_core::Arrangement::Direct,
-            parts: vec![part],
-            sites: vec![mesocosm_core::ProposedSite {
-                part,
-                process: gland(),
-                cells: (capacity - cells..capacity)
-                    .map(|i| CellId(i as u16))
-                    .collect(),
-            }],
-        };
-        prey.phenotype
-            .develop(&proposal)
-            .expect("a plate admits a gland");
-    }
-    world.organisms.push(prey);
-    id
-}
-
-#[test]
-fn a_charged_gland_costs_whatever_eats_the_body_that_carries_it() {
-    // Useful: the same meal, twice, differing only in whether the prey had
-    // turned some of a frond into poison. What the eater loses is exactly what
-    // the gland held.
-    let mut plain = fronded_world(4_242);
-    let mut armed = plain.clone();
-    let prey = armed_neighbour(&mut plain, 0);
-    assert_eq!(armed_neighbour(&mut armed, 4), prey);
-    let potency = armed
-        .organisms
-        .iter()
-        .find(|o| o.id == prey)
-        .unwrap()
-        .phenotype
-        .secretory_mg();
-    assert!(potency > 0);
-
-    let intent = Intent::Metabolize {
-        organism: prey,
-        placement: Placement::Planned,
-    };
-    plain.apply(intent.clone());
-    armed.apply(intent);
-
-    assert_eq!(
-        plain.energy_mg().unwrap() - armed.energy_mg().unwrap(),
-        potency,
-        "the bite cost exactly what the gland held"
-    );
-    // And it went into the ground under the prey rather than nowhere.
-    assert_eq!(plain.total_matter_mg(), armed.total_matter_mg());
-}
-
-/// Builds a gland of `cells` cells and then walks one column off the ground it
-/// was built on.
-///
-/// **The step matters, and it is a finding rather than a workaround.** The
-/// development's price is paid into the column under the body, and building a
-/// gland from scratch costs exactly what the gland comes to hold — so a fresh
-/// gland is always charged where it was made, by its own spoil. Dormancy is
-/// therefore something a body walks into, which is the right shape for it:
-/// carrying a big gland means keeping to rich ground.
-fn armed_and_moved_on(world: &mut World, cells: u32) -> PartId {
-    let part = frond_of(world);
-    let snapshot = world.clone();
-    world.apply(split(&snapshot, part, cells));
-    world.apply(Intent::Move { delta: [2, 0, 0] });
-    part
-}
-
-#[test]
-fn a_gland_bigger_than_the_ground_is_dry_and_still_costs_its_rent() {
-    // Dormant, and the whole of the rule: a gland makes its toxin out of the
-    // column under the body, so it works only where that ground could replace
-    // what the gland holds. Nothing about the allocation changes — the plan
-    // forbids a changing environment from rewriting the mosaic — so the tissue
-    // is still there, still committed, and still charged for.
-    let mut world = fronded_world(4_242);
-    armed_and_moved_on(&mut world, 5);
-
-    let reading = world.gland().expect("it has one");
-    assert!(
-        reading.potency_mg > reading.ground_mg,
-        "the fixture wants a gland the fresh column cannot supply: \
-         {} mg against {} mg",
-        reading.potency_mg,
-        reading.ground_mg
-    );
-    assert!(!reading.charged, "so it is dry");
-    assert_eq!(
-        world.controlled().unwrap().bite_mg(reading.ground_mg),
-        world.controlled().unwrap().venom_mg,
-        "and a bite costs only what the line was born with"
-    );
-    assert!(reading.rent_mg > 0, "which it is paying for regardless");
-    assert_eq!(reading.cells, 5, "and has lost no tissue");
-}
-
-#[test]
-fn enriching_the_ground_charges_the_gland_the_body_already_had() {
-    // The same claim from the other side, through a verb a player already has:
-    // depositing into the column under you is what turns a dry gland on. The
-    // allocation does not move, the revision does not move, and the body's
-    // capability changes — which is exactly what "world conditions can make it
-    // useful or dormant" has to mean if it is not to be a second biology.
-    let mut world = fronded_world(4_242);
-    armed_and_moved_on(&mut world, 5);
-    let dry = world.gland().expect("it has one");
-    assert!(!dry.charged);
-    let revision = world.phenotype().unwrap().revision();
-
-    let owed = dry.potency_mg - dry.ground_mg;
-    world.apply(Intent::Deposit { mass_mg: owed + 8 });
-
-    let charged = world.gland().expect("still has one");
-    assert!(
-        charged.charged,
-        "{} mg of ground against {} mg of gland",
-        charged.ground_mg, charged.potency_mg
-    );
-    assert_eq!(charged.cells, dry.cells, "no tissue moved");
-    assert_eq!(charged.potency_mg, dry.potency_mg);
-    assert_eq!(
-        world.phenotype().unwrap().revision(),
-        revision,
-        "and no development happened"
-    );
-}
-
-// ---------------------------------------------------------------------------
-// 4. Severed, and gone
-// ---------------------------------------------------------------------------
-
-#[test]
-fn severing_the_frond_takes_the_bite_and_the_rent_with_it() {
-    let mut world = fronded_world(4_242);
-    let part = frond_of(&world);
-    // A control that never had one, severed the same way: rent falls when a
-    // part is lost whatever that part was doing, so the claim here is that
-    // what is *left* is the same, not that nothing changed.
-    let mut control = world.clone();
-    world.apply(split(&world.clone(), part, 4));
-    assert!(world.gland().unwrap().charged);
-
-    for at in [&mut world, &mut control] {
-        let me = at.controlled_id().unwrap();
-        let organism = at.organisms.iter_mut().find(|o| o.id == me).unwrap();
-        organism.phenotype.sever(part);
-    }
-
-    let after = world.gland().expect("the loss is still readable");
-    assert!(after.sites.is_empty(), "nothing expresses it any more");
-    assert_eq!(after.cells, 0);
-    assert_eq!(after.potency_mg, 0);
-    assert_eq!(after.rent_mg, 0, "and it stopped costing rent");
-    assert_eq!(
-        world.controlled().unwrap().upkeep_mg(),
-        control.controlled().unwrap().upkeep_mg(),
-        "a body that lost its gland pays what a body that never had one pays"
-    );
-    assert_eq!(
-        world.controlled().unwrap().bite_mg(u64::MAX),
-        world.controlled().unwrap().venom_mg,
-        "the bite went with the branch"
-    );
-
-    // But the injury is still explainable: PD1b keeps a severed part's mosaic
-    // addressable precisely so a player can be told what that branch used to
-    // do, and PD2 is the first thing with something worth saying.
-    assert_eq!(after.lost, vec![part]);
-    let explanation = world
-        .phenotype()
-        .unwrap()
-        .explain(part)
-        .expect("the part is still addressable");
-    assert!(!explanation.living);
-    assert!(
-        explanation
-            .sites
-            .iter()
-            .any(|site| site.named.map(|id| id.name) == Some("secrete")),
-        "the lost branch can still name what it did: {explanation:?}"
-    );
-}
-
-#[test]
-fn a_severed_frond_cannot_be_rearranged() {
-    // The other half of severing: a branch that is gone is not somewhere a
-    // development can put anything.
-    let mut world = fronded_world(4_242);
-    let part = frond_of(&world);
-    let me = world.controlled_id().unwrap();
-    world
-        .organisms
-        .iter_mut()
-        .find(|o| o.id == me)
-        .unwrap()
-        .phenotype
-        .sever(part);
-
-    let outcome = world.apply(Intent::Rearrange {
-        part,
-        sites: vec![Allocate {
-            process: gland(),
-            cells: vec![CellId(0)],
-        }],
-    });
-    assert!(
-        matches!(
-            outcome,
-            Outcome::Rejected(Rejection::Refused(Refusal::SeveredPart(_)))
-        ),
-        "{outcome:?}"
-    );
 }

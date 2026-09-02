@@ -139,7 +139,7 @@ impl World {
     /// difference between having the option and being able to take it.
     ///
     /// Until PE3's review exists, a player takes it through
-    /// [`Intent::Rearrange`](super::Intent::Rearrange), PD2's temporary door.
+    /// [`Intent::Express`](super::Intent::Express), PD3's bounded door.
     ///
     /// [`AllocationProposal`]: crate::phenotype::AllocationProposal
     pub fn candidate_proposal(
@@ -158,26 +158,16 @@ impl World {
 
     /// The intent that would express a discovered candidate on this body.
     ///
-    /// The same proposal as [`Self::candidate_proposal`], in the shape a host
-    /// sends. It exists so a player taking up a discovery does not have to
-    /// reassemble a validated proposal by hand — and it goes through the
-    /// ordinary door, so it is refusable, priced and recorded exactly as a
-    /// hand-drawn development is.
+    /// The same proposal as [`Self::candidate_proposal`], reduced to the shape
+    /// a host sends: the condition, and nothing else. `None` still means the
+    /// body has nowhere to put it, which is the difference between having the
+    /// option and being able to take it.
+    ///
+    /// **The whole of what a host may say about a development** since PD3
+    /// deleted `Intent::Rearrange`. A host cannot name cells, and cannot name
+    /// a definition; it can only ask for what its line already came to.
     pub fn candidate_intent(&self, condition: ConditionId) -> Option<super::Intent> {
-        let proposal = self.candidate_proposal(condition, crate::phenotype::Arrangement::Direct)?;
-        // One part, because the candidates are one organ each and
-        // `Intent::Rearrange` prices one part's own tissue.
-        let part = *proposal.parts.first()?;
-        Some(super::Intent::Rearrange {
-            part,
-            sites: proposal
-                .sites
-                .into_iter()
-                .map(|site| super::Allocate {
-                    process: site.process,
-                    cells: site.cells,
-                })
-                .collect(),
-        })
+        self.candidate_proposal(condition, crate::phenotype::Arrangement::Direct)?;
+        Some(super::Intent::Express { condition })
     }
 }

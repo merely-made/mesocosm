@@ -44,12 +44,18 @@ pub(crate) fn condition(name: &str) -> Condition {
         .expect("the table holds it")
 }
 
-pub(crate) fn hunger() -> Condition {
+pub(crate) fn hunger_condition() -> Condition {
     condition("mesocosm:endured-hunger")
 }
 
 pub(crate) fn plate_eaten() -> Condition {
     condition("mesocosm:plate-eaten")
+}
+
+/// The condition PD2's gland arrives through, addressed the way an intent
+/// addresses it.
+pub(crate) fn hunger() -> mesocosm_core::ConditionId {
+    hunger_condition().id()
 }
 
 fn gland_ref() -> ProcessRef {
@@ -64,7 +70,7 @@ fn gland_ref() -> ProcessRef {
 /// test is about **surviving** the stress. `Intent::Resume` is the free verb
 /// that keeps the hand on: it moves nothing and resets the idle run, which is
 /// exactly what it was built for.
-fn endure(world: &mut World, ticks: u64) {
+pub(crate) fn endure(world: &mut World, ticks: u64) {
     for _ in 0..ticks {
         let Some(me) = world.controlled_id() else {
             return;
@@ -173,7 +179,7 @@ fn coming_through_a_stress_unlocks_a_candidate_with_no_meal_in_it() {
     let discovery = world
         .discoveries()
         .iter()
-        .find(|found| found.condition == hunger().id())
+        .find(|found| found.condition == hunger())
         .expect("a hundred ticks under the line is the condition");
 
     // The route is the endurance lane and the evidence is the stress with its
@@ -261,12 +267,12 @@ fn an_idle_terrarium_discovers_nothing() {
 fn the_discovered_candidate_is_located_paid_for_useful_dormant_and_lost_with_its_branch() {
     let mut world = bulk_world(4_242, 24);
     endure(&mut world, HUNGER_TICKS + 1);
-    assert!(world.discovered(hunger().id()), "the condition landed");
+    assert!(world.discovered(hunger()), "the condition landed");
 
     // **Availability is not expression.** A bulk consumer has nowhere to put a
     // gland, so the candidate proposes nothing until the body has the shape.
     assert!(
-        world.candidate_intent(hunger().id()).is_none(),
+        world.candidate_intent(hunger()).is_none(),
         "nowhere to put it yet"
     );
     let part = frond_on(&mut world);
@@ -274,24 +280,27 @@ fn the_discovered_candidate_is_located_paid_for_useful_dormant_and_lost_with_its
     // Located, and paid for: the proposal is the candidate's, and it goes
     // through PD2's ordinary door — priced, charged, recorded.
     let intent = world
-        .candidate_intent(hunger().id())
+        .candidate_intent(hunger())
         .expect("the frond is somewhere to put it");
     let cell_mg = world.phenotype().unwrap().cell_mg(part);
     let matter_before = world.total_matter_mg();
     let outcome = world.apply(intent);
-    let Outcome::Rearranged {
+    let Outcome::Expressed {
         part: on, cost_mg, ..
     } = outcome
     else {
         panic!("{outcome:?}");
     };
     assert_eq!(on, part);
-    assert_eq!(cost_mg, u64::from(hunger().grants.cells) * cell_mg);
+    assert_eq!(
+        cost_mg,
+        u64::from(hunger_condition().grants.cells) * cell_mg
+    );
     assert_eq!(world.total_matter_mg(), matter_before);
 
     // Useful: the tissue is where the reading says, and it stings.
     let reading = world.gland().expect("it has one now");
-    assert_eq!(reading.sites, vec![(part, hunger().grants.cells)]);
+    assert_eq!(reading.sites, vec![(part, hunger_condition().grants.cells)]);
     assert!(reading.charged, "charged by its own spoil, as PD2 found");
     assert!(reading.rent_mg > 0, "and it costs rent from here on");
 
@@ -324,7 +333,7 @@ fn the_discovered_candidate_is_located_paid_for_useful_dormant_and_lost_with_its
     assert_eq!(gone.lost, vec![part]);
     // And the discovery outlives the branch: what a line came to is not undone
     // by what happened to one body.
-    assert!(world.discovered(hunger().id()));
+    assert!(world.discovered(hunger()));
 }
 
 // ---------------------------------------------------------------------------
@@ -344,10 +353,10 @@ fn direct_and_automatic_fixtures_lower_the_same_candidate_the_same_way() {
     frond_on(&mut world);
 
     let direct = world
-        .candidate_proposal(hunger().id(), Arrangement::Direct)
+        .candidate_proposal(hunger(), Arrangement::Direct)
         .expect("a proposal");
     let automatic = world
-        .candidate_proposal(hunger().id(), Arrangement::Automatic)
+        .candidate_proposal(hunger(), Arrangement::Automatic)
         .expect("the same proposal, differently authored");
     assert_eq!(direct.parts, automatic.parts);
     assert_eq!(direct.sites, automatic.sites);
@@ -416,7 +425,7 @@ fn the_causal_record_names_the_condition_a_line_came_through() {
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(discovered, vec![hunger().id()]);
+    assert_eq!(discovered, vec![hunger()]);
     assert_eq!(
         discovery::name_of(discovered[0]),
         Some("mesocosm:endured-hunger"),

@@ -249,7 +249,7 @@ fn condition_word(condition: mesocosm_core::ConditionId) -> String {
 fn process_word(process: mesocosm_core::ProcessRef) -> String {
     mesocosm_core::Registry::native()
         .resolve(process)
-        .map(|def| def.id.name.to_string())
+        .map(|def| def.id.name.clone())
         .unwrap_or_else(|| "an unknown process".to_string())
 }
 
@@ -393,6 +393,11 @@ pub fn refusal_words(rejection: &Rejection) -> &'static str {
         Rejection::Ineligible(Ineligible::NotAlive) => "that one is dead",
         Rejection::Ineligible(Ineligible::AboveTheFrontier { .. }) => "beyond you",
         Rejection::Ineligible(Ineligible::NoSuchOrganism) => "nothing there",
+        // PD3's bounded door. A hand asks for what its line came to, so both
+        // refusals are about availability rather than about arrangement: it
+        // has not come to that, or it has and this body is the wrong shape.
+        Rejection::Undiscovered(_) => "your line has not come to that",
+        Rejection::Nowhere(_) => "nowhere on you to put it",
         // The development refusals a hand can actually produce get their own
         // words; the rest say that it did not develop. The exact boundary is
         // in the outcome either way, because PD1b made the refusal order part
@@ -430,7 +435,7 @@ pub fn notice_in(outcomes: &[Outcome]) -> Option<&'static str> {
         // PD2's verb. "Rebuilt" rather than "rearranged": what happened to the
         // body is that an organ now does something else, and the tissue it was
         // made of was paid for again.
-        Outcome::Rearranged { .. } => Some("rebuilt"),
+        Outcome::Expressed { .. } => Some("rebuilt"),
         // P3's branch transfer. The crossing is the fact worth saying: a
         // carried branch arrived as what it was, a regrown one as what this
         // body makes of it.

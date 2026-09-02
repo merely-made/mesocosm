@@ -50,6 +50,10 @@ use serde::{Deserialize, Serialize};
 use crate::body::{BodyDocument, PartId};
 use crate::plan::{Role, classify};
 
+mod registry;
+
+pub use registry::{NATIVE_ABI, Registry};
+
 /// What a part contributes.
 ///
 /// Small on purpose. These are *transformations*; what travels between parts
@@ -171,16 +175,34 @@ pub enum Unmet {
 /// to make the game work, it is what having a body means.
 pub const BULK_REACH: i32 = 1;
 
-/// A namespaced process identity (PD1b slice 1).
+/// A namespaced process identity (PD1b slice 1, widened at PD3).
 ///
-/// The registry is keyed by these rather than by enum variants, so a pack
-/// can one day mint `("reef", "filter")` without colliding with a native.
-/// Static strs because every definition today is native; admission of owned
-/// strings arrives with packs (PD3), not before.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+/// The registry is keyed by these rather than by enum variants, so a pack can
+/// mint `("reef", "filter")` without colliding with a native. **Owned strings
+/// since PD3**, which is the widening PD1b anticipated: a pack read off disk
+/// mints its ids at admission time, and a `&'static str` cannot hold one.
+///
+/// Ordered by `(namespace, name)`, and that ordering is what makes a registry
+/// canonical: two callers admitting the same definitions in different file
+/// order build the same registry, so declaration order is not rule-bearing.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ProcessId {
-    pub namespace: &'static str,
-    pub name: &'static str,
+    pub namespace: String,
+    pub name: String,
+}
+
+impl ProcessId {
+    pub fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            namespace: namespace.into(),
+            name: name.into(),
+        }
+    }
+
+    /// `namespace:name`, the form an author writes and a panel says.
+    pub fn qualified(&self) -> String {
+        format!("{}:{}", self.namespace, self.name)
+    }
 }
 
 /// A definition's content address: a hash over its rule-bearing bytes.
@@ -202,10 +224,13 @@ pub struct DefinitionDigest(pub u64);
 /// refuses when the registry does not hold it. That is the PD1b migration:
 /// the closed enum stopped being identity authority.
 ///
-/// Only the digest travels, because [`ProcessId`]'s static strs cannot be
-/// deserialized into an owned world. PD3 admits owned ids and this record
-/// widens to carry both; the qualified id is recovered through
-/// [`Registry::resolve`] until then.
+/// **Only the digest travels, and PD3 deliberately kept it that way.** PD1b's
+/// note anticipated this record widening to carry the qualified id once packs
+/// minted owned ones, and PD3 minted them without widening it: a string on
+/// every allocated site would grow every mosaic in every snapshot, and the
+/// digest already recovers the id through [`Registry::resolve`] — which
+/// answers `None` rather than the nearest local definition, which is the whole
+/// point of a content address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ProcessRef {
     pub definition: DefinitionDigest,
@@ -237,10 +262,17 @@ pub enum Seeding {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProcessDef {
     pub id: ProcessId,
-    pub native: Process,
+    /// The engine fast path this definition binds to, when one exists.
+    ///
+    /// **Not rule-bearing, and not pack data.** A definition is what the
+    /// digest says it is; this is the core's own index into [`Process`], and
+    /// admission recovers it by qualified id rather than letting a file
+    /// declare it. `None` is the ordinary answer for anything a pack mints
+    /// that the engine has no native binding for.
+    pub native: Option<Process>,
     /// The roles whose shape may express this process: the **site
     /// requirement**, and what [`ProcessDef::admits`] answers.
-    pub expressed_by: &'static [Role],
+    pub expressed_by: Vec<Role>,
     /// Whether growing one of those shapes also grows this process.
     pub seeding: Seeding,
 }
@@ -248,13 +280,19 @@ pub struct ProcessDef {
 impl ProcessDef {
     /// Digest over the rule-bearing bytes: identity, site requirement, and
     /// whether geometry grows it.
+    ///
+    /// **Exactly four things, and nothing else.** A definition's plain label,
+    /// its explanation text, which file it arrived in, where that file sat in
+    /// a manifest, and whether the engine happens to hold a native binding for
+    /// it are all outside this. Plan §3 puts author-facing labels outside rule
+    /// authority in so many words, and this is where that is enforced.
     pub fn digest(&self) -> DefinitionDigest {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(self.id.namespace.as_bytes());
         bytes.push(0);
         bytes.extend_from_slice(self.id.name.as_bytes());
         bytes.push(0);
-        for role in self.expressed_by {
+        for role in &self.expressed_by {
             bytes.push(*role as u8);
         }
         bytes.push(0);
@@ -285,133 +323,14 @@ impl ProcessDef {
     }
 }
 
-/// The registry: every admitted process definition, ordered.
-///
-/// Deterministic by construction (a fixed native table today; PD3 admits
-/// packs through validation, never around it). The ruleset digest is what a
-/// snapshot will cite when admission becomes dynamic.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Registry {
-    defs: &'static [ProcessDef],
-}
-
-const NATIVE_DEFS: &[ProcessDef] = &[
-    ProcessDef {
-        id: ProcessId {
-            namespace: "mesocosm",
-            name: "contract",
-        },
-        native: Process::Contract,
-        expressed_by: &[Role::Limb],
-        seeding: Seeding::Geometry,
-    },
-    ProcessDef {
-        id: ProcessId {
-            namespace: "mesocosm",
-            name: "intake",
-        },
-        native: Process::Intake,
-        expressed_by: &[Role::Mass],
-        seeding: Seeding::Geometry,
-    },
-    ProcessDef {
-        id: ProcessId {
-            namespace: "mesocosm",
-            name: "sense",
-        },
-        native: Process::Sense,
-        expressed_by: &[Role::Sensor],
-        seeding: Seeding::Geometry,
-    },
-    ProcessDef {
-        id: ProcessId {
-            namespace: "mesocosm",
-            // Provisional, with the variant: the naming round is Mark's.
-            name: "fix",
-        },
-        native: Process::Fix,
-        expressed_by: &[Role::Plate],
-        seeding: Seeding::Geometry,
-    },
-    ProcessDef {
-        id: ProcessId {
-            namespace: "mesocosm",
-            // Provisional, with the variant: the naming round is Mark's.
-            name: "secrete",
-        },
-        native: Process::Secrete,
-        // **The same shape that fixes.** Area against the world is what a
-        // toxin surface needs too, which is why a nettle's sting is on its
-        // leaf; and it puts the tradeoff where PD1a wanted it, inside one
-        // organ. A plate on a consumer is armour rather than a frond, so the
-        // same rule lets an animal arm its shell without becoming a plant.
-        expressed_by: &[Role::Plate],
-        // **Nothing grows a gland.** This is the whole of PD2's first
-        // done-condition: expressing it is an act with a record, so a body
-        // that has one was given one.
-        seeding: Seeding::Acquired,
-    },
-];
-
-impl Registry {
-    pub fn native() -> Self {
-        Self { defs: NATIVE_DEFS }
-    }
-
-    pub fn all(&self) -> impl Iterator<Item = &ProcessDef> {
-        self.defs.iter()
-    }
-
-    pub fn get(&self, id: ProcessId) -> Option<&ProcessDef> {
-        self.defs.iter().find(|def| def.id == id)
-    }
-
-    /// The definition a stored reference names, or `None` when this world's
-    /// ruleset does not hold it.
-    ///
-    /// `None` is a real answer and must never be substituted for a similar
-    /// local definition (plan §6, missing packs). Allocation refuses rather
-    /// than guessing.
-    pub fn resolve(&self, reference: ProcessRef) -> Option<&ProcessDef> {
-        self.defs
-            .iter()
-            .find(|def| def.digest() == reference.definition)
-    }
-
-    /// The definition a native binding resolves to. Total for the natives
-    /// by construction; the bijection is receipted below.
-    pub fn of_native(&self, process: Process) -> &ProcessDef {
-        self.defs
-            .iter()
-            .find(|def| def.native == process)
-            .expect("every native process is registered")
-    }
-
-    /// **The seeding rule**: the definitions growing this shape expresses.
-    ///
-    /// Not the same question as [`ProcessDef::admits`], which is the site
-    /// requirement a proposal must satisfy. A plate is admitted for two
-    /// definitions and grows one.
-    pub fn seeds(&self, role: Role) -> impl Iterator<Item = &ProcessDef> {
-        self.defs
-            .iter()
-            .filter(move |def| def.seeded() && def.expressed_by.contains(&role))
-    }
-
-    /// Digest over the whole admitted ruleset, order-sensitive.
-    pub fn digest(&self) -> u64 {
-        let mut bytes = Vec::new();
-        for def in self.defs {
-            bytes.extend_from_slice(&def.digest().0.to_le_bytes());
-        }
-        crate::snapshot::hash_bytes(&bytes)
-    }
-}
-
 impl Process {
     /// This native binding's qualified identity.
-    pub fn id(self) -> ProcessId {
-        Registry::native().of_native(self).id
+    ///
+    /// Borrowed rather than returned by value since PD3 widened
+    /// [`ProcessId`] to owned strings: the native registry is a `'static`
+    /// value, so a caller that only wants to read the name pays nothing.
+    pub fn id(self) -> &'static ProcessId {
+        &Registry::native().of_native(self).id
     }
 }
 

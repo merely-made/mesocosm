@@ -21,6 +21,18 @@ use crate::world::World;
 pub enum SnapshotError {
     Encode,
     Decode,
+    /// The save ran under a different admitted ruleset than the one offered.
+    /// (PD3)
+    ///
+    /// **A refusal, not a divergence.** Plan §6 requires a stale ruleset to
+    /// refuse explicitly rather than continue against whatever biology this
+    /// build happens to hold: the bodies in the save cite definition digests,
+    /// and a ruleset that does not hold them would resolve `None` on every
+    /// site and quietly simulate a body that expresses nothing.
+    Ruleset {
+        expected: crate::rules::RulesetDigest,
+        found: crate::rules::RulesetDigest,
+    },
 }
 
 /// Captures the whole world as bytes.
@@ -31,6 +43,27 @@ pub fn snapshot(world: &World) -> Result<Vec<u8>, SnapshotError> {
 /// Restores a world captured by [`snapshot`].
 pub fn restore(bytes: &[u8]) -> Result<World, SnapshotError> {
     decode(bytes)
+}
+
+/// Restores a world and checks it against the ruleset the caller is holding.
+/// (PD3)
+///
+/// The door a save, a replay or a peer comes through. [`restore`] is the raw
+/// decode and stays for round trips within one process; this is what anything
+/// that could be carrying a different biology must use, because a ruleset
+/// mismatch has to be an answer rather than a silent divergence.
+pub fn restore_under(
+    bytes: &[u8],
+    rules: crate::rules::WorldRules,
+) -> Result<World, SnapshotError> {
+    let world = decode::<World>(bytes)?;
+    if world.rules() != rules {
+        return Err(SnapshotError::Ruleset {
+            expected: world.rules().processes,
+            found: rules.processes,
+        });
+    }
+    Ok(world)
 }
 
 /// Round-trips any core value. Used by the body-document tests and by hosts
@@ -73,6 +106,37 @@ mod tests {
         let bytes = snapshot(&world).unwrap();
         let restored = restore(&bytes).unwrap();
         assert_eq!(world, restored);
+    }
+
+    #[test]
+    fn a_snapshot_names_the_ruleset_the_world_ran_under() {
+        // PD3: `WorldRules` is world state, so it survives the round trip and
+        // is inside the hash — two worlds under different biologies cannot
+        // agree about a state hash even when everything else about them does.
+        let world = World::new(31, 10);
+        assert_eq!(world.rules(), crate::rules::WorldRules::native());
+        let restored = restore(&snapshot(&world).unwrap()).unwrap();
+        assert_eq!(restored.rules(), world.rules());
+    }
+
+    #[test]
+    fn a_restore_under_a_different_ruleset_is_refused_by_name() {
+        // Plan §6, missing packs, at the world scale: refused with both
+        // digests rather than continued against whatever this build holds.
+        let world = World::new(31, 10);
+        let bytes = snapshot(&world).unwrap();
+        assert!(restore_under(&bytes, world.rules()).is_ok());
+
+        let other = crate::rules::WorldRules {
+            processes: crate::rules::RulesetDigest(world.rules().processes.0 ^ 1),
+        };
+        assert_eq!(
+            restore_under(&bytes, other),
+            Err(SnapshotError::Ruleset {
+                expected: world.rules().processes,
+                found: other.processes,
+            })
+        );
     }
 
     #[test]

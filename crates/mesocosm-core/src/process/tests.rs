@@ -162,7 +162,8 @@ fn the_registry_and_the_native_view_agree() {
     // registry data, and the enum fast-path may never drift from it.
     let registry = Registry::native();
     for role in Role::ALL {
-        let via_registry: Vec<Process> = registry.seeds(role).map(|def| def.native).collect();
+        let via_registry: Vec<Process> =
+            registry.seeds(role).filter_map(|def| def.native).collect();
         assert_eq!(
             via_registry,
             role.processes().to_vec(),
@@ -174,8 +175,8 @@ fn the_registry_and_the_native_view_agree() {
     let mut ids = std::collections::BTreeSet::new();
     for process in Process::ALL {
         let def = registry.of_native(process);
-        assert_eq!(def.native, process);
-        assert!(ids.insert(def.id), "duplicate id {:?}", def.id);
+        assert_eq!(def.native, Some(process));
+        assert!(ids.insert(def.id.clone()), "duplicate id {:?}", def.id);
         assert_eq!(def.id.namespace, "mesocosm");
     }
     assert_eq!(
@@ -202,7 +203,7 @@ fn nothing_grows_a_gland() {
         assert!(
             !registry
                 .seeds(role)
-                .any(|def| def.native == Process::Secrete),
+                .any(|def| def.native == Some(Process::Secrete)),
             "{role:?} grows a gland"
         );
     }
@@ -224,8 +225,8 @@ fn a_reference_resolves_to_the_definition_it_addresses() {
         let def = registry.of_native(process);
         let stored = def.reference();
         assert_eq!(
-            registry.resolve(stored).map(|found| found.id),
-            Some(def.id),
+            registry.resolve(stored).map(|found| &found.id),
+            Some(&def.id),
             "{process:?} does not resolve to itself"
         );
     }
@@ -244,10 +245,8 @@ fn a_rule_bearing_byte_changes_the_digest() {
     let contract = registry.of_native(Process::Contract);
     // Same identity, different expression rule: a different definition.
     let tampered = ProcessDef {
-        id: contract.id,
-        native: contract.native,
-        expressed_by: &[Role::Limb, Role::Plate],
-        seeding: contract.seeding,
+        expressed_by: vec![Role::Limb, Role::Plate],
+        ..contract.clone()
     };
     assert_ne!(contract.digest(), tampered.digest());
     // And the PD2 byte is rule-bearing too: a world whose plates grew glands
@@ -257,8 +256,30 @@ fn a_rule_bearing_byte_changes_the_digest() {
         ..contract.clone()
     };
     assert_ne!(contract.digest(), ungrown.digest());
-    // And the ruleset digest is stable across constructions.
+    // And the ruleset digest is stable across constructions, moves when any
+    // one definition's rule-bearing bytes do, and does not move when the
+    // declaration order does. (PD3)
     assert_eq!(Registry::native().digest(), Registry::native().digest());
+
+    let mut moved: Vec<ProcessDef> = registry.all().cloned().collect();
+    moved
+        .iter_mut()
+        .find(|def| def.native == Some(Process::Contract))
+        .expect("registered")
+        .expressed_by = vec![Role::Limb, Role::Plate];
+    assert_ne!(
+        Registry::admit(moved).expect("no collision").digest(),
+        registry.digest(),
+        "one definition's site requirement is the whole ruleset's business"
+    );
+
+    let mut reordered: Vec<ProcessDef> = registry.all().cloned().collect();
+    reordered.reverse();
+    assert_eq!(
+        Registry::admit(reordered).expect("no collision").digest(),
+        registry.digest(),
+        "declaration order is not a rule"
+    );
 }
 
 #[test]

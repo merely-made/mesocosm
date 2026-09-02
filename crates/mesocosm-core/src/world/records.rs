@@ -74,7 +74,7 @@ pub(super) fn event_for(
         Outcome::Carved { .. } => None,
         // Rebuilding an organ is the third way a body becomes different, after
         // growing and losing one, and it is as biographical as either. (PD2)
-        Outcome::Rearranged { part, cost_mg, .. } => Some(Event::Rearranged {
+        Outcome::Expressed { part, cost_mg, .. } => Some(Event::Expressed {
             organism: actor?,
             part,
             cost_mg,

@@ -225,7 +225,7 @@ fn a_development_that_would_not_validate_says_why_in_plain_words() {
         "an organ is one piece of tissue"
     );
     assert_eq!(
-        notice_in(&[Outcome::Rearranged {
+        notice_in(&[Outcome::Expressed {
             part: mesocosm_core::PartId(3),
             cost_mg: 115,
             revision: 1,

@@ -414,21 +414,23 @@ The durable boundary is typed request, typed proposal, validation, and commit.
 
 ## 5. Pack and ruleset shape
 
-The first pack is deliberately plain and inspectable:
+The first pack is deliberately plain and inspectable. **Built at PD3,
+2026-09-01**, as `packs/mesocosm/`, and smaller than this sketch because Lua is
+not involved yet — the `expression/` and `fixtures/` arms arrive with PD4:
 
 ```text
-mesocosm-pack.json
+mesocosm-pack.json          pack id, version, abi, license, note, files
 processes/
-  light_capture.json
-expression/
-  light_capture.lua
-fixtures/
-  light_capture_bright.json
-  light_capture_dark.json
-assets/
-  ... optional presentation assets ...
-ATTRIBUTION.md
+  contract.json  fix.json  intake.json  secrete.json  sense.json
 ```
+
+JSON, because the workspace already reads and writes it (traces, receipts,
+rosters) and a data-only pack should not cost a new parser. One file per
+definition, each declaring `namespace`, `name`, `expressed_by` and `seeding`
+— the four rule-bearing fields, exactly what `ProcessDef` holds — beside a
+`label` and a `note` that plan §3 keeps outside rule authority. The schema
+denies unknown keys, and every word in a rule-bearing field is a closed set,
+so a typo is refused rather than ignored.
 
 The manifest declares the pack id, version, format ABI, every definition,
 script, and fixture, dependencies, and SPDX license metadata. All declared
@@ -436,8 +438,13 @@ paths are canonicalized and must remain inside the pack root. Duplicate
 qualified ids, dependency cycles, unknown flow kinds, and undeclared files are
 rejected before Lua loads.
 
-Admission produces a deterministic `RulesetDigest` over the manifest and the
-bytes of every rule-bearing declared file in sorted path order. A world records
+Admission produces a deterministic `RulesetDigest`. **Built at PD3 over the
+lowered definitions rather than over file bytes**, which is the honest reading
+of "rule-bearing": hashing bytes would make whitespace, key order and a
+`note` rule-bearing. It folds each definition's own digest — identity, site
+requirement, seeding — in *sorted* order, so declaration order is provably not
+a rule either, and one flipped role or seeding byte anywhere still moves it.
+The format ABI is an admission gate rather than a digest input. A world records
 the exact digest, not merely a friendly pack version. Definitions admitted
 into one ruleset are immutable for that world. Editing a pack creates a new
 ruleset and an explicit world revision rather than changing living bodies
@@ -893,7 +900,7 @@ ecology and explanation with one small definition. See the 2026-09-01
 Progress entry for the landed shape, the four states, the cost derivation,
 and the receipts.
 
-### PD3. Static pack admission
+### PD3. Static pack admission: **LANDED 2026-09-01**
 
 Encode the already-played PD2 definition in a data-only pack, validate it,
 lower it into the core ruleset, and remove the native authoring duplicate. Lua
@@ -924,6 +931,12 @@ PD3 gives the definition a second, packed door; the native one is removed once
 that packed door — or PD4's Piccolo proposal, whichever actually replaces this
 gate's fixture first — can walk it through the same validator to the same
 result.
+
+**All met.** The pack is JSON, `mesocosm-phenotype` is the door, `Intent::
+Express` replaced `Intent::Rearrange`, and the whole named checklist above is
+executed. See the 2026-09-01 Progress entry for the format and why, what
+admission refuses, what is rule-bearing in the ruleset digest, the parity
+receipt, and the residues PD4 and PE3 inherit.
 
 ### PD4. Piccolo authoring parity
 
@@ -1108,6 +1121,224 @@ These are intentionally deferred to the gate with evidence:
 ---
 
 ## 14. Progress
+
+- **2026-09-01, PD3 complete: the definition gets a packed door, and the
+  editor operation is deleted.**
+
+  **The format, and why.** JSON, and no new dependency: `serde_json` is
+  already a direct dependency of two crates here and the format is what every
+  trace, receipt and roster in this workspace already speaks. A manifest plus
+  one file per definition, at `packs/mesocosm/`, matching §5's sketch minus
+  the Lua arms PD4 owns. The four rule-bearing fields are exactly the four
+  `ProcessDef` holds — `namespace`, `name`, `expressed_by`, `seeding` —
+  because a pack that could declare a fifth thing would be a pack that could
+  name a rule the core does not evaluate. `label` and `note` ride along as the
+  author-facing text §3 puts outside rule authority, and the schema denies
+  unknown keys: a typo is not a comment, and a definition whose `expresed_by`
+  was silently ignored would be a world nobody chose.
+
+  **`mesocosm-phenotype`, MPL-2.0, and the dependency runs one way.**
+  `crates/mesocosm-phenotype` declares MPL-2.0 in its own manifest, per §5's
+  license gate: definitions, loaders, validators, fixtures and game-specific
+  schemas are game code, and only a *generic* sandbox crate may become
+  `MIT OR Apache-2.0` after two hosts prove one extracted boundary. Nothing
+  here is generic — the schema names this game's roles and its seeding rule.
+  It depends on `mesocosm-core`; core does not depend on it, which is what
+  keeps reading a directory out of a crate that must stay deterministic,
+  integer-only and free of I/O.
+
+  **Discovery is separate from admission**, so a host can list what it found
+  and what each pack declares before lowering anything. Admission is
+  all-or-nothing: four good files and one bad one admit nothing, because half
+  a biology is not a smaller biology but a different one — a body citing the
+  dropped definition would resolve `None` on every site it occupies.
+
+  **What is refused, each by name.** `PathEscape` (a component walk refuses
+  `..`, a root and a drive prefix without touching the disk, and a resolved
+  path that leaves the resolved root catches a symlink out), `MalformedSchema`,
+  `Unreadable`, `UndeclaredFile` (§5's "undeclared files are rejected": a
+  definition present and unlisted would make the ruleset depend on what
+  happened to be lying about), `UnknownAbi`, `DuplicateId`, `UnqualifiedId`,
+  `UnknownRole`, `UnknownSeeding`, `NoSite`, `EmptyPack`, `NoManifest`. The
+  unknown-word refusals keep the same discipline `Registry::resolve` keeps one
+  scale down: a shape this world does not hold is an answer, never the nearest
+  thing it does.
+
+  **What is rule-bearing in the ruleset digest, stated.** The digest is taken
+  over the **lowered definitions, not the file bytes** — hashing bytes would
+  have made whitespace, key order and a `note` rule-bearing. `Registry::
+  digest` folds each definition's own digest in *sorted* order, so the set is
+  what counts and declaration order provably is not; `Registry::admit` sorts by
+  qualified id and refuses a repeat, so an admitted registry is canonical
+  whatever order a manifest was written in. The format ABI is an admission gate
+  rather than a digest input, because a ruleset is what its definitions say and
+  the ABI decides whether this build can read the file at all. `NATIVE_DEFS`
+  was re-sorted into the same canonical order, which is why the packed and
+  native registries are `==` rather than merely digest-equal.
+
+  **`ProcessId` widened to owned strings**, as PD1b anticipated: a pack read
+  off disk mints its ids at admission time and a `&'static str` cannot hold
+  one. `Registry::native()` became a `LazyLock` returning `&'static Registry`,
+  so an owned table still costs a validation nothing. **`ProcessRef` did not
+  widen** — PD1b's note said the record would carry both, and it should not:
+  every allocated site in every snapshot would grow a qualified string, and the
+  digest already recovers the id through `Registry::resolve`. `ProcessDef::
+  native` became `Option<Process>` and is **not pack data**: which engine fast
+  path a definition happens to have is the core's own index, recovered by
+  qualified id at lowering, so a pack minting something new lowers with `None`
+  and runs through exactly the same validator.
+
+  **`WorldRules`, the playable ecology plan's label, gets its first real
+  component.** `crates/mesocosm-core/src/rules.rs` holds `RulesetDigest` and
+  `WorldRules { processes }`; `World` carries one, serialized and hashed with
+  everything else, so two worlds under different biologies cannot agree about
+  a state hash. A world carries the *identity*, not the definitions — the same
+  arrangement `ProcessRef` uses one scale down. `snapshot::restore_under` is
+  the door a save, a replay or a peer comes through: a mismatch is
+  `SnapshotError::Ruleset { expected, found }`, both digests named, rather than
+  a silent continuation against whatever this build holds. `restore` stays for
+  round trips inside one process.
+
+  **The parity receipt, and only then the deletion.** The shipped pack admits
+  to a registry that is `==` to `Registry::native()`, its `RulesetDigest`
+  equals the native one, and the gland's `DefinitionDigest` is unchanged — so
+  every allocation already citing it resolves against the packed ruleset
+  untouched, and no fixture hash moved for that reason.
+  `the_packed_definition_reaches_pd2s_four_states_through_the_packed_door`
+  then drives a body from the packed reference through PD2's four states
+  (located and paid for at 5 cells and 115 mg; charged; dry two columns over
+  with no cell and no milligram of rent lost; gone with its branch, and the
+  branch still explains itself), and asserts that what the discovery grants
+  *is* the definition the pack declares.
+
+  **The deletion checklist, executed line by line.** `Intent::Rearrange` and
+  `Allocate`, `World::rearrange` and the whole of `world/rearrange.rs`,
+  `Outcome::Rearranged`, `Event::Rearranged`, and
+  `mesocosm-genet/examples/pd2_receipt.rs` are gone. Everything §9 listed as
+  surviving underneath survives untouched: `BodyPhenotype::develop` and its one
+  validator, `Process::Secrete` and its `ProcessDef`, `Organism::bite_mg` /
+  `charged_mg` and the `upkeep_for_body` rent term, and the vitals panel's
+  gland reading.
+
+  **What replaced it: `Intent::Express { condition }`**, and it is smaller
+  than what it replaced rather than a rename. `Rearrange` carried a complete
+  hand-authored allocation, which is an editor over the wire; `Express` names
+  a `ConditionId` and nothing else, and the world builds the proposal itself
+  from the admitted ruleset and the line's own discovery record. **A host can
+  no longer name a cell or a definition** — it can only ask for what its line
+  already came to. `world/express.rs` keeps the three things `rearrange.rs`
+  added and that were never the temporary part: the price
+  (`cost_cells * cell_mg`), the payment (out of the reserve, into the column
+  under the body, flow-tracked as `flow::Process::Develop`), and the record
+  (`Event::Expressed`). Two new refusals say which half is missing:
+  `Rejection::Undiscovered` ("your line has not come to that") and
+  `Rejection::Nowhere` ("nowhere on you to put it"). PE2's
+  `candidate_proposal` and `candidate_intent` survive as §9 said they would;
+  `candidate_intent` now returns `Express` and still answers `None` when the
+  body has nowhere to put it, which is the difference between having the
+  option and being able to take it. PE3's review is still the eventual door.
+
+  **The demo needed no re-expression.** The recorded 3,100-step trace has no
+  `Rearrange` in it and never did — PD2's own entry says the editor operation
+  had no keyboard binding and no ordinary replay reached a gland. Verified by
+  census against the recording before it was replaced: Move 2,726, Deposit
+  244, Carve 73, Idle 40, Metabolize 12, Resume 3, Graft 1, TakeControl 1, and
+  the new recording is that census exactly. The demo keeps its discovery, its
+  branch transfer, its three births and its succession.
+
+  **Receipts.**
+  - `mesocosm-core` lib: **359** green (+5: three in the new `rules` module
+    and two ruleset claims in `snapshot`; `a_rule_bearing_byte_changes_the_
+    digest` was extended with the ruleset-level move and the
+    order-independence claim rather than split).
+  - `mesocosm-phenotype`: **23** green across two suites —
+    `tests/admission.rs` (16) for the crate's own boundary and
+    `tests/packed_gland.rs` (7) for the game's. One test per done-condition,
+    named for it: `the_shipped_pack_admits_to_the_native_ruleset`,
+    `a_colliding_namespaced_id_is_refused`, `a_path_escape_is_refused`,
+    `a_malformed_schema_is_refused`,
+    `one_rule_bearing_byte_moves_the_ruleset_digest`,
+    `the_manifests_file_order_is_not_rule_bearing`,
+    `author_facing_text_is_not_rule_bearing`,
+    `a_snapshot_names_the_exact_admitted_ruleset`,
+    `a_replay_against_a_different_admitted_ruleset_is_refused_identifiably`.
+  - `tests/embodied.rs`: **49** green — the same count as before the
+    deletion, so nothing was dropped rather than re-expressed. PD2's four
+    states are re-expressed
+    rather than reduced: the claims about what a development *costs and
+    records* go through `Intent::Express`, and the claims about a body a host
+    could never author — a whole frond turned to poison, a gland asked for on
+    bulk, a site that is not one connected region, a severed part — are stated
+    to the validator through a new `develop_played` helper, which is the
+    boundary that actually decides them. The suite split at the ceiling:
+    `gland_use.rs` takes claims 3 and 4.
+  - `cargo test -p mesocosm-core --test matter --test flows --test succession
+    --test embodied --release`: **6 + 11 + 7 + 49** green.
+  - **Fixture re-recorded, no shim.** `World` gained one serialized field, so
+    the whole-world hash moved: `652c5bcfdc6013c1` (P3) to
+    **`1b1f866cb9138d40`**. Headed `--replay` runs 3,100 steps over 775
+    frames and matches, exit 0; a hash falsified by one bit reports the
+    mismatch and exits 1. Everything else in the receipt is unchanged from
+    P3's — 775 frames, ground revision 17, 33 body parts, 40 drawn roster.
+  - **The instrument is unmoved, and provably so.** `Process::Secrete` is
+    still `Seeding::Acquired`, the instrument drives with `Intent::Idle` only,
+    and `World::observe` needs a hand on the body — so no discovery ever lands
+    in an instrument run and `Intent::Express` is unreachable there.
+    `ProcessDef::digest` bytes did not change, so no `ProcessRef` moved;
+    re-sorting `NATIVE_DEFS` cannot move a seeding share because no role seeds
+    more than one definition (`nothing_grows_a_gland` asserts the Plate case
+    is 2 admitted, 1 grown); and nothing in the ecology reads `World::rules`.
+    Measured as well as argued: the drawn baseline was re-run over **all ten
+    seeds** and compared against `dc4_roster.json` seed for seed — verdict,
+    start, peak, peak tick, end, cumulative births and cumulative deaths each
+    identical on every one (seed 1: thins, 917 -> 1561 at tick 4400 -> 1350,
+    born 5940, died 5184; seed 2: 917 -> 917 -> 245, born 1693, died 2091;
+    seeds 3-10 likewise exact). The run was stopped after the baseline batch
+    rather than carried through the other three, so it could not overwrite
+    `dc4_roster.json` with new timing on an unmoved result.
+    **0 breathes / 10 thins / 0 boil / 0 collapse** stands, all ten seeds
+    directly re-verified this session.
+  - `cargo test --workspace` green: **39 suites, 729 tests, 0 failures** in
+    release, mesocosm-lens's 45 included and passing in the ordinary parallel
+    run, so the GPU flake did not bite. Clippy `-D warnings` clean in both
+    profiles; `cargo fmt --all --check` clean;
+    `cargo check -p paredros-room --features r1-proof` builds with its one
+    pre-existing `dead_code` warning on `brick::retarget_from_ground`.
+
+  **Splits at the ceiling**, per the workspace rule:
+  `process/registry.rs` out of `process.rs`, when the owned `ProcessId` and
+  the admission door pushed the file over; and
+  `tests/embodied/gland_use.rs` out of `gland.rs`, when re-expressing PD2's
+  four states through the new door did.
+
+  **Residues, and what PD4 and PE3 inherit.**
+  - **The admitted registry is proven equal, not yet threaded.**
+    `BodyPhenotype::develop` still resolves against `Registry::native()`
+    rather than a registry a world carries, and the parity receipt is what
+    makes that honest: the pack lowers to *the same registry*, so threading it
+    would change nothing observable today. It stops being honest the moment a
+    pack mints a definition the natives do not hold, which is PD4's first
+    step — `develop` takes a `&Registry`, and `World` carries the one it
+    admitted rather than only its digest.
+  - **P3's affinity table did not get the pack door, and the reason is a
+    ruling rather than effort.** The pack side is one more file and one more
+    lowering; the *consumption* side is not, because `World::found` builds
+    `Affinity::native()` internally and admitting one means a new founding
+    parameter — and then a policy default nobody has set: whether a
+    pack-declared affinity overrides `Founding`, or `Founding` overrides the
+    pack. That is Mark's call, not an implementation detail, so it is recorded
+    here as PD4/PE4 work rather than half-built. `WorldRules` is shaped to
+    take a second component when it is answered.
+  - **`Rejection::Refused(Refusal)` is now hard to reach from the door**, and
+    that is the point: the candidate builder cannot produce an invalid
+    proposal, so the fifteen named boundaries are reached at the validator.
+    The variant stays, because it is the door's contract for any development
+    and PD4's Piccolo proposals will need it.
+  - **PE3 inherits a door that is bounded but not yet a review.** `Express`
+    takes up one discovered candidate on the played body at the moment it is
+    asked. Choosing among several, previewing what each would cost, and doing
+    it at a lineage checkpoint rather than mid-tick are all PE3's, and none of
+    them needs a new intent — they need a screen over `candidate_proposal`.
 
 - **2026-09-01, phenotype P3 consumed this plan's graft ruling.** The directed
   affinity section above records what was built and what it answers. One

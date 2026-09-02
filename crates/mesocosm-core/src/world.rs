@@ -25,16 +25,16 @@ use crate::score::Reading;
 mod act;
 mod consume;
 mod discover;
+mod express;
 mod genesis;
 mod graft;
 mod intent;
 mod read;
-mod rearrange;
 mod records;
 
 pub use genesis::Founding;
 pub use graft::Graft;
-pub use intent::{Allocate, Ineligible, Intent, Outcome, Placement, Rejection, Route};
+pub use intent::{Ineligible, Intent, Outcome, Placement, Rejection, Route};
 pub use read::Gland;
 
 /// How far the enclosure reaches from its middle, in voxels.
@@ -129,6 +129,17 @@ pub const STARVED_UPKEEP_TICKS: u64 = 100;
 pub struct World {
     pub tick: u64,
     pub epoch: u64,
+    /// The rules this world realized, as digests. (PD3)
+    ///
+    /// **A saved fact, because a seed is not enough** (playable ecology plan
+    /// §2): the code that reads a seed can change, so a durable world records
+    /// which admitted biology it was actually running. One component today —
+    /// the process ruleset — and it is serialized and hashed with everything
+    /// else, so two worlds under different rulesets cannot agree about a
+    /// state hash and a restore that offers the wrong one is refused by name
+    /// through [`crate::snapshot::restore_under`].
+    #[serde(default)]
+    rules: crate::rules::WorldRules,
     rng: Rng,
     /// Which organism the player is, if any.
     ///
@@ -397,6 +408,14 @@ impl World {
 
         self.tick += 1;
         outcome
+    }
+
+    /// The rules this world realized. (PD3)
+    ///
+    /// What a save cites, what a peer compares, and what a replay is checked
+    /// against. See [`crate::rules::WorldRules`].
+    pub fn rules(&self) -> crate::rules::WorldRules {
+        self.rules
     }
 
     /// What the most recent tick did to the enclosure.

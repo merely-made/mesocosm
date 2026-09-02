@@ -16,10 +16,9 @@
 //! one would create matter, and live dismemberment is a further gate.
 
 use mesocosm_core::{
-    Allocate, AllocationProposal, Arrangement, Attachment, CellId, Crossing, Domain, Expressed,
-    Intent, Kingdom, Organism, OrganismId, Origin, Outcome, PartId, Process, ProcessRef,
-    ProposedSite, Provenance, Registry, Rejection, SpeciesId, Stage, Verdict, VolumeRef, World,
-    Yaw,
+    AllocationProposal, Arrangement, Attachment, CellId, Crossing, Domain, Expressed, Intent,
+    Kingdom, Organism, OrganismId, Origin, Outcome, PartId, Process, ProcessRef, ProposedSite,
+    Provenance, Registry, Rejection, SpeciesId, Stage, Verdict, VolumeRef, World, Yaw,
 };
 
 use super::bulk_world;
@@ -380,20 +379,21 @@ fn a_cross_domain_carry_lands_a_visibly_incompatible_branch() {
     assert!(explained.sites.is_empty());
     assert_eq!(phenotype.secretory_mg(), 0, "the gland did not come across");
 
-    // And it is repairable: growing an adapter is an ordinary development on
-    // ordinary free tissue, through the door PD2 already opened.
+    // And it is repairable: an adapter is an ordinary development on ordinary
+    // free tissue, stated to the one validator (PD3 deleted the door that
+    // carried a hand-drawn arrangement).
     let capacity = explained.capacity;
-    let outcome = world.apply(Intent::Rearrange {
-        part: root,
-        sites: vec![Allocate {
+    let proposal = AllocationProposal {
+        expect: world.phenotype().unwrap().digest(),
+        source: Arrangement::Direct,
+        parts: vec![root],
+        sites: vec![ProposedSite {
+            part: root,
             process: gland(),
             cells: (0..capacity).map(|i| CellId(i as u16)).collect(),
         }],
-    });
-    assert!(
-        matches!(outcome, Outcome::Rearranged { .. }),
-        "the incompatible branch can be made to work: {outcome:?}"
-    );
+    };
+    super::develop_played(&mut world, &proposal).expect("the branch can be made to work");
     assert!(world.phenotype().unwrap().secretory_mg() > 0);
 }
 

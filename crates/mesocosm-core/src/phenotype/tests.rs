@@ -173,7 +173,10 @@ fn severing_removes_the_allocation_and_its_consequence_together() {
     let explained = phenotype.explain(limb).expect("still addressable");
     assert!(!explained.living);
     assert_eq!(explained.sites.len(), 1);
-    assert_eq!(explained.sites[0].named.map(|id| id.name), Some("contract"));
+    assert_eq!(
+        explained.sites[0].named.as_ref().map(|id| id.name.as_str()),
+        Some("contract")
+    );
 }
 
 #[test]
@@ -511,7 +514,10 @@ fn an_explanation_names_the_definition_the_tissue_expresses() {
     assert_eq!(reading.sites.len(), 1);
     assert_eq!(reading.sites[0].cells, 8);
     assert_eq!(
-        reading.sites[0].named.map(|id| (id.namespace, id.name)),
+        reading.sites[0]
+            .named
+            .as_ref()
+            .map(|id| (id.namespace.as_str(), id.name.as_str())),
         Some(("mesocosm", "intake"))
     );
 }

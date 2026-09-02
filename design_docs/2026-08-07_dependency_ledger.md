@@ -20,7 +20,8 @@ PE0 flow record + first reading -> PE1 reproduction + succession
 PD1b allocation -> PD2 one embodied process -> PE2 embodied discovery
 
 PE0 + PE1 + PE2
-  -> P3 branch transfer [LANDED 2026-09-01] -> PD3/PD4 authoring parity
+  -> P3 branch transfer [LANDED 2026-09-01]
+  -> PD3 pack admission [LANDED 2026-09-01] -> PD4 authoring parity
   -> PE3 lineage review + P4/PD5 filial expression
   -> PE4 world-generated biology
   -> PE5 second form + durable relationship
@@ -46,8 +47,8 @@ wall.
 order):
 
 ```text
-PD1b -> PD2 (one native played process) -> P3 (branch transfer) [all LANDED]
-     -> PD3/PD4 (packs, Piccolo) -> P4
+PD1b -> PD2 (one native played process) -> P3 (branch transfer)
+     -> PD3 (static packs) [all LANDED] -> PD4 (Piccolo) -> P4
 ```
 
 PD1b also unblocks the general model's **E1 acceptance gate** (feeding as
@@ -124,6 +125,15 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-09-01:** PD3 static pack admission landed, so the chain's next link is
+  PD4's Piccolo authoring parity before PE3's lineage review. It added the
+  MPL-2.0 `mesocosm-phenotype` crate (one-way: it may depend on
+  `mesocosm-core`, never the reverse), gave `WorldRules` its first saved
+  component, and deleted PD2's temporary editor operation. The graft-affinity
+  table still has no pack door: the ruling it waits on is whether a
+  pack-declared affinity overrides `Founding` or the reverse, which is
+  PD4/PE4 work.
 
 - **2026-09-01:** P3 branch transfer landed, so the chain's next link is
   PD3/PD4 authoring parity before PE3's lineage review. It also gave a world

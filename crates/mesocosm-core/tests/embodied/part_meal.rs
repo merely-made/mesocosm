@@ -61,12 +61,12 @@ fn a_meal_supplies_evidence_and_cannot_reach_a_condition_that_never_asked_for_on
         observation
             .missed
             .iter()
-            .find(|(id, _)| *id == hunger().id())
+            .find(|(id, _)| *id == hunger())
             .map(|(_, why)| *why),
         Some(Miss::UndeclaredInput)
     );
     assert!(
-        !world.discovered(hunger().id()),
+        !world.discovered(hunger()),
         "a meal did not unlock the gland however good it was"
     );
 }

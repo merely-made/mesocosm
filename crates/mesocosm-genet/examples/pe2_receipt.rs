@@ -6,9 +6,9 @@
 //! PE2's headed receipt: a discovery, with its evidence and route legible.
 //!
 //! Rasterized through the real cambium/netrender pipeline over a headless
-//! device, the same way `pd2_receipt` is, so the pixels are the engine's own
+//! device, so the pixels are the engine's own
 //! rather than a description of them. It drives ordinary recorded intents —
-//! `Resume`, `Metabolize`, `Consume`, `Rearrange` — plus the one native
+//! `Resume`, `Metabolize`, `Consume`, `Express` — plus the one native
 //! developmental fixture PD2 already permits, because no meal in this enclosure
 //! grows a consumer a plate.
 //!
@@ -207,12 +207,12 @@ fn main() {
         .candidate_intent(hunger().id())
         .expect("the frond is somewhere to put it");
     let outcome = world.apply(intent);
-    let Outcome::Rearranged { cost_mg, .. } = outcome else {
+    let Outcome::Expressed { cost_mg, .. } = outcome else {
         panic!("the discovered candidate did not validate: {outcome:?}");
     };
     let gland = world.gland().expect("it has one now");
     println!(
-        "capture 3: rearranged part {}, cost {cost_mg} mg, {} cells, {} mg a bite, charged {}",
+        "capture 3: expressed on part {}, cost {cost_mg} mg, {} cells, {} mg a bite, charged {}",
         part.0, gland.cells, gland.potency_mg, gland.charged
     );
     capture(

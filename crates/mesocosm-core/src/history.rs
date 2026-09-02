@@ -147,7 +147,7 @@ pub enum Event {
     /// way a body becomes different, and PD1a ruled it must never happen
     /// except through a discrete event with a cost and a cause — so it is as
     /// biographical as a meal, and recorded like one.
-    Rearranged {
+    Expressed {
         organism: OrganismId,
         part: PartId,
         cost_mg: u64,
@@ -195,7 +195,7 @@ impl Event {
             | Event::Died { organism, .. }
             | Event::Returned { organism }
             | Event::Inhabited { organism }
-            | Event::Rearranged { organism, .. }
+            | Event::Expressed { organism, .. }
             | Event::Carved { organism, .. } => vec![organism],
             // The founder's line continues through the split, which is what
             // makes a speciation visible in its own history rather than only

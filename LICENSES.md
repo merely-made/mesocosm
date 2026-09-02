@@ -22,6 +22,9 @@ A separately identified reusable library crate may be licensed under either:
 - the Apache License 2.0; see `LICENSE-APACHE`
 
 Such a crate must declare `MIT OR Apache-2.0` in its own `Cargo.toml`.
+`mesocosm-phenotype` is deliberately **not** one of these: it declares
+`MPL-2.0` in its own manifest, because pack loaders, validators, definitions
+and game-specific schemas are game code (processdef plan §5).
 Keeping those license texts at repository root does not dual-license the
 MPL-covered game code. Extraction requires a real reusable boundary and
 should not be used merely to evade the game license.

@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use crate::body::SpeciesId;
 use crate::body::{PartId, Yaw};
 use crate::organism::OrganismId;
-use crate::phenotype::{CellId, Refusal};
-use crate::process::{ProcessRef, Unmet};
+use crate::phenotype::Refusal;
+use crate::process::Unmet;
 
 /// How an incorporated part finds its site.
 ///
@@ -166,35 +166,26 @@ pub enum Intent {
     /// The energetics of digging await the metabolize-earth ruling; for
     /// now legality is embodiment plus reach.
     Carve { at: [i32; 3], radius: i32 },
-    /// Rearrange one part's tissue: **PD2's editor operation**, and the only
-    /// thing in the game that moves allocation.
+    /// Express a candidate this line has discovered. (PD3)
     ///
-    /// It carries the *complete* desired allocation for one part, because
-    /// that is what [`BodyPhenotype::develop`] validates — a complete desired
-    /// state is order-independent and a stale one is refusable, where a series
-    /// of drags is neither. One part, so the milligram it costs is priced in
-    /// that part's own tissue and a receipt can say where the cost came from.
+    /// **The bounded developmental verb**, and the door that replaced PD2's
+    /// `Intent::Rearrange`. It names a condition rather than an arrangement:
+    /// what the development *is* comes from the admitted ruleset and the
+    /// discovery record, so a host cannot author an allocation over the wire,
+    /// and nothing outside the game's own rules decides what tissue moves.
     ///
-    /// **A temporary authoring path, deleted at PD3.** The processdef plan
-    /// permits exactly this for PD2 — "a native developmental fixture or an
-    /// explicit editor operation" — and requires it to go when packs and the
-    /// developmental bridge arrive. What survives is the validator underneath
-    /// it, which is already shared with automatic arrangement.
+    /// Where the definition came from is the packed door: `mesocosm-phenotype`
+    /// admits it out of pack data, the discovery grants a
+    /// [`Candidate`](crate::discovery::Candidate) that cites it by content
+    /// address, and [`Candidate::propose`] lowers that to the same
+    /// [`AllocationProposal`] a hand once drew. One validator underneath,
+    /// unchanged since PD1b.
     ///
-    /// [`BodyPhenotype::develop`]: crate::phenotype::BodyPhenotype::develop
-    Rearrange { part: PartId, sites: Vec<Allocate> },
-}
-
-/// One site an [`Intent::Rearrange`] wants to exist on the part it names.
-///
-/// The definition travels as a content address rather than a friendly name,
-/// for PD1b's reason: a world that does not hold that exact definition must
-/// refuse rather than substitute the nearest thing it does hold.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Allocate {
-    pub process: ProcessRef,
-    /// Existing cell ids, sorted and deduplicated. The validator says so.
-    pub cells: Vec<CellId>,
+    /// [`Candidate::propose`]: crate::discovery::Candidate::propose
+    /// [`AllocationProposal`]: crate::phenotype::AllocationProposal
+    Express {
+        condition: crate::discovery::ConditionId,
+    },
 }
 
 /// Why an intent could not be applied. Rejections are part of the recorded
@@ -238,6 +229,19 @@ pub enum Rejection {
     /// The played critter could not touch it, and this says why: no actuator
     /// at all, or one that does not extend far enough.
     OutOfReach(Unmet),
+    /// This line has not come to that, so there is nothing to express. (PD3)
+    ///
+    /// A discovery is what makes a candidate available; asking for one that
+    /// never landed is refused rather than granted quietly, which is the whole
+    /// reason the bounded door names a condition instead of an arrangement.
+    Undiscovered(crate::discovery::ConditionId),
+    /// The line has come to it and this body has nowhere to put it. (PD3)
+    ///
+    /// **A real state, not a failure.** A candidate is available before it is
+    /// expressible: a consumer that has never grown a plate cannot express a
+    /// gland until it does, and the difference between having the option and
+    /// being able to take it is one a player is owed.
+    Nowhere(crate::discovery::ConditionId),
     InsufficientMass,
     /// The body plan found nowhere for a part of this shape to go, or the
     /// resulting live body would not fit its current Ground stance. Refusing
@@ -335,13 +339,14 @@ pub enum Outcome {
     Idled,
     /// A checkpoint was answered by carrying on unchanged.
     Resumed,
-    /// A part's tissue was reallocated, and paid for. (PD2)
+    /// A discovered candidate was expressed on a part, and paid for. (PD2's
+    /// transaction, through PD3's door.)
     ///
     /// `cost_mg` is what the development cost: the cells whose expression
     /// changed, priced at what a cell of that part's tissue is worth. It left
     /// the body's reserve and went into the ground under it, because nothing
     /// evaporates.
-    Rearranged {
+    Expressed {
         part: PartId,
         cost_mg: u64,
         /// The phenotype revision this development created, so a receipt can

@@ -57,6 +57,7 @@ pub mod plan;
 pub mod process;
 pub mod record;
 pub mod rng;
+pub mod rules;
 pub mod score;
 pub mod snapshot;
 pub mod species;
@@ -102,16 +103,17 @@ pub use phenotype::{
 pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
 pub use process::{
-    BULK_REACH, Capability, DefinitionDigest, FeedingMode, Process, ProcessDef, ProcessId,
-    ProcessRef, Registry, Seeding, Unmet,
+    BULK_REACH, Capability, DefinitionDigest, FeedingMode, NATIVE_ABI, Process, ProcessDef,
+    ProcessId, ProcessRef, Registry, Seeding, Unmet,
 };
 pub use record::{Feat, Mark, Scale, WorldRecord};
 pub use rng::Rng;
+pub use rules::{RulesetDigest, WorldRules};
 pub use score::{Reading, readings};
-pub use snapshot::{SnapshotError, restore, snapshot, state_hash};
+pub use snapshot::{SnapshotError, restore, restore_under, snapshot, state_hash};
 pub use species::{Lineages, Species};
 pub use wire::{WireError, frame, unframe};
 pub use world::{
-    Allocate, Founding, Gland, Graft, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement,
-    Rejection, Route, STARVED_UPKEEP_TICKS, World,
+    Founding, Gland, Graft, INSTINCT_IDLE_TICKS, Ineligible, Intent, Outcome, Placement, Rejection,
+    Route, STARVED_UPKEEP_TICKS, World,
 };

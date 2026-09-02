@@ -8,7 +8,7 @@
 //! **Two real pipelines, one sheet.** The body is rendered by
 //! `mesocosm-render` off the authoritative anatomy, the way `grow` renders one;
 //! the panel is rasterized through the real cambium/netrender chrome over a
-//! headless device, the way `pd2_receipt` and `pe2_receipt` are. Neither half
+//! headless device, the way `pe2_receipt` is. Neither half
 //! is a drawing of what the code would do. They are stacked into one PNG here
 //! because a mid-run host frame buries a digging critter in its own burrow,
 //! which shows the transfer to nobody.

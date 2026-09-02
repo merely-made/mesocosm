@@ -1,0 +1,14 @@
+{
+  "pack": "mesocosm",
+  "version": "0.0.1",
+  "abi": 1,
+  "license": "MPL-2.0",
+  "note": "The definitions this game ships, as data. Admission lowers these to the same ruleset mesocosm-core holds natively; that equality is PD3's parity receipt. Nothing here is rule-bearing except each definition's namespace, name, expressed_by and seeding.",
+  "processes": [
+    "processes/contract.json",
+    "processes/intake.json",
+    "processes/sense.json",
+    "processes/fix.json",
+    "processes/secrete.json"
+  ]
+}

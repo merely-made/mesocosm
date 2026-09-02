@@ -29,6 +29,8 @@ mod allocation;
 mod discovery;
 #[path = "embodied/gland.rs"]
 mod gland;
+#[path = "embodied/gland_use.rs"]
+mod gland_use;
 #[path = "embodied/graft.rs"]
 mod graft;
 #[path = "embodied/part_meal.rs"]
@@ -38,6 +40,29 @@ mod part_meal;
 /// now, not the enum's: this is the reference a phenotype actually stores.
 fn contract() -> ProcessRef {
     Registry::native().of_native(Process::Contract).reference()
+}
+
+/// Runs a proposal through the one validator on the played body, with none of
+/// the world's price, payment or record.
+///
+/// **The validator is what survived PD3's deletion.** `Intent::Rearrange` is
+/// gone and `Intent::Express` names a discovered condition rather than an
+/// arrangement, so a claim about a body a host could never author — a whole
+/// frond turned to poison, a gland asked for on bulk, a site that is not one
+/// connected region — is made here, at the boundary that actually decides it.
+/// A claim about what a development *costs* goes through the door.
+fn develop_played(
+    world: &mut World,
+    proposal: &mesocosm_core::AllocationProposal,
+) -> Result<mesocosm_core::Development, mesocosm_core::Refusal> {
+    let me = world.controlled_id().expect("embodied");
+    world
+        .organisms
+        .iter_mut()
+        .find(|o| o.id == me)
+        .expect("still in the roster")
+        .phenotype
+        .develop(proposal)
 }
 
 /// Empties the played critter's budget. Since TD4 the body routes its own
