@@ -506,6 +506,12 @@ impl World {
             last_tally: crate::organism::Tally::default(),
             pending,
             flows: crate::flow::Ledger::default(),
+            // The first epoch starts where the world does, nothing has been
+            // weighed, and no line is standing at a checkpoint. (PE3)
+            epoch_began: 0,
+            at_boundary: false,
+            last_round: crate::world::Round::default(),
+            scoring: false,
         };
 
         // The starting body already counts, and intricacy needs the registry,

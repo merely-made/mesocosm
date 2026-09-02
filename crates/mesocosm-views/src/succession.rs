@@ -82,6 +82,43 @@ impl Succession {
         }
     }
 
+    /// The epoch ended, and every other line has already taken its turn.
+    ///
+    /// **The lineage checkpoint's words, in the panel that already exists**
+    /// (PE3a). Not the trait board: there is no candidate list here, no
+    /// preview, and nothing to spend. What it says is that the round happened,
+    /// how much of the enclosure moved in it, and that yours is the line that
+    /// has not answered yet — which is PE3b's review.
+    pub fn epoch(epoch: u64, lineage: u32, turned: usize, committed: usize) -> Self {
+        Self {
+            headline: "the epoch is over".into(),
+            facts: vec![
+                ("epoch".into(), format!("{epoch} ended")),
+                ("your line".into(), format!("line {lineage}, yet to answer")),
+                (
+                    "the others".into(),
+                    match turned {
+                        0 => "no line had anything to weigh".to_string(),
+                        1 => "one line took a turn".to_string(),
+                        many => format!("{many} lines took turns"),
+                    },
+                ),
+                (
+                    "changed".into(),
+                    match committed {
+                        0 => "none of them changed".to_string(),
+                        1 => "one committed a change".to_string(),
+                        many => format!("{many} committed changes"),
+                    },
+                ),
+            ],
+            stay: "back to the terrarium".into(),
+            // No body is offered at a lineage checkpoint. It is not that kind
+            // of question.
+            take: None,
+        }
+    }
+
     /// The played critter stopped being one.
     ///
     /// `heirs` is how many living descendants this world would let anyone
@@ -197,6 +234,21 @@ mod tests {
         assert!(cost.contains("505 of body"), "and both accounts: {cost}");
         assert!(cost.contains("505 of reserve"), "and both accounts: {cost}");
         assert_eq!(birth.take.as_deref(), Some("become critter 1173"));
+    }
+
+    /// The lineage checkpoint says the round happened and offers no body.
+    /// It is still not a review: PE3b owns candidates, prices and previews.
+    #[test]
+    fn the_lineage_checkpoint_reports_the_round_and_offers_nothing_to_take() {
+        let boundary = Succession::epoch(3, 1, 4, 2);
+        let facts: Vec<&str> = boundary.facts.iter().map(|(key, _)| key.as_str()).collect();
+        assert_eq!(facts, ["epoch", "your line", "the others", "changed"]);
+        assert_eq!(boundary.take, None, "no body is offered at a lineage's own");
+        assert_eq!(boundary.stay, "back to the terrarium");
+
+        let quiet = Succession::epoch(1, 1, 0, 0);
+        assert_eq!(quiet.facts[2].1, "no line had anything to weigh");
+        assert_eq!(quiet.facts[3].1, "none of them changed");
     }
 
     /// Two answers and no third. A checkpoint that grew a menu would be the

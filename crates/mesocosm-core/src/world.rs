@@ -20,9 +20,9 @@ use crate::organism::{Organism, OrganismId};
 use crate::places::{PlaceId, Places};
 use crate::record::WorldRecord;
 use crate::rng::Rng;
-use crate::score::Reading;
 
 mod act;
+mod adapt;
 mod consume;
 mod discover;
 mod express;
@@ -34,6 +34,7 @@ mod read;
 mod records;
 mod revise;
 
+pub use adapt::{Round, Score, Turn};
 pub use genesis::Founding;
 pub use graft::Graft;
 pub use intent::{Ineligible, Intent, Outcome, Placement, Rejection, Route};
@@ -332,6 +333,41 @@ pub struct World {
     /// drain.
     #[serde(skip)]
     flows: crate::flow::Ledger,
+    /// The tick the current epoch began on. (PE3)
+    ///
+    /// Stored rather than derived from `tick % ticks`, because only the Timed
+    /// rule is periodic: a Gated epoch ends when its conditions are met, and a
+    /// world that had inferred its boundaries from arithmetic would have to be
+    /// rewritten to admit one.
+    #[serde(default)]
+    epoch_began: u64,
+    /// Whether this world is standing at its lineage checkpoint. (PE3)
+    ///
+    /// **A one-tick fact that a hold makes last.** It is set when the epoch's
+    /// budget is spent and cleared by the next tick that is not a revision, so
+    /// a headless enclosure gets exactly one tick's window and does not use it,
+    /// while a driver that stops to ask leaves the world at the same tick for
+    /// as long as the player thinks — the `control_lost` arrangement, and the
+    /// same reason succession keeps the pause in the driver. It is what
+    /// [`World::revision_admitted_now`] answers.
+    #[serde(default)]
+    at_boundary: bool,
+    /// What the most recent adaptation round came to. (PE3)
+    ///
+    /// One, not a log — the arrangement `last_observation` and `last_graft`
+    /// already use. What each line weighed is a reading of a decision, and a
+    /// running list of every turn a world ever took is a journal; what the
+    /// decisions *did* survives as `Event::Revised` in the past.
+    #[serde(default)]
+    last_round: adapt::Round,
+    /// Whether this world is a scoring copy. (P4b)
+    ///
+    /// **Not serialized, never true in a world anyone holds.** A copy grown to
+    /// score a candidate must not end epochs of its own: a round inside a round
+    /// is a different game, and an unbounded one. Every real world answers
+    /// `false`, so this cannot move a state hash.
+    #[serde(skip)]
+    scoring: bool,
 }
 
 /// The half-extent of an organism, by its volume tag.
@@ -353,6 +389,10 @@ impl World {
     /// state changes.
     pub fn apply(&mut self, intent: Intent) -> Outcome {
         let actor = self.controlled;
+        // Read before the intent is consumed. A revision is taken *at* the
+        // lineage checkpoint and does not leave it, so it is the one intent
+        // that does not close the boundary below.
+        let revising = matches!(intent, Intent::Revise { .. });
         // Counted before the act, so a hand that is acting right now is
         // already holding at zero when the ecology below reads it.
         self.idle_run = if matches!(intent, Intent::Idle) {
@@ -454,6 +494,26 @@ impl World {
         }
 
         self.tick += 1;
+
+        // **The epoch's own budget** (PE3). The world ends its epoch, because
+        // the rule that ends it is a versioned world rule and a headless
+        // enclosure has to obey it too — a boundary that only existed inside
+        // one driver would be a second authority over when bodies may change.
+        //
+        // The *reckoning* is not here. It reads the past, and history lives
+        // beside a world rather than inside it, so whoever holds the past does
+        // that half through [`Self::reckon`].
+        if !revising {
+            self.at_boundary = false;
+        }
+        if !self.scoring && self.rules.epoch.spent(self.tick - self.epoch_began) {
+            self.epoch += 1;
+            self.epoch_began = self.tick;
+            // Set before the round, so every unplayed line commits through the
+            // same gate the player's revision passes.
+            self.at_boundary = true;
+            self.last_round = self.adapt_round();
+        }
         outcome
     }
 
@@ -498,26 +558,6 @@ impl World {
     /// Applies an ordered trace, returning every outcome in order.
     pub fn apply_all(&mut self, trace: &[Intent]) -> Vec<Outcome> {
         trace.iter().map(|i| self.apply(i.clone())).collect()
-    }
-
-    /// Ends the current epoch, and reckons what it came to.
-    ///
-    /// Bodies change between epochs, not during them, and this is also where a
-    /// world finally writes down what its lineages did. It takes the past
-    /// because history lives beside a world rather than inside it: a world can
-    /// say what is, never what happened.
-    ///
-    /// Returns every reading, each carrying whether it took the record, which is
-    /// what an epoch-boundary screen is made of.
-    pub fn end_epoch(&mut self, history: &crate::history::History) -> Vec<Reading> {
-        let mut readings = crate::score::readings(self, history);
-        for reading in &mut readings {
-            reading.took =
-                self.record
-                    .note(reading.feat, reading.scale, reading.value, reading.species);
-        }
-        self.epoch += 1;
-        readings
     }
 }
 

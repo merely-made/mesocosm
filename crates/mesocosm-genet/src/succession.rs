@@ -63,6 +63,15 @@ pub fn succession_of(checkpoint: &Checkpoint) -> Succession {
             checkpoint.heirs.len(),
             checkpoint.heir().map(|heir| heir.0),
         ),
+        // The lineage checkpoint (PE3a). Same lane, same two keys — Enter is
+        // still `default_answer`, which is `Resume` here as everywhere — and no
+        // new panel: the review is PE3b's.
+        Occasion::Epoch(boundary) => Succession::epoch(
+            boundary.epoch,
+            boundary.lineage.0,
+            boundary.turned,
+            boundary.committed,
+        ),
     }
 }
 

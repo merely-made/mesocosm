@@ -37,6 +37,8 @@ mod graft;
 mod lineage;
 #[path = "embodied/part_meal.rs"]
 mod part_meal;
+#[path = "embodied/round.rs"]
+mod round;
 
 /// The definition a contracting part expresses. Identity is the registry's
 /// now, not the enum's: this is the reference a phenotype actually stores.

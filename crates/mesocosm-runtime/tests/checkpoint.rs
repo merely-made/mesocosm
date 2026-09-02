@@ -279,7 +279,9 @@ fn run_to_a_loss(seed: u64) -> Option<(Runtime, OrganismId)> {
                 let heir = rt.checkpoint().expect("standing").heir()?;
                 return Some((rt, heir));
             }
-            Some(Occasion::Birth(_)) => {
+            // A birth, or the epoch's own boundary: both are answered by
+            // carrying on, which is what this run is doing to everything.
+            Some(Occasion::Birth(_) | Occasion::Epoch(_)) => {
                 rt.queue(Intent::Resume);
                 rt.step(1);
             }
@@ -329,4 +331,173 @@ fn declining_the_line_resumes_disembodied() {
     rt.queue(answer);
     assert_eq!(rt.step(1), 1);
     assert!(rt.checkpoint().is_none());
+}
+
+/// Drives a run with a hand on the critter until the epoch's own question is
+/// put, answering every other question by carrying on.
+///
+/// `None` when this enclosure took the played body before the budget ran out
+/// and left nobody to hold — a fact about that terrarium, not about the
+/// checkpoint, and the same shape `run_to_a_loss` uses.
+fn run_to_a_boundary(seed: u64) -> Option<Runtime> {
+    let mut rt = Runtime::new(seed, 60, 10);
+    // A producer, because this run has to keep a hand on something for a whole
+    // epoch and a consumer that never eats spends its rent down long before
+    // the budget runs out. A stand draws its living out of the ground it
+    // stands on, which is exactly the body a player can hold and do nothing
+    // with. Eligibility is the ordinary gate: nothing here exempts it.
+    let stand = rt
+        .world()
+        .living()
+        .find(|organism| {
+            organism.kingdom() == mesocosm_core::Kingdom::Producer
+                && rt.world().is_eligible(organism.id)
+        })
+        .map(|organism| organism.id)?;
+    rt.queue(Intent::TakeControl { organism: stand });
+    rt.step(1);
+
+    let horizon = mesocosm_core::rules::DEFAULT_EPOCH_TICKS + 400;
+    for _ in 0..horizon {
+        if matches!(
+            rt.checkpoint().map(|checkpoint| checkpoint.occasion),
+            Some(Occasion::Epoch(_))
+        ) {
+            return Some(rt);
+        }
+        // `Resume` rather than `Idle` so the hand stays on the critter: an
+        // idle terrarium is never asked anything, the epoch's question
+        // included. A line that ends anyway is that terrarium's business, and
+        // the caller tries another seed.
+        rt.queue(Intent::Resume);
+        if rt.step(1) != 1 || !rt.world().is_embodied() {
+            return None;
+        }
+    }
+    None
+}
+
+/// **The lineage checkpoint, driven** (PE3a). The epoch's budget runs out, the
+/// world has already run its round by the time the driver sees the tick, and
+/// the driver holds — with a hand on the critter, and never without one.
+#[test]
+fn the_epoch_boundary_holds_the_world_and_resume_answers_it() {
+    let mut rt = [4_242u64, 11, 7, 3]
+        .into_iter()
+        .find_map(run_to_a_boundary)
+        .expect("some enclosure kept a hand on its critter for one epoch");
+
+    let checkpoint = rt.checkpoint().cloned().expect("a question was put");
+    let Occasion::Epoch(boundary) = checkpoint.occasion else {
+        unreachable!("run_to_a_boundary only returns at one");
+    };
+    assert_eq!(boundary.epoch, rt.world().epoch);
+    assert_eq!(
+        boundary.lineage,
+        rt.world().controlled().expect("embodied").species,
+        "the line under the hand is the one that has not answered"
+    );
+    assert!(checkpoint.heirs.is_empty(), "no body is offered here");
+    assert_eq!(
+        rt.world().tick,
+        rt.world().epoch_began(),
+        "the world is standing on the tick the epoch turned over"
+    );
+    assert!(
+        !rt.reckoning().is_empty(),
+        "and the driver reckoned it, because the past lives here"
+    );
+
+    // A stopped world, not a slow one.
+    let held = rt.world().tick;
+    let hash = rt.state_hash();
+    assert_eq!(rt.step(4), 0, "nothing but an answer moves it");
+    assert_eq!(rt.world().tick, held);
+    assert_eq!(rt.state_hash(), hash);
+
+    rt.queue(Intent::Resume);
+    assert_eq!(rt.step(1), 1, "and carrying on resumes play");
+    assert!(rt.checkpoint().is_none());
+}
+
+/// **An idle terrarium is not asked the epoch's question either.** The ruling
+/// that keeps every headless fixture's timing covers all three occasions.
+#[test]
+fn an_idle_terrarium_crosses_a_boundary_without_being_asked() {
+    let mut rt = Runtime::new(4_242, 60, 10);
+    let horizon = mesocosm_core::rules::DEFAULT_EPOCH_TICKS + 200;
+    assert_eq!(rt.step(horizon), horizon, "every step ran");
+    assert!(rt.world().epoch > 0, "and the epoch ended anyway");
+    assert!(
+        rt.checkpoint().is_none(),
+        "nobody was holding it, so nobody was asked"
+    );
+}
+
+/// A revision is admitted at that checkpoint and nowhere else, and taking one
+/// leaves the question standing rather than throwing the player out.
+#[test]
+fn a_revision_is_admitted_at_the_lineage_checkpoint_and_refused_off_it() {
+    let mut rt = Runtime::new(4_242, 60, 10);
+    assert!(
+        !rt.world().revision_admitted_now(),
+        "mid-epoch the verb is not on offer"
+    );
+    rt.step(10);
+    assert!(!rt.world().revision_admitted_now());
+
+    let rt = [4_242u64, 11, 7, 3]
+        .into_iter()
+        .find_map(run_to_a_boundary)
+        .expect("some enclosure kept a hand on its critter for one epoch");
+    let checkpoint = rt.checkpoint().expect("the epoch's question");
+    assert!(rt.world().revision_admitted_now(), "and here it is");
+
+    let revise = Intent::Revise {
+        condition: mesocosm_core::ConditionId(1),
+    };
+    assert!(checkpoint.answers(&revise), "a revision answers this one");
+    assert!(
+        !checkpoint.closed_by(&revise),
+        "and is taken at the checkpoint rather than on the way out of it"
+    );
+    assert!(checkpoint.closed_by(&Intent::Resume), "resuming leaves");
+    assert_eq!(checkpoint.default_answer(), Intent::Resume);
+}
+
+/// **A run through a boundary replays to the same hash.** The world ends its
+/// own epochs and the driver reckons them, so a replay that did either half
+/// differently would land somewhere else — which is what makes this the whole
+/// receipt for PE3's split between the two.
+#[test]
+fn a_run_through_an_epoch_boundary_replays_to_the_same_hash() {
+    let seed = 4_242;
+    let mut rt = Runtime::new(seed, 60, 10);
+    for _ in 0..(mesocosm_core::rules::DEFAULT_EPOCH_TICKS + 100) {
+        let intent = match rt.checkpoint() {
+            Some(checkpoint) => checkpoint.default_answer(),
+            None => Intent::Resume,
+        };
+        rt.queue(intent);
+        rt.step(1);
+    }
+    assert!(rt.world().epoch > 0, "the run crossed a boundary");
+    assert!(rt.world().record().filled() > 0, "and reckoned it");
+
+    let replayed = Runtime::replayed(seed, 60, rt.trace());
+    assert_eq!(
+        state_hash(&replayed.world),
+        rt.state_hash(),
+        "the same world, boundary and reckoning included"
+    );
+    assert_eq!(
+        replayed.world.record().filled(),
+        rt.world().record().filled(),
+        "and the same reckoned record"
+    );
+    assert_eq!(&replayed.history, rt.history(), "and the same past");
+    assert_eq!(
+        encode(&replayed.readings).expect("encodable"),
+        encode(rt.windows()).expect("encodable"),
+    );
 }

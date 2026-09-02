@@ -9,18 +9,16 @@
 //! record.*
 //!
 //! `matter.rs` next door proves the other half — that the enclosure's total is
-//! constant. That one would still pass if every milligram moved in silence.
-//! This one reads the two records against each other: for every tick, and for
-//! every account of every body, the recorded transfers must sum to exactly the
-//! change the world made. A seam that mutates without emitting fails here even
-//! though conservation holds, because the matter went somewhere real and the
-//! stream did not say so.
+//! constant — and would still pass if every milligram moved in silence. This
+//! one reads the two records against each other: for every tick, and every
+//! account of every body, the recorded transfers must sum to exactly the change
+//! the world made. A seam that mutates without emitting fails here even though
+//! conservation holds.
 //!
 //! # The instrument is proved, not assumed
 //!
 //! [`reconcile`] is handed a doctored tick as well as honest ones, and must
-//! report it. An absence is evidence only beside a positive control in the same
-//! run.
+//! report it. An absence is evidence only beside a positive control.
 
 use std::collections::BTreeMap;
 
@@ -29,7 +27,9 @@ use mesocosm_core::{Intent, OrganismId, Placement, World, state_hash};
 
 // An integration test's crate root resolves `mod` against `tests/`, and a bare
 // `tests/transfers.rs` would become a second test binary. The explicit path
-// keeps the split file beside the suite it belongs to.
+// keeps the split files beside the suite they belong to.
+#[path = "flows/boundary.rs"]
+mod boundary;
 #[path = "flows/transfers.rs"]
 mod transfers;
 
@@ -88,8 +88,7 @@ fn claimed(flows: &[RecordedFlow]) -> (i128, BTreeMap<OrganismId, (i128, i128)>)
 /// The check itself. `Ok` is silence; `Err` names the account that disagreed.
 ///
 /// One function, used by the runs that must pass **and** by the control that
-/// must fail, because a check only ever shown honest ticks has not been shown
-/// to detect anything.
+/// must fail: a check only shown honest ticks has not been shown to detect.
 fn reconcile(
     before: &Books,
     after: &Books,
@@ -427,8 +426,7 @@ fn a_filially_expressed_birth_reconciles_to_the_milligram() {
     let mut world = World::new(4_242, 24);
     let me = world.controlled_id().expect("a played critter");
     // A plain bulk consumer, so the horizon below is reached by not eating
-    // rather than raced by a canopy's own income. The same substitution
-    // `tests/embodied.rs` makes, and for the same reason.
+    // rather than raced by a canopy's own income.
     let organism = world
         .organisms
         .iter_mut()
@@ -449,10 +447,9 @@ fn a_filially_expressed_birth_reconciles_to_the_milligram() {
     };
 
     // Come to the gland the way the game does: through the starvation horizon,
-    // with a hand on the body. Doctoring the budget is what `endure` is for
-    // and is why it happens *before* the reconciled loop rather than inside
-    // it — a test that wrote a reserve between two `stepped` calls would be
-    // handing the check a mutation nobody claimed.
+    // with a hand on the body. The budget is doctored *before* the reconciled
+    // loop rather than inside it — a test that wrote a reserve between two
+    // `stepped` calls would hand the check a mutation nobody claimed.
     for _ in 0..=mesocosm_core::discovery::HUNGER_TICKS {
         let upkeep = world.controlled().expect("alive").upkeep_mg();
         world
@@ -469,8 +466,18 @@ fn a_filially_expressed_birth_reconciles_to_the_milligram() {
         .expect("the line came through the horizon")
         .condition;
 
-    // A line whose descendants grow the shape the declared site needs, and a
-    // committed program that declares it.
+    // **The lineage checkpoint** (PE3): a revision is admitted only there, so
+    // the fixture shortens the epoch budget rather than idling a thousand
+    // ticks. Every tick from here ends one, boundaries and all.
+    let mut world = world.with_rules(
+        mesocosm_core::WorldRules::native()
+            .ending(mesocosm_core::rules::EpochRule::Timed { ticks: 1 })
+            .scoring_over(2),
+    );
+    world.apply(Intent::Idle);
+    assert!(world.at_boundary());
+
+    // A line whose descendants grow the shape the declared site needs.
     world.lineages_mut().set_recipe(
         species,
         mesocosm_core::Recipe::of(vec![mesocosm_core::Tagma::new(
@@ -545,8 +552,7 @@ fn a_filially_expressed_birth_reconciles_to_the_milligram() {
             "one record, for exactly what the birth record says it cost"
         );
 
-        // The other half of the same milligram: the child's reserve is what the
-        // birth gave it, less what its program cost.
+        // The other half: the child's reserve is the birth's, less the program.
         let given = flows
             .iter()
             .map(|flow| &flow.record)

@@ -5,28 +5,20 @@
 
 //! P4 and PD5: a line commits a program, and its descendants are born under it.
 //!
-//! One test per claim:
+//! One test per claim: the founding program changes no birth; a revision is
+//! immutable; a birth expresses it through the one validator and pays for it;
+//! a refusal is a named fact; a founder preview is deterministic; one program
+//! grows two bodies on two grounds; an unplayed lineage takes the same path;
+//! incorporation, acquisition and filial expression are three records; and the
+//! commit's own refusals, by name.
 //!
-//! 1. **the founding program changes no birth** — a line that has committed
-//!    nothing grows exactly the body geometry seeded, and no filial record is
-//!    written for it;
-//! 2. **a revision is immutable** — a second commit appends and names its
-//!    parent, and the first is byte-identical afterwards;
-//! 3. **a birth expresses the revision through the one validator** — and pays
-//!    for it out of its own reserve, into the column under it;
-//! 4. **a refusal is a named fact** — a child with nowhere to put it is born
-//!    anyway, and the record says which revision and why;
-//! 5. **a founder preview is deterministic**, and
-//! 6. **the same program under two grounds grows two bodies** — same program
-//!    digest, different phenotype digests;
-//! 7. **an unplayed lineage takes the same path**;
-//! 8. **somatic incorporation, dormant acquisition and filial expression are
-//!    three records**;
-//! 9. the commit's own refusals, by name.
+//! What the epoch boundary does with all of this is PE3a's, next door in
+//! `round.rs`.
 
 use mesocosm_core::discovery::HUNGER_TICKS;
 use mesocosm_core::history::Event;
 use mesocosm_core::program::{Conditions, Founder, RevisionId};
+use mesocosm_core::rules::{EpochRule, WorldRules};
 use mesocosm_core::{
     Appendage, ConditionId, Founding, Intent, OrganismId, Outcome, Recipe, Rejection, SpeciesId,
     Stage, Tagma, Unrevised, World,
@@ -50,8 +42,26 @@ fn bare_recipe() -> Recipe {
     Recipe::of(vec![Tagma::new(1, Appendage::None)])
 }
 
+/// Stands a world at its lineage checkpoint, which since PE3 is the only place
+/// a revision is admitted.
+///
+/// The epoch rule is a world rule, so a fixture shortens the budget the way it
+/// picks a seed rather than idling a thousand ticks to reach a boundary the
+/// test is not about. A one-tick budget makes every tick a boundary; the
+/// scoring window comes down with it so the rounds it fires are cheap.
+fn at_the_checkpoint(world: World) -> World {
+    let mut world = world.with_rules(
+        WorldRules::native()
+            .ending(EpochRule::Timed { ticks: 1 })
+            .scoring_over(2),
+    );
+    world.apply(Intent::Idle);
+    assert!(world.at_boundary(), "a one-tick budget is spent every tick");
+    world
+}
+
 /// A world whose played critter has come through the starvation horizon, so
-/// its line holds the gland candidate.
+/// its line holds the gland candidate — standing at its lineage checkpoint.
 fn discovered_world(seed: u64) -> World {
     let mut world = bulk_world(seed, 24);
     frond_on(&mut world);
@@ -60,12 +70,11 @@ fn discovered_world(seed: u64) -> World {
         world.discovered(hunger()),
         "the line came through the horizon"
     );
-    world
+    at_the_checkpoint(world)
 }
 
-/// Puts a body in reach of the ordinary breeding gate. The gate itself is
-/// untouched: this only makes the body mature and past gestation, exactly as
-/// `succession.rs` and `flows.rs` do.
+/// Puts a body in reach of the ordinary breeding gate, which is itself
+/// untouched — mature and past gestation, as `succession.rs` and `flows.rs` do.
 fn ready_to_breed(world: &mut World, id: OrganismId) {
     let organism = world
         .organisms
@@ -493,25 +502,30 @@ fn incorporation_discovery_and_filial_expression_are_three_records() {
 }
 
 #[test]
-fn the_commit_is_ungated_and_says_so_in_one_place() {
-    // **The placeholder, pinned.** PE3 gates a revision to the lineage
-    // checkpoint once the epoch trigger is ruled (playable ecology plan §6,
-    // ruling 2); until then `revision_admitted_now` answers yes at every tick,
-    // the commit consults it, and `Unrevised::NotYet` is the refusal that
-    // arrives the moment it answers otherwise. The same arrangement PE1 stood
-    // in for ruling 1 with, and ruling this one is a one-line change there.
-    let mut world = discovered_world(9_001);
+fn the_commit_is_gated_to_the_lineage_checkpoint_and_says_so_in_one_place() {
+    // **The placeholder replaced** (PE3). Bodies change between epochs and not
+    // during them, so the commit consults `revision_admitted_now`, that reads
+    // `World::at_boundary`, and every other tick is refused `NotYet`. The
+    // played door and the unplayed one are the same transaction, so they are
+    // gated together and neither can be a second way for a program to move.
+    let mut world = bulk_world(9_001, 24);
+    frond_on(&mut world);
+    endure(&mut world, HUNGER_TICKS + 1);
+    assert!(world.discovered(hunger()));
     assert!(
-        world.revision_admitted_now(),
-        "no trigger has been ruled yet"
+        !world.revision_admitted_now(),
+        "the default budget is nowhere near spent"
     );
-    for at in [0u64, 1, 7] {
-        world.apply(Intent::Idle);
-        assert!(
-            world.revision_admitted_now(),
-            "and no tick is special either ({at})"
-        );
-    }
+    assert_eq!(
+        world.apply(Intent::Revise {
+            condition: hunger()
+        }),
+        Outcome::Rejected(Rejection::Unrevised(Unrevised::NotYet)),
+        "and mid-epoch it is refused by name"
+    );
+
+    let mut world = at_the_checkpoint(world);
+    assert!(world.revision_admitted_now(), "inside, it is admitted");
     assert!(matches!(
         world.apply(Intent::Revise {
             condition: hunger()
@@ -522,7 +536,7 @@ fn the_commit_is_ungated_and_says_so_in_one_place() {
 
 #[test]
 fn revising_a_condition_the_line_has_not_come_to_is_refused_by_name() {
-    let mut world = bulk_world(4_242, 24);
+    let mut world = at_the_checkpoint(bulk_world(4_242, 24));
     assert_eq!(
         world.apply(Intent::Revise {
             condition: hunger()
@@ -567,6 +581,7 @@ fn a_revision_this_world_could_never_express_is_refused_at_the_commit() {
     endure(&mut world, HUNGER_TICKS + 1);
     assert!(world.discovered(hunger()), "the line came to it anyway");
 
+    let mut world = at_the_checkpoint(world);
     assert_eq!(
         world.apply(Intent::Revise {
             condition: hunger()

@@ -42,12 +42,9 @@ pub enum Unrevised {
     Undiscovered(ConditionId),
     /// Not at this point in the run.
     ///
-    /// **Unreachable today**, because [`World::revision_admitted_now`] answers
-    /// yes at every tick and the ruling that would make it answer otherwise has
-    /// not been taken. It is here for [`Miss::AnotherTook`]'s reason: the
-    /// alternative is a door with no way to say *not now*, and adding one after
-    /// the ruling would make the refusal vocabulary depend on which answer
-    /// arrived.
+    /// **Reachable since PE3**: bodies change between epochs and not during
+    /// them, so a revision is admitted only while the world is standing at its
+    /// lineage checkpoint. Every other tick refuses this.
     ///
     /// [`Miss::AnotherTook`]: crate::discovery::Miss::AnotherTook
     NotYet,
@@ -65,28 +62,30 @@ pub enum Unrevised {
 impl World {
     /// Whether a lineage revision may be committed on this tick.
     ///
-    /// **A placeholder standing in for a ruling, in one function** — exactly
-    /// the arrangement PE1 used for `Checkpoint::default_answer`. PE3 gates a
-    /// revision to the **lineage checkpoint**, and a checkpoint needs a
-    /// deterministic condition that ends an epoch, which is playable ecology
-    /// plan §6 ruling 2 and Mark's. There is no trigger to gate to yet, and
-    /// inventing one here would be answering that ruling from the wrong end.
-    /// So: accepted at any tick, and ruling otherwise is a one-line change
-    /// here.
+    /// **The lineage checkpoint, and nothing else** (PE3). Reproduction is the
+    /// checkpoint at the scale of an individual and the epoch boundary is the
+    /// one at the scale of a lineage; a program revision belongs to the second
+    /// and must not be reachable from the first, or from the middle of a tick
+    /// of ordinary play. The placeholder that answered yes at every tick is
+    /// gone: this is [`World::at_boundary`], which the epoch rule sets and the
+    /// next tick that is not itself a revision clears.
     ///
-    /// Two consumers, so that one line actually lands when it is written: the
-    /// commit below refuses [`Unrevised::NotYet`] when this says no, and a host
-    /// reads it to know whether the verb is on offer at all.
+    /// Two consumers, and both matter: the commit below refuses
+    /// [`Unrevised::NotYet`] when this says no, and a host reads it to know
+    /// whether the verb is on offer at all.
     pub fn revision_admitted_now(&self) -> bool {
-        true
+        self.at_boundary()
     }
 
     /// Commits a revision on a lineage's development program.
     ///
-    /// **The world transaction, and the unplayed door.** Whether an unplayed
-    /// lineage ever chooses to take one is playable ecology plan §6 ruling 5
-    /// and still open; what is settled here is that when something does, it
-    /// takes this path and not a second one.
+    /// **The world transaction, and the unplayed door.** Since PE3a an
+    /// unplayed lineage does take one, at the lineage checkpoint, through
+    /// [`World::adapt_round`](crate::World) — and it reaches this function and
+    /// not a second one. What an unplayed line may *consider* is still
+    /// playable ecology plan §6 ruling 5 and still open at the acquisition
+    /// end: it weighs what this world has already come to, and nothing here
+    /// discovers anything.
     pub fn revise(
         &mut self,
         species: SpeciesId,

@@ -24,7 +24,8 @@ PE0 + PE1 + PE2
   -> PD3 pack admission [LANDED 2026-09-01]
   -> PD4 Piccolo authoring parity [LANDED 2026-09-01]
   -> P4a lineage program + PD5 filial expression [LANDED 2026-09-02]
-  -> PE3 lineage review [blocked on three rulings, not on code]
+  -> P4b scorer + PE3a epoch rule and round [LANDED 2026-09-02]
+  -> PE3b lineage review screen [unblocked; the last PE3 link]
   -> PE4 world-generated biology
   -> PE5 second form + durable relationship
   -> PE6 cohort scale + ecological zoom
@@ -129,6 +130,23 @@ versioned action/travel protocols -> Stickleback consumer rebase
   reorders it.
 
 ## Progress
+
+- **2026-09-02 (later):** P4b + PE3a landed — the epoch ends itself on a
+  versioned `EpochRule::Timed` world rule, every unplayed line takes a turn at
+  the boundary scored by *growing* each candidate in a copy of the world and
+  reading income against rent, and `World::revision_admitted_now` is now the
+  lineage checkpoint rather than a placeholder. **PE3 is down to its review
+  screen (PE3b)**, which needs no further ruling: several candidates on screen
+  over `World::candidates` and `candidate_proposal`, `Runner::propose` as the
+  second source, a founder preview and a price. Phenotype P4 stands at six of
+  seven clauses and `epoch::Trait` now holds four of five deletion conditions,
+  the fifth being the deletion itself, which is Mark's. The demo fixture hash
+  moved to `081b4ba4bdc46190` and, for the first time in this chain, so did the
+  **intent stream**: the demo now crosses three boundaries, answers two of them
+  with `Resume`, and every step after the first is shifted by one. The verbs it
+  exercises are unchanged. The population instrument, by contrast, is unmoved on
+  all 55 seeds — discovery is played-only, so a headless enclosure's rounds are
+  empty — and `dc4_roster.json` was restored rather than rewritten.
 
 - **2026-09-02:** P4a + PD5 landed — a lineage carries a versioned development
   program, a commit is a recorded intent over one world transaction that

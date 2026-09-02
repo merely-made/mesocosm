@@ -258,6 +258,12 @@ fn answer(checkpoint: &Checkpoint) -> Intent {
             // it is the honest one.
             None => checkpoint.default_answer(),
         },
+        // **Back to the terrarium** (PE3a). The recorded demo resumes rather
+        // than revising: choosing among candidates is the review, and the
+        // review is PE3b. What the demo receipts is that the boundary happens,
+        // that the unplayed lines take their turns at it, and that a run
+        // through one replays to the same hash.
+        Occasion::Epoch(_) => checkpoint.default_answer(),
     }
 }
 

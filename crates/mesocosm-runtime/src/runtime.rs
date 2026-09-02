@@ -51,10 +51,30 @@ pub struct Runtime {
     /// its trace and never learns that anybody stopped to think. See
     /// [`crate::succession`].
     checkpoint: Option<Checkpoint>,
+    /// The epoch this driver has already reckoned. (PE3)
+    ///
+    /// The world ends its own epochs, because the rule that ends them is a
+    /// world rule; the *reckoning* reads the past, which lives here, so this
+    /// is how the driver notices there is one to do.
+    epoch_seen: u64,
+    /// What the most recent boundary came to.
+    reckoning: Vec<Reading>,
     last: Vec<Outcome>,
     max_steps: u64,
     seed: u64,
     organisms: u32,
+}
+
+/// The reckoning, at whatever tick the world ended an epoch on.
+///
+/// **A driven run and a replay must both do this**, or their world records
+/// diverge and so do their hashes. It is a free function for exactly that
+/// reason: there is one of it, and both callers reach it.
+fn reckon_if_ended(world: &mut World, history: &History, seen: &mut u64) -> Option<Vec<Reading>> {
+    (world.epoch != *seen).then(|| {
+        *seen = world.epoch;
+        world.reckon(history)
+    })
 }
 
 impl Runtime {
@@ -67,6 +87,8 @@ impl Runtime {
             history: History::new(),
             readings: FlowWindows::new(),
             checkpoint: None,
+            epoch_seen: 0,
+            reckoning: Vec::new(),
             last: Vec::new(),
             max_steps: DEFAULT_MAX_STEPS_PER_ADVANCE,
             seed,
@@ -150,7 +172,11 @@ impl Runtime {
             // one in on the player's behalf is exactly what "one recorded
             // choice" rules out.
             match self.queued.front() {
-                Some(intent) if checkpoint.answers(intent) => self.checkpoint = None,
+                // A revision is taken *at* the lineage checkpoint and leaves
+                // the question standing, so the player is not thrown back into
+                // the terrarium by committing. Every other answer closes it.
+                Some(intent) if checkpoint.closed_by(intent) => self.checkpoint = None,
+                Some(intent) if checkpoint.answers(intent) => {}
                 _ => return false,
             }
         }
@@ -183,10 +209,22 @@ impl Runtime {
         // descendant on the same tick it lost its body can still be continued
         // through that descendant.
         self.history.record_all(events.iter().copied());
+        // And before the reckoning, which reads the past this tick just added
+        // to. (PE3)
+        if let Some(readings) =
+            reckon_if_ended(&mut self.world, &self.history, &mut self.epoch_seen)
+        {
+            self.reckoning = readings;
+        }
         if self.checkpoint.is_none() {
             self.checkpoint =
                 crate::succession::opened(&self.world, &self.history, hand, &events, &flows);
         }
+    }
+
+    /// What the most recent epoch boundary reckoned. Empty until one happens.
+    pub fn reckoning(&self) -> &[Reading] {
+        &self.reckoning
     }
 
     /// The question the world is holding at, if any.
@@ -231,9 +269,17 @@ impl Runtime {
         mesocosm_core::readings(&self.world, &self.history)
     }
 
-    /// Ends the epoch and writes what it came to into the world's record.
+    /// Ends the epoch early and writes what it came to into the world's record.
+    ///
+    /// The manual door. Since PE3 the world ends its own epochs on the budget
+    /// its rules name, so this is for a caller that wants one closed now —
+    /// and it tells the driver it has been reckoned, so the boundary is not
+    /// counted twice.
     pub fn end_epoch(&mut self) -> Vec<Reading> {
-        self.world.end_epoch(&self.history)
+        let readings = self.world.end_epoch(&self.history);
+        self.epoch_seen = self.world.epoch;
+        self.reckoning = readings.clone();
+        readings
     }
 
     /// The ordered trace of applied intents. Together with the seed and organism
@@ -289,11 +335,17 @@ impl Runtime {
         let mut world = World::new(seed, organisms);
         let mut history = History::new();
         let mut readings = FlowWindows::new();
+        let mut epoch_seen = 0;
         for intent in trace {
             world.apply(intent.clone());
             let events = world.drain_events();
             readings.absorb(&events, &world.drain_flows());
             history.record_all(events);
+            // The same reckoning a driven run does, through the same function.
+            // The world ends its own epochs, so a replay reaches every boundary
+            // the run did; skipping the reckoning here would leave the replayed
+            // world's record short and its hash different. (PE3)
+            reckon_if_ended(&mut world, &history, &mut epoch_seen);
         }
         Replayed {
             world,

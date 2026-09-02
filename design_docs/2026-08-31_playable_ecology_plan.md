@@ -477,18 +477,80 @@ budget, previews a founder, and commits a program for future descendants. At
 least one unplayed lineage takes a turn through the same proposal and validator
 path.
 
-**P4a and PD5 landed 2026-09-02, so what PE3 still owns is the review
-itself.** A lineage now carries a versioned development program, `Intent::Revise`
-commits a revision over one `World::revise` transaction that unplayed lines take
-too, and a descendant is born expressing it through the same validator — or born
-anyway with the record naming the revision it could not express. What is still
-missing is choosing among several candidates, pricing the choice, and doing it
-at a checkpoint: `World::revision_admitted_now` returns `true` and is the one
-function standing in for ruling 2 below.
+**PE3a landed 2026-09-02: the boundary, the scorer and the round.** What PE3
+still owns is the *review screen* (PE3b).
 
-The epoch trigger is a versioned world rule and remains to be chosen. PE3 adds
-that minimal realized rule before PE4 generalizes world-law generation. It is
-not implicitly every reproduction.
+- **The Timed epoch rule is realized** (`rules::EpochRule`), a versioned world
+  rule beside the ruleset: serialized, folded into `WorldRules::digest`, and
+  refused by name on a restore that offers a different one. `Gated` and
+  `PlayerTriggered` are named as data and answer `built() == false`; a world
+  holding either never ends an epoch on its own. The default budget is 1,000
+  ticks.
+- **The world ends its own epoch**, in `World::apply`, because the rule that
+  ends it is a world rule and a headless enclosure has to obey it too. The
+  *reckoning* stays a separate call (`World::reckon`) because it reads the past,
+  which lives beside a world; the driver does that half and a replay does it
+  through the same function, which is what keeps a run through a boundary
+  replaying to the same hash.
+- **A candidate is scored by growing it** (`World::score`, P4b): the world is
+  copied, the revision is committed on the candidate's line in the copy, the
+  copy runs a bounded window with nobody at the keyboard, and the flow record is
+  read — income against rent. No static formula, no fitness term. The copy is
+  discarded and the real world's hash is unmoved.
+- **Every unplayed line takes a turn** (`World::adapt_round`), in initiative
+  order (descending recipe complexity, ties by species id), committing
+  immediately through `World::revise` so a later line answers a world the
+  earlier ones have already changed. The played line is skipped: its turn is the
+  review.
+- **`World::revision_admitted_now` is no longer a placeholder.** It reads
+  `World::at_boundary`, so `Intent::Revise` is admitted only while the world
+  stands at the lineage checkpoint and is refused `Unrevised::NotYet` otherwise.
+  Revision cost stays flat (epoch boundary plan §8 q4, ruled 2026-09-01).
+- **The driver holds** at `Occasion::Epoch`, with the PE1 hold machinery and the
+  same key: `Intent::Resume` answers it, `Intent::Revise` also answers it and is
+  the one answer that does *not* close it. A hand is required, exactly as for a
+  birth, so an idle terrarium crosses a boundary without being asked.
+
+`Runtime::end_epoch` kept its production role in the changed shape: the world
+ends the epoch, the driver reckons it in the same tick it absorbs, and
+`Runtime::end_epoch` is now the manual door for ending one early rather than the
+missing caller.
+
+**What the demo's boundaries do** (seed 7, 916 founders, 3,100 steps, budget
+1,000). The played line comes to the gland at tick 219, and the boundaries land
+at 1,000, 2,000 and 3,000:
+
+| tick | lines that weighed | committed | what moved |
+| --- | --- | --- | --- |
+| 1,000 | 4 | 3 | three lines take the gland; e.g. one scores 165,978 mg net without it against 174,932 with |
+| 2,000 | 1 | 1 | the fourth takes it once its own window holds a birth |
+| 3,000 | 0 | 0 | every line that can carry one already does, so nobody has anything to weigh |
+
+Two of the three opened a checkpoint the recording answered with `Resume`. The
+third did not, and the reason is the ordering §0 asks for: the played critter
+died on tick 3,000, and *who you are now* is the question that tick is asked.
+The round had nothing to weigh at that boundary anyway. Those two answers are the first
+thing in this chain to move the demo's **intent stream** rather than only its
+hash: the script is shifted one step from tick 1,000 on, and the verbs it
+exercises are unchanged. The census over the recorded trace carries 1 discovery,
+1 graft, 1 succession, 2,605 births, **4 committed revisions** and 1,189 filial
+expressions.
+
+**The instrument did not move, and that is the finding.** All 55 seeds of the
+six batches read the same verdict, the same decided tick, the same reason and
+the same sample curve as `dc4_roster.json` — `0 moved`, and the file was
+restored untouched rather than rewritten with new timings. The reason is
+structural rather than lucky: **discovery is played-only** (PE2), so a headless
+idle enclosure holds no candidate for any line, every `World::candidates` answers
+a list of one, and every round is empty. The instrument therefore sees the epoch
+end and nothing else. It will start seeing the loop when an unplayed line can
+*acquire* — ruling 5's open half — and not before.
+
+**What PE3b still needs:** the review itself — several candidates on screen at
+once over `World::candidates` and `candidate_proposal`, `Runner::propose` as the
+second proposal source, a founder preview and a price beside each, and a lineage
+budget. Nothing above shows a player a candidate; the host has no key that sends
+`Intent::Revise` and the demo resumes.
 
 **Done when:** a player finishes an epoch, can explain why each offered change
 is available and what it costs, commits one body-program revision, watches one
@@ -614,6 +676,12 @@ have measured receipts.
    comes second. *Player-triggered* ends it on demand and is a dev tool (see
    the [dev tools plan](2026-09-01_dev_tools_plan.md) DT3), never play. PE3
    realizes Timed and replaces `World::revision_admitted_now` with it.
+   **Realized 2026-09-02 (PE3a):** `rules::EpochRule::Timed { ticks }`, default
+   1,000, serialized and folded into `WorldRules::digest`, refused by name on a
+   restore that offers a different one. The other two are variants carrying no
+   condition — `built()` answers `false` and `spent()` answers `false` at every
+   tick — so a world holding one runs on in its first epoch rather than ending
+   it on a guess. `World::revision_admitted_now` now reads `at_boundary`.
 3. Are fungal networks, clonal stands, and microbial colonies genuine
    multi-anchor subjects or connected local critters at the first proof?
 4. Which generated-material scheme from the elements memo is the first one
@@ -628,6 +696,14 @@ have measured receipts.
    condition reads (or a declared cohort reduction for it, per the execution
    boundary), and a proposal sink in the ecology's own step so an unplayed
    lineage can actually take a candidate up. Neither is a second evaluator.
+
+   **Half answered 2026-09-02 (PE3a):** the proposal sink exists.
+   `World::adapt_round` is where an unplayed line takes a candidate up, and it
+   takes it through the identical `World::revise`. It offers *inherited or
+   already-discovered* candidates only — `World::candidates` reads this world's
+   `discoveries` and nothing there proposes a new one — so an enclosure nobody
+   has played holds nothing for any line to weigh and its rounds are empty. The
+   per-body accumulator is still not built, and acquisition is still open.
 6. How much ecology truth is available during live play, and how much becomes
    available only during epoch review or postmortem?
 7. What exact recoverability condition makes a trophic collapse terminal in
@@ -635,7 +711,8 @@ have measured receipts.
 8. When the scale lane resumes, does S3's correctness and cohort work precede
    S2's wider resident window?
 
-None blocks founding PE0. Questions 1 and 2 block the full PE1/PE3 interaction;
+None blocks founding PE0. Question 1 still blocks the reproduction default;
+question 2 is ruled and realized, so what it blocked is now only PE3b's review;
 3 blocks a distributed PE5 form; 4 blocks PE4; 5 blocks world-wide acquisition;
 6 blocks final warning presentation; 7 blocks the terminal run condition; and
 8 blocks scale dispatch.

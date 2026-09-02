@@ -34,7 +34,7 @@ const MATURITY_BASE: u32 = 270;
 const LIFESPAN_BASE: u32 = 1800;
 /// TD2: 4x against lifespan's 3x, one brood fewer per life. Still the knob
 /// that decides boil against breathe — 360 boils, 480 does not.
-const GESTATION_BASE: u32 = 480;
+pub const GESTATION_BASE: u32 = 480;
 /// TD2c: 2 -> 5. Balanced founding puts ~22 consumers on ~20 producers, and
 /// at 2 the base fixed less than the grazers drew (80 mg/tick against 88), so
 /// the whole chain starved. The base has to out-produce its grazing pressure.

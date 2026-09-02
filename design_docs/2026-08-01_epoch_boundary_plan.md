@@ -1,11 +1,13 @@
 # The epoch boundary: significance, speciation, and what youth costs
 
-**Status: partially built, refreshed 2026-08-31.** The world record, causal
-event log, species tree, places, reckoning, and player speciation are built.
-Shared lineage adaptation, goals, NPC speciation, life-stage plasticity, and
-the played boundary remain design or unwired. The 2026-08-31 reproduction
-direction is recorded in section 0; earlier rulings are Mark's from the
-dialogue through 2026-08-03 and are marked where the reasoning is mine.
+**Status: partially built, refreshed 2026-09-02.** The world record, causal
+event log, species tree, places, reckoning, and player speciation are built,
+and since PE3a **the boundary itself happens**: a versioned epoch rule ends it,
+every unplayed line takes a scored turn at it, and a driver holds the world
+there. Goals, NPC speciation, life-stage plasticity, and the played *review*
+remain design or unwired. The 2026-08-31 reproduction direction is recorded in
+section 0; earlier rulings are Mark's from the dialogue through 2026-08-03 and
+are marked where the reasoning is mine.
 
 This owns what happens *between* epochs: how a run is judged, how a lineage
 splits, what a player may aim at, and why a young critter is different from an
@@ -655,6 +657,31 @@ executable.
   descendant will express one literal phenotype.
 
 ## Progress
+
+- **2026-09-02 (PE3a):** the boundary finally happens on its own. `EpochRule`
+  is a versioned world rule beside the ruleset — `Timed { ticks }` built,
+  default 1,000, `Gated` and `PlayerTriggered` named as data that end nothing —
+  and `World::apply` ends the epoch when the budget is spent, because a
+  headless enclosure has to obey the same rule a driven one does. **The
+  reckoning stayed a separate call** (`World::reckon`) for §12's own reason: it
+  reads the past, and the past lives beside a world. The driver does that half
+  and a replay does it through the same function, which is what keeps a run
+  through a boundary replaying to the same hash. `Runtime::end_epoch` remains
+  the manual door for ending one early.
+
+  At the boundary every unplayed line takes a turn in `World::adapt_round`, in
+  §6's own initiative order — descending recipe complexity, ties by id, commits
+  landing immediately so a later line answers a world the earlier ones changed.
+  The **ordering idea from `epoch.rs` was kept and its trait array and
+  `fitness` were not**: a candidate is scored by growing it in a copy of the
+  world and reading the flow record, income against rent, which is Mark's
+  ruling of 2026-09-01. Nothing authors a significance table, and the
+  storyteller still picks no outcomes.
+
+  §8 q4 is honoured as ruled: a revision is priced flat, and the descendant
+  pays only the ordinary development price. §8 q2 (does an unplayed lineage's
+  speciation get a name) is untouched — a round commits revisions, never a
+  split.
 
 - **2026-08-31:** separated reproduction's individual checkpoint from this
   lineage checkpoint and linked the playable ecology integration plan. No

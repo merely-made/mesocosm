@@ -33,6 +33,19 @@ pub enum SnapshotError {
         expected: crate::rules::RulesetDigest,
         found: crate::rules::RulesetDigest,
     },
+    /// The save ran under different world rules than the ones offered, and the
+    /// biology is not what they differ about. (PE3)
+    ///
+    /// Today that is the epoch rule or the scoring window: a world that ended
+    /// its epochs on a different budget, or judged its candidates over a
+    /// different run, is a different game, and continuing would silently
+    /// re-time it. Named by [`WorldRules::digest`](crate::rules::WorldRules::digest),
+    /// which folds every component, so a rule added later is covered without
+    /// this variant growing a field.
+    Rules {
+        expected: u64,
+        found: u64,
+    },
 }
 
 /// Captures the whole world as bytes.
@@ -65,10 +78,21 @@ pub fn restore_under(
 ) -> Result<World, SnapshotError> {
     let mut world = decode::<World>(bytes)?;
     let offered = crate::rules::WorldRules::of(&ruleset);
-    if world.rules() != offered {
+    if world.rules().processes != offered.processes {
         return Err(SnapshotError::Ruleset {
             expected: world.rules().processes,
             found: offered.processes,
+        });
+    }
+    // The rest of the record, once the biology agrees. A caller offers a
+    // registry and this build's own defaults for everything a registry does not
+    // decide, so a save founded on a different epoch budget is refused here
+    // rather than quietly re-timed. PE4 generates world laws, and it is this
+    // door that grows a parameter for them.
+    if world.rules() != offered {
+        return Err(SnapshotError::Rules {
+            expected: world.rules().digest(),
+            found: offered.digest(),
         });
     }
     world.reattach_ruleset(ruleset);
@@ -154,6 +178,38 @@ mod tests {
                 expected: world.rules().processes,
                 found,
             })
+        );
+    }
+
+    /// The same refusal one component along. A world that ended its epochs on
+    /// a different budget is a different game, so restoring it against this
+    /// build's rule is refused by name rather than quietly re-timed. (PE3)
+    #[test]
+    fn a_restore_under_a_different_epoch_rule_is_refused_by_name() {
+        let native = crate::rules::WorldRules::native();
+        let brisk = World::new(31, 10)
+            .with_rules(native.ending(crate::rules::EpochRule::Timed { ticks: 250 }));
+        assert_ne!(brisk.rules().digest(), native.digest());
+        assert_eq!(
+            brisk.rules().processes,
+            native.processes,
+            "the biology is the same biology"
+        );
+
+        let bytes = snapshot(&brisk).unwrap();
+        assert_eq!(
+            restore_under(&bytes, brisk.admitted()),
+            Err(SnapshotError::Rules {
+                expected: brisk.rules().digest(),
+                found: native.digest(),
+            }),
+            "and the ruleset refusal is not the one that fires"
+        );
+
+        let ordinary = World::new(31, 10);
+        assert!(
+            restore_under(&snapshot(&ordinary).unwrap(), ordinary.admitted()).is_ok(),
+            "a world on this build's own rule restores"
         );
     }
 

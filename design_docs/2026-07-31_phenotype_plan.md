@@ -447,8 +447,8 @@ Retire the trait array when all of these are true:
 5. the old array can be deleted with its tests rather than maintained as a
    compatibility layer.
 
-**Receipt, 2026-09-02 (P4a/PD5): three of the five are met, and the array
-stays.**
+**Receipt, 2026-09-02 (P4a/PD5, then P4b/PE3a): four of the five are met, and
+the array stays.**
 
 - **1. Met.** `program::Revision` states *declared sites* — a part role, an
   admitted `ProcessRef`, a bounded cell count — and nothing scalar. Nothing in
@@ -460,25 +460,36 @@ stays.**
   body through the same `program::express`. Both are receipted:
   `a_founder_preview_is_the_same_body_twice` and
   `a_birth_expresses_its_lines_revision_and_pays_for_it`.
-- **3. Not met, and deliberately not built.** *What scores a candidate
-  phenotype* is Mark's ruling and was not taken in this slice. There is no
-  scorer, no fitness term, and no ranking anywhere in `program.rs`.
+- **3. Met (P4b).** `World::score` grows a candidate in a copy of the world for
+  a bounded run and reads the flow record — income against rent for that line's
+  bodies — which is Mark's ruling of 2026-09-01. It is the phenotype evaluator
+  the condition asks for in the strongest sense available: it does not read the
+  grown body at all, it reads what the grown body *earned in a world*. There is
+  still no fitness term and no static formula, and the ordering is one function
+  (`Score::beats`) over net income.
 - **4. Met.** `World::revise` is one transaction and `World::express_filially`
   reads no `controlled`; `an_unplayed_lineage_takes_the_same_path` commits on an
   NPC line and watches its next birth arrive expressing it, by the identical
   code.
-- **5. Not met.** `epoch::Trait` and its tests are untouched, which is what this
-  entry says: deletion is Mark's, and it waits on 3.
+- **5. Not met, and it is now the only one.** `epoch::Trait`, `epoch::adapt`'s
+  `fitness`, `epoch::standing` and `epoch::worlds` are untouched. What replaced
+  their *job* is `world::adapt`: the ordering idea (descending complexity,
+  commits landing immediately) was kept and brought across; the trait array and
+  the squared-deficit fitness were not used. So the array is a compatibility
+  layer with no consumer in the world model — but deleting it with its tests is
+  Mark's call, and it was explicitly out of scope here.
 
-So the array **remains explicitly provisional**, which is what PD5's fourth
-done-condition asks for and is the honest state until the scorer is ruled.
+So the array **remains explicitly provisional**, and the wait is now on the
+deletion itself rather than on a missing replacement.
 
 **Cost.** For a time the adaptation lab remains explicitly provisional. This
 is preferable to deleting its only working vocabulary before the replacement
 can express the same questions.
 
 **Rules: Mark at deletion.** Adding the first developmental process field does
-not itself authorize removing `epoch::Trait`.
+not itself authorize removing `epoch::Trait`, and neither does the scorer
+landing: condition 5 is Mark's to call, and PE3a deliberately did not touch the
+module or its tests.
 
 ### D5. Where does a meal go?
 
@@ -922,7 +933,7 @@ for exactly that reason and the refusal still stands: a severed branch's mass
 has already left the account. None of that is P3's, and none of it is needed
 for what P3 claims.
 
-### P4. Adaptation bridge — **PARTIAL 2026-09-02**
+### P4. Adaptation bridge — **PARTIAL 2026-09-02** (six of seven clauses)
 
 Grow several candidate developmental changes and score their phenotypes in one
 authored world.
@@ -945,32 +956,54 @@ the condition and the discovery digest), the descendant is mechanically
 different (it secretes, and the bite is what eats it pays), a program is
 committed rather than a snapshot (declared sites, never cells), the preview
 reproduces under identical declared inputs, and rich versus lean ground grows
-one program into two legibly different phenotypes. Unplayed lineages use the
-same *path*, and the trait array has three of its five deletion conditions
-(§D4).
+one program into two legibly different phenotypes. Unplayed lineages used the
+same *path*, and the trait array held three of its five deletion conditions
+(§D4) at that point.
 
-**What remains, and why it was not built.** Two clauses need rulings Mark
-holds and has not given:
+**What landed second (P4b, the scorer), 2026-09-02.** `World::score` grows one
+candidate in a **copy** of the world — the revision committed on that line in
+the copy, the copy driven for a bounded window with nobody at the keyboard — and
+reads the flow record: income, rent, everything else that left, and how many
+bodies of the line were born inside the window. That is Mark's ruling of
+2026-09-01 exactly: no static formula over body readings, no fitness term, and
+no scoring vocabulary that did not already exist. `Score` is those figures plus
+the run length; the only place it becomes a single number is `Score::beats`,
+which is net income and a strict comparison, so a tie leaves the status quo.
+The copy is discarded and the real world's hash is unmoved, which is asserted
+rather than argued.
 
-- **Scoring.** "Grow several candidates and score their phenotypes", and
-  "unplayed lineages use the same **evaluator**", both need *what scores a
-  candidate phenotype*. Nothing here scores anything. That is the same ruling
-  D4's condition 3 waits on, and building a placeholder scorer would have made
-  the array's deletion receipt depend on a number nobody chose. **Ruled by
-  Mark, 2026-09-01:** a candidate is scored by growing it in a headless copy
-  of the world for a bounded run and reading its flow record, income against
-  rent. No static formula over body readings, and no new scoring vocabulary.
-  That is P4b's slice. Revision cost stays flat for PE3, also ruled
-  2026-09-01: life-stage pricing waits (epoch boundary plan §8 question 4).
-- **Several candidates at once.** Reviewing more than one candidate, and
-  pricing the choice, is PE3's review screen — which in turn needs the epoch
-  trigger (playable ecology plan §6 ruling 2). `World::revision_admitted_now`
-  is the one function standing in for that gate meanwhile.
+`World::candidates` puts the founding revision — no change — first on every
+line's list, so *the status quo beat every candidate* is a reading rather than
+an absence, and `World::adapt_round` runs the turn for every unplayed living
+line in initiative order, committing immediately through `World::revise`. So the
+gate's own sentence is answered — several candidate developmental changes are
+grown and their phenotypes scored in a world — and with it the sixth clause:
+unplayed lineages use the same **evaluator** as well as the same path. There is
+only one evaluator, and nothing in it reads `controlled` except to skip the
+played line, whose turn is the review.
 
-Life-stage pricing of change (epoch-boundary plan §8 q4) is the third open
-ruling touching this gate: today a revision costs the run nothing and the
-descendant pays only the ordinary development price. When plasticity is ruled,
-it multiplies that price in one place.
+**The window is one brood interval, and it is load-bearing.** A revision only
+ever shows up in descendants, so a window with no birth in it scores the
+candidate and the status quo *identically*. Measured on seed 4,242: at one
+judgement window (60 ticks) every line scored the gland about a tenth of a
+percent **worse**, which is its development cost and nothing else; the sign
+turns between 240 and 600. `DEFAULT_SCORE_TICKS` is therefore
+`rates::GESTATION_BASE` (480), the shortest span with a name that reaches past
+that, and it is a world rule (`WorldRules::score_ticks`) because what an
+unplayed line commits is the world.
+
+**What remains, and it is one clause.** *The old trait array has a concrete
+deletion receipt* — §D4 now holds **four of five** conditions, and the fifth is
+that the array can be deleted with its tests rather than maintained. It still
+cannot: `epoch::Trait` and the four modules around it are untouched, and
+deleting them is Mark's call and explicitly not this slice's. So P4 stays
+partial on that clause and nothing else, and it is a ruling rather than work.
+
+**Not P4's, and not blocking it.** Reviewing several candidates *on screen*,
+pricing the choice and previewing a founder is the playable ecology plan's PE3b.
+Revision cost stays flat, ruled 2026-09-01; life-stage pricing (epoch-boundary
+plan §8 q4) is still open and would multiply the descendant's price in one
+place, `program::express`.
 
 ### P5. Contested flow
 

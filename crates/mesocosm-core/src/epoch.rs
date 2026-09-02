@@ -30,6 +30,20 @@
 //! and go extinct while the player is elsewhere — which is the wing's third law
 //! holding at the level of the simulation rather than the file format. A line
 //! you left is not frozen; returning means entering its descendants.
+//!
+//! # This module is provisional, and PE3a took only its ordering idea
+//!
+//! The real adaptation round lives in
+//! [`crate::world`]'s `adapt` module since 2026-09-02. What crossed is the
+//! **ordering**: descending complexity, ties by id, commits landing
+//! immediately so a later line answers a world the earlier ones changed. What
+//! did not cross is everything below — [`Trait`], [`Mutation`] and [`fitness`]
+//! — because a candidate is now scored by *growing* it in a copy of the world
+//! and reading the flow record, not by a squared-deficit sum over a trait
+//! array. Nothing in `World` reads this module.
+//!
+//! Deleting it is the fifth and last of phenotype plan §D4's retirement
+//! conditions, and that call is Mark's.
 
 pub mod adapt;
 pub mod lineage;
