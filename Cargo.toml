@@ -13,8 +13,9 @@ exclude = ["design_docs/"]
 # Own workspace root. The reservation package plus the crates that have split
 # out so far.
 #
-# Game and application crates use MPL-2.0. A genuinely reusable library may
-# declare MIT OR Apache-2.0 in its own manifest after its boundary is proven.
+# Game and application crates use MPL-2.0. A promoted reusable library also
+# stays MPL-2.0 (ruled 2026-09-03, retiring the 2026-07-31 clause that let a
+# proven boundary take MIT OR Apache-2.0): see LICENSES.md.
 [workspace]
 members = [
     "crates/mesocosm-core",
