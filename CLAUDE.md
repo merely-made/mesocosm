@@ -98,10 +98,10 @@ Do not copy it into Paredros or Isometry.
 ## Licensing Boundary
 
 - Game code and repository documentation are MPL-2.0.
-- A separately identified reusable library crate may use MIT OR Apache-2.0
-  only after its reusable boundary is real. State that license in its own
-  manifest; the presence of the permissive license texts does not
-  dual-license MPL game code.
+- Promoted reusable library crates are MPL-2.0 as well (ruled 2026-09-03;
+  the earlier MIT OR Apache-2.0 path for a proven boundary is retired). The
+  only exception route is the fork/vendor criterion in mere's license posture
+  brief, recorded in `LICENSES.md` when it applies.
 - Original game assets are CC BY-SA 4.0 and require an attribution entry.
   Imported assets retain their own licenses and must be recorded explicitly.
 - See `LICENSES.md`. Do not blur code, library, and asset grants.
