@@ -1,3 +1,9 @@
+// Copyright 2026 Mark Alan Boykin
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// SPDX-License-Identifier: MPL-2.0
+
 // The child modules read these fixtures through `use super::*`, so the
 // ecology's own items have to arrive here as a re-export rather than a private
 // import. (2026-08-29 TD8, splitting this file.)
