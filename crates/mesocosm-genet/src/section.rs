@@ -10,6 +10,14 @@
 //! it — which Ground the map binds, where the slab sits, which body is posed,
 //! and how the traced texture reaches the surface the HUD then composites on.
 //! No world state lives here and no rule is decided here.
+//!
+//! Which way it looks is [`camera`]'s, and is a host flag rather than a
+//! ruling: the shipped `-z` section is one of three arms a measured slice
+//! renders the same tick under (DC4, Q9).
+
+mod camera;
+
+pub use camera::{CameraMode, Framing, OBLIQUE_DEGREES, SLAB_DEPTH, SlabWindow};
 
 use mesocosm_core::places::Ground;
 use mesocosm_core::{BodyDocument, Organism, World};
@@ -30,20 +38,11 @@ use mesocosm_render::composite::Composite;
 /// another ([`HostConfig::slab_half_height`](crate::HostConfig)), and every
 /// framing replays to one hash. See the scale plan, "The framing".
 pub const SLAB_HALF_HEIGHT: f32 = 28.0;
-/// **Slice thickness, and deliberately not scaled with the enclosure.** A
-/// section shows a cut of fixed depth; widening it to keep the same fraction of
-/// a bigger world would only stack more bodies into the same pixels, which is
-/// the pile the S1 finding started from.
-const SLAB_DEPTH: f32 = 16.0;
 const PALETTE: u32 = 3;
 
 /// Voxels one arrow-key press shifts the section by. Presentation only: this
 /// number never reaches an intent.
 pub const PAN_STEP: f32 = 2.0;
-
-/// The section looks along -z, so the slab cuts the enclosure across x and y.
-const FORWARD: [f32; 3] = [0.0, 0.0, -1.0];
-const UP: [f32; 3] = [0.0, 1.0, 0.0];
 
 /// Captures are written in this format regardless of the surface's, so the
 /// PNG encoder never has to swizzle a BGRA frame.
@@ -83,6 +82,9 @@ pub struct Section {
     /// How much world this section frames. Presentation, so it lives beside the
     /// device rather than in the world.
     half_height: f32,
+    /// Which way it looks. Presentation, beside the half-height and for the
+    /// same reason: it frames the world and decides nothing in it.
+    mode: CameraMode,
     /// What the tracer writes: display-encoded values in a linear-tagged
     /// format, exactly as the lens's own captures read them back.
     traced: wgpu::Texture,
@@ -107,7 +109,7 @@ impl Section {
         height: u32,
         format: wgpu::TextureFormat,
         ground: &Ground,
-        half_height: f32,
+        framing: Framing,
     ) -> Result<Self, String> {
         let map = BrickMap::from_ground(ground).map_err(|error| error.to_string())?;
         let tracer =
@@ -129,7 +131,8 @@ impl Section {
             grade: Grade::retro(PALETTE),
             width,
             height,
-            half_height: half_height_or_default(half_height),
+            half_height: half_height_or_default(framing.half_height),
+            mode: framing.mode,
             traced,
             traced_view,
             display,
@@ -164,16 +167,25 @@ impl Section {
         self.width as f32 / self.height.max(1) as f32
     }
 
-    /// Depth stays the G2 number; the half-height is the host's.
+    /// Depth stays the G2 number; the half-height and the direction are the
+    /// host's. The tracer orthonormalizes what it is handed, which is why an
+    /// off-axis section costs three unit vectors and nothing else.
     fn camera(&self, centre: [f32; 3]) -> Option<TraceCamera> {
+        let [_, up, forward] = self.mode.basis();
         TraceCamera::orthographic_slab(
             centre,
-            FORWARD,
-            UP,
+            forward,
+            up,
             self.half_height,
             self.aspect(),
             SLAB_DEPTH,
         )
+    }
+
+    /// Which way this section is looking. The receipt names it, so a capture
+    /// can be told apart from the next one.
+    pub fn mode(&self) -> CameraMode {
+        self.mode
     }
 
     /// How much world the section frames, in voxels of half-height.
@@ -185,14 +197,7 @@ impl Section {
     /// numbers. What falls outside cannot reach a pixel, so it is what the
     /// roster culls against.
     pub fn slab_window(&self, centre: [f32; 3]) -> SlabWindow {
-        SlabWindow {
-            centre,
-            half: [
-                self.half_height * self.aspect(),
-                self.half_height,
-                SLAB_DEPTH * 0.5,
-            ],
-        }
+        SlabWindow::new(self.mode, centre, self.half_height, self.aspect())
     }
 
     /// Roster members the last traced frame drew. The receipt's evidence that
@@ -408,29 +413,19 @@ pub fn half_height_or_default(configured: f32) -> f32 {
 /// terrarium. Past roughly 24 the shipped follow centre does exactly that.
 /// It is presentation, like the framing — it moves no intent, so it cannot
 /// reach the trace.
-pub fn centre_on(at: [i32; 3], pan: Pan, half_height: f32) -> [f32; 3] {
+///
+/// The floor is the camera's own vertical reach rather than the half-height
+/// (DC4): a tilted section leans its slab depth into the vertical and frames
+/// about a voxel more than a level one, so reading the half-height would let
+/// `oblique` show exactly the strip of void the clamp exists to refuse. The
+/// two level modes are unchanged, to the bit.
+pub fn centre_on(at: [i32; 3], pan: Pan, half_height: f32, mode: CameraMode) -> [f32; 3] {
+    let floor = mode.vertical_half(half_height_or_default(half_height));
     [
         at[0] as f32 + pan.x,
-        (at[1] as f32 + pan.y).max(half_height),
+        (at[1] as f32 + pan.y).max(floor),
         at[2] as f32,
     ]
-}
-
-/// The world box the section's slab shows, in voxels around its centre.
-#[derive(Clone, Copy, Debug)]
-pub struct SlabWindow {
-    pub centre: [f32; 3],
-    /// Half extents in x, y and z.
-    pub half: [f32; 3],
-}
-
-impl SlabWindow {
-    /// Whether a voxel position falls inside the window. Position alone, not
-    /// the body's extent: a body straddling the cut plane is drawn whole and
-    /// the tracer's own ray interval does the trimming.
-    pub fn holds(&self, at: [i32; 3]) -> bool {
-        (0..3).all(|axis| (at[axis] as f32 - self.centre[axis]).abs() <= self.half[axis])
-    }
 }
 
 /// The controlled critter's pose, through the landed V2 projection.
@@ -503,19 +498,26 @@ mod tests {
     #[test]
     fn the_follow_centre_never_frames_below_bedrock() {
         let pan = Pan::default();
-        for half in [20.0, SLAB_HALF_HEIGHT, 36.3, 48.0] {
-            for y in [0, 3, 12, 24, 40] {
-                let centre = centre_on([7, y, -5], pan, half);
-                assert!(
-                    centre[1] - half >= 0.0,
-                    "half {half} at y {y} framed {} below bedrock",
-                    half - centre[1]
-                );
-                assert_eq!(
-                    [centre[0], centre[2]],
-                    [7.0, -5.0],
-                    "the clamp moved x or z"
-                );
+        for mode in CameraMode::ALL {
+            for half in [20.0, SLAB_HALF_HEIGHT, 36.3, 48.0] {
+                for y in [0, 3, 12, 24, 40] {
+                    let centre = centre_on([7, y, -5], pan, half, mode);
+                    // The camera's own reach, not the half-height: a tilted
+                    // section frames more than its half-height and the clamp
+                    // has to know it.
+                    let reach = mode.vertical_half(half);
+                    assert!(
+                        centre[1] - reach >= 0.0,
+                        "{} at half {half}, y {y} framed {} below bedrock",
+                        mode.name(),
+                        reach - centre[1]
+                    );
+                    assert_eq!(
+                        [centre[0], centre[2]],
+                        [7.0, -5.0],
+                        "the clamp moved x or z"
+                    );
+                }
             }
         }
     }
@@ -524,10 +526,20 @@ mod tests {
     /// and the pan still pans.
     #[test]
     fn a_body_above_the_floor_is_followed_and_panned() {
-        let high = centre_on([0, 60, 0], Pan { x: 2.0, y: 3.0 }, SLAB_HALF_HEIGHT);
+        let high = centre_on(
+            [0, 60, 0],
+            Pan { x: 2.0, y: 3.0 },
+            SLAB_HALF_HEIGHT,
+            CameraMode::Side,
+        );
         assert_eq!(high, [2.0, 63.0, 0.0]);
         // Panning down into the void stops at the floor rather than showing it.
-        let low = centre_on([0, 30, 0], Pan { x: 0.0, y: -20.0 }, SLAB_HALF_HEIGHT);
+        let low = centre_on(
+            [0, 30, 0],
+            Pan { x: 0.0, y: -20.0 },
+            SLAB_HALF_HEIGHT,
+            CameraMode::Side,
+        );
         assert_eq!(low[1], SLAB_HALF_HEIGHT);
     }
 

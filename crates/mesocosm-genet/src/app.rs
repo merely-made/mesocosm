@@ -376,7 +376,7 @@ impl Host {
         // the one the HUD backdrop's own scene item asks.
         let played_at = self.runtime.world().position().unwrap_or(at);
         let half = section::half_height_or_default(self.config.slab_half_height);
-        let centre = section::centre_on(at, self.pan, half);
+        let centre = section::centre_on(at, self.pan, half, self.config.camera);
         let tint = self
             .runtime
             .world()

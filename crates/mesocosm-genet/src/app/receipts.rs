@@ -119,6 +119,12 @@ impl Host {
                 None => String::new(),
             }
         );
+        // Which arm this capture is. One line, beside the hash, so a sheet of
+        // three captures cannot be assembled out of order. (DC4)
+        println!(
+            "camera: {} section, slab half-height {}",
+            receipt.camera, receipt.slab_half_height
+        );
         // Loud, because the alternative this replaces was a body that was
         // simply not there.
         if receipt.body_capsules_dropped > 0 {
@@ -199,6 +205,11 @@ impl Host {
                 .map_or(self.config.slab_half_height, |gpu| {
                     gpu.section.half_height()
                 }),
+            camera: self
+                .gpu
+                .as_ref()
+                .map_or(self.config.camera, |gpu| gpu.section.mode())
+                .name(),
             trace: self
                 .config
                 .trace

@@ -665,7 +665,11 @@ recipe depends on which anatomy makes it what it is.
    projection, which would need its own brief against the 2026-08-18
    first-person ruling). This is the cheapest legibility the plan has left
    and it is presentation only, a yaw when the section poses a body, or a
-   camera that is not axis-aligned. Findings, DC4.
+   camera that is not axis-aligned. Findings, DC4. **Measured 2026-09-04**:
+   `--camera side|across|oblique` over one tick of the golden replay, three
+   captures and a contact sheet, with the isometric cube priced rather than
+   built. The question stays open — the reading is on record and the camera
+   is Mark's.
 10. ~~Is the roster's ecology acceptable, and if not which half moves?~~
     **Ruled by Mark, 2026-09-02: fixed by a body, not a constant; a diagnosis
     slice measures first.** (DC4) Eight of ten seeds collapse against the
@@ -699,6 +703,93 @@ recipe depends on which anatomy makes it what it is.
 ---
 
 ## Findings
+
+- **2026-09-04 (DC4, Q9): three cameras over one tick, measured. `oblique`
+  is the only arm that shows a body's part budget *and* keeps the section.**
+  The instrument is `--camera side|across|oblique`
+  (`genet::section::camera`), a presentation flag beside `--slab`: it hands
+  the tracer a different forward and up and changes nothing else. The
+  2026-08-31 finding's `section::FORWARD` constant is now
+  `CameraMode::forward`, and `side` reproduces it exactly.
+
+  **What each mode is, mathematically.** World up stays `+y` in all three,
+  and `TraceCamera::orthographic_slab` orthonormalizes what it is handed, so
+  a mode is three unit vectors and no new pipeline. `side` looks down `-z`
+  and is the shipped section unchanged. `across` looks down `-x`; screen
+  right becomes `-z`, so a body's `+z` chain projects to the full screen
+  horizontal. `oblique` yaws 20 degrees off `-z` **and** pitches 20 degrees
+  down — both, because a yaw alone only shortens the chain along the
+  horizontal and never makes a diagonal; the `+z` chain projects to
+  `(-sin 20, -cos 20 sin 20)`, a diagonal 0.47 of the across span. The
+  roster's cull window turned with the camera (it is now the camera's own
+  oriented box, exact for all three and numerically identical to the old
+  axis-aligned box under `side`), and the bedrock clamp now reads the
+  camera's real vertical reach — 28 for the two level modes, 29.05 for
+  `oblique`, which leans its slab depth into the vertical.
+
+  **The captures.** One golden replay
+  (`ps1_played.trace.json`) held at **tick 816**, live hash
+  `35143e3984979d41`, under each mode:
+  `camera_side.png`, `camera_across.png`, `camera_oblique.png`, composed as
+  `camera_compare.png`. All three replays then ran the recording out and
+  exited 0 at `081b4ba4bdc46190`, and all three receipts report roster 40.
+
+  - **`side` (control).** Part budgets **illegible**: every body in the
+    frame, played and rostered alike, reads as one fat capsule with at most
+    a shoulder beside it — exactly the end-on finding, now on a photograph. Depth between
+    bodies **does not read** — bodies at different `z` occlude with no
+    stagger and no size cue, so a crowd is a row. What it keeps: the ground
+    silhouette is the clearest of the three (stepped relief against sky, the
+    vertical structure the section exists for) and there are no chrome
+    collisions.
+  - **`across`.** Part budgets are **there but not attributable**: chains do
+    run the full screen width, but the slab's long axis is now `z`, so forty
+    rostered bodies at one tint pack shoulder to shoulder into a continuous
+    hedge and no body's own extent can be picked out of its neighbours'.
+    Depth between bodies is **worse than `side`**, not better. The ground
+    silhouette is **lost**: relief varies along `x`, which is now depth, so
+    the terrain degenerates to a flat brown table ending in a hard vertical
+    edge where the slab stops. Chrome does not collide, but the vitals panel
+    now sits over solid hedge rather than sky.
+  - **`oblique`.** Part budgets **legible**: three and four capsules can be
+    counted stepping up-and-right on individual bodies. Depth between bodies
+    **reads** — nearer bodies overlap further ones with a visible stagger,
+    which neither level mode gives. Ground silhouette **survives**, as a
+    staircase rather than a clean profile. What got worse: the ground's *top*
+    faces come into view for the first time and the retro grade (palette 3)
+    paints them lavender against the soil's dark red — a palette never
+    exercised by a level camera, not a tracer fault, and it is the one thing
+    on the sheet that looks like a bug; and the near ground now occludes the
+    lowest bodies, which `side` never did.
+
+  **Nothing is ruled here.** The three arms and their costs are on record;
+  the camera is Mark's.
+
+  **The isometric cube, priced rather than built (Q9's third option).** The
+  sibling projection is `isometry-voxel::bake`, and it is not a camera: it is
+  a CPU sprite baker that rotates a model about vertical in four 90-degree
+  steps, projects each voxel's top vertex into a 2:1 grid and splats a
+  three-tone cube stamp through a z-buffer, emitting an RGBA sheet. Its own
+  module note says the live adjustable-camera modes are "a later, wgpu
+  concern", so nothing there renders a world, and it has no notion of
+  cutting an interior. Mesocosm would not borrow it; it would point its own
+  tracer down `(-1,-1,-1)/sqrt 3`, which this slice's `CameraMode` already
+  makes a one-line addition. The two pieces that are genuinely missing are
+  (a) **the cube**: the tracer's ray interval clips *along the view axis*, so
+  the shipped slab is a diagonal cut under an isometric camera rather than a
+  world-aligned box around the played critter, and a rotatable cube whose
+  contents do not change as it turns needs a world-box clip the tracer does
+  not express; and (b) **rotation as an interaction**, which is input,
+  a persisted host angle, and the follow-centre policy for a camera the
+  player aims — the cull window follows for free, since it is already the
+  camera's own oriented box. Against the 2026-08-18 ruling, "first person
+  names the agency, never the camera" survives an isometric cube only if
+  *rotating it is not a move*: the cube is a way of looking at where you
+  already are, the way `--slab` and the arrow-key pan are, and it must not
+  become a way of choosing where to be. The moment the cube's orientation
+  decides what a critter can reach, sense or step onto, the camera has
+  started naming the person and the ruling is broken. That is a brief, and
+  this slice does not write it.
 
 - **2026-08-31 (DC4): the section looks straight down every body's own axis,
   and that is why nothing reads as a critter.** `develop_body` chains segments
@@ -1123,6 +1214,42 @@ recipe depends on which anatomy makes it what it is.
   into a fixing part. `growth.rs`, `world/act.rs::land`, `chronicle.rs`.
 
 ## Progress
+
+- **2026-09-04 (DC4, Q9): the measured three-camera slice.** The instrument
+  Mark's 2026-09-02 ruling asked for, and nothing beyond it. `--camera` is a
+  presentation flag with three modes (`genet::section::camera`, 300 lines
+  with its tests): it picks the tracer's forward and up and touches no world
+  state, no intent and no snapshot the world reads. Two things generalized
+  with it, both narrower than they sound — the roster's cull window became
+  the camera's own oriented box (exact for every mode, numerically identical
+  to the old axis-aligned box under `side`), and the follow centre's bedrock
+  clamp now reads the camera's real vertical reach instead of the
+  half-height, because a tilted slab frames 29.05 voxels where a level one
+  frames 28. `Section::new` took a `Framing` rather than a ninth argument.
+  The contact-sheet captions are a new two-field view in `mesocosm-views`
+  (`caption`), because no text rendering lives in this repo.
+
+  **Receipts.** Three scenario replays of the golden trace, one per mode
+  (`camera_{side,across,oblique}.scenario`), each exit 0 at
+  `081b4ba4bdc46190` with the mode asserted off the host's own reading and
+  the capture taken at a shared tick 816 / live hash `35143e3984979d41` —
+  which is the identity claim the three captures rest on. Receipts and
+  trailing captures at explicit non-default paths; the golden `ps1_played.*`
+  fixture was read and never written, and **the `side` arm's own final frame
+  is byte-identical to it** (sha256 `3b260e9505ea7a97...` for both
+  `ps1_played.png` and `camera_side_final.png`) — the control arm is the
+  shipped section to the byte, not merely to the eye. `cargo test -p mesocosm-core --test
+  matter --test flows --test succession --test embodied --release` green
+  (99 tests). `cargo test -p mesocosm-genet -p mesocosm-views
+  -p mesocosm-runtime` green. `cargo test --workspace --exclude
+  mesocosm-lens` green. `clippy --workspace --all-targets -D warnings` clean
+  in both profiles, `cargo fmt --all --check` clean. Contact sheet:
+  `camera_compare.png` (5768x1142, three 1920x1080 panes, full resolution),
+  built by `examples/camera_compare.rs`.
+
+  **Nothing ruled.** The readings are in the Findings entry above and the
+  camera stays Mark's. The isometric cube is priced there and not built, per
+  the slice's own stop rule.
 
 - **2026-09-02, three rulings recorded (doc only).** §7 question 9 (section
   camera): measure before ruling, a measured presentation slice renders the

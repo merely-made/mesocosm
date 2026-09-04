@@ -161,6 +161,12 @@ pub struct PlayedReceipt {
     /// capture that does not say what it framed cannot be compared with the
     /// next one. (S1; the number was ruled at 28 on 2026-08-29.)
     pub slab_half_height: f32,
+    /// Which way the section looked, by name (DC4, Q9). **Presentation, and
+    /// the receipt says so**: the camera picks rays and never a rule, so a
+    /// replay under `across` or `oblique` lands on the same state hash a
+    /// `side` replay does. It is written down because three captures of one
+    /// tick are only comparable if each says which arm it is.
+    pub camera: &'static str,
     pub trace: Option<String>,
     pub capture: Option<String>,
     /// Whether `--dev` was set for this run (DT1, ruled 2026-09-02). A played

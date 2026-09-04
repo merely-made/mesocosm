@@ -30,6 +30,12 @@
 //! among the candidates, R commits the selected one, Enter goes back to the
 //! terrarium.
 //!
+//! `--camera` turns the section without touching the world (DC4, Q9): `side`
+//! is the shipped `-z` section, `across` looks down `-x` so a body's segments
+//! chain across the view instead of into the camera, and `oblique` tilts by
+//! twenty degrees so depth reads as a short diagonal. It is a sibling of
+//! `--slab` — framing, not rule — and the receipt names which one drew.
+//!
 //! `--dev` adds a fifth chrome lane and twelve keys, live only while it is set.
 //! DT1's five drive time: P pauses or unpauses the clock, `.` steps once and
 //! `,` steps ten, both off the clock, and `[`/`]` move the clock's speed down
@@ -46,6 +52,7 @@
 
 use std::path::PathBuf;
 
+use mesocosm_genet::section::CameraMode;
 use mesocosm_genet::{Host, HostConfig, played};
 
 fn main() {
@@ -74,6 +81,19 @@ fn main() {
                     Ok(text) => config.scenario = Some(text),
                     Err(error) => {
                         eprintln!("scenario: {}: {error}", path.display());
+                        std::process::exit(1);
+                    }
+                }
+            }
+            // Which way the section looks (DC4, Q9). Presentation only, and
+            // a measurement rather than a ruling: the same golden trace
+            // replays to the same hash under all three.
+            "--camera" => {
+                let named = args.next().unwrap_or_default();
+                match CameraMode::parse(&named) {
+                    Some(mode) => config.camera = mode,
+                    None => {
+                        eprintln!("--camera wants one of side, across, oblique");
                         std::process::exit(1);
                     }
                 }
@@ -151,6 +171,11 @@ mesocosm-genet: run Mesocosm in a window
   --scenario PATH drive the run from a text scenario and exit 1 if it fails
   --seed N        world seed
   --slab H        section slab half-height in voxels (presentation only, default 28)
+  --camera MODE   which way the section looks: side (the shipped section, the
+                  default), across (turned a quarter, so bodies chain across
+                  the view) or oblique (tilted 20 degrees, so depth reads as a
+                  short diagonal). Presentation only: it picks rays, never a
+                  rule, so a replay lands on the same hash under all three
   --dev           enable the dev lane and its keys (DT1, DT2, DT3); off by
                   default
   --follow ID     start the camera on this critter (DT2; needs --dev to be

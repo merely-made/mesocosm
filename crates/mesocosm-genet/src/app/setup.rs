@@ -18,7 +18,7 @@ use winit::window::Window;
 
 use super::{Gpu, Host, Lanes};
 use crate::chrome::Chrome;
-use crate::section::Section;
+use crate::section::{Framing, Section};
 
 impl Host {
     /// Builds the window, the device, and everything drawn through it. Idempotent:
@@ -93,7 +93,7 @@ impl Host {
             self.config.height,
             format,
             self.runtime.world().ground(),
-            self.config.slab_half_height,
+            Framing::new(self.config.slab_half_height, self.config.camera),
         ) {
             Ok(section) => section,
             Err(error) => {

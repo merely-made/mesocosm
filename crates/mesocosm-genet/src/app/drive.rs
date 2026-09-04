@@ -24,7 +24,7 @@
 //! | `settle N` | pump N frames |
 //! | `wait [cap]` | hold until [`Automatable::busy`] reads quiet |
 //! | `assert text <s>` | `s` appears on a chrome lane that is actually on screen |
-//! | `assert snap <f> <op> <v>` | a field of [`Host::snapshot`] — the state hash, the tick, the dev-intent count, the assisted label |
+//! | `assert snap <f> <op> <v>` | a field of [`Host::snapshot`] — the state hash, the tick, the camera mode, the dev-intent count, the assisted label |
 //! | `assert event <s>` | `s` appears in what the world answered |
 //! | `capture <name>` | the run's own capture path, through [`super::Host::capture_to`] |
 //! | `log <words>` | into the run's log |
@@ -242,6 +242,10 @@ impl Automatable for Host {
                     },
                 ),
                 ("mode", self.mode().to_string()),
+                // Which way the section is looking (DC4). Presentation, so a
+                // scenario asserts it to prove the arm it captured rather
+                // than to prove anything about the world.
+                ("camera", self.config.camera.name().to_string()),
                 ("tick", world.tick.to_string()),
                 ("steps", self.steps.to_string()),
                 ("frames", self.frames.to_string()),

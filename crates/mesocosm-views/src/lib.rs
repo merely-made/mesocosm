@@ -21,6 +21,7 @@
 //! leaves — the view fn and its sheet live here, host-agnostic, and the host
 //! decides only where the result lands.
 
+pub mod caption;
 pub mod dev;
 pub mod leaf;
 pub mod minimap;
@@ -28,6 +29,7 @@ pub mod review;
 pub mod succession;
 pub mod vitals;
 
+pub use caption::{Caption, CaptionChild, caption_css, caption_root};
 pub use dev::{
     Dev, DevChild, Follow, Lost, dev_css, dev_root, follow_of, lost_of, lost_words, role_word,
 };
