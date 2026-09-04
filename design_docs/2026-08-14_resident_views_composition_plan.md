@@ -90,8 +90,11 @@ time.
 
 - **Mesocosm** owns channel meanings, authoritative voxel facts
   (`Ground`), constraints, and commits.
-- **Conatus** owns the shared device schedule, resident allocations,
-  leases, and execution order.
+- **Conatus** owns its spatial-system phase schedule, resident allocations,
+  leases, and the sequencing of its own compute and materialization work.
+- **The host** owns the shared device lifecycle, inter-tenant submission order,
+  completion and presentation policy, recovery, and the read epochs that make
+  resident writes safe for consumers.
 - **Burn/CubeCL** owns tensor evaluation and learned or numerical
   transforms.
 - **Renderling/netrender** consumes resident buffers and revisions as

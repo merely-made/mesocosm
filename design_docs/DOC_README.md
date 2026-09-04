@@ -32,6 +32,9 @@ any other index and is updated in the same session as any doc change.
   scalar fields remain separately admitted planes, and each field names its
   consumer, honest dimension, cadence, sources/sinks, conservation rule, and
   scale reduction before the resident machinery carries it.
+- Conatus schedules spatial systems and owns its resident allocations and
+  leases. The host owns shared-device lifecycle, inter-tenant submission order,
+  read epochs, completion, presentation, and recovery.
 
 ## Active docs
 
