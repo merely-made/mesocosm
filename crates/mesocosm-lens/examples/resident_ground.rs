@@ -28,26 +28,6 @@ use mesocosm_lens::{
 };
 use serde::{Deserialize, Serialize};
 
-use quint::resident::{
-    ChunkBounds, ChunkStamp, DirtyRegion, PlaneClass, PlaneElementType, PlaneId, RawKernelView,
-    ReadEpoch, ResidentChunk, ResidentClient,
-};
-
-// Copyright 2026 Mark Alan Boykin
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-// SPDX-License-Identifier: MPL-2.0
-//! The real-Ground resident-view composition receipt.
-//!
-//! A Burn pass proposes a bounded carve from a material-derived field. Ground
-//! accepts the integer consequence, Conatus patches and restamps the retained
-//! atlas allocation, and BrickTracer observes that allocation without a CPU
-//! voxel upload. The accepted delta then replays without Burn.
-};
-};
-};
-
 const WIDTH: u32 = 96;
 const HEIGHT: u32 = 64;
 const SOURCE_EPOCH: u64 = 10;
