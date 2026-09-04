@@ -673,7 +673,11 @@ recipe depends on which anatomy makes it what it is.
    and depth reads as a stagger. The presentation slice that follows makes
    oblique the default, fixes the ground's top-face palette (painted
    lavender by a grade a level camera never exercised), and looks at the
-   near ground occluding the lowest bodies.
+   near ground occluding the lowest bodies. **Landed 2026-09-04**: oblique
+   is the default, the palette is fixed at the grade with `side` still
+   byte-identical, and the occlusion cost measured away at 0 of 40 bodies
+   more than half hidden under either the level or the tilted section.
+   Closed.
 10. ~~Is the roster's ecology acceptable, and if not which half moves?~~
     **Ruled by Mark, 2026-09-02: fixed by a body, not a constant; a diagnosis
     slice measures first.** (DC4) Eight of ten seeds collapse against the
@@ -854,6 +858,109 @@ recipe depends on which anatomy makes it what it is.
   `dc4_roster.json` and the golden `ps1_played.*` fixture were read and never
   written, and all five are md5-identical to backups taken before the slice
   (`dc4_roster.json` `82cb5f0d94924f297eae22d7ec562ded`).
+
+- **2026-09-04 (DC4, Q9): oblique landed as the default, and the two costs the
+  measurement named settled — one fixed, one measured away.** Mark ruled
+  `oblique` off the sheet below the same day; this entry is what shipping it
+  found. `--camera` keeps all three arms, because they are the evidence the
+  ruling rests on; the default moved, and `--help`, the module docs, the
+  receipt and the scenario snapshot moved with it. The 2026-08-18 vessel briefs
+  carry a dated amendment under their Mesocosm camera ruling: the word
+  "side-on" is superseded, everything the ruling gives as grounds is not.
+
+  **The top-face palette, and why it was never a tracer fault.** The retro
+  grade quantises red, green and blue on three *independent* five-step ramps.
+  That is not a palette — it is a lattice — and a colour crosses its three
+  boundaries at three different brightnesses. For the faces a level section
+  draws it never showed: they are dark, and their channels sit far apart. A top
+  face is lit from above (`0.38 + 0.62 cos` against the sun reaches 0.906,
+  where a vertical face reaches 0.58-0.64) and is then mixed toward the fog
+  colour `(0.66, 0.66, 0.72)`, which is *cool*; soil's blue starts furthest
+  from it, so blue climbs fastest and takes a step the red and green have not.
+  The whole sequence was predicted from the two material constants and matched
+  the capture exactly: a soil top face walked `(64,64,0)` olive, `(64,64,64)`,
+  `(127,127,127)`, then `(191,127,191)` pink-violet at the fifth of six fog
+  bands; rock reached blue-violet `(64,64,127)` at the first. That is the
+  lavender, and it is a hue neither material has anywhere.
+
+  **The fix is a second ladder, not a second palette.** Ground seen from above
+  now climbs the same five steps along its own colour line — the brightness is
+  stepped and the hue is left alone, so a step is always a step in light and
+  never a step in hue. Soil lit from above lands on `(127,80,44)`, a lighter
+  warmer brown of the same soil, and holds its family through the fog bands
+  instead of crossing out of it; rock lands on `(102,108,127)`, its own cool
+  grey. The look stays starved: the reachable colours are (material hue) x (fog
+  band) x (step), which is smaller and more palette-like than the RGB lattice
+  it replaces. **Vertical faces are untouched.**
+
+  **The gate had to be measured too, and the first one was wrong.** The obvious
+  test — the face normal points up — is not a level-camera no-op, because
+  conatus's brick DDA seeds its normal to `+y` and returns that seed unchanged
+  when a ray *begins* inside solid, which under the level section is the whole
+  block of terrain reaching the camera's near plane. Gating on the normal alone
+  moved 268k pixels of the shipped `side` capture. The gate is the normal
+  **and** a downward ray: an orthographic section marches its forward, and
+  `side` and `across` have `forward.y` exactly zero, so it is false for every
+  pixel of a level frame by construction. `--camera side` then replays the
+  golden fixture to a capture that is **byte-identical** to the `ps1_played.png`
+  on record (sha256 `3b260e95...`), which is the receipt.
+
+  **The occlusion cost was not real.** Measured rather than argued, at the same
+  tick 816 the sheet used, by sampling seven points along every capsule of
+  every rostered body and marching each sample back to the camera's own near
+  plane through `Ground::solid`: **0 of 40 rostered bodies are more than half
+  hidden under `oblique`, and 0 of 40 under `side`.** Oblique hides *less*, not
+  more — mean hidden fraction 0.013 against side's 0.029, worst single body
+  0.100 against 0.133, and no body over a quarter under either. The reason is
+  geometric and obvious once measured: a camera tilted down reaches a body from
+  above, and there is less ground above a body than beside it. The impression
+  on the contact sheet was the near ground *filling the bottom of the frame*,
+  which is framing working as intended rather than bodies being lost. **The
+  instrument was proved before the negative was believed**: the same probe on
+  the `across` arm reads 6 of 33 bodies more than half hidden, 23 over a
+  quarter, mean 0.343, worst 0.743. So nothing moved — not the slab's vertical
+  centre, not the follow-centre clamp. The probe was scaffolding and was
+  deleted with the slice.
+
+  **What the fix also changed, reported rather than hidden.** The band of
+  terrain that reaches the camera's near plane — the rays that begin inside
+  solid, carrying the DDA's fabricated `+y` — now takes the hue ladder too,
+  because nothing in the shader can tell that normal from a real one. It reads
+  as a flat cool slate `(102,108,127)` where it used to read dark grey, about a
+  tenth of the frame along the bottom edge. It is the same surface either way
+  and it is drawn in rock's own family, but it is lighter than it was. The
+  honest name for the underlying problem is that a ray starting inside solid
+  should not report a lit top face at all, and that lives in conatus's
+  `brick_dda.wgsl`, not here. **Mark's**, if the band should read differently.
+
+  **Receipts.** `cargo test -p mesocosm-core --release --test matter --test
+  flows --test succession --test embodied` green (99 tests); `cargo test -p
+  mesocosm-genet -p mesocosm-views -p mesocosm-runtime` green; `cargo test -p
+  mesocosm-lens --lib` green (48, the three new grade tests among them — the
+  lens *integration* suite is known-slow and was not run, so this is its lib
+  tests only); `cargo test --workspace --exclude mesocosm-lens` green; clippy
+  `-D warnings` clean in both profiles; `cargo fmt --all --check` clean. The
+  golden replay exits 0 at `081b4ba4bdc46190` under the new default, and a
+  scenario falsified on that hash exits 1. `ps1_played.png` was re-recorded
+  under the default with an explicit path — it is the fixture's photograph and
+  the fixture now looks different — and a fresh `oblique_default.png` was
+  captured at tick 816 and read: part budgets legible (three and four capsules
+  countable on individual bodies), ground warm and stepped with no violet, the
+  vitals panel and the minimap intact. The golden trace, its hash and
+  `dc4_roster.json` were read and never written.
+
+  **The three grade tests are rendered, not reasoned**
+  (`lens::tracer_tests::grade`). They drive the headless brick tracer at the
+  section's own numbers: the tilted frame never splits green more than half a
+  rung below both neighbours (the artefact is exactly one rung); soil lit from
+  above actually reaches the screen as warm soil, which is the positive control
+  the first assertion needs; and a level frame still lands on every rung of the
+  per-channel ladder, which is the no-op proof and is what caught the first
+  gate. The ordered dither is off in these three and only these three, because
+  it scatters individual pixels onto neighbouring rungs by design and the tests
+  are about which ladder a surface climbs. Forcing the old path fails the two
+  tilted tests and leaves the level one passing, which is the discrimination
+  check.
 
 - **2026-09-04 (DC4, Q9): three cameras over one tick, measured. `oblique`
   is the only arm that shows a body's part budget *and* keeps the section.**

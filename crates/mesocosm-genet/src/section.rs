@@ -4,16 +4,17 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! The main view: the ruled side-on terrarium section, brick-traced.
+//! The main view: the ruled terrarium section, brick-traced.
 //!
 //! `mesocosm-lens` owns the tracer; this module owns the vessel's policy over
 //! it — which Ground the map binds, where the slab sits, which body is posed,
 //! and how the traced texture reaches the surface the HUD then composites on.
 //! No world state lives here and no rule is decided here.
 //!
-//! Which way it looks is [`camera`]'s, and is a host flag rather than a
-//! ruling: the shipped `-z` section is one of three arms a measured slice
-//! renders the same tick under (DC4, Q9).
+//! Which way it looks is [`camera`]'s, and stays a host flag: the shallow
+//! oblique Mark ruled on 2026-09-04 is the default, and the two level arms the
+//! measured slice compared it against are still there behind `--camera` (DC4,
+//! Q9). None of the three moves the hash.
 
 mod camera;
 

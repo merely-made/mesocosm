@@ -131,6 +131,8 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
+- **2026-09-04:** PE4's first build is the trophic grammar plan, TG1 through TG7; the per-channel conservation receipt in TG2 blocks everything after it, and the thirty-seed corridor in TG6 is PE4's acceptance measurement. Drafted, awaiting Mark's three rulings.
+
 - **2026-09-04 (latest):** three ruled hygiene items built in one slice, and
   **PE3 and P4 are now fully landed**: the epoch trait array is deleted (five
   files, 1,318 lines; the seven authored pressures and three world profiles kept

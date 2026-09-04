@@ -48,14 +48,16 @@ pub struct HostConfig {
     /// the tree. Presentation only: it never reaches an intent, so it cannot
     /// move a replay hash.
     pub slab_half_height: f32,
-    /// Which way the section looks (DC4, Q9). `side` is the shipped section
-    /// and the default; `across` turns it a quarter so bodies chain across
-    /// the view, and `oblique` tilts it so depth reads as a short diagonal.
+    /// Which way the section looks (DC4, Q9). `oblique` is the shipped
+    /// section and the default, ruled 2026-09-04; `side` looks straight down
+    /// `-z` and draws bodies end-on, and `across` turns a quarter so they
+    /// chain across the view. The two level arms stay because they are the
+    /// measurement the ruling rests on.
     ///
     /// **Presentation only, exactly like `slab_half_height` beside it.** It
     /// picks rays, not rules: no intent, no snapshot field the world reads,
-    /// no state hash. The measured slice Mark's ruling asked for replays one
-    /// golden trace under all three and asserts the same hash from each.
+    /// no state hash. The measured slice replays one golden trace under all
+    /// three and asserts the same hash from each.
     pub camera: CameraMode,
     /// Off by default (DT1). On, the dev lane draws and its keys go live;
     /// recorded in the receipt either way.

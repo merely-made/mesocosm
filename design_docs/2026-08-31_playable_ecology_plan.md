@@ -586,6 +586,8 @@ is outstanding.**
 
 ### PE4: world criteria generate mechanically distinct biology
 
+**PE4's first build (2026-09-04)** is the [trophic grammar plan](2026-09-04_trophic_grammar_plan.md), which lands typed intake, typed accounts, scruple, defenses, selective edibility, the re-declared roster and the lexicon in that order, and closes the unrestricted predator prey set as a consequence of typed ports.
+
 Choose one material scheme from the elements memo only after PE2 proves the
 consumer. Generate an immutable world-law record first, then admitted material
 and process parameters, viable founding programs, and candidate weights. Run

@@ -85,6 +85,21 @@ pull-back ruling and closes it.
 Home person stays first (agency: you are the critter); the camera is
 not the person.
 
+**Amended 2026-09-04 (Mark): the section is tilted, not level.** The
+ruling above stands in every part except the word "side-on". A measured
+three-camera slice (DC4, Q9 — one golden replay held at one tick,
+photographed down `-z`, down `-x`, and at a twenty-degree oblique) found
+that a level section draws every body end-on, because segments chain
+along `+z`: the whole part budget of a thirty-part animal lands in one
+pixel column. The oblique arm is the only one that shows a body's parts
+*and* keeps the vertical structure this ruling exists to present, so it
+is now the shipped default. Everything the ruling gives as grounds is
+unaffected — it is still an orthographic cross-section a few voxels
+deep, still read from outside the eye, still vertical-first. Only the
+axis moved, by twenty degrees on each of the two free rotations. The
+measurement and its costs are in the default creatures plan's Q9
+Findings entry.
+
 ### Paredros: third person, one continuous zoom
 
 Full 3D, third-person follow camera pulling out through orbit to an

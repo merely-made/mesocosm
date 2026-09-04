@@ -249,14 +249,77 @@ fn bayer(pixel: vec2<u32>) -> f32 {
     return values[(pixel.y % 4u) * 4u + (pixel.x % 4u)] / 16.0 - 0.5;
 }
 
-fn grade(colour: vec3<f32>, t: f32, pixel: vec2<u32>) -> vec3<f32> {
+// Steps in this many places along each channel, which is the starved-palette
+// half of the retro look. Written down because `along_hue` below has to step
+// the same ladder for a surface to sit on the same set of colours.
+const GRADE_STEPS: f32 = 5.0;
+const GRADE_SPAN: f32 = 4.0;
+
+// The grade's step ladder, applied to each channel on its own.
+//
+// This is the shipped quantiser and stays exactly what it was: it is what the
+// section's vertical faces, its bodies and its sky have always been drawn
+// with, and every capture on record is of it.
+fn steps_per_channel(colour: vec3<f32>, dither: f32) -> vec3<f32> {
+    return floor(clamp(colour + vec3(dither), vec3(0.0), vec3(1.0)) * GRADE_STEPS) / GRADE_SPAN;
+}
+
+// The same ladder, climbed along the colour's own line instead of along the
+// three axes separately.
+//
+// **Why a second quantiser exists at all.** Per-channel steps are not a
+// palette; they are three independent ramps, and a colour crosses their
+// boundaries at three different brightnesses. For the faces a level section
+// shows that never mattered, because those faces are dark and their channels
+// are far apart. It matters enormously for a face lit from above and then
+// mixed toward a cool fog: soil, whose blue starts furthest from the fog
+// colour, has its blue climb fastest, so partway through the fog the blue has
+// taken a step the red and green have not and the face lands on a triple with
+// more blue in it than soil has anywhere. Measured on the section's own two
+// materials, the sequence a soil top face walked as fog took it was olive
+// (64,64,0), grey, grey, then pink-violet (191,127,191) at the fifth fog
+// band; rock reached blue-violet (64,64,127) at the first. None of those
+// hues is in either material.
+//
+// Stepping the brightness and leaving the colour on its own line cannot do
+// that: the output is the input's hue at one of the ladder's heights, so a
+// step is always a step in light and never a step in hue. The look stays
+// starved — the reachable colours are (material hue) x (fog band) x (step),
+// which is a small, countable set, and it is closer to an actual palette than
+// the RGB lattice it replaces.
+//
+// **Nearest rather than floor**, which is the one place this ladder differs.
+// Flooring drops a face that is genuinely brighter back onto the same rung as
+// the darker face below it — which for a top face erases the lighting that is
+// the entire reason the face reads as a top at all.
+fn steps_along_hue(colour: vec3<f32>, dither: f32) -> vec3<f32> {
+    let value = max(max(colour.r, colour.g), colour.b);
+    if (value < 1.0 / 512.0) {
+        return vec3(0.0);
+    }
+    let stepped = round(clamp(value + dither, 0.0, 1.0) * GRADE_STEPS) / GRADE_SPAN;
+    return min(colour * (stepped / value), vec3(1.0));
+}
+
+// The grade: fog, then the step ladder.
+//
+// `along_hue` picks which ladder. It is set for the ground seen from above and
+// for nothing else — see the gate at the ground hit below, which is exactly
+// false under a level section, so every capture the tree holds of one is
+// unchanged to the byte.
+fn grade(colour: vec3<f32>, t: f32, pixel: vec2<u32>, along_hue: bool) -> vec3<f32> {
     var fog = clamp((t / params.camera.far - params.fog.w) / max(1.0 - params.fog.w, 0.001), 0.0, 1.0);
     if (params.look.y > 0.5) {
         fog = floor(fog * params.look.y) / params.look.y;
     }
     var out = mix(colour, params.fog.xyz, fog);
     if (params.look.z > 0.5) {
-        out = floor(clamp(out + vec3(bayer(pixel) * params.look.x), vec3(0.0), vec3(1.0)) * 5.0) / 4.0;
+        let dither = bayer(pixel) * params.look.x;
+        if (along_hue) {
+            out = steps_along_hue(out, dither);
+        } else {
+            out = steps_per_channel(out, dither);
+        }
     }
     return out;
 }
@@ -325,20 +388,32 @@ fn trace_sample(in: VsOut) -> TraceSample {
             base = base * 0.12;
         }
         let lit = shade_body(normal, base, ray.direction);
-        return TraceSample(vec4(grade(lit, body_t, pixel), 1.0), point);
+        return TraceSample(vec4(grade(lit, body_t, pixel, false), 1.0), point);
     }
 
     if (!hit.found) {
         let sky = mix(vec3(0.65, 0.72, 0.80), vec3(0.35, 0.45, 0.62), clamp(ray.direction.y * 3.0 + 0.3, 0.0, 1.0));
         return TraceSample(
-            vec4(grade(sky, params.camera.far, pixel), 1.0),
+            vec4(grade(sky, params.camera.far, pixel, false), 1.0),
             ray.origin + ray.direction * params.camera.far,
         );
     }
     let sun = normalize(vec3(0.4, 0.8, 0.3));
     let light = 0.38 + 0.62 * max(0.0, dot(hit.normal, sun));
+    // The ground seen from above, and only that.
+    //
+    // **Both halves are load-bearing.** The face normal alone is not the
+    // test: the DDA seeds its normal to `+y` and returns that seed unchanged
+    // when a ray begins inside solid, which under the level section is the
+    // whole block of terrain that reaches the camera's near plane — those
+    // pixels claim an up normal without the camera being able to see a top
+    // face at all. Pairing it with a downward ray settles both: an
+    // orthographic section's ray direction is its forward, and `side` and
+    // `across` have forward.y exactly zero, so this is false for every pixel
+    // of a level frame and the second ladder cannot reach one.
+    let from_above = hit.normal.y > 0.5 && ray.direction.y < 0.0;
     return TraceSample(
-        vec4(grade(material_colour(hit.material) * light, hit.t, pixel), 1.0),
+        vec4(grade(material_colour(hit.material) * light, hit.t, pixel, from_above), 1.0),
         ray.origin + ray.direction * hit.t,
     );
 }

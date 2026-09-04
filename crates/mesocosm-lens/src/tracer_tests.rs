@@ -11,6 +11,7 @@ use crate::{
     BrickTraceError, BrickTracer, CritterPose, Flight, Grade, LeasedAtlas, critter::Capsule,
 };
 
+mod grade;
 mod roster;
 
 fn ground() -> Ground {

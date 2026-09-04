@@ -6,13 +6,19 @@
 
 //! Which way the section looks, and the slab that follows from it. (DC4, Q9)
 //!
-//! **Presentation only, and measured rather than ruled.** Mark's 2026-09-02
-//! ruling on the default creatures plan's ninth open question is *measure
-//! before ruling*: a body's segments chain along `+z` and the shipped section
-//! looks along `-z`, so every critter is drawn end-on and the roster's whole
-//! part budget lands in one pixel column. This module is the instrument that
-//! question asked for — the same tick, rendered three ways — not an answer to
-//! it. Nothing here reaches an intent, a snapshot or the state hash; the
+//! **Presentation only, and measured before it was ruled.** Mark's 2026-09-02
+//! ruling on the default creatures plan's ninth open question was *measure
+//! before ruling*: a body's segments chain along `+z` and the section then
+//! shipped looked along `-z`, so every critter was drawn end-on and the
+//! roster's whole part budget landed in one pixel column. This module is the
+//! instrument that question asked for — the same tick, rendered three ways.
+//! The measurement is on record in the plan's Q9 Findings entry, and Mark
+//! ruled on it the same day: **[`CameraMode::Oblique`] is the default**, the
+//! only arm that shows a body's part budget and keeps the section's vertical
+//! read. All three modes stay, because the sheet they compose is the evidence
+//! for the ruling.
+//!
+//! Nothing here reaches an intent, a snapshot or the state hash; the
 //! `--camera` flag is a sibling of `--slab`, and a replay under any of the
 //! three lands on the same hash.
 //!
@@ -61,17 +67,19 @@ pub const OBLIQUE_DEGREES: f32 = 20.0;
 /// a world fact.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum CameraMode {
-    /// The shipped section: straight down `-z`, bodies drawn end-on. The
-    /// control arm, and bit-for-bit what the tree drew before this module.
-    #[default]
+    /// Straight down `-z`, bodies drawn end-on. The control arm of the Q9
+    /// measurement, and bit-for-bit what the tree drew before this module.
     Side,
     /// The section turned a quarter about the world's vertical, looking down
     /// `-x`. Bodies chain along `+z`, so they now chain across the screen at
     /// full length — the most part budget a single frame can show.
     Across,
-    /// The section tilted off both ways by [`OBLIQUE_DEGREES`]: depth reads as
-    /// a short diagonal and the vertical structure survives, at the cost of
-    /// showing the chain at under half its across length.
+    /// **The shipped section.** Tilted off both ways by [`OBLIQUE_DEGREES`]:
+    /// depth reads as a short diagonal and the vertical structure survives, at
+    /// the cost of showing the chain at under half its across length. Ruled
+    /// the default on 2026-09-04 — it is the only arm that shows a body's part
+    /// budget *and* keeps the section.
+    #[default]
     Oblique,
 }
 
@@ -239,7 +247,7 @@ mod tests {
             assert_eq!(CameraMode::parse(mode.name()), Some(mode));
             assert_eq!(CameraMode::parse(&mode.name().to_uppercase()), Some(mode));
         }
-        assert_eq!(CameraMode::default(), CameraMode::Side);
+        assert_eq!(CameraMode::default(), CameraMode::Oblique);
         assert_eq!(CameraMode::parse("isometric"), None);
     }
 
