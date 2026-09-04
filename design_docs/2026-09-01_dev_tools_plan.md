@@ -607,3 +607,14 @@ of them. Each phase is one agent round on a non-Fable model.
   `examples/grow.rs`, `p3_receipt.rs` and `pe2_receipt.rs` are offscreen
   rasterizers that compose contact sheets over a headless device, not ways of
   driving a run — which is what `dt3_script.rs` was and why it went.
+
+- **2026-09-02, ruling: fixture defaults (doc only).** Every DT1-DT4 landing
+  entry above records passing explicit non-default trace, receipt and
+  capture paths precisely because the headed binary's own defaults are not
+  safe to leave alone: an unqualified `--dev` run risks writing over
+  `Code/testing/mesocosm/ps1_played.trace.json` and its siblings, the golden
+  fixture DT4's scenario replays against. **Ruled by Mark, 2026-09-02:** the
+  headed binary's default trace/receipt/capture paths move to a scratch name
+  under the testing home; the golden `ps1_played.*` fixture is written only
+  by an explicit path. No code changed in this pass; wiring the new defaults
+  is a follow-up implementation task.

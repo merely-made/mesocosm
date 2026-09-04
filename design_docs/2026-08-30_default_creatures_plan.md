@@ -380,11 +380,12 @@ Staged, cheapest first. The last stage is Mark's.
   is cheap and gets legs, plates and eyes reading differently from the trunk.
   Mark's.
 
-**Note on the existing open ruling.** The rulings register §10 ("Decide how to
-lift the 40-body roster cap") asks whether to raise `MAX_ROSTER` or hand far
-bodies to silhouettes. That question is about *how many bodies*; this one is
-about *how much of each body*. They share the same 511/2,047 budget and should be
-ruled together.
+**Note on the existing open ruling.** ~~The rulings register §10 ("Decide how
+to lift the 40-body roster cap") asks whether to raise `MAX_ROSTER` or hand
+far bodies to silhouettes.~~ **Ruled by Mark, 2026-09-02: far bodies go to
+silhouettes** rather than raising the capsule caps; it lands with S4 zoom.
+That question is about *how many bodies*; this one is about *how much of each
+body*. They share the same 511/2,047 budget and were ruled together.
 
 ---
 
@@ -653,15 +654,25 @@ recipe depends on which anatomy makes it what it is.
 8. **Does `axis::seed` stay in the tree as the soup world's generator, or go?**
    §1 assumes it stays. Since DC4 it has no caller in the shipping founding —
    only `Founding::Drawn`, which the instrument keeps as its baseline arm.
-9. **Which axis does the section look down?** (DC4) The terrarium view looks
-   along `-z` and a body's segments chain along `+z`, so every critter is drawn
-   end-on and the roster's whole part budget is invisible. This is the cheapest
-   legibility the plan has left and it is presentation only — a yaw when the
-   section poses a body, or a camera that is not axis-aligned. Findings, DC4.
-10. **Is the roster's ecology acceptable, and if not which half moves?** (DC4)
-    Eight of ten seeds collapse against the drawn baseline's zero. The two
-    diagnostic arms in the Progress entry say which half of the roster carries
-    it; the fix is a body or a constant, and constants are the stop rule.
+9. ~~Which axis does the section look down?~~ **Ruled by Mark, 2026-09-02:
+   measure before ruling.** (DC4) The terrarium view looks along `-z` and a
+   body's segments chain along `+z`, so every critter is drawn end-on and the
+   roster's whole part budget is invisible. Depth is illegible with bodies
+   drawn end-on. A measured presentation slice renders the same tick under
+   three cameras through the DT4 scenario harness before ruling: the section
+   turned so bodies chain across the view; a shallow oblique tilt; and a
+   rotatable local isometric cube with the interior cut (the sibling Isometry
+   projection, which would need its own brief against the 2026-08-18
+   first-person ruling). This is the cheapest legibility the plan has left
+   and it is presentation only, a yaw when the section poses a body, or a
+   camera that is not axis-aligned. Findings, DC4.
+10. ~~Is the roster's ecology acceptable, and if not which half moves?~~
+    **Ruled by Mark, 2026-09-02: fixed by a body, not a constant; a diagnosis
+    slice measures first.** (DC4) Eight of ten seeds collapse against the
+    drawn baseline's zero. The two diagnostic arms in the Progress entry say
+    which half of the roster carries it; the fix is a body, per the stop
+    rule against moving a constant, and the diagnosis slice runs before the
+    fix is chosen.
 
 ---
 
@@ -704,7 +715,13 @@ recipe depends on which anatomy makes it what it is.
   three-quarter camera. This is the cheapest legibility left in the plan and it
   is presentation, not anatomy: either the section carries a small yaw when it
   poses a body, or the camera stops being axis-aligned. **Mark's**, and it
-  belongs beside DC5's colour question.
+  belongs beside DC5's colour question. **Ruled 2026-09-02: measure before
+  ruling.** A measured presentation slice renders the same tick under three
+  cameras through the DT4 scenario harness before ruling: the section turned
+  so bodies chain across the view, a shallow oblique tilt, and a rotatable
+  local isometric cube with the interior cut (the sibling Isometry
+  projection, which would need its own brief against the 2026-08-18
+  first-person ruling). See §7 question 9.
 
 - **2026-08-31 (DC4): a tall stalk is not expressible, and the roster hit it on
   the first plant.** §4.2 asks for "a tall single-stalk with a crown". Segments
@@ -1107,6 +1124,15 @@ recipe depends on which anatomy makes it what it is.
 
 ## Progress
 
+- **2026-09-02, three rulings recorded (doc only).** §7 question 9 (section
+  camera): measure before ruling, a measured presentation slice renders the
+  same tick under three cameras through the DT4 scenario harness (turned
+  section, shallow oblique tilt, rotatable local isometric cube) before a
+  camera is chosen. §7 question 10 (roster ecology corridor): fixed by a
+  body, not a constant; a diagnosis slice measures first. The open rulings
+  register's §10 (far roster): far bodies go to silhouettes rather than
+  raising the capsule caps, landing with S4 zoom. No code changed.
+
 - **2026-08-31 (DC4): the eight archetypes, and the Isometry bar.** Landed
   against §6's DC4 done-conditions and both of the 2026-08-31 rulings. **The
   last done-condition is Mark's and no test supplies it**; the captures are
@@ -1339,10 +1365,13 @@ recipe depends on which anatomy makes it what it is.
 
   1. **The section's axis.** Every body is drawn end-on at the ruled framing.
      Cheapest legibility left, presentation only, and it is what stands between
-     these captures and the bar. Findings, DC4.
+     these captures and the bar. Findings, DC4. **Ruled 2026-09-02: measure
+     before ruling**, see §7 question 9.
   2. **The roster's ecology.** Eight collapses in ten, and the diagnostic arms
      put it entirely in the authored fauna. The fix is a constant or a body and
-     the stop rule forbids the first, so it is yours.
+     the stop rule forbids the first, so it is yours. **Ruled 2026-09-02:
+     fixed by a body, not a constant; a diagnosis slice measures first**,
+     see §7 question 10.
   3. **Colour**, DC5 and §3.3, unchanged.
   4. **DC-R3**, unchanged and still §3.3's ruling.
   5. **Names**, §4.2 and §7's question 7 — eight role-descriptive identifiers

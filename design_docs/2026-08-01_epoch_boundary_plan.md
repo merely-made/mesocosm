@@ -239,9 +239,12 @@ All four were verified absent on 2026-08-01 and landed by 2026-08-02.
 | ~~A place graph~~ | locality and magnitude | **Built 2026-08-02** as `mesocosm-core::places`. All four are now in. |
 
 Two of these have homes already suggested elsewhere. **The event log's growth
-problem is what tulpa was invented for**: codicil holds everything, tulpa holds
-the retold subset, and "significant world events" and "what memory keeps" turn
-out to be one selector at two scales. And **the place graph is the same
+problem is what tulpa was invented for** **(2026-09-02 note: this organ is
+now called hagiograph; "tulpa" has been renamed to gemot's federated
+adapter-training lane; see repo `CLAUDE.md`)**: codicil holds everything,
+tulpa holds the retold subset, and "significant world events" and "what
+memory keeps" turn out to be one selector at two scales. And **the place
+graph is the same
 place-graph granularity the wing already uses for shared space**, so locality
 scoring and cross-vessel space want the same structure.
 
@@ -671,6 +674,19 @@ executable.
   rather than a currency. §2's *adopt or branch* is still one player and one
   child revision; nothing here merges a proposal, and §8 q6 (who must adopt a
   shared continuation) is untouched.
+
+- **2026-09-02, terminology note (doc only):** Mark authorized renaming the
+  memorial organ to **hagiograph** and reassigning **tulpa** to gemot's
+  federated adapter-training lane. A dated note was added at this doc's
+  tulpa mention rather than rewriting the historical text; see repo
+  `CLAUDE.md`. No code changed.
+
+- **2026-09-02, ruling: the old `epoch.rs` trait array is deleted (doc
+  only).** Mark ruled the phenotype plan §D4's fifth retirement condition:
+  delete `epoch::Trait`, `fitness`, `standing` and the old round; keep the
+  seven authored pressures and three authored world profiles as data, since
+  they seed PE4's world criteria. A deletion slice does it. This is the
+  module the entry below already found had no consumer left in `World`.
 
 - **2026-09-02 (PE3a):** the boundary finally happens on its own. `EpochRule`
   is a versioned world rule beside the ruleset — `Timed { ticks }` built,

@@ -55,8 +55,19 @@ architecture that Paredros and Isometry also depend on.
   leading candidate if a unit word is wanted. Do not spend it without asking.
 - **fili**: lineage across worlds (forks, campaign descent, cross-moot
   grafts). Not event history, not in-world biological descent.
-- **tulpa**: the legend and memorial organ — what memory keeps of the dead.
-  Proposed, **not yet inscribed in mere's lexicon**; treat as provisional.
+- **hagiograph**: the memorial subsystem. It promotes unprecedented,
+  legendary, and narratively significant events out of the timeline to be
+  handled by the rest of the stack's procedural voxel engine. This is what
+  design docs before 2026-09-02 call "tulpa" in its old, memorial sense; that
+  sense is retired. Authorized by Mark, 2026-09-02.
+- **tulpa**: gemot's federated adapter-training lane (personal LoRA). Not the
+  memorial organ; see **hagiograph** above. Renamed 2026-09-02; do not use
+  it in the old sense going forward.
+- **figment** *(provisional candidate, naming round pending, checks not yet
+  run)*: the small typed chunk of matter with provenance; see the
+  [playable ecology plan](design_docs/2026-08-31_playable_ecology_plan.md)
+  §6 ruling 4 and the [elements and traits memo](design_docs/2026-08-29_elements_and_traits_memo.md)
+  §7. Do not write "element" as a new term for this concept.
 
 Do not coin new names for these concepts mid-session. Naming rounds are
 deliberate here: candidates get crates.io, game, studio, and trademark checks

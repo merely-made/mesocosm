@@ -463,7 +463,9 @@ The current animula, the biological lineage, the world record, shared
 players, or a combination. Without a locus, every world's generated laws
 are rediscovered from nothing each run and no culture of knowledge
 accumulates. `tulpa` (the retold subset) is the wing's existing vocabulary
-for exactly this kind of memory.
+for exactly this kind of memory. **(2026-09-02 note: this organ is now
+called hagiograph; "tulpa" has been renamed to gemot's federated
+adapter-training lane; see repo `CLAUDE.md`.)**
 
 This distributes across the wing without any vessel converting anything:
 **Mesocosm discovers, Paredros embodies** (transformations, pacts, curses
@@ -711,3 +713,8 @@ in §6-§9 is built on the details:
   layer, typed carriers, satisfied-process feeding, cohort contract,
   epistemic loop, F-gates reordered proof-first, two Madingley facts
   re-verified at the source.
+- **2026-09-02, terminology note (doc only):** Mark authorized renaming the
+  memorial organ to **hagiograph** and reassigning **tulpa** to gemot's
+  federated adapter-training lane. A dated note was added at this doc's
+  tulpa mention rather than rewriting the historical text; see repo
+  `CLAUDE.md`. No code changed.

@@ -571,17 +571,15 @@ distinct records; the old scalar trait array is either removed under its
 existing deletion gate or marked explicitly as non-authoritative; replay and
 the world record agree.
 
-**Landed 2026-09-02, with one clause needing Mark's reading.** Every condition
-above holds and is receipted in the Progress entry. The last one — *the old
-scalar trait array is either removed under its existing deletion gate or marked
-explicitly as non-authoritative* — is satisfiable either way and **which counts
-is Mark's**: PE3a already wrote the marking into `epoch.rs`'s own module note
-(*this module is provisional*, PE3a took only its ordering, `Trait`, `Mutation`
-and `fitness` did not cross, and *nothing in `World` reads this module*), so
-the second branch reads as met at the source; the *deletion* is the fifth and
-last of phenotype plan §D4's retirement conditions and has always been Mark's
-call. PE3b deliberately did not touch `epoch::Trait`. Nothing else in PE3 is
-outstanding.
+**Landed 2026-09-02.** Every condition above holds and is receipted in the
+Progress entry. The last one — *the old scalar trait array is either removed
+under its existing deletion gate or marked explicitly as non-authoritative* —
+is **ruled by Mark, 2026-09-02: deletion.** `epoch::Trait`, `fitness`,
+`standing` and the old round are deleted, not merely marked
+non-authoritative; the seven authored pressures and the three authored world
+profiles are kept as data, since they seed PE4's world criteria. See the
+[phenotype plan](2026-07-31_phenotype_plan.md) §D4 for the retirement
+conditions and the deletion slice. Nothing else in PE3 is outstanding.
 
 ### PE4: world criteria generate mechanically distinct biology
 
@@ -593,6 +591,12 @@ reachability and headless ecology checks before exposing the world.
 Every generated candidate states its causes, inputs, outputs, costs, counters,
 observable cues, and inheritance path. Mechanical fingerprint and rank tests
 reject vocabularies whose extra nouns do not reach independent formulas.
+
+The affinity-table pack door moved here from PD4 ([ProcessDef plan](2026-08-01_processdef_plan.md)
+§14 residue) waiting on a policy default. **Ruled by Mark, 2026-09-02: a
+pack-declared affinity overrides `Founding`; `Founding` is the fallback the
+world ships with.** Wiring `World::found` and `WorldRules` to take the
+pack-declared component is PE4's to build.
 
 **Done when:** one ordinary world and one impossible world use the same
 evaluators but demand visibly different strategies; each has a reachable
@@ -714,8 +718,28 @@ have measured receipts.
    same rule. It is a dev tool and never play.
 3. Are fungal networks, clonal stands, and microbial colonies genuine
    multi-anchor subjects or connected local critters at the first proof?
-4. Which generated-material scheme from the elements memo is the first one
-   built?
+4. ~~Which generated-material scheme from the elements memo is the first one
+   built?~~ **Ruled by Mark, 2026-09-02: matter is typed by provenance.** A
+   milligram carries where it came from, kingdom first (flora, fauna, myco,
+   micro, and the meso/macro scale words the world already uses) and lineage
+   under it. Storage is scheme A's (typed stock in soil and bodies,
+   per-channel conservation, the matter test rewritten first) with the type
+   vocabulary world-derived from the roster rather than an authored element
+   table; payloads are scheme C's and fire on provenance at the three
+   transfer sites. Payloads are part of the generative pipeline: by the time
+   a world has a roster it has its payloads. Parts are budgets of typed
+   milligrams. No fields in PE4's first world. Composition is two layers:
+   the lineage layer (recipe and program declare the provenance of a line's
+   tissue and which processes it expresses) and the part layer (the mosaic,
+   which records the provenance mix the part was actually built from,
+   differing after a graft or an odd diet); a payload's kind is the
+   lineage's, its strength the part's mix; no per-organism vectors.
+   Disfavoured element pair: a graft with conditioned limits, a small
+   milligram allowance with penalties that trait conditions raise (composes
+   with PE2's condition table). The word for the small typed chunk of matter
+   is under a naming round; "figment" is Mark's candidate; do not write
+   "element" as a new term. See the [elements and traits memo](2026-08-29_elements_and_traits_memo.md)
+   §7 for the full question set.
 5. Do NPC lineages acquire new developmental vocabulary through the same
    evidence rules, or only evaluate inherited candidates? **Still open**, and
    PE2 built so that ruling either way is small: `discovery::Evidence` names no
@@ -743,9 +767,10 @@ have measured receipts.
 
 None blocks founding PE0. Question 1 still blocks the reproduction default;
 question 2 is ruled and realized, so what it blocked is now only PE3b's review;
-3 blocks a distributed PE5 form; 4 blocks PE4; 5 blocks world-wide acquisition;
-6 blocks final warning presentation; 7 blocks the terminal run condition; and
-8 blocks scale dispatch.
+3 blocks a distributed PE5 form; question 4 is ruled 2026-09-02, so what it
+blocked is now only PE4's build; 5 blocks world-wide acquisition; 6 blocks
+final warning presentation; 7 blocks the terminal run condition; and 8 blocks
+scale dispatch.
 
 ---
 
@@ -974,6 +999,16 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
 
 ## 9. Progress
 
+- **2026-09-02, four rulings recorded (doc only).** §6 ruling 4 (material
+  scheme, typed by provenance, storage A plus payloads C, no fields in PE4's
+  first world, two composition layers) is ruled; the affinity-table pack door
+  moved here from the ProcessDef plan is ruled (pack overrides `Founding`,
+  `Founding` is the fallback); PE3's last done-condition is ruled (the trait
+  array is deleted, not marked non-authoritative, per the phenotype plan
+  §D4); and the founder preview residue is ruled (it declares the poorest
+  ground in the dispersal neighbourhood, not only the parent's cell). No code
+  changed.
+
 - **2026-09-02, PE3b landed: the lineage review.** The player's turn stops
   being the one nobody takes.
 
@@ -1142,8 +1177,11 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
     under it, so the quote can be five cells where the birth affords one — the
     dormancy rule doing its job, receipted in
     `richer_ground_under_the_parent_quotes_more_than_a_dispersed_birth_pays`.
-    Whether a preview should instead declare the *neighbourhood* a birth can
-    land in is a design question and is Mark's; nothing here guesses at it.
+    ~~Whether a preview should instead declare the *neighbourhood* a birth can
+    land in is a design question and is Mark's; nothing here guesses at it.~~
+    **Ruled by Mark, 2026-09-02: the neighbourhood.** The preview declares the
+    poorest ground within the dispersal neighbourhood a birth can land in, so
+    the quote never exceeds what a birth affords.
   - **The two proposal sources are read on the played body**, because that is
     what `Request::of` freezes and what a player can point at, while the price
     and the preview are the descendant's. Both facts belong on the screen and

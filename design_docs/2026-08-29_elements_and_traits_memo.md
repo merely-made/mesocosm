@@ -1,9 +1,12 @@
 # Elements and Traits: How a Generated Vocabulary Becomes Real (2026-08-29)
 
-**Status: memo, material scheme unruled; refreshed 2026-09-01.** Mark has
-reaffirmed the direction that world criteria shape generated biology. The
-three schemes remain choices with costs and failure modes, not a recommendation.
-Section 7 lists the decisions that are Mark's. Companion to
+**Status: memo, material scheme ruled 2026-09-02; refreshed 2026-09-01.** Mark
+has reaffirmed the direction that world criteria shape generated biology.
+Section 7 items 1 through 5 are ruled: storage is scheme A, payloads are
+scheme C, fired on provenance, with no fields in PE4's first world and no
+per-organism composition vectors. See the ruling note under §7 and the
+[playable ecology plan](2026-08-31_playable_ecology_plan.md) §6 ruling 4 for
+the full record. Companion to
 [forms of life](2026-08-29_forms_of_life_brief.md) and
 [traits and perception](2026-08-29_traits_and_perception_brief.md); it does not
 restate them. Claims checked against `1b08f6c`.
@@ -364,19 +367,35 @@ slice in the repo is a function waiting for its first caller.
 
 ## 7. What needs ruling
 
-1. **Which seam first** — A, B, or C. The tradeoff, not a pick: C is cheapest,
-   half-built, and fixes a bug on the way; B is cheapest in state but weakest on
-   exclusion and discoverability; A matches the ruled grammar most exactly and
-   costs the most.
-2. **May elements be fields at all before the terrarium breathes?**
-3. **The field budget** — how many dense channels. The arithmetic says 4-8; the
-   number is a design call about how coarse the world's chemistry should feel.
-4. **Composition per lineage, per part, or per organism** — per organism is
-   470,000 serialized entries at saturation and should be said explicitly if
-   wanted.
-5. **The processdef plan's open ruling, now due:** is a disfavoured element pair
-   a hard gate or an expensive but recoverable graft? Every exclusion relation
-   waits on it.
+**Items 1 through 5 ruled by Mark, 2026-09-02.** Matter is typed by
+provenance: a milligram carries where it came from, kingdom first (flora,
+fauna, myco, micro, and the meso/macro scale words the world already uses)
+and lineage under it. Storage is scheme A's (typed stock in soil and
+bodies, per-channel conservation, the matter test rewritten first) with the
+type vocabulary world-derived from the roster rather than an authored
+element table. Payloads are scheme C's and fire on provenance at the three
+transfer sites. Payloads are part of the generative pipeline: by the time a
+world has a roster it has its payloads. No fields in PE4's first world.
+Composition is not per-organism; see the [playable ecology plan](2026-08-31_playable_ecology_plan.md)
+§6 ruling 4 for the full ruling, including the two composition layers and
+the disfavoured-element-pair answer. The small typed chunk of matter this
+section calls "element" is under a naming round; do not write "element" as a
+new term. Full detail below is kept for the record; the numbered questions
+are answered, not deleted.
+
+1. ~~Which seam first: A, B, or C?~~ **Ruled: both, not exclusive.** Storage
+   is scheme A's, payloads are scheme C's, firing on provenance.
+2. ~~May elements be fields at all before the terrarium breathes?~~ **Ruled:
+   no fields in PE4's first world.**
+3. ~~The field budget: how many dense channels?~~ **Ruled: moot per item 2**
+   until fields are introduced.
+4. ~~Composition per lineage, per part, or per organism?~~ **Ruled: two
+   layers, lineage and part, no per-organism vectors.** See the playable
+   ecology plan §6 ruling 4.
+5. ~~The processdef plan's open ruling: is a disfavoured element pair a hard
+   gate or an expensive but recoverable graft?~~ **Ruled: a graft with
+   conditioned limits**: a small milligram allowance with penalties that
+   trait conditions raise, composing with PE2's condition table.
 6. **Does "obvious and necessary" become a worldgen reachability guarantee**, or
    is a genuinely separate closed set wanted? `process.rs`'s own comment refuses
    the latter.

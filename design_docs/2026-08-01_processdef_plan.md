@@ -1158,6 +1158,12 @@ These are intentionally deferred to the gate with evidence:
 
 ## 14. Progress
 
+- **2026-09-02, ruling: the affinity-table pack door.** Mark ruled the policy
+  default the PD3/PD4 residue named: a pack-declared affinity overrides
+  `Founding`; `Founding` is the fallback the world ships with. Recorded at
+  both residue notes above; wiring it into `World::found` and `WorldRules` is
+  PE4's, per the [playable ecology plan](2026-08-31_playable_ecology_plan.md).
+
 - **2026-09-02, PD5 complete (with P4a): a line commits, and its descendants
   arrive already carrying it.**
 
@@ -1525,6 +1531,8 @@ These are intentionally deferred to the gate with evidence:
   - **The graft-affinity pack door is still unopened**, and still for PD3's
     reason: the ruling about whether a pack-declared affinity overrides
     `Founding` or the reverse is Mark's. It has moved from PD4 to PE4.
+    ~~Ruling pending.~~ **Ruled by Mark, 2026-09-02: a pack-declared affinity
+    overrides Founding; Founding is the fallback the world ships with.**
   - **PD8's extraction audit has its first real comparison now.** The runner,
     the fuel and output policy, and the tagged marshalling are recognisably
     Isometry's pattern; the entropy handling is not — a pre-drawn tape against
@@ -1736,9 +1744,11 @@ These are intentionally deferred to the gate with evidence:
     `Affinity::native()` internally and admitting one means a new founding
     parameter — and then a policy default nobody has set: whether a
     pack-declared affinity overrides `Founding`, or `Founding` overrides the
-    pack. That is Mark's call, not an implementation detail, so it is recorded
-    here as PD4/PE4 work rather than half-built. `WorldRules` is shaped to
-    take a second component when it is answered.
+    pack. ~~That is Mark's call, not an implementation detail, so it is
+    recorded here as PD4/PE4 work rather than half-built.~~ **Ruled by Mark,
+    2026-09-02: a pack-declared affinity overrides `Founding`; `Founding` is
+    the fallback the world ships with.** `WorldRules` is shaped to take a
+    second component now that the policy is answered; wiring it is PE4's.
   - **`Rejection::Refused(Refusal)` is now hard to reach from the door**, and
     that is the point: the candidate builder cannot produce an invalid
     proposal, so the fifteen named boundaries are reached at the validator.

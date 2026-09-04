@@ -53,7 +53,9 @@ sharing an engine":
 
 This names what the wing's vocabulary was already circling: *animula* is a
 soul continuous across bodies; *fili* is lineage continuous across worlds;
-*tulpa* is what memory keeps of the dead; *borg* is identity acquired by
+*tulpa* is what memory keeps of the dead **(2026-09-02 note: this organ is
+now called hagiograph; "tulpa" has been renamed to gemot's federated
+adapter-training lane; see repo `CLAUDE.md`)**; *borg* is identity acquired by
 naming; the phenotype contract's same-individual-versus-descendant and
 carry-body-versus-regrow distinctions are this question as a technical
 contract; and the frontier's "a line you have already lived is always yours
@@ -911,8 +913,9 @@ Carried forward deliberately. Each needs a ruling before the work it gates.
    The battle-frame noun — the machine a character pilots, if Paredros keeps
    the Gotcha Force silhouette — remains genuinely unnamed and is a separate
    question from the unit word.
-4. **Tulpa's inscription and shape**, including the attention mechanic that
-   Law B depends on.
+4. **Hagiograph's inscription and shape** (named tulpa in this section's old
+   sense; renamed 2026-09-02, see repo `CLAUDE.md`), including the attention
+   mechanic that Law B depends on.
 5. **Fili v0**: home (beside chartulary and codicil in mere's eidetic
    family), data model, and relationship to `chartulary::stemma` — build
    beside it, not on it.

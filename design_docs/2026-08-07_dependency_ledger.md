@@ -26,7 +26,7 @@ PE0 + PE1 + PE2
   -> P4a lineage program + PD5 filial expression [LANDED 2026-09-02]
   -> P4b scorer + PE3a epoch rule and round [LANDED 2026-09-02]
   -> PE3b lineage review screen [LANDED 2026-09-02]
-  -> PE4 world-generated biology
+  -> PE4 world-generated biology [material scheme RULED 2026-09-02: typed by provenance, storage A + payloads C]
   -> PE5 second form + durable relationship
   -> PE6 cohort scale + ecological zoom
   -> PE7 collapse-and-recovery proof
@@ -131,6 +131,13 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
+- **2026-09-02 (latest):** four rulings recorded (doc only, no code): the
+  material scheme for PE4 (typed by provenance, storage A + payloads C, see
+  the playable ecology plan §6 ruling 4), the affinity-table pack door (pack
+  overrides `Founding`), the trait array's fate (deleted, not marked
+  non-authoritative), and the founder preview's ground (the dispersal
+  neighbourhood, not only the parent's cell).
+
 - **2026-09-02 (later still):** PE3b landed — the lineage review is a screen.
   `World::offers` is the table (status quo first, every discovery the line does
   not hold, each with its score, the price a birth then pays, a founder preview
@@ -141,8 +148,11 @@ versioned action/travel protocols -> Stickleback consumer rebase
   **`mesocosm-runtime` now depends on `mesocosm-phenotype`**, which is that
   crate's first production consumer; the dependency still runs one way and the
   core knows about neither. PE3's whole chain is closed except the
-  `epoch::Trait` deletion, which remains Mark's. The demo fixture hash is
-  unmoved at `081b4ba4bdc46190`. **PE4 is the next undispatched product slice.**
+  `epoch::Trait` deletion, ruled by Mark 2026-09-02: deleted, along with
+  `fitness`, `standing` and the old round, keeping the seven authored
+  pressures and three world profiles as data for PE4. The demo fixture hash
+  is unmoved at `081b4ba4bdc46190`. **PE4 is the next undispatched product
+  slice.**
 
 - **2026-09-02 (later):** P4b + PE3a landed — the epoch ends itself on a
   versioned `EpochRule::Timed` world rule, every unplayed line takes a turn at
@@ -180,7 +190,9 @@ versioned action/travel protocols -> Stickleback consumer rebase
   world carries the set it admitted, so a stale ruleset refuses by name — and
   added a bounded piccolo 0.3 host in `mesocosm-phenotype` whose proposals go
   through the same one validator every other proposal source does. The
-  graft-affinity ruling PD3 recorded is still open and is now PE4's.
+  graft-affinity ruling PD3 recorded is now PE4's. **Ruled by Mark,
+  2026-09-02: a pack-declared affinity overrides `Founding`; `Founding` is
+  the fallback the world ships with.**
 
 - **2026-09-01:** PD3 static pack admission landed, so the chain's next link is
   PD4's Piccolo authoring parity before PE3's lineage review. It added the

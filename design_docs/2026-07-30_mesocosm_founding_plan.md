@@ -300,8 +300,10 @@ The tension dissolves on timescale rather than on caution:
 
 Knowledge is the thing that survives a death. A generation that died to a
 mimic leaves that fact behind, and the machinery is already ruled: the deed
-log records what happened, **tulpa** is precisely "what memory keeps", and
-**fili** carries it across the fork. Learning the bestiary *is* an
+log records what happened, **tulpa** is precisely "what memory keeps"
+**(2026-09-02 note: this organ is now called hagiograph; "tulpa" has been
+renamed to gemot's federated adapter-training lane; see repo `CLAUDE.md`)**,
+and **fili** carries it across the fork. Learning the bestiary *is* an
 inheritance, which fits Law B better than the reading it was given.
 
 **The one line worth holding is unfair versus unknowable.** A death you could
@@ -765,6 +767,12 @@ founding.*
 ---
 
 ## 5. Progress
+
+- **2026-09-02, terminology note (doc only).** Mark authorized renaming the
+  memorial organ to **hagiograph** and reassigning **tulpa** to gemot's
+  federated adapter-training lane. A dated note was added at this doc's first
+  mention of tulpa rather than rewriting the historical text; see repo
+  `CLAUDE.md`. No code changed.
 
 - **2026-08-31:** linked the current playable ecology architecture and
   clarified reproduction as an individual checkpoint distinct from the

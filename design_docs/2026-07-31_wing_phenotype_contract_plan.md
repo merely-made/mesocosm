@@ -136,7 +136,9 @@ complete identity model.
 Isometry may retain a sprite, history, relic, or legend after the subject and
 biological line are gone. That persistence is not biological descent and is not
 Fili. The wing's existing tulpa proposal covers remembered survival if that
-term is eventually inscribed.
+term is eventually inscribed. **(2026-09-02 note: this organ is now called
+hagiograph; "tulpa" has been renamed to gemot's federated adapter-training
+lane; see repo `CLAUDE.md`.)**
 
 ---
 
@@ -355,3 +357,8 @@ ancestry; neither operation is implemented as a flat star rebuild.
   ProcessDef allocation design questions. No schema or code change made.
 - **2026-08-01:** crossing authority refined: destination offers feasible,
   costed routes and the traveler chooses. No schema or code change made.
+- **2026-09-02, terminology note (doc only):** Mark authorized renaming the
+  memorial organ to **hagiograph** and reassigning **tulpa** to gemot's
+  federated adapter-training lane. A dated note was added at this doc's
+  tulpa mention rather than rewriting the historical text; see repo
+  `CLAUDE.md`. No code changed.

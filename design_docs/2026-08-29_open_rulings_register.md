@@ -210,7 +210,7 @@ did not move; `--slab 28` exists so one line adopts whichever is ruled.
 Findings (creature:frame ratio). Supersedes the played slice's PS1 residue,
 which suggested 9–11 for the old 32-voxel enclosure.
 
-### 10. Decide how to lift the 40-body roster cap
+### 10. Decide how to lift the 40-body roster cap (Ruled 2026-09-02)
 
 **Ask.** `mesocosm_lens::MAX_ROSTER` is 40, and every S1 capture at every
 half-height reports exactly 40. The slab window now holds more organisms than
@@ -219,6 +219,11 @@ enclosure.
 
 **Options.** Raise the cap, or hand far bodies to silhouettes (S4's own plan).
 S1 does not choose between them, only that one must happen before zoom.
+
+**Ruled by Mark, 2026-09-02: far bodies go to silhouettes** rather than
+raising the capsule caps; it lands with S4 zoom. See the
+[default creatures plan](2026-08-30_default_creatures_plan.md) §3.3 and §7
+question 10 for how this composes with that plan's own capsule-budget note.
 
 **Blocks.** S4 — zoom cannot mean anything while the roster is clipped.
 Presentation only; it does not touch the trace.
@@ -1040,3 +1045,29 @@ ruling". *Source: elements memo, status line vs §7.*
   any entry that cites those files before acting on it.
 - `DOC_README.md` indexes this file as a historical snapshot and points current
   integration work to the playable ecology plan.
+
+## 2026-09-02 scoping
+
+Mark scoped a deferred bucket on 2026-09-02: not raised again until its own
+slice arrives. Listed here verbatim rather than re-litigated.
+
+**Deferred bucket.**
+
+- Forms-of-life brief's open questions (PE5).
+- Traits brief cost formula and sub-questions.
+- Meal destinations beyond burn and incorporate (D5).
+- ProcessDef hybrid identity and portable shape (§12).
+- S2 versus S3 order (PE6).
+- Collapse terminal condition (PE7).
+- Live versus postmortem truth.
+- NPC acquisition via evidence.
+- Reproduction default.
+- Epoch boundary §8 items 2, 3, 5, 6.
+
+**Stack rounds.**
+
+- Workbench rendering surface.
+- genet-probe verbs (found a world, repeat, pointer delivery, empty-value
+  assert).
+- Section picking.
+- Banked names deme and borg.

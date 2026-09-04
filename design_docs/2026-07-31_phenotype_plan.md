@@ -448,7 +448,12 @@ Retire the trait array when all of these are true:
    compatibility layer.
 
 **Receipt, 2026-09-02 (P4a/PD5, then P4b/PE3a): four of the five are met, and
-the array stays.**
+the array stays.** **Superseded the same day: Mark ruled condition 5,
+2026-09-02: delete.** `epoch::Trait`, `fitness`, `standing` and the old
+round are deleted; the seven authored pressures and the three authored world
+profiles are kept as data, since they seed PE4's world criteria. A deletion
+slice does it. See the [playable ecology plan](2026-08-31_playable_ecology_plan.md)
+PE3 for the record and the [epoch boundary plan](2026-08-01_epoch_boundary_plan.md).
 
 - **1. Met.** `program::Revision` states *declared sites* — a part role, an
   admitted `ProcessRef`, a bounded cell count — and nothing scalar. Nothing in
@@ -471,25 +476,25 @@ the array stays.**
   reads no `controlled`; `an_unplayed_lineage_takes_the_same_path` commits on an
   NPC line and watches its next birth arrive expressing it, by the identical
   code.
-- **5. Not met, and it is now the only one.** `epoch::Trait`, `epoch::adapt`'s
-  `fitness`, `epoch::standing` and `epoch::worlds` are untouched. What replaced
+- **5. Ruled by Mark, 2026-09-02: delete.** `epoch::Trait`, `epoch::adapt`'s
+  `fitness`, `epoch::standing` and `epoch::worlds` are deleted. What replaced
   their *job* is `world::adapt`: the ordering idea (descending complexity,
   commits landing immediately) was kept and brought across; the trait array and
-  the squared-deficit fitness were not used. So the array is a compatibility
-  layer with no consumer in the world model — but deleting it with its tests is
-  Mark's call, and it was explicitly out of scope here.
+  the squared-deficit fitness were not used. The seven authored pressures and
+  the three authored world profiles are kept as data, since they seed PE4's
+  world criteria. A deletion slice does it.
 
-So the array **remains explicitly provisional**, and the wait is now on the
-deletion itself rather than on a missing replacement.
+So the array's compatibility-layer period is over: condition 5 is met by
+deletion, and D4 closes.
 
-**Cost.** For a time the adaptation lab remains explicitly provisional. This
-is preferable to deleting its only working vocabulary before the replacement
-can express the same questions.
+**Cost, historical.** For a time the adaptation lab remained explicitly
+provisional. That was preferable to deleting its only working vocabulary
+before the replacement could express the same questions; the replacement now
+does.
 
-**Rules: Mark at deletion.** Adding the first developmental process field does
-not itself authorize removing `epoch::Trait`, and neither does the scorer
-landing: condition 5 is Mark's to call, and PE3a deliberately did not touch the
-module or its tests.
+**Ruled: Mark, at deletion, 2026-09-02.** Condition 5 was always Mark's to
+call, and PE3a deliberately did not touch the module or its tests before this
+ruling.
 
 ### D5. Where does a meal go?
 
@@ -933,7 +938,7 @@ for exactly that reason and the refusal still stands: a severed branch's mass
 has already left the account. None of that is P3's, and none of it is needed
 for what P3 claims.
 
-### P4. Adaptation bridge — **PARTIAL 2026-09-02** (six of seven clauses)
+### P4. Adaptation bridge: **PARTIAL 2026-09-02** (six of seven clauses); **ruled complete 2026-09-02** (deletion ruling closes the seventh)
 
 Grow several candidate developmental changes and score their phenotypes in one
 authored world.
@@ -992,12 +997,13 @@ turns between 240 and 600. `DEFAULT_SCORE_TICKS` is therefore
 that, and it is a world rule (`WorldRules::score_ticks`) because what an
 unplayed line commits is the world.
 
-**What remains, and it is one clause.** *The old trait array has a concrete
-deletion receipt* — §D4 now holds **four of five** conditions, and the fifth is
-that the array can be deleted with its tests rather than maintained. It still
-cannot: `epoch::Trait` and the four modules around it are untouched, and
-deleting them is Mark's call and explicitly not this slice's. So P4 stays
-partial on that clause and nothing else, and it is a ruling rather than work.
+**What remained, now ruled.** *The old trait array has a concrete deletion
+receipt*; §D4 held **four of five** conditions, and the fifth was that the
+array can be deleted with its tests rather than maintained. **Ruled by Mark,
+2026-09-02: delete.** `epoch::Trait` and the four modules around it are
+deleted; the seven authored pressures and three authored world profiles are
+kept as data for PE4. A deletion slice does it. P4's seventh clause is
+therefore met and the gate is complete.
 
 **Not P4's, and not blocking it.** Reviewing several candidates *on screen*,
 pricing the choice and previewing a founder is the playable ecology plan's PE3b.
@@ -1502,6 +1508,14 @@ rather than part of it.
   part origins. Neither carries the current anatomy tree.
 
 ## Progress
+
+- **2026-09-02, ruling: the trait array is deleted (doc only).** Mark ruled
+  §D4's fifth retirement condition: delete `epoch::Trait`, `fitness`,
+  `standing` and the old round, keeping the seven authored pressures and
+  three authored world profiles as data since they seed PE4's world criteria.
+  A deletion slice does it. This closes §D4 and P4's seventh clause; no code
+  changed in this pass. See the [playable ecology plan](2026-08-31_playable_ecology_plan.md)
+  PE3 and the [epoch boundary plan](2026-08-01_epoch_boundary_plan.md).
 
 - **2026-09-02, P4 partial (P4a, the lineage program): a line commits a
   program, and its descendants are born under it.** `mesocosm-core::program`
