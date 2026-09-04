@@ -676,7 +676,19 @@ recipe depends on which anatomy makes it what it is.
     drawn baseline's zero. The two diagnostic arms in the Progress entry say
     which half of the roster carries it; the fix is a body, per the stop
     rule against moving a constant, and the diagnosis slice runs before the
-    fix is chosen.
+    fix is chosen. **Diagnosed 2026-09-04**, Findings, DC4 Q10. The stand is
+    innocent — no producer body moves a seed — and the producer tier's
+    `income - rent - outflow` is the verdict, negative in every collapsing
+    seed and positive in every seed that holds. The roster's only jaw carries
+    it: a `FeedingMode::Predator` has no kingdom restriction on its prey, so
+    `consumer_pursuit` grazes the stand at the roster's largest bite, and
+    replacing those 76 bodies cuts grazing 61% and flips the balance. Both
+    walls were measured on ten lucky seeds: over thirty the roster collapses
+    17/30 and the drawn baseline 1/30. **No body change measured holds the
+    corridor** — the best halves the failure rate to 9/30. Two candidates are
+    proposed and neither is applied; the choice between their costs (D
+    deletes predation, F is the only arm that ever breathes) is Mark's, and
+    so is whether the prey-set rule itself should move.
 
 ---
 
@@ -703,6 +715,141 @@ recipe depends on which anatomy makes it what it is.
 ---
 
 ## Findings
+
+- **2026-09-04 (DC4, Q10): the diagnosis. The stand is innocent; the roster's
+  only jaw carries the collapse; and both walls of the corridor were measured
+  on ten lucky seeds.** Measurement only — no constant moved, nothing in the
+  ecology was built, and no roster body was changed. The instrument's own
+  arithmetic was restated in a scratch harness and validated against the
+  shipped receipt before anything was read off it: the roster arm reproduces
+  `dc4_roster.json` exactly, per seed, including every end state and every
+  decision tick (0 breathes / 2 thins / 8 collapse; baseline 0/10/0/0).
+
+  **The account that goes negative is the producer tier's, and its sign is
+  the verdict.** Per-lineage income, rent and outflow were reduced off the
+  flow record by the same split `flow::Accounts` makes. In all eight
+  collapsing seeds the stand's peak headcount is *exactly* its founding 610 —
+  it never adds one net body — and `income - rent - outflow` lands in a tight
+  band from **-332k to -363k mg**. In the two that hold it is **+652k and
+  +1,016k**, and the stand grows to 832 and 1,035. Producer births are 110-373
+  against 2,267 and 3,239. The founding stand then ages out together at
+  ~2,400 ticks (`lifespan_for_mass` at the `100 + rng.below(400)` founder
+  draw), which is exactly when the producer lines die. Matter is conserved to
+  the milligram in all ten; in the collapsing seeds ~2.20M of the world's
+  2.21M mg ends in the soil with nothing left to take it up. **This is a
+  conversion failure, not a matter shortage.**
+
+  | seed | verdict | first line to die | stand peak | producer balance |
+  | ---: | --- | --- | ---: | ---: |
+  | 1 | thins | consumer_pursuit @2686 | 832 | +1,016,284 |
+  | 2 | collapse | consumer_pursuit @2585 | 610 | -363,039 |
+  | 3 | collapse | producer_stalk @1850 | 610 | -347,665 |
+  | 4 | collapse | decomposer_crust @1396 | 610 | -331,914 |
+  | 5 | collapse | decomposer_crust @1272 | 610 | -362,542 |
+  | 6 | collapse | consumer_pursuit @2126 | 610 | -359,993 |
+  | 7 | thins | consumer_pursuit @4704 | 1,035 | +651,725 |
+  | 8 | collapse | decomposer_crust @353 | 610 | -355,359 |
+  | 9 | collapse | consumer_pursuit @1694 | 610 | -345,844 |
+  | 10 | collapse | decomposer_crust @1664 | 610 | -356,432 |
+
+  `consumer_pursuit` is the first line to die in 7 of 10 seeds; the armoured
+  is the last survivor in 9 of 10.
+
+  **Attribution by ablation, with a positive control.** A founding lineage's
+  recipe is rewritten to a sibling archetype's immediately after founding and
+  its founders are re-grown under the same development seed and drawn mass.
+  Breeding is asexual (`breeding::bear` takes one parent), so this is
+  population-identical to founding the tier without that archetype: same
+  founder count, same positions, same tier shares, only the body moves. **All
+  eight no-op ablations (each lineage rewritten with its own recipe)
+  reproduce the roster arm to the tick**, which is what licenses the rest.
+
+  | one body changed | 1-10 | 11-30 | **all 30** |
+  | --- | ---: | ---: | ---: |
+  | roster as it ships | 8 | 9 | **17** |
+  | any producer archetype to a sibling | 8 | — | — |
+  | consumer_browser to pursuit | 8 | — | — |
+  | consumer_armoured to browser | 8 | — | — |
+  | **consumer_pursuit to armoured** | **5** | **4** | **9** |
+  | decomposer_crust to detritivore | 5 | 10 | 15 |
+  | decomposer_detritivore to crust | 6 | 9 | 15 |
+
+  **Three things the plan did not expect.**
+
+  *(1) A predator eats the stand.* `movement.rs:70` filters a Grazer to
+  `target.kingdom == Kingdom::Producer`; `perception.rs:206` reads
+  `mode == FeedingMode::Predator || target.kingdom == Kingdom::Producer`. **A
+  Predator has no kingdom restriction on its prey at all.** `consumer_pursuit`
+  is the roster's only predator, founds 76 of 229 consumers, and carries the
+  largest bite in the roster (57 mg against 49 and 43) — so a third of the
+  consumer tier grazes the stand harder than either dedicated grazer *and*
+  preys on the fauna. Replacing those 76 bodies cuts grazing off the stand by
+  **61%** (15.37M to 6.02M mg over ten seeds and 3,000 ticks) and flips the
+  producer balance from **-1,803,710 to +334,317**. §6.5's grazer/predator
+  ruling — "a jaw makes a predator" — is one shape selector on one recipe, and
+  it silently bought that lineage an unrestricted prey set on top of a bigger
+  bite. **This is a reading of the ecology as it stands, not a proposal to
+  change it**; the prey-set rule is Mark's.
+
+  *(2) The stand is innocent at the body level too.* **No producer body moves
+  a single seed**, which is the stand-only arm's verdict re-measured one
+  archetype at a time. And blinding the grazers does not relieve the stand —
+  it roughly halves the time to collapse (browser feelers off: 900-1500
+  against the roster's 2200-3200; armoured feelers off: 700-2200), across all
+  eight collapsing seeds. So "an authored animal is a capable animal" is not
+  the mechanism the 2026-08-31 entry read it as. Capability helps.
+
+  *(3) Both walls were measured on ten lucky seeds.* Over thirty seeds the
+  roster collapses **17/30 (57%)**, not 8/10, and the drawn baseline reads
+  **1 breathes / 28 thins / 1 collapse**, not 0/10/0/0. The corridor is real —
+  1 in 30 against 17 in 30 — but Q10's "eight of ten against zero" overstates
+  both walls, and the ten-seed instrument cannot tell a three-seed move from
+  luck. Two candidates that looked like three-seed movers in-sample
+  (`decomposer_crust`, `decomposer_detritivore`) do not replicate at all.
+
+  **The part-budget steps, over all thirty seeds.**
+
+  | candidate | breathes | thins | **collapse /30** |
+  | --- | ---: | ---: | ---: |
+  | A roster as it ships | 0 | 13 | **17** |
+  | B pursuit takes the armoured's whole body | 0 | 21 | **9** |
+  | C pursuit jaw to crop only | 0 | 16 | 14 |
+  | D **pursuit jaw to crop, and -1 leg pair** | 0 | 21 | **9** |
+  | E pursuit keeps its jaw, -1 leg pair | 2 | 13 | 15 |
+  | F **every consumer -1 leg pair** | **5** | 15 | **10** |
+
+  **Proposal, and it does not hold the corridor.** No body change measured
+  holds it: the corridor's floor is zero collapse and the best arm is 9 in 30,
+  so what follows halves the failure rate rather than closing it, and saying
+  otherwise would be dressing up the measurement. Two candidates are worth
+  ruling between, and they trade against each other rather than ranking. **D
+  is the smallest**: two tokens on one archetype — `consumer_pursuit`'s mouth
+  from `SHAPE_JAW` to the `Mass` bank's `SHAPE_CROP`, and one leg-bearing
+  segment off its first `Limb` stretch (span 22 to 12, bite 57 to ~44, gate
+  514). It matches the whole-body swap at 9/30 while keeping eight distinct
+  bodies; it moves seeds 2, 6, 8, 12, 14, 15, 16, 17 and does not move 3, 4,
+  5, 9, 10, 11, 21, 26; visually it costs one leg pair (six legs to four) and
+  a mouth part changing from `[4,1,1]` to `[2,1,0]`, which is nothing at the
+  ruled framing. **Its real cost is that it deletes predation from the
+  world**, which §6.5 ruled in deliberately, so it buys the corridor by giving
+  up a design commitment. **F is the only arm that ever breathes**: one leg
+  pair off all three consumers reads 10/30 collapse and **5 breathes**, where
+  the roster, the drawn baseline and every other arm read 0, 1 and 0-2. It
+  keeps the jaw, keeps predation and keeps all eight archetypes; it costs a
+  visible leg pair on each consumer, and the armoured drops from four legs to
+  two, which will read oddly on a body whose whole idea is that it is low and
+  covered. **Neither is applied to the shipped roster.** Which cost is the
+  acceptable one is a design call, not a measurement, and it is Mark's.
+
+  **Receipts.** `cargo test -p mesocosm-core --release` green; `cargo clippy
+  --workspace --all-targets -D warnings` clean; `cargo fmt --all --check`
+  clean. No file under `src/` changed — the diagnosis ran entirely through the
+  public API (`World::founded`, `lineages_mut`, `Species::realize`,
+  `World::flows`), in two scratch examples deleted at the end of the slice, so
+  the tree carries no new harness. Every run wrote to explicit scratch paths;
+  `dc4_roster.json` and the golden `ps1_played.*` fixture were read and never
+  written, and all five are md5-identical to backups taken before the slice
+  (`dc4_roster.json` `82cb5f0d94924f297eae22d7ec562ded`).
 
 - **2026-09-04 (DC4, Q9): three cameras over one tick, measured. `oblique`
   is the only arm that shows a body's part budget *and* keeps the section.**
