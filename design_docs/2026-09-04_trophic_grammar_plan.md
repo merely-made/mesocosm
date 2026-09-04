@@ -1,0 +1,218 @@
+# Trophic Grammar Plan (2026-09-04)
+
+**Status: plan, 2026-09-04. Drafted, awaiting Mark.** This is PE4's first
+build: the material scheme ruled 2026-09-02 turned into a trophic grammar. It
+owns typed intake, typed accounts, part composition, defenses, and selective
+edibility. It does not own fields, generated worlds, or the second form of
+life; see the [playable ecology plan](2026-08-31_playable_ecology_plan.md) section 6
+ruling 4 and the [elements and traits memo](2026-08-29_elements_and_traits_memo.md)
+sections 1, 2, 4, 5 and 7.
+
+**The words, ruled by Mark 2026-09-04.** **nis**: the provenance-bearing living
+substance, matter typed by the line it came from, kingdom first then lineage.
+One form for singular and plural, from *nisus*, striving. Matter fully returned
+to soil has lost its nis and is untyped stock. **scruple**: a part's stable
+heterogeneous mix, a measured lot of nis, the part layer of composition. Do not
+use "element" as a term. See repo `CLAUDE.md`.
+
+---
+
+## 1. Objective
+
+Give the ecology a trophic grammar, so that herbivore, carnivore and omnivore
+stop being labels on a body and become readings of what that body can take in;
+so that a defended body is expensive to eat rather than merely unattractive;
+and so that not everything in the stand is food for everything with a mouth.
+The measure is the thirty-seed corridor from the
+[default creatures plan](2026-08-30_default_creatures_plan.md) section 7 Q10, run
+on both walls, with a roster that still holds a producer tier, a consumer tier
+and a decomposer tier, and holds all three consumer readings inside the consumer
+tier. Mark's framing, 2026-09-04, verbatim: "Sounds to me like a systematic
+issue that cannot be fixed with a tweak, but it's missing the gameplay loops
+that differentiate herbivore from carnivore and omnivore. Plus it's not like
+herbivores should lack defenses that make them difficult to eat, and not all
+flora should be edible to everything."
+
+---
+
+## 2. Phases
+
+Each phase lands alone and is measurable alone.
+
+### TG1: typed intake
+
+A mouth becomes a port with a declared nis kind, read off the body the way
+`plan::classify` already reads a role. `FeedingMode` stops being a shape
+selector with an implied prey set and becomes a **reading of the ports a body
+carries**: a body whose intake ports admit flora nis reads Grazer, fauna nis
+reads Predator, both reads Omnivore, dead stock reads Scavenger, none reads
+Producer. The grazer and predator filters in
+`organism/ecology/movement.rs` and `movement/perception.rs` are replaced by one
+question asked of the port set, so the unrestricted predator prey set diagnosed
+at `perception.rs:206` disappears because there is no longer a branch that can
+omit the test, not because a clause was added.
+
+**Done when:** the edible set is computed in one function used by both the
+gradient and the bite; a Predator with no flora port cannot graze the stand, and
+a test says so by name; Omnivore exists as a reading with at least one roster
+body producing it; the thirty-seed instrument runs and its numbers are recorded
+against the 17/30 and 1/30 baseline whatever they say.
+
+### TG2: nis in the accounts
+
+`Soil.matter_mg` and a body's substance become typed stock. Start at three or
+four kinds, kingdom-level, inside the memo section 4 Tier 1 budget with no fields
+added; `percolate` runs per channel and its cost is measured before anything
+else lands on it. **The conservation receipt is rewritten first**: the
+milligram-exact matter test becomes per-channel, and the rewrite ships with a
+broken-control run proving the old total-only test passes a deliberate
+cross-channel leak while the new one fails it. Decay returns nis to untyped
+stock on one named rule: matter that has finished returning to a column loses
+its type, so soil holds untyped stock plus whatever has not finished returning.
+
+**Done when:** the per-channel receipt is green and the broken control fails as
+predicted; `Account::Soil` and `Account::Substance` reconcile per channel over
+a full run; the named decay rule is one function with one caller; the tick
+budget receipt is inside the 10 t/s wall at the current population.
+
+### TG3: scruple per part
+
+Composition gets its two ruled layers. The **lineage layer** declares what nis
+a line's tissue is made of; the **part layer**, the scruple, records the mix a
+part was actually built from, which differs after a graft or an odd diet. It
+rides the existing part mosaic rather than a new store, and there are no
+per-organism vectors. The disfavoured pair lands here as the ruled graft: a
+small milligram allowance carrying penalties that trait conditions raise,
+composing with PE2's condition table.
+
+**Done when:** two bodies of one line differ in scruple only because they ate
+differently, and the difference is visible in a dev reading; a graft past the
+allowance is refused by name; the scruple survives save, restore and replay to
+the milligram.
+
+### TG4: defenses
+
+`Role::Plate` gains a gate, read from the body the way DC1.5 reads kingdom off
+anatomy: a plate presents a threshold, and a mouth takes a meal only when its
+bite clears it. Payloads fire **on being eaten**, at the meal site, on the
+provenance of what was taken, priced from the payload's own numbers per memo
+section 1 C rather than from an authored per-payload row. `venom_mg` is the
+existing single instance and is **generalized into that path**, not duplicated
+beside it; the live inconsistency the memo names (only the played meal charges
+venom) closes as part of the generalization, with the spill deposited to the
+column as `act.rs` already does.
+
+**Done when:** a plated body is measurably costlier to eat and the instrument
+shows a bite distribution that respects the threshold; one payload row can be
+deleted and recomputed from the kind's own numbers; the NPC meal and the played
+meal charge identically, proved by one test running both routes over one
+transfer; matter is conserved to the milligram across a payload firing.
+
+### TG5: selective edibility
+
+Not all flora is edible to everything with a crop. A crop declares which flora
+nis kinds its port admits; a stand whose nis it does not admit is not food.
+This is **port match**, the relation memo section 2 permits, and never a
+pairwise table: the answer is computed from the port's declaration and the
+target's provenance, both of which exist for other reasons.
+
+**Done when:** at least two flora lines differ in who can eat them, and the
+difference changes the run's outcome; the anti-affix check passes, so the
+admission rule reads properties with three consumers and no property is read by
+only one kernel; there is no table keyed by eater and eaten.
+
+### TG6: roster and instrument
+
+The eight archetypes in `world/genesis.rs` are re-declared under the grammar:
+ports rather than implied prey sets, declared tissue nis, plates with
+thresholds where the archetype is armoured. The corridor is measured on thirty
+seeds, both walls, through `examples/population_instrument/`.
+
+**Done when:** over thirty seeds the roster arm is inside the corridor with a
+producer, consumer and decomposer tier all present at the end, and Grazer,
+Predator and Omnivore all present in the consumer tier; the baseline arm is
+re-measured on the same thirty; no `REFERENCE_*` or `*_BASE` constant moved to
+get there.
+
+### TG7: lexicon
+
+A term table in the packs, id to display forms, read only by views (Mark's ask,
+2026-09-04). Small, data-only, no rule-bearing content, so a rename never
+touches core. It exists so a display form can be changed without a code change.
+
+**Done when:** every displayed nis and payload name comes from the pack; core
+holds no display string for them; changing a display form does not change the
+world digest.
+
+---
+
+## 3. Stop rules
+
+Carried, not restated as new law.
+
+- No "draw from X / resist Y" affix. The memo's section 2 tests bind: three
+  consumers, disjoint subsets, a world write path, fingerprint and reject
+  collisions.
+- Payloads act on bodies. Payloads do not act on payloads.
+- If a row can be deleted and recomputed from the kind's own numbers, it is
+  real. If it cannot, it is a lookup in costume.
+- No per-organism composition vectors. If individuals must differ, differ them
+  by the parts they grew.
+- No fields in this world.
+- No second authority. A view, forecast, controller or instrument may summarize
+  the ecology and may not hold a parallel answer.
+- No constants dressed as mechanics: a fix is a body or a rule, not a number
+  nudged until the instrument agrees.
+- Milligram exactness, now per channel.
+
+---
+
+## 4. Rulings needed from Mark
+
+Only the ones this plan cannot start without.
+
+1. **The prey-set rule itself**, which Q10 leaves explicitly to Mark. TG1
+   assumes the rule moves: a mouth's prey set comes from its ports. Confirm, or
+   say the rule stays and TG1 becomes a narrower fix.
+2. **Omnivore as a fourth reading**, or Omnivore as "carries both port kinds"
+   with no new `FeedingMode` variant? The second is smaller and keeps the enum
+   at four.
+3. **How many nis kinds in the first world**: three, one per kingdom, or four,
+   the kingdoms plus a dead-stock kind? Four makes the scavenger port honest
+   and costs one channel in `percolate`.
+
+---
+
+## Findings
+
+- **2026-09-04.** Nothing verified by this plan yet. The diagnosis it is built
+  on is the default creatures plan section 7 Q10 Findings entry of the same
+  date: the stand is innocent, the producer tier's balance is the verdict, a
+  `FeedingMode::Predator` has no kingdom restriction on its prey at
+  `perception.rs:206`, and no body change measured holds the corridor.
+
+## Progress
+
+- **2026-09-04.** Drafted, awaiting Mark. No code touched.
+
+---
+
+## Index lines to add (not applied by this document)
+
+**`DOC_README.md`, active docs table:**
+
+| [2026-09-04_trophic_grammar_plan.md](2026-09-04_trophic_grammar_plan.md) | **PE4's first build; drafted 2026-09-04, awaiting Mark.** Turns the 2026-09-02 material ruling into a trophic grammar: intake as typed ports, so herbivore, carnivore and omnivore are readings rather than labels; typed stock in soil and bodies with per-channel conservation rewritten first; the two composition layers; plates gating bite and payloads firing on provenance at the meal; selective edibility by port match rather than a pairwise table; the roster re-declared and the thirty-seed corridor measured on both walls; and a display-only lexicon in the packs. |
+
+**Playable ecology plan, PE4 section:**
+
+> PE4's first build is the [trophic grammar plan](2026-09-04_trophic_grammar_plan.md),
+> which lands typed intake, typed accounts, scruple, defenses, selective
+> edibility, the re-declared roster and the lexicon in that order, and closes
+> the unrestricted predator prey set as a consequence of typed ports.
+
+**Dependency ledger:**
+
+> PE4's first build is the trophic grammar plan (2026-09-04), TG1 through TG7;
+> the per-channel conservation receipt in TG2 blocks everything after it, and
+> the thirty-seed corridor in TG6 is PE4's acceptance measurement.
+
