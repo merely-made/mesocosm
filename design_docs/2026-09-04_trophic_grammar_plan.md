@@ -1,6 +1,6 @@
 # Trophic Grammar Plan (2026-09-04)
 
-**Status: plan, 2026-09-04. Drafted, awaiting Mark.** This is PE4's first
+**Status: accepted by Mark 2026-09-04; TG1 next.** The three rulings in section 4 are given. This is PE4's first
 build: the material scheme ruled 2026-09-02 turned into a trophic grammar. It
 owns typed intake, typed accounts, part composition, defenses, and selective
 edibility. It does not own fields, generated worlds, or the second form of
@@ -167,19 +167,21 @@ Carried, not restated as new law.
 
 ---
 
-## 4. Rulings needed from Mark
+## 4. Rulings, given by Mark 2026-09-04
 
-Only the ones this plan cannot start without.
+All three answered with "the three recommendations are reasonable".
 
-1. **The prey-set rule itself**, which Q10 leaves explicitly to Mark. TG1
-   assumes the rule moves: a mouth's prey set comes from its ports. Confirm, or
-   say the rule stays and TG1 becomes a narrower fix.
-2. **Omnivore as a fourth reading**, or Omnivore as "carries both port kinds"
-   with no new `FeedingMode` variant? The second is smaller and keeps the enum
-   at four.
-3. **How many nis kinds in the first world**: three, one per kingdom, or four,
-   the kingdoms plus a dead-stock kind? Four makes the scavenger port honest
-   and costs one channel in `percolate`.
+1. **The prey-set rule moves.** A mouth's edible set comes from its ports;
+   the grazer and predator filters go.
+2. **Omnivore is a reading**, a body carrying both port kinds, not a fourth
+   `FeedingMode` variant.
+3. **Three nis kinds in the first world**, one per kingdom. Dead is a state of
+   the body, not a kind of matter; a scavenger port reads that state.
+
+Mark's framing for the work that follows, same day: the loops are not all in
+place and that is alright; keep adding loops that compose well and surprise;
+get granular with the voxels; proceed with the rest of the plan; make
+beginning body types; start investigating a beginning set of traits.
 
 ---
 
@@ -194,6 +196,7 @@ Only the ones this plan cannot start without.
 ## Progress
 
 - **2026-09-04.** Drafted, awaiting Mark. No code touched.
+- **2026-09-04, later.** Accepted; the three rulings given as recommended. TG1 dispatches next.
 
 ---
 
