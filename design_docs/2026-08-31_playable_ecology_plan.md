@@ -739,9 +739,16 @@ have measured receipts.
    lineage's, its strength the part's mix; no per-organism vectors.
    Disfavoured element pair: a graft with conditioned limits, a small
    milligram allowance with penalties that trait conditions raise (composes
-   with PE2's condition table). The word for the small typed chunk of matter
-   is under a naming round; "figment" is Mark's candidate; do not write
-   "element" as a new term. See the [elements and traits memo](2026-08-29_elements_and_traits_memo.md)
+   with PE2's condition table). **Words, ruled by Mark 2026-09-04:** the
+   provenance-bearing living substance is **nis** (one form, singular and
+   plural; from nisus, striving), and a part's stable mix of it is a
+   **scruple**; see the repo `CLAUDE.md` terminology. The lexicon (a term
+   table in the packs, read only by views) is folded into PE4. Do not write
+   "element" as a term. Mark's 2026-09-04 framing of the roster diagnosis
+   sets PE4's first world: the ecology is missing the loops that
+   differentiate herbivore, carnivore and omnivore, herbivores should carry
+   defenses that make them costly to eat, and not all flora should be
+   edible to everything. See the [elements and traits memo](2026-08-29_elements_and_traits_memo.md)
    §7 for the full question set.
 5. Do NPC lineages acquire new developmental vocabulary through the same
    evidence rules, or only evaluate inherited candidates? **Still open**, and

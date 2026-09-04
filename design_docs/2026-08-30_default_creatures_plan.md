@@ -668,8 +668,12 @@ recipe depends on which anatomy makes it what it is.
    camera that is not axis-aligned. Findings, DC4. **Measured 2026-09-04**:
    `--camera side|across|oblique` over one tick of the golden replay, three
    captures and a contact sheet, with the isometric cube priced rather than
-   built. The question stays open — the reading is on record and the camera
-   is Mark's.
+   built. **Ruled by Mark 2026-09-04: oblique.** The section keeps its
+   framing and tilts twenty degrees in yaw and pitch, so part budgets count
+   and depth reads as a stagger. The presentation slice that follows makes
+   oblique the default, fixes the ground's top-face palette (painted
+   lavender by a grade a level camera never exercised), and looks at the
+   near ground occluding the lowest bodies.
 10. ~~Is the roster's ecology acceptable, and if not which half moves?~~
     **Ruled by Mark, 2026-09-02: fixed by a body, not a constant; a diagnosis
     slice measures first.** (DC4) Eight of ten seeds collapse against the

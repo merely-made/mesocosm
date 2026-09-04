@@ -8,8 +8,10 @@ first when starting any session.
 ## Project Identity
 
 **Mesocosm** is an ecological roguelike of lineages: you are a critter in an
-enclosed mid-scale ecosystem, presented as a side-on terrarium section
-(ruled 2026-08-18; first person names the agency, never the camera). You
+enclosed mid-scale ecosystem, presented as a terrarium section seen at a
+shallow oblique (ruled 2026-08-18 as side-on; tilted to oblique by Mark
+2026-09-04 after a measured three-camera slice; first person names the
+agency, never the camera). You
 grow only by incorporating other organisms, and you try to increase your
 lineage's share of the world's biomass without triggering a trophic
 collapse. Play runs in epochs: live the round in the terrarium, then
@@ -63,11 +65,19 @@ architecture that Paredros and Isometry also depend on.
 - **tulpa**: gemot's federated adapter-training lane (personal LoRA). Not the
   memorial organ; see **hagiograph** above. Renamed 2026-09-02; do not use
   it in the old sense going forward.
-- **figment** *(provisional candidate, naming round pending, checks not yet
-  run)*: the small typed chunk of matter with provenance; see the
+- **nis**: living substance that still carries where it came from, matter
+  typed by provenance, kingdom first and lineage under it. One form for
+  singular and plural. From nisus, striving: a nis is a lot of matter that
+  still bears its line's endeavour, and matter fully returned to soil has
+  lost its nis and is untyped stock. Ruled by Mark 2026-09-04 after a
+  naming round (figment failed: Rocket's config crate, a live Bedtime
+  Digital title, and the wrong sense). See the
   [playable ecology plan](design_docs/2026-08-31_playable_ecology_plan.md)
-  §6 ruling 4 and the [elements and traits memo](design_docs/2026-08-29_elements_and_traits_memo.md)
-  §7. Do not write "element" as a new term for this concept.
+  §6 ruling 4. Do not write "element" for this concept.
+- **scruple**: a part's stable heterogeneous mix, a measured lot of nis; the
+  part layer of composition. The apothecaries' weight of twenty grains, free
+  on crates.io, only a plural board-game mark nearby. Ruled by Mark
+  2026-09-04 with nis.
 
 Do not coin new names for these concepts mid-session. Naming rounds are
 deliberate here: candidates get crates.io, game, studio, and trademark checks
