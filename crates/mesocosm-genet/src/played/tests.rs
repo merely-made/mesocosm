@@ -260,3 +260,51 @@ fn the_demo_trace_changes_the_ground() {
     let (world, _) = Runtime::replay(trace.seed, trace.organisms, &trace.intents);
     assert!(world.ground().revision() > 0, "the digging removed voxels");
 }
+
+/// The defaults do not name the golden fixture. (Ruled 2026-09-02, wired
+/// 2026-09-04.)
+///
+/// A default path that named it would mean an unqualified run of the headed
+/// binary overwrites the file `--replay` is checked against, which is how this
+/// was found. The three are checked together because they moved together and
+/// one left behind would be the same bug at a third the size.
+#[test]
+fn defaults_do_not_name_the_golden_fixture() {
+    for path in [
+        default_trace_path(),
+        default_receipt_path(),
+        default_capture_path(),
+    ] {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("a default path names a file")
+            .to_owned();
+        assert!(
+            !name.starts_with(GOLDEN_STEM),
+            "a default writes {name}, which is the golden fixture"
+        );
+        assert!(
+            name.starts_with(DEFAULT_STEM),
+            "and it should write the scratch stem instead: {name}"
+        );
+    }
+}
+
+/// And they still land in the headed-verify home, which is the other half of
+/// what a default is for: scratch, but scratch somebody can find.
+#[test]
+fn defaults_stay_under_the_testing_home() {
+    for path in [
+        default_trace_path(),
+        default_receipt_path(),
+        default_capture_path(),
+    ] {
+        assert_eq!(
+            path.parent(),
+            Some(default_out_dir().as_path()),
+            "{} left the testing home",
+            path.display()
+        );
+    }
+}

@@ -58,7 +58,7 @@ use serde::{Deserialize, Serialize};
 use crate::body::SpeciesId;
 use crate::discovery::ConditionId;
 use crate::organism::Organism;
-use crate::organism::ecology::OFFSPRING_COST;
+use crate::organism::ecology::{BIRTH_SCATTER, OFFSPRING_COST};
 use crate::program::{Citation, Conditions, DeclaredSite, Founder, Unexpressed};
 use crate::species::Species;
 
@@ -137,9 +137,10 @@ impl Offer {
 ///
 /// **The founder the played line would bear next**, and not a fixture: the mass
 /// and the material are the ecology's own provisioning arithmetic over a living
-/// parent of the line, the ground is the column that parent is standing on, the
-/// palette is the world's, and the seed is the one the birth pass would hand
-/// the next id it allocates. Nothing here is a number this file chose.
+/// parent of the line, the ground is the poorest column a birth off that parent
+/// could land on, the palette is the world's, and the seed is the one the birth
+/// pass would hand the next id it allocates. Nothing here is a number this file
+/// chose.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Prospect {
     pub founder: Founder,
@@ -178,6 +179,44 @@ impl World {
             .or_else(|| self.living().find(|organism| organism.species == species))
     }
 
+    /// The poorest column a birth off `parent` could land on.
+    ///
+    /// **The quote is a promise a birth has to be able to keep** (playable
+    /// ecology plan PE3, ruled by Mark 2026-09-02). A preview used to declare
+    /// the column the parent was standing on, and a body that had stood still
+    /// for a hundred ticks had returned its upkeep into exactly that column —
+    /// so the table quoted five cells of a site where the descendant, landing
+    /// up to [`BIRTH_SCATTER`] voxels away on ordinary soil, could afford one.
+    /// The dormancy rule was doing its job; the quote was still a number the
+    /// game would not charge.
+    ///
+    /// So the declared ground is the **minimum** over the dispersal
+    /// neighbourhood — the same square
+    /// [`ecology::bear`](crate::organism::ecology::bear) scatters into, read
+    /// through the same [`Soil::column_at`](crate::places::Soil::column_at),
+    /// which clamps at the wall exactly as the birth's own clamp does. The
+    /// quote is therefore at most what any birth in reach pays, and on uniform
+    /// ground it is exactly that.
+    ///
+    /// Deterministic and a pure read: a fixed square walked in a fixed order,
+    /// no entropy, nothing moved. It draws no sample of where the birth will
+    /// *actually* land, because a preview that guessed the scatter would
+    /// change every time the world's stream did.
+    fn poorest_ground_in_reach(&self, parent: [i32; 3]) -> u64 {
+        let mut poorest = u64::MAX;
+        for dz in -BIRTH_SCATTER..=BIRTH_SCATTER {
+            for dx in -BIRTH_SCATTER..=BIRTH_SCATTER {
+                let at = [parent[0] + dx, parent[1], parent[2] + dz];
+                let held = self.soil.matter_mg(self.soil.column_at(at));
+                poorest = poorest.min(held);
+            }
+        }
+        // Unreachable — the square always holds the parent's own column — and
+        // written out rather than unwrapped so a degenerate radius reads as
+        // bare ground instead of an absurd budget.
+        if poorest == u64::MAX { 0 } else { poorest }
+    }
+
     /// What the next founder of a line would be provisioned with.
     ///
     /// `None` when the line has no living body: there is nothing to bear one.
@@ -188,7 +227,7 @@ impl World {
         // whatever the parent can actually hand over.
         let mass_mg = parent.biomass_mg() / OFFSPRING_COST;
         let material_mg = parent.energy_mg.min(mass_mg);
-        let ground_mg = self.soil.matter_mg(self.soil.column_at(parent.position));
+        let ground_mg = self.poorest_ground_in_reach(parent.position);
         Some(Prospect {
             founder: Founder {
                 mass_mg,

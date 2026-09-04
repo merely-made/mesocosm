@@ -542,7 +542,8 @@ fn you_may_step_down_but_not_across() {
     // The complexity frontier, finally binding at the point control moves.
     // It was ruled long ago and lived in `epoch::can_switch_to`, which nothing
     // outside its own tests ever called, so control could take anything alive
-    // however elaborate.
+    // however elaborate. That module was deleted on 2026-09-04; this is where
+    // the rule binds now.
     let world = World::new(4_242, 40);
     let frontier = world.frontier();
 

@@ -83,9 +83,9 @@ impl Organism {
     /// having many things rather than by being large, and each part is
     /// something that has to be fed and connected.
     ///
-    /// `epoch::Lineage` has its own complexity over a trait array. That one is
-    /// the provisional scaffolding the phenotype plan schedules for deletion;
-    /// this is the one the world uses.
+    /// The provisional `epoch::Lineage` had a rival complexity over a scalar
+    /// trait array. It was deleted with its module on 2026-09-04 (phenotype
+    /// plan §D4), so this is the only one left and the one the world uses.
     pub fn complexity(&self) -> i32 {
         let parts = self.body().living().count() as i32;
         parts * 4 + (self.biomass_mg() / 500) as i32

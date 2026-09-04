@@ -25,6 +25,24 @@
 //!
 //! Exocosm is a worldbuilding reference, not a runtime dependency and not a
 //! demand for astrophysical realism.
+//!
+//! # Why this file outlived the module it was written in
+//!
+//! It was `epoch::worlds` until 2026-09-04, when the `epoch` module was
+//! deleted whole — the scalar trait array, its squared-deficit scoring, its
+//! standing table and its round, which the real adaptation round in
+//! [`crate::world`] had already replaced without borrowing any of them
+//! (phenotype plan §D4, ruled by Mark 2026-09-02). This half was kept because
+//! nothing in it ever read that array: a [`Pressure`] is a question about a
+//! world, a [`WorldProfile`] is an authored answer, and the playable ecology
+//! plan's PE4 seeds its world criteria from both.
+//!
+//! It lives beside [`crate::rules`] rather than inside it. `WorldRules` is
+//! settings a particular run is played under, folded into the record's
+//! identity so two worlds on different rules are different worlds; these are
+//! authored reference data deliberately kept **off** the wire, so a profile
+//! can be corrected without invalidating a save. Same neighbourhood, opposite
+//! relationship to the record, so they stay separate files.
 
 use serde::{Deserialize, Serialize};
 

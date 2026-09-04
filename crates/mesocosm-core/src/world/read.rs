@@ -104,13 +104,16 @@ impl World {
     /// ruled long ago -- an unlocked lineage must be *more* metabolically
     /// complex than the target, so stepping downward into a newly viable niche
     /// is the point and minting an unearned peer at the frontier is not -- and
-    /// until now it lived in `epoch::can_switch_to`, which nothing outside its
-    /// own tests called. Control could take anything alive, however elaborate.
+    /// until then it lived in the deleted `epoch::can_switch_to`, which nothing
+    /// outside its own tests called. Control could take anything alive, however
+    /// elaborate.
     ///
-    /// It binds here rather than there because that function reasons over
-    /// `epoch::Lineage` and its provisional trait array, while control reasons
+    /// It binds here rather than there because that function reasoned over the
+    /// provisional scalar lineage and its trait array, while control reasons
     /// over organisms. Since P1 every organism has a body, so complexity can
-    /// come from anatomy and the two models no longer have to agree first.
+    /// come from anatomy and the two models no longer have to agree first. The
+    /// module it lived in was deleted on 2026-09-04 (phenotype plan §D4), so
+    /// this is now the only statement of the rule anywhere.
     pub fn eligibility(&self, organism: OrganismId) -> Result<(), Ineligible> {
         let Some(target) = self.organisms.iter().find(|o| o.id == organism) else {
             return Err(Ineligible::NoSuchOrganism);

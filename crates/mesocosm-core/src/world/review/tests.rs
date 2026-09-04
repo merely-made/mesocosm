@@ -124,3 +124,47 @@ fn a_line_with_nothing_living_has_no_prospect_and_no_budget() {
     assert_eq!(offers.len(), 1, "the status quo, and nothing to weigh");
     assert_eq!(offers[0].why_not, Some(Untakeable::Extinct));
 }
+
+#[test]
+fn on_uniform_ground_the_quote_is_the_column_under_the_parent() {
+    // **The equality half of the neighbourhood ruling** (PE3, ruled by Mark
+    // 2026-09-02). A preview declares the poorest column a birth could land on
+    // rather than the one its parent stands over, so the quote can never exceed
+    // what a birth in reach affords. Where the ground is uniform there is
+    // nothing to choose between them and the two readings coincide, which is
+    // what keeps the change a ceiling rather than a discount.
+    //
+    // A world nobody has ticked is exactly that case: `Soil::seeded` gives
+    // every column the same milligrams, and no rent, decay or percolation has
+    // moved any of them yet.
+    let world = brisk(4_242, 24);
+    let species = played(&world);
+    let parent = world
+        .controlled()
+        .filter(|organism| organism.species == species)
+        .or_else(|| world.living().find(|organism| organism.species == species))
+        .expect("a living parent to quote against");
+
+    let soil = world.soil();
+    let mut columns = (-BIRTH_SCATTER..=BIRTH_SCATTER)
+        .flat_map(|dz| (-BIRTH_SCATTER..=BIRTH_SCATTER).map(move |dx| (dx, dz)));
+    let under = soil.matter_mg(soil.column_at(parent.position));
+    assert!(
+        columns.all(|(dx, dz)| {
+            let at = [
+                parent.position[0] + dx,
+                parent.position[1],
+                parent.position[2] + dz,
+            ];
+            soil.matter_mg(soil.column_at(at)) == under
+        }),
+        "a world at tick zero has uniform soil, which is the case this pins"
+    );
+    assert!(under > 0, "and it is holding something");
+
+    let prospect = world.prospect(species).expect("a living line has one");
+    assert_eq!(
+        prospect.founder.conditions.ground_mg, under,
+        "on uniform ground the poorest column in reach is the one underfoot"
+    );
+}

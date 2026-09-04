@@ -23,6 +23,22 @@ use crate::species::Lineages;
 use super::rates::OFFSPRING_COST;
 use super::{Organism, OrganismId, Stage, Tally, movement::surface_stance};
 
+/// How far a birth may land from its parent, on either horizontal axis.
+///
+/// The **dispersal neighbourhood**: a birth lands somewhere in the square of
+/// `(2 * BIRTH_SCATTER + 1)` columns a side centred on the parent, clamped at
+/// the enclosure wall. Twelve because a stand has to be able to escape its own
+/// shade; a short throw traps every offspring in the competition its parent is
+/// already losing.
+///
+/// Named rather than written twice, because since 2026-09-04 a second place
+/// reads it: [`World::prospect`](crate::World) quotes a founder preview
+/// against the **poorest** ground in this square rather than the column under
+/// the parent, so the quote never exceeds what a birth in reach can afford
+/// (playable ecology plan PE3, ruled by Mark 2026-09-02). Two constants that
+/// could drift apart would make that a coincidence instead of a guarantee.
+pub const BIRTH_SCATTER: i32 = 12;
+
 /// Reproduction, after everything has been fed, so a tick's births do not
 /// depend on where in the list a parent happened to sit.
 ///
@@ -105,7 +121,11 @@ pub fn bear(
         // Wide enough to leave a crowded cell. Dispersal is how a stand
         // escapes its own shade, so a short throw would trap every offspring
         // in the same competition its parent is already losing.
-        let scatter = [rng.range_i32(-12, 12), 0, rng.range_i32(-12, 12)];
+        let scatter = [
+            rng.range_i32(-BIRTH_SCATTER, BIRTH_SCATTER),
+            0,
+            rng.range_i32(-BIRTH_SCATTER, BIRTH_SCATTER),
+        ];
         let position = [
             parent.position[0] + scatter[0],
             parent.position[1],

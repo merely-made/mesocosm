@@ -14,6 +14,17 @@
 //! world and a recording that ignored one would simply stop advancing. Those
 //! answers are ordinary intents, so they sit in the trace beside the moves and
 //! the meals and replay with them.
+//!
+//! # Where an unnamed run writes, and where it does not
+//!
+//! The trace, the receipt and the capture all default to a **scratch** name
+//! under the headed-verify home — [`DEFAULT_STEM`] — and the golden
+//! `ps1_played.*` fixture is written only when a path names it. Ruled by Mark
+//! on 2026-09-02 and wired on 2026-09-04: the defaults *were* the fixture, so
+//! the plainest possible run of this binary overwrote the file the scenario
+//! driver checks a replay against, and every landing entry in the dev tools
+//! plan had to pass explicit paths to stay out of its way. A discipline
+//! somebody keeps is not a property of the program; this is.
 
 use std::path::{Path, PathBuf};
 
@@ -183,16 +194,37 @@ pub fn default_out_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("testing/mesocosm"))
 }
 
+/// The stem every default output file below shares. (Ruled 2026-09-02.)
+///
+/// **Not `ps1_played`, and that is the whole point.** The defaults used to be
+/// `ps1_played.trace.json`, `ps1_played.json` and `ps1_played.png`, which are
+/// the golden fixture the scenario driver replays against — so an unqualified
+/// run of the headed binary, the most ordinary thing anybody does with it,
+/// overwrote the very files the receipt is checked against. Every DT1-DT4
+/// landing entry in the dev tools plan records passing explicit non-default
+/// paths for exactly that reason, which is a discipline somebody has to keep
+/// rather than a property of the program.
+///
+/// So a run with nothing on the command line writes scratch, and the golden
+/// fixture is written only when somebody names it, which the test
+/// `defaults_do_not_name_the_golden_fixture` asserts rather than leaving to
+/// this comment.
+pub const DEFAULT_STEM: &str = "scratch_played";
+
+/// The fixture the defaults must never be. Named here so the test that keeps
+/// them apart reads the same string this module is defined against.
+pub const GOLDEN_STEM: &str = "ps1_played";
+
 pub fn default_trace_path() -> PathBuf {
-    default_out_dir().join("ps1_played.trace.json")
+    default_out_dir().join(format!("{DEFAULT_STEM}.trace.json"))
 }
 
 pub fn default_receipt_path() -> PathBuf {
-    default_out_dir().join("ps1_played.json")
+    default_out_dir().join(format!("{DEFAULT_STEM}.json"))
 }
 
 pub fn default_capture_path() -> PathBuf {
-    default_out_dir().join("ps1_played.png")
+    default_out_dir().join(format!("{DEFAULT_STEM}.png"))
 }
 
 /// What a run's assistance reads as, in one place. (DT3, moved here by DT4.)

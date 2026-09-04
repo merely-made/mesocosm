@@ -12,6 +12,11 @@
 //! cargo run -p mesocosm-genet -- --scenario <scenario>
 //! ```
 //!
+//! With nothing named on the command line the trace, receipt and capture go to
+//! `<Code>/testing/mesocosm/scratch_played.*`. The golden `ps1_played.*`
+//! fixture is written only when a flag names it, ruled 2026-09-02 — before
+//! that the defaults were the fixture, and an unqualified run overwrote it.
+//!
 //! `--scenario` drives the run from a text scenario through genet-probe's
 //! shared driver (DT4). It is where `--record-demo` and `--auto-eat` went: both
 //! are now actions a scenario asks for by name. See [`mesocosm_genet::app::drive`]
@@ -98,7 +103,11 @@ fn main() {
         }
     }
 
-    // The workspace's headed-verify home, unless a flag says otherwise.
+    // A scratch name under the workspace's headed-verify home, unless a flag
+    // says otherwise. **Scratch, deliberately** (ruled 2026-09-02): these
+    // defaulted to `ps1_played.*` until 2026-09-04, which is the golden fixture
+    // `--replay` is checked against, so running this binary with no arguments
+    // destroyed it. See `played::DEFAULT_STEM`.
     let trace_path = trace.unwrap_or_else(played::default_trace_path);
     config.capture = Some(capture.unwrap_or_else(played::default_capture_path));
     config.receipt = Some(receipt.unwrap_or_else(played::default_receipt_path));
@@ -146,6 +155,11 @@ mesocosm-genet: run Mesocosm in a window
                   default
   --follow ID     start the camera on this critter (DT2; needs --dev to be
                   worth anything, presentation only)
+
+--capture, --trace and --receipt default to scratch names under the workspace's
+headed-verify home: <Code>/testing/mesocosm/scratch_played.png, .trace.json and
+.json. They are never the golden ps1_played.* fixture, which is written only
+when one of those flags names it.
 
 controls: WASD move, E/Space eat, Q deposit, C dig, arrows pan, Esc quit
 at a checkpoint the world stops and the keys narrow:

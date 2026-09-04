@@ -41,10 +41,12 @@ use movement::{
     disperse, living_cells,
 };
 
-/// The two transactions DT3's dev intents reach, so a forced birth is the
-/// ordinary birth and a dev-caused death is the ordinary death.
-pub use breeding::bear;
 pub(crate) use breeding::filial_seed;
+/// The two transactions DT3's dev intents reach, so a forced birth is the
+/// ordinary birth and a dev-caused death is the ordinary death -- plus the
+/// dispersal radius a birth scatters by, which `World::prospect` reads to
+/// quote a founder preview against the poorest ground in reach.
+pub use breeding::{BIRTH_SCATTER, bear};
 pub use flows::perish;
 pub(crate) use rates::*;
 use rates::{CROWD_CELL, CROWD_COMFORT, UPKEEP_BASE_MG};

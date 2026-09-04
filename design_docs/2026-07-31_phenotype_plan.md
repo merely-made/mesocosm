@@ -449,11 +449,41 @@ Retire the trait array when all of these are true:
 
 **Receipt, 2026-09-02 (P4a/PD5, then P4b/PE3a): four of the five are met, and
 the array stays.** **Superseded the same day: Mark ruled condition 5,
-2026-09-02: delete.** `epoch::Trait`, `fitness`, `standing` and the old
-round are deleted; the seven authored pressures and the three authored world
-profiles are kept as data, since they seed PE4's world criteria. A deletion
-slice does it. See the [playable ecology plan](2026-08-31_playable_ecology_plan.md)
+2026-09-02: delete.** **Deleted 2026-09-04, and §D4 closes: all five
+conditions now hold.** See the [playable ecology plan](2026-08-31_playable_ecology_plan.md)
 PE3 for the record and the [epoch boundary plan](2026-08-01_epoch_boundary_plan.md).
+
+**The deletion receipt.** Five files went, 1,318 lines of them:
+`mesocosm-core/src/epoch.rs` (the module, `EXTINCTION_FLOOR`, `Round`,
+`initiative`, `adapt_round`, `can_switch_to` and their tests),
+`epoch/lineage.rs` (`Trait`, the scalar `Lineage` with its `traits: [i32; 7]`,
+`bank`, `played` and `extinct`, and `Role`), `epoch/adapt.rs` (`fitness`,
+`take_turn`, `Mutation`, `Decision`), `epoch/standing.rs` (`Standing`), and
+`examples/ecology_lab.rs`, which was the module's only caller anywhere and
+exercised nothing but the array — its one world-profile gesture was a
+six-line banner over the round it ran, and the three profiles already receipt
+themselves in their own tests, so nothing was reduced and kept.
+
+**What stayed, and where it lives.** `epoch/worlds.rs` moved whole to
+`mesocosm-core/src/pressure.rs` — the seven authored `Pressure`s, `Force`,
+`WorldProfile`, `TIDAL_SHELF`, `HEAVY_DEEP`, `LONG_YEAR`, `AUTHORED` and their
+five tests, unchanged but for the module doc. It reads nothing from the array
+and never did. **A top-level `pressure.rs` rather than folding it into
+`rules.rs`**, because the two have opposite relationships to the world record:
+`WorldRules` is settings a run is played under and is hashed into the record's
+identity, while a `WorldProfile` is authored reference data deliberately kept
+*off* the wire so a profile can be corrected without invalidating a save.
+Beside `WorldRules`, not inside it.
+
+**No shim, and nothing needed one.** The only code consumer outside the module
+was `lib.rs`'s re-export line; the root names `Lineage`, `Round`, `adapt_round`,
+`can_switch_to` and `initiative` were re-exported and never used, so they went
+with it and `pressure`'s items took their place. Everything that had replaced
+the module's *job* was already the real world model — `world::adapt`'s `Round`
+and `World::initiative` over species recipe complexity, `World::eligibility`
+for the frontier, `Organism::complexity` over anatomy — and none of it was
+touched. Three prose references to the dead names (`world/read.rs`,
+`organism/ledger.rs`, `tests/control.rs`) were put in the past tense.
 
 - **1. Met.** `program::Revision` states *declared sites* — a part role, an
   admitted `ProcessRef`, a bounded cell count — and nothing scalar. Nothing in
@@ -476,8 +506,10 @@ PE3 for the record and the [epoch boundary plan](2026-08-01_epoch_boundary_plan.
   reads no `controlled`; `an_unplayed_lineage_takes_the_same_path` commits on an
   NPC line and watches its next birth arrive expressing it, by the identical
   code.
-- **5. Ruled by Mark, 2026-09-02: delete.** `epoch::Trait`, `epoch::adapt`'s
-  `fitness`, `epoch::standing` and `epoch::worlds` are deleted. What replaced
+- **5. Met 2026-09-04, by deletion.** Ruled by Mark 2026-09-02 and carried out
+  two days later: `epoch::Trait`, `epoch::adapt`'s `fitness`, `epoch::standing`
+  and the module around them are deleted (`epoch::worlds` is the one part kept,
+  moved to `pressure.rs`; the receipt above lists every file). What replaced
   their *job* is `world::adapt`: the ordering idea (descending complexity,
   commits landing immediately) was kept and brought across; the trait array and
   the squared-deficit fitness were not used. The seven authored pressures and
@@ -485,7 +517,7 @@ PE3 for the record and the [epoch boundary plan](2026-08-01_epoch_boundary_plan.
   world criteria. A deletion slice does it.
 
 So the array's compatibility-layer period is over: condition 5 is met by
-deletion, and D4 closes.
+deletion, and D4 closes. **Closed 2026-09-04.**
 
 **Cost, historical.** For a time the adaptation lab remained explicitly
 provisional. That was preferable to deleting its only working vocabulary
@@ -938,7 +970,7 @@ for exactly that reason and the refusal still stands: a severed branch's mass
 has already left the account. None of that is P3's, and none of it is needed
 for what P3 claims.
 
-### P4. Adaptation bridge: **PARTIAL 2026-09-02** (six of seven clauses); **ruled complete 2026-09-02** (deletion ruling closes the seventh)
+### P4. Adaptation bridge: **LANDED 2026-09-04** (ruled complete 2026-09-02; the seventh clause receipted by the deletion slice)
 
 Grow several candidate developmental changes and score their phenotypes in one
 authored world.
@@ -1000,10 +1032,12 @@ unplayed line commits is the world.
 **What remained, now ruled.** *The old trait array has a concrete deletion
 receipt*; §D4 held **four of five** conditions, and the fifth was that the
 array can be deleted with its tests rather than maintained. **Ruled by Mark,
-2026-09-02: delete.** `epoch::Trait` and the four modules around it are
-deleted; the seven authored pressures and three authored world profiles are
-kept as data for PE4. A deletion slice does it. P4's seventh clause is
-therefore met and the gate is complete.
+2026-09-02: delete.** **Done 2026-09-04.** `epoch::Trait` and the modules
+around it are deleted with their tests, along with `examples/ecology_lab.rs`,
+their only caller; the seven authored pressures and three authored world
+profiles are kept as data for PE4 and now live in `mesocosm-core/src/pressure.rs`.
+§D4 carries the file-by-file receipt. P4's seventh clause is therefore met, so
+the gate is complete and the last clause is a receipt rather than a ruling.
 
 **Not P4's, and not blocking it.** Reviewing several candidates *on screen*,
 pricing the choice and previewing a founder is the playable ecology plan's PE3b.

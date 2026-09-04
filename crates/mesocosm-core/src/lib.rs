@@ -55,6 +55,7 @@ pub mod organism;
 pub mod phenotype;
 pub mod places;
 pub mod plan;
+pub mod pressure;
 pub mod process;
 pub mod program;
 pub mod record;
@@ -67,7 +68,6 @@ pub mod voxel_profile;
 pub mod world;
 
 pub mod chronicle;
-pub mod epoch;
 pub mod wire;
 
 pub use axis::{Appendage, Recipe, Soma, Tagma, Unspeakable};
@@ -85,7 +85,6 @@ pub use discovery::{
     Candidate, Condition, ConditionId, Discovery, Evidence, Input, Miss, Observation, Source,
     Stress,
 };
-pub use epoch::{Lineage, Round, WorldProfile, adapt_round, can_switch_to, initiative};
 pub use flow::{
     Account, Accounts, Carrier, Envelope, FlowEvent, Ledger, RecordedEvent, RecordedFlow, Subject,
     Trend, WARN_AFTER_TICKS,
@@ -104,6 +103,7 @@ pub use phenotype::{
 };
 pub use places::{Place, PlaceId, Places};
 pub use plan::{BodyPlan, Facing, Role, Symmetry, classify};
+pub use pressure::{AUTHORED, Force, HEAVY_DEEP, LONG_YEAR, Pressure, TIDAL_SHELF, WorldProfile};
 pub use process::{
     BULK_REACH, Capability, DefinitionDigest, FeedingMode, NATIVE_ABI, Process, ProcessDef,
     ProcessId, ProcessRef, Registry, Seeding, Unmet,

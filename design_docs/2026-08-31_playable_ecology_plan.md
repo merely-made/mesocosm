@@ -571,15 +571,18 @@ distinct records; the old scalar trait array is either removed under its
 existing deletion gate or marked explicitly as non-authoritative; replay and
 the world record agree.
 
-**Landed 2026-09-02.** Every condition above holds and is receipted in the
-Progress entry. The last one — *the old scalar trait array is either removed
-under its existing deletion gate or marked explicitly as non-authoritative* —
-is **ruled by Mark, 2026-09-02: deletion.** `epoch::Trait`, `fitness`,
-`standing` and the old round are deleted, not merely marked
+**Landed 2026-09-02; fully landed 2026-09-04.** Every condition above holds and
+is receipted in the Progress entry. The last one — *the old scalar trait array
+is either removed under its existing deletion gate or marked explicitly as
+non-authoritative* — was **ruled by Mark, 2026-09-02: deletion**, and the
+deletion happened on 2026-09-04: `epoch::Trait`, `fitness`, `standing`, the old
+round and `examples/ecology_lab.rs` are gone, not merely marked
 non-authoritative; the seven authored pressures and the three authored world
-profiles are kept as data, since they seed PE4's world criteria. See the
-[phenotype plan](2026-07-31_phenotype_plan.md) §D4 for the retirement
-conditions and the deletion slice. Nothing else in PE3 is outstanding.
+profiles are kept as data in `mesocosm-core/src/pressure.rs`, since they seed
+PE4's world criteria. See the [phenotype plan](2026-07-31_phenotype_plan.md)
+§D4 for the retirement conditions and the file-by-file receipt. The founder
+preview's ground ruling landed the same day (Progress, below). **Nothing in PE3
+is outstanding.**
 
 ### PE4: world criteria generate mechanically distinct biology
 
@@ -999,6 +1002,97 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
 
 ## 9. Progress
 
+- **2026-09-04, PE3's last two residues discharged: the preview's ground, and
+  the trait array.** Two rulings of 2026-09-02 built, in one slice.
+
+  **The founder preview quotes the poorest ground a birth can reach.**
+  `World::prospect` read `soil.matter_mg(soil.column_at(parent.position))` —
+  the single column the parent stood over — and a body that had endured a
+  hundred ticks had returned its own upkeep into exactly that column. So the
+  review's table quoted five cells of a site where the descendant, dispersing
+  up to twelve voxels onto ordinary soil, could afford one. The dormancy rule
+  was doing its job and the quote was still a number the game would not charge.
+
+  It now reads the **minimum** over the dispersal neighbourhood — the same
+  square `ecology::bear` scatters into, through the same `Soil::column_at`,
+  which clamps at the wall exactly as the birth's own clamp does. The radius
+  stopped being a literal `12` written twice: `ecology::BIRTH_SCATTER` is the
+  constant `bear` scatters by and the constant the quote walks, so the two
+  agreeing is structural rather than a coincidence somebody maintains. The read
+  is a fixed square in a fixed order, no entropy, nothing moved; it draws no
+  sample of where the birth will actually land, because a preview that guessed
+  the scatter would move every time the world's stream did.
+
+  **The invariant, and where each half is receipted.** *The quote never exceeds
+  what a birth in reach pays*, and the two halves are asserted separately
+  because they need different worlds. `on_uniform_ground_the_quote_is_the_column_under_the_parent`
+  (`src/world/review/tests.rs`) is the equality: a world at tick zero has
+  uniform soil by construction — `Soil::seeded` gives every column the same
+  milligrams and no rent, decay or percolation has moved one yet — so the
+  poorest column in reach *is* the one underfoot and the new reading and the old
+  coincide. That is what keeps this a ceiling rather than a discount.
+
+  The two embodied tests that receipted the old behaviour were rewritten.
+  `the_price_is_the_filial_cost_the_birth_then_pays` still asserts quote equals
+  charge, and its walk-away setup is now explained by what it actually does:
+  eighteen voxels is past `BIRTH_SCATTER`, so the column the parent enriched is
+  out of every birth's reach and out of the quote, and what is left in reach
+  does not vary by enough to buy a further cell. It asserts the ceiling
+  (`declared <= underfoot`) before it asserts the equality — see the surprise
+  below for why it is that and not something stronger. Its companion was
+  **renamed**, because its old
+  name stated the opposite of the ruling:
+  `richer_ground_under_the_parent_quotes_more_than_a_dispersed_birth_pays`
+  became `richer_ground_under_the_parent_does_not_inflate_the_quote`, and where
+  it asserted `paid < quoted` it now asserts `quoted <= paid`. It keeps a
+  positive control so it cannot pass vacuously: the column underfoot must still
+  be richer than the declared ground, which is precisely the case the old
+  reading got wrong. Measured on seed 4,242 the gap it used to receipt is
+  closed — 21 quoted against 21 paid, where the quote had been the larger.
+
+  **A surprise, and it moved where the equality is pinned.** *No ground in this
+  world is uniform once it has been ticked.* The first rewrite tried to assert
+  that the walk-away left the whole neighbourhood holding one figure; it holds
+  71 in the poorest column and 126 in the richest, because rent, decay and
+  percolation move columns everywhere all the time. The second tried the weaker
+  claim that the parent was left standing on the poorest column in reach; it
+  stands on 81 against a poorest of 71.
+
+  So `the_price_is_the_filial_cost_the_birth_then_pays` returns one number for
+  a reason worth writing down: 71 and 81 buy the same number of cells, and cells
+  are the grain `Conditions::affords` charges in, so a ten-milligram difference
+  in the ground is invisible in the price. That is a real property of the
+  pricing and not a coincidence of the seed, but it is not the same claim as
+  *equality on uniform ground* — which is why that one is pinned at tick zero,
+  where `Soil::seeded` makes uniformity true by construction, and why the
+  embodied test now asserts only the ceiling (`declared <= underfoot`) before
+  asserting the equality it is actually about.
+
+  **Receipts.** The six standing gates in release are green (137 tests across
+  `matter`, `flows`, `succession`, `embodied`, `control`, `reckoning`), and so
+  are `mesocosm-runtime`, `-views`, `-genet` and `-phenotype` (183 more). Clippy
+  is clean at `-D warnings` on both profiles, fmt is clean, and
+  `cargo check -p paredros-room --features r1-proof` — the one downstream
+  path-dependent consumer — is clean too. **The golden fixture is unmoved**:
+  `--replay ps1_played.trace.json --scenario ps1_played.scenario` with explicit
+  scratch receipt and capture waited 772 frames and exited 0 at
+  `081b4ba4bdc46190`, the same hash DT4 recorded, and the same scenario with the
+  literal falsified to `...91` exited 1 naming both the expected and the actual.
+  The four golden artefacts are byte-identical to a pre-slice backup, which is
+  the fixture-defaults change proving itself: the replay's own output went to
+  `scratch_golden.*`.
+
+  **The trait array is deleted**, which closes PE3's own last done-condition and
+  the phenotype plan's §D4. Five files, 1,318 lines: `epoch.rs`,
+  `epoch/{lineage,adapt,standing}.rs` and `examples/ecology_lab.rs`, which was
+  the module's only caller anywhere. The seven authored pressures and the three
+  authored world profiles moved whole to `mesocosm-core/src/pressure.rs` — a
+  top-level module rather than a section of `rules.rs`, because `WorldRules` is
+  hashed into the record's identity while a `WorldProfile` is authored data kept
+  deliberately off the wire. Nothing outside the module imported anything from
+  it but `lib.rs`'s re-export line, so no shim was needed and none was written.
+  The phenotype plan §D4 carries the file-by-file receipt.
+
 - **2026-09-02, four rulings recorded (doc only).** §6 ruling 4 (material
   scheme, typed by provenance, storage A plus payloads C, no fields in PE4's
   first world, two composition layers) is ruled; the affinity-table pack door
@@ -1181,7 +1275,8 @@ receipt; a platform-shaped possibility does not reorder PE0-PE7.
     land in is a design question and is Mark's; nothing here guesses at it.~~
     **Ruled by Mark, 2026-09-02: the neighbourhood.** The preview declares the
     poorest ground within the dispersal neighbourhood a birth can land in, so
-    the quote never exceeds what a birth affords.
+    the quote never exceeds what a birth affords. **Built 2026-09-04**; see the
+    Progress entry of that date.
   - **The two proposal sources are read on the played body**, because that is
     what `Request::of` freezes and what a player can point at, while the price
     and the preview are the descendant's. Both facts belong on the screen and

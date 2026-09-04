@@ -181,20 +181,45 @@ fn quoted_then_paid(mut world: World) -> (u64, u64) {
     panic!("no descendant expressed the program in forty ticks");
 }
 
+/// What the quote declared as its ground, and what the column under the parent
+/// actually holds.
+///
+/// The pair the ruling turns on. The first is `Conditions::ground_mg` as
+/// `World::prospect` now reads it — the poorest column within `BIRTH_SCATTER`
+/// of the parent — and the second is what a preview declared before 2026-09-04
+/// and what the old tests here receipted. Where the second exceeds the first,
+/// the old reading quoted a price off ground no birth was guaranteed to find.
+fn declared_and_underfoot(world: &World) -> (u64, u64) {
+    let parent = world.controlled().expect("embodied");
+    let declared = world
+        .prospect(parent.species)
+        .expect("a living line has a prospect")
+        .founder
+        .conditions
+        .ground_mg;
+    let soil = world.soil();
+    (declared, soil.matter_mg(soil.column_at(parent.position)))
+}
+
 #[test]
 fn the_price_is_the_filial_cost_the_birth_then_pays() {
     // **The load-bearing one.** The number on the table is not an estimate of a
     // development price: it is that price, read off the same
     // `program::express` the birth pass runs, against the same founder the
-    // birth pass would provision. On ordinary ground the quote and the charge
-    // are one number.
+    // birth pass would provision. Here the quote and the charge are one
+    // number, and the comment below says exactly why.
     //
-    // The critter walks away from where it endured before the boundary, which
-    // is what makes them one number: a body that stands still returns its
-    // upkeep into the column under it, so a hundred ticks of enduring leaves
-    // the ground under it richer than the ground its offspring will disperse
-    // onto. See the companion test below — that gap is the ruled dormancy rule
-    // doing its job, not a disagreement about the price.
+    // The critter walks eighteen voxels from where it endured, which is why the
+    // two numbers meet: a body that stands still returns its upkeep into the
+    // column under it, and eighteen is past `BIRTH_SCATTER`, so the column it
+    // enriched is out of every birth's reach and out of the quote. What is left
+    // varies by a few milligrams — no ground in a world that has been ticked is
+    // uniform, since rent, decay and percolation move columns everywhere — but
+    // not by enough to buy a further cell of the site, and cells are the grain
+    // `Conditions::affords` charges in. So the quote and the charge come back
+    // one number. The equality on genuinely uniform ground is pinned at tick
+    // zero, in `src/world/review/tests.rs`; the companion below is the case
+    // where the two do not meet and the ceiling is what holds.
     let mut world = bulk_world(4_242, 24);
     frond_on(&mut world);
     endure(&mut world, HUNGER_TICKS + 1);
@@ -203,7 +228,15 @@ fn the_price_is_the_filial_cost_the_birth_then_pays() {
         world.apply(Intent::Move { delta: [3, 0, 0] });
     }
 
-    let (quoted, paid) = quoted_then_paid(at_the_checkpoint(world));
+    let world = at_the_checkpoint(world);
+    let (declared, underfoot) = declared_and_underfoot(&world);
+    assert!(
+        declared <= underfoot,
+        "the declared ground is a floor over the neighbourhood, so it cannot \
+         exceed the column underfoot: {declared} declared against {underfoot}"
+    );
+
+    let (quoted, paid) = quoted_then_paid(world);
     assert!(quoted > 0, "there is a price to check");
     assert_eq!(
         paid, quoted,
@@ -212,23 +245,36 @@ fn the_price_is_the_filial_cost_the_birth_then_pays() {
 }
 
 #[test]
-fn richer_ground_under_the_parent_quotes_more_than_a_dispersed_birth_pays() {
-    // The companion, and the honest half of the same claim. A founder preview
-    // is realized under **declared** conditions — the ground your line is
-    // standing on — and a descendant that disperses onto ordinary soil grows
-    // only what that column can charge. The quote is still the full price of
-    // the site; what changes is how much of the site the ground affords, which
-    // is `Conditions::affords` and nothing else.
+fn richer_ground_under_the_parent_does_not_inflate_the_quote() {
+    // The companion, and the ruling that renamed it. It was
+    // `richer_ground_under_the_parent_quotes_more_than_a_dispersed_birth_pays`,
+    // and it receipted exactly that: a preview declared the column its parent
+    // stood on, a hundred ticks of enduring had returned that body's upkeep
+    // into it, and the table therefore quoted five cells of a site where the
+    // descendant — dispersing onto ordinary soil — could afford one. The
+    // dormancy rule was doing its job and the quote was still a number the game
+    // would not charge.
+    //
+    // **Ruled by Mark, 2026-09-02: the neighbourhood.** A preview declares the
+    // poorest ground within the square a birth can land in, so the quote is a
+    // ceiling a birth in reach can always meet. Here the parent has *not*
+    // walked away, so its own column is the rich one and the old reading is
+    // still available to be wrong — which is what makes this a test and not a
+    // restatement.
     let world = discovered_world(4_242);
-    let (quoted, paid) = quoted_then_paid(world);
+    let (declared, underfoot) = declared_and_underfoot(&world);
     assert!(
-        paid < quoted,
-        "a hundred ticks of standing still enriched the column: {paid} against {quoted}"
+        underfoot > declared,
+        "the enduring enriched the column the old reading would have quoted \
+         from: {underfoot} underfoot against {declared} declared"
     );
-    assert_eq!(
-        quoted % paid,
-        0,
-        "and the difference is whole cells of one site, not a different price"
+
+    let (quoted, paid) = quoted_then_paid(world);
+    assert!(quoted > 0, "there is a price to check");
+    assert!(
+        quoted <= paid,
+        "the quote may not exceed what the birth in reach then paid: \
+         {quoted} quoted against {paid} paid"
     );
 }
 

@@ -618,3 +618,28 @@ of them. Each phase is one agent round on a non-Fable model.
   under the testing home; the golden `ps1_played.*` fixture is written only
   by an explicit path. No code changed in this pass; wiring the new defaults
   is a follow-up implementation task.
+
+- **2026-09-04, fixture defaults landed.** The follow-up above, built. The
+  three default paths in `mesocosm-genet/src/played.rs` now read
+  `<Code>/testing/mesocosm/scratch_played.{trace.json,json,png}` instead of
+  `ps1_played.*`, off a named `played::DEFAULT_STEM`; `played::GOLDEN_STEM`
+  names the fixture they must not be. `--help` says where the three go and that
+  the golden fixture is written only when a flag names it, and the module docs
+  of `played.rs` and `main.rs` say why the defaults were unsafe in the first
+  place — the discipline every DT1-DT4 entry above kept by hand is now a
+  property of the program.
+
+  **Asserted, not remembered.** `defaults_do_not_name_the_golden_fixture`
+  (`src/played/tests.rs`) checks all three against `GOLDEN_STEM` and
+  `DEFAULT_STEM` together, because they moved together and one left behind is
+  the same bug at a third the size; `defaults_stay_under_the_testing_home`
+  keeps the other half of what a default is for — scratch, but scratch somebody
+  can find.
+
+  **The scenario files were annotated rather than changed.** Both
+  `ps1_played.scenario` and `dt3.scenario` already named their receipt, capture
+  and trace explicitly, which is exactly the discipline the ruling was about;
+  their header comments now record that those names *had* to be explicit before
+  today and are merely tidy after it. Nothing about how either scenario runs
+  moved, and the golden fixture's own replay still passes explicit scratch
+  paths.

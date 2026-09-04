@@ -25,7 +25,7 @@ PE0 + PE1 + PE2
   -> PD4 Piccolo authoring parity [LANDED 2026-09-01]
   -> P4a lineage program + PD5 filial expression [LANDED 2026-09-02]
   -> P4b scorer + PE3a epoch rule and round [LANDED 2026-09-02]
-  -> PE3b lineage review screen [LANDED 2026-09-02]
+  -> PE3b lineage review screen [LANDED 2026-09-02; PE3 + P4 FULLY LANDED 2026-09-04]
   -> PE4 world-generated biology [material scheme RULED 2026-09-02: typed by provenance, storage A + payloads C]
   -> PE5 second form + durable relationship
   -> PE6 cohort scale + ecological zoom
@@ -131,7 +131,16 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
-- **2026-09-02 (latest):** four rulings recorded (doc only, no code): the
+- **2026-09-04 (latest):** three ruled hygiene items built in one slice, and
+  **PE3 and P4 are now fully landed**: the epoch trait array is deleted (five
+  files, 1,318 lines; the seven authored pressures and three world profiles kept
+  as `mesocosm-core/src/pressure.rs` for PE4), the headed binary's default
+  trace/receipt/capture paths moved off the golden `ps1_played.*` fixture to
+  `scratch_played.*`, and a founder preview now quotes the poorest ground within
+  the dispersal neighbourhood so the price can never exceed what a birth in
+  reach pays. Nothing reordered; the next link is still PE4.
+
+- **2026-09-02:** four rulings recorded (doc only, no code): the
   material scheme for PE4 (typed by provenance, storage A + payloads C, see
   the playable ecology plan §6 ruling 4), the affinity-table pack door (pack
   overrides `Founding`), the trait array's fate (deleted, not marked
