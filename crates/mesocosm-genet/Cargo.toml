@@ -12,9 +12,9 @@ publish = false
 # back out to be drawn. If a rule ever appears in this crate, it is in the
 # wrong crate.
 #
-# Named for the lane rather than the dependency. netrender compositing is the
-# intended arrangement and is not wired yet, so this currently drives its own
-# surface directly.
+# Named for the lane rather than the dependency. Netrender owns the frame
+# master and imports the section as one opaque same-device tenant; the host
+# still owns the final surface blit and presentation.
 [dependencies]
 mesocosm-core = { workspace = true }
 # The main view since PS1: the ruled side-on section is traced, not rasterized.
@@ -25,6 +25,7 @@ mesocosm-render = { workspace = true }
 mesocosm-runtime = { workspace = true }
 mesocosm-views = { workspace = true }
 netrender = { workspace = true }
+netrender_graph = { workspace = true }
 paint_list_api = { workspace = true }
 paint_list_render = { workspace = true }
 sprigging = { workspace = true }

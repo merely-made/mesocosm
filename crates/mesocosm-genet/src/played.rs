@@ -141,6 +141,20 @@ pub struct PartSelectionReceipt {
     pub revision: u64,
 }
 
+/// The last visible frame's opaque tenant participation in Netrender's graph.
+#[derive(Clone, Debug, Serialize)]
+pub struct FrameGraphReceipt {
+    pub tenant_name: String,
+    pub producer_path: String,
+    pub fallback_count: u64,
+    pub scene_op_boundary: usize,
+    pub caller_reported_physical_submission_count: Option<u64>,
+    pub logical_opaque_producer_boundaries: usize,
+    pub graph_encoder_batches: usize,
+    pub graph_submission_boundaries: usize,
+    pub logical_plan_dump: String,
+}
+
 /// What a run says about itself on the way out.
 #[derive(Clone, Debug, Serialize)]
 pub struct PlayedReceipt {
@@ -195,6 +209,10 @@ pub struct PlayedReceipt {
     pub bodies: &'static str,
     pub body_budget: usize,
     pub body_projection: crate::section::BodyFrameStats,
+    /// Absent only when Netrender declined the shared device and the
+    /// chromeless direct-surface fallback drew the frame.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frame_graph: Option<FrameGraphReceipt>,
     pub trace: Option<String>,
     pub capture: Option<String>,
     /// Whether `--dev` was set for this run (DT1, ruled 2026-09-02). A played

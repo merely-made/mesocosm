@@ -108,7 +108,9 @@ impl Host {
 
         // The chrome shares the game's device rather than creating a second
         // one, which is the arrangement the workspace's wgpu pin exists for.
-        // One netrender instance carries both lanes.
+        // One Chrome carries every lane. Until the Mere/Genet paint pins align,
+        // it contains two Netrender instances over these same physical handles:
+        // the existing UI rasterizer and the current frame-graph owner.
         let chrome = Chrome::new(
             netrender::WgpuHandles {
                 instance,
@@ -135,6 +137,7 @@ impl Host {
             config,
             section,
             chrome,
+            last_tenant_receipt: None,
         });
         self.window = Some(window);
     }

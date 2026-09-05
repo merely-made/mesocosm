@@ -19,12 +19,13 @@
 //! stack's existing word for blending layers into a frame, matching
 //! netrender's `Compositor` and `paint_list_render::composite`.
 
+use wgpu::util::DeviceExt;
+
 /// The blit-with-blend pipeline. Built once per (device, surface format).
 pub struct Composite {
     pipeline: wgpu::RenderPipeline,
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
-    rect: wgpu::Buffer,
 }
 
 const SHADER: &str = r#"
@@ -130,12 +131,6 @@ impl Composite {
             multiview_mask: None,
             cache: None,
         });
-        let rect = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("composite dest"),
-            size: 16,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("composite"),
             mag_filter: wgpu::FilterMode::Linear,
@@ -146,7 +141,6 @@ impl Composite {
             pipeline,
             layout,
             sampler,
-            rect,
         }
     }
 
@@ -158,7 +152,7 @@ impl Composite {
     pub fn draw(
         &self,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        _queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
         content: &wgpu::TextureView,
@@ -174,7 +168,14 @@ impl Composite {
             (x + w) / fw * 2.0 - 1.0,
             1.0 - (y + h) / fh * 2.0,
         ];
-        queue.write_buffer(&self.rect, 0, bytemuck::cast_slice(&ndc));
+        // Each encoded draw needs immutable rectangle data. Reusing one
+        // queue-written uniform here makes every draw in a command buffer see
+        // the final draw's rectangle when the GPU eventually executes it.
+        let rect = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("composite dest"),
+            contents: bytemuck::cast_slice(&ndc),
+            usage: wgpu::BufferUsages::UNIFORM,
+        });
 
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("composite"),
@@ -190,7 +191,7 @@ impl Composite {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: self.rect.as_entire_binding(),
+                    resource: rect.as_entire_binding(),
                 },
             ],
         });

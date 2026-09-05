@@ -170,13 +170,16 @@ struct Gpu {
     /// Both chrome lanes and the device they share. `None` when netrender
     /// declined the device; the game runs chromeless rather than not at all.
     chrome: Option<Lanes>,
+    /// The most recently completed Netrender tenant envelope. This is frame
+    /// provenance for the played receipt, never simulation state.
+    last_tenant_receipt: Option<netrender_graph::OpaqueTenantReceipt>,
 }
 
-/// The five chrome lanes over one netrender instance and one blend pass: the
+/// The five chrome lanes over one shared-device Chrome and one blend pass: the
 /// painted minimap, the cambium vitals panel, the individual checkpoint, the
-/// trait board, and the dev lane. The checkpoint and the board draw only
-/// while the world is holding at a question, and never both: a lineage
-/// checkpoint is the board's. The dev lane draws only while `--dev` is set.
+/// trait board, and the dev lane. The checkpoint and the board draw only while
+/// the world is holding at a question, and never both: a lineage checkpoint is
+/// the board's. The dev lane draws only while `--dev` is set.
 pub(crate) struct Lanes {
     device: Chrome,
     hud: crate::hud::Hud,
@@ -454,28 +457,29 @@ impl Host {
         };
 
         let view = surface_texture.texture.create_view(&Default::default());
-        let mut encoder = gpu
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("frame"),
-            });
-        if let Err(error) = gpu.section.draw(
-            &mut encoder,
-            &view,
-            SectionFrame {
-                world,
-                volumes: &self.volumes,
-                ground: world.ground(),
-                dirty: &dirty,
-                centre,
-                pose: pose.as_ref(),
-                roster: &roster,
-            },
-        ) {
-            eprintln!("section: {error}");
-        }
+        let section_frame = SectionFrame {
+            world,
+            volumes: &self.volumes,
+            ground: world.ground(),
+            dirty: &dirty,
+            centre,
+            pose: pose.as_ref(),
+            roster: &roster,
+        };
         if let Some(lanes) = &mut gpu.chrome {
             let frame = (gpu.config.width, gpu.config.height);
+            // The section is one closed tenant producer. Submit its caller-owned
+            // encoder before Netrender imports the resulting display texture.
+            let mut tenant_encoder =
+                gpu.device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("mesocosm section tenant"),
+                    });
+            if let Err(error) = gpu.section.render(&mut tenant_encoder, section_frame) {
+                eprintln!("section: {error}");
+            }
+            gpu.queue.submit(Some(tenant_encoder.finish()));
+
             if let Some((body, loose)) = &scene {
                 let mut items = Vec::with_capacity(loose.len() + 1);
                 items.push(SceneItem::new(body, played_at));
@@ -487,39 +491,64 @@ impl Host {
                 lanes.hud.render_backdrop(&items, steps);
             }
             lanes.hud.refresh(&lanes.device, world);
-            lanes
-                .hud
-                .composite(&lanes.device, &mut encoder, &view, frame);
             // After the minimap, so a refusal reads over the section rather
             // than under it. Presentation only: nothing it reads is written
             // back, so the trace and the hash never learn it exists.
             lanes
                 .vitals
                 .refresh(&lanes.device, world, &outcomes, steps, &trend);
-            lanes
-                .vitals
-                .composite(&lanes.device, &mut encoder, &view, frame);
-            // The dev lane (DT1). Ordinary chrome beside the vitals panel,
-            // not a stopped-world overlay, so it sits with it rather than
-            // with the checkpoint and the board below.
-            devtime::composite_dev_lane(lanes, dev.as_ref(), &mut encoder, &view, frame);
-            // Last, and over everything: while either of these is up the world
-            // is not running, and it should look that way. The board takes the
-            // lineage checkpoint and the checkpoint panel takes the rest, so
-            // they never overlap.
+            // The dev lane is ordinary chrome beside the vitals panel. The
+            // checkpoint and board remain last because either stops the world.
             lanes
                 .board
                 .refresh(&lanes.device, review.as_ref(), board_row);
             let held = checkpoint.as_ref().filter(|_| !lanes.board.standing());
             lanes.checkpoint.refresh(&lanes.device, held);
+
+            let framed = lanes.device.frame_master(
+                gpu.section.display_texture(),
+                frame,
+                gpu.section.body_stats().fallback_bodies as u64,
+            );
+            gpu.last_tenant_receipt = Some(framed.receipt);
+            let master_view = framed.texture.create_view(&Default::default());
+            let mut encoder = gpu
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("mesocosm master and chrome"),
+                });
+            lanes.device.draw(
+                &mut encoder,
+                &view,
+                &master_view,
+                (0.0, 0.0, frame.0 as f32, frame.1 as f32),
+                frame,
+            );
+            lanes
+                .hud
+                .composite(&lanes.device, &mut encoder, &view, frame);
+            lanes
+                .vitals
+                .composite(&lanes.device, &mut encoder, &view, frame);
+            devtime::composite_dev_lane(lanes, dev.as_ref(), &mut encoder, &view, frame);
             lanes
                 .checkpoint
                 .composite(&lanes.device, &mut encoder, &view, frame);
             lanes
                 .board
                 .composite(&lanes.device, &mut encoder, &view, frame);
+            gpu.queue.submit(Some(encoder.finish()));
+        } else {
+            let mut encoder = gpu
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("chromeless frame"),
+                });
+            if let Err(error) = gpu.section.draw(&mut encoder, &view, section_frame) {
+                eprintln!("section: {error}");
+            }
+            gpu.queue.submit(Some(encoder.finish()));
         }
-        gpu.queue.submit(Some(encoder.finish()));
         // wgpu 30 moved presentation from SurfaceTexture to Queue.
         gpu.queue.present(surface_texture);
 

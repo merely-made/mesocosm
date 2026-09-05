@@ -247,11 +247,10 @@ impl Section {
             .map_or(0, |diagnostics| diagnostics.roster_capsules_dropped)
     }
 
-    /// Traces one frame and composites it into `surface`.
-    pub fn draw(
+    /// Traces one frame into the tenant-owned display texture.
+    pub fn render(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        surface: &wgpu::TextureView,
         frame: SectionFrame<'_>,
     ) -> Result<(), String> {
         let slots = if frame.dirty.is_empty() {
@@ -337,6 +336,22 @@ impl Section {
                 .map_err(|error| error.to_string())?;
         }
         self.copy_to_display(encoder);
+        Ok(())
+    }
+
+    /// The completed same-device texture imported by Netrender's frame graph.
+    pub fn display_texture(&self) -> &wgpu::Texture {
+        &self.display
+    }
+
+    /// Chromeless fallback: trace and composite directly into the surface.
+    pub fn draw(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        surface: &wgpu::TextureView,
+        frame: SectionFrame<'_>,
+    ) -> Result<(), String> {
+        self.render(encoder, frame)?;
         self.composite.draw(
             &self.device,
             &self.queue,
@@ -371,6 +386,17 @@ impl Section {
         &self,
         overlay: impl FnOnce(&mut wgpu::CommandEncoder, &wgpu::TextureView, wgpu::TextureFormat),
     ) -> Option<(u32, u32, Vec<u8>)> {
+        self.capture_from(&self.display, overlay)
+    }
+
+    /// Reads a completed frame master back as RGBA8, with `overlay` given the
+    /// chance to composite chrome over it first. RG3 uses this route so its
+    /// evidence crosses the same imported-tenant master as the live window.
+    pub fn capture_from(
+        &self,
+        master: &wgpu::Texture,
+        overlay: impl FnOnce(&mut wgpu::CommandEncoder, &wgpu::TextureView, wgpu::TextureFormat),
+    ) -> Option<(u32, u32, Vec<u8>)> {
         let (shot, view) = target(
             &self.device,
             self.width,
@@ -388,7 +414,7 @@ impl Section {
             &self.queue,
             &mut encoder,
             &view,
-            &self.display_view,
+            &master.create_view(&Default::default()),
             (0.0, 0.0, self.width as f32, self.height as f32),
             (self.width, self.height),
         );

@@ -14,7 +14,7 @@
 use winit::event_loop::ActiveEventLoop;
 
 use super::Host;
-use crate::played::{self, PlayedReceipt, PlayedTrace};
+use crate::played::{self, FrameGraphReceipt, PlayedReceipt, PlayedTrace};
 
 impl Host {
     /// Writes what the run leaves behind, once, and stops the loop.
@@ -48,29 +48,41 @@ impl Host {
             return Err("there is no device to read a frame back from".into());
         };
         let frame = (gpu.config.width, gpu.config.height);
-        let shot = gpu.section.capture(|encoder, target, format| {
-            if let Some(lanes) = &gpu.chrome {
-                lanes
-                    .hud
-                    .capture_composite(&lanes.device, format, encoder, target, frame);
-                lanes
-                    .vitals
-                    .capture_composite(&lanes.device, format, encoder, target, frame);
-                if self.config.dev {
+        let shot = if let Some(lanes) = &gpu.chrome {
+            let master = lanes.device.frame_master(
+                gpu.section.display_texture(),
+                frame,
+                gpu.section.body_stats().fallback_bodies as u64,
+            );
+            gpu.section
+                .capture_from(&master.texture, |encoder, target, format| {
                     lanes
-                        .dev
+                        .hud
                         .capture_composite(&lanes.device, format, encoder, target, frame);
-                }
-                lanes
-                    .checkpoint
-                    .capture_composite(&lanes.device, format, encoder, target, frame);
-                // Last, as on screen: a capture of a boundary is a capture of
-                // the board.
-                lanes
-                    .board
-                    .capture_composite(&lanes.device, format, encoder, target, frame);
-            }
-        });
+                    lanes
+                        .vitals
+                        .capture_composite(&lanes.device, format, encoder, target, frame);
+                    if self.config.dev {
+                        lanes
+                            .dev
+                            .capture_composite(&lanes.device, format, encoder, target, frame);
+                    }
+                    lanes.checkpoint.capture_composite(
+                        &lanes.device,
+                        format,
+                        encoder,
+                        target,
+                        frame,
+                    );
+                    // Last, as on screen: a capture of a boundary is a capture of
+                    // the board.
+                    lanes
+                        .board
+                        .capture_composite(&lanes.device, format, encoder, target, frame);
+                })
+        } else {
+            gpu.section.capture(|_, _, _| {})
+        };
         let Some((width, height, pixels)) = shot else {
             return Err("the section could not be read back".into());
         };
@@ -234,6 +246,22 @@ impl Host {
                 .as_ref()
                 .map(|gpu| gpu.section.body_stats())
                 .unwrap_or_default(),
+            frame_graph: self
+                .gpu
+                .as_ref()
+                .and_then(|gpu| gpu.last_tenant_receipt.as_ref())
+                .map(|receipt| FrameGraphReceipt {
+                    tenant_name: receipt.tenant_name.clone(),
+                    producer_path: receipt.producer_path.clone(),
+                    fallback_count: receipt.fallback_count,
+                    scene_op_boundary: receipt.scene_op_boundary,
+                    caller_reported_physical_submission_count: receipt
+                        .caller_reported_physical_submission_count,
+                    logical_opaque_producer_boundaries: receipt.logical_opaque_producer_boundaries,
+                    graph_encoder_batches: receipt.graph_encoder_batches,
+                    graph_submission_boundaries: receipt.graph_submission_boundaries,
+                    logical_plan_dump: receipt.logical_plan_dump.clone(),
+                }),
             trace: self
                 .config
                 .trace
