@@ -4,8 +4,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! The chrome device: one physical wgpu device and one blend pass, shared by
-//! every chrome surface and the frame graph.
+//! The chrome device: one physical wgpu device and the blend passes for the
+//! frame master and host surface, shared by every chrome surface and the frame
+//! graph.
 //!
 //! Both lanes end the same way — a vello scene rasterized into a transparent
 //! texture on the game's own device, then blended over the frame. The minimap
@@ -61,10 +62,10 @@ pub struct Chrome {
     /// stack still names the older paint-list source identity through `net`;
     /// this current facade owns only the frame graph until those pins align.
     frame_net: netrender_graph::Renderer,
-    /// The blend pass for the surface's format. A capture writes to the
-    /// offscreen format instead and builds its own; captures are rare and
-    /// evidence beats economy there.
-    composite: Composite,
+    /// Chrome lands in the graph's unorm master before presentation.
+    master_composite: Composite,
+    /// Only the completed master crosses this surface-format pass.
+    surface_composite: Composite,
     device: wgpu::Device,
     queue: wgpu::Queue,
 }
@@ -164,7 +165,8 @@ impl Chrome {
         )
         .ok()?;
         Some(Self {
-            composite: Composite::new(&device, format),
+            master_composite: Composite::new(&device, FRAME_MASTER_FORMAT),
+            surface_composite: Composite::new(&device, format),
             net,
             frame_net,
             device,
@@ -239,7 +241,7 @@ impl Chrome {
         self.queue.submit(Some(encoder.finish()));
     }
 
-    /// Blends `content` into the frame at `dest`.
+    /// Blends chrome `content` into the Netrender master at `dest`.
     pub fn draw(
         &self,
         encoder: &mut wgpu::CommandEncoder,
@@ -248,13 +250,32 @@ impl Chrome {
         dest: (f32, f32, f32, f32),
         frame: (u32, u32),
     ) {
-        self.composite.draw(
+        self.master_composite.draw(
             &self.device,
             &self.queue,
             encoder,
             target,
             content,
             dest,
+            frame,
+        );
+    }
+
+    /// Blits the completed frame master to the host surface.
+    pub fn draw_surface(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        content: &wgpu::TextureView,
+        frame: (u32, u32),
+    ) {
+        self.surface_composite.draw(
+            &self.device,
+            &self.queue,
+            encoder,
+            target,
+            content,
+            (0.0, 0.0, frame.0 as f32, frame.1 as f32),
             frame,
         );
     }
@@ -365,7 +386,8 @@ mod tests {
         }
         // A separate compositor models the old Section-owned full-frame draw.
         // Its rectangle cannot be rewritten by the chrome draw below.
-        Composite::new(&chrome.device, SURFACE_FORMAT).draw(
+        let legacy = Composite::new(&chrome.device, SURFACE_FORMAT);
+        legacy.draw(
             &chrome.device,
             &chrome.queue,
             &mut encoder,
@@ -374,7 +396,9 @@ mod tests {
             (0.0, 0.0, WIDTH as f32, HEIGHT as f32),
             (WIDTH, HEIGHT),
         );
-        chrome.draw(
+        legacy.draw(
+            &chrome.device,
+            &chrome.queue,
             &mut encoder,
             &target_view,
             &source_view,
@@ -437,6 +461,18 @@ mod tests {
         master: &wgpu::Texture,
         overlay: &wgpu::Texture,
     ) -> wgpu::Texture {
+        let master_view = master.create_view(&Default::default());
+        let overlay_view = overlay.create_view(&Default::default());
+        let mut overlay_encoder = chrome.device.create_command_encoder(&Default::default());
+        chrome.draw(
+            &mut overlay_encoder,
+            &master_view,
+            &overlay_view,
+            (WIDTH as f32 - 8.0, HEIGHT as f32 - 6.0, 8.0, 6.0),
+            (WIDTH, HEIGHT),
+        );
+        chrome.queue.submit([overlay_encoder.finish()]);
+
         let target = chrome.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("RG3 Mesocosm presented frame"),
             size: master.size(),
@@ -448,8 +484,6 @@ mod tests {
             view_formats: &[],
         });
         let target_view = target.create_view(&Default::default());
-        let master_view = master.create_view(&Default::default());
-        let overlay_view = overlay.create_view(&Default::default());
         let mut encoder = chrome.device.create_command_encoder(&Default::default());
         {
             let _clear = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -469,23 +503,7 @@ mod tests {
                 multiview_mask: None,
             });
         }
-        chrome.draw(
-            &mut encoder,
-            &target_view,
-            &master_view,
-            (0.0, 0.0, WIDTH as f32, HEIGHT as f32),
-            (WIDTH, HEIGHT),
-        );
-        // This second draw is the shape that exposed the black headed frame:
-        // before Composite used per-draw uniforms, it rewrote the master's
-        // full-frame rectangle before either draw reached the GPU.
-        chrome.draw(
-            &mut encoder,
-            &target_view,
-            &overlay_view,
-            (WIDTH as f32 - 8.0, HEIGHT as f32 - 6.0, 8.0, 6.0),
-            (WIDTH, HEIGHT),
-        );
+        chrome.draw_surface(&mut encoder, &target_view, &master_view, (WIDTH, HEIGHT));
         chrome.queue.submit([encoder.finish()]);
         target
     }

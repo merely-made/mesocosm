@@ -512,32 +512,41 @@ impl Host {
             );
             gpu.last_tenant_receipt = Some(framed.receipt);
             let master_view = framed.texture.create_view(&Default::default());
-            let mut encoder = gpu
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("mesocosm master and chrome"),
-                });
-            lanes.device.draw(
-                &mut encoder,
-                &view,
+            let mut chrome_encoder =
+                gpu.device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("mesocosm chrome into master"),
+                    });
+            lanes
+                .hud
+                .composite(&lanes.device, &mut chrome_encoder, &master_view, frame);
+            lanes
+                .vitals
+                .composite(&lanes.device, &mut chrome_encoder, &master_view, frame);
+            devtime::composite_dev_lane(
+                lanes,
+                dev.as_ref(),
+                &mut chrome_encoder,
                 &master_view,
-                (0.0, 0.0, frame.0 as f32, frame.1 as f32),
                 frame,
             );
             lanes
-                .hud
-                .composite(&lanes.device, &mut encoder, &view, frame);
-            lanes
-                .vitals
-                .composite(&lanes.device, &mut encoder, &view, frame);
-            devtime::composite_dev_lane(lanes, dev.as_ref(), &mut encoder, &view, frame);
-            lanes
                 .checkpoint
-                .composite(&lanes.device, &mut encoder, &view, frame);
+                .composite(&lanes.device, &mut chrome_encoder, &master_view, frame);
             lanes
                 .board
-                .composite(&lanes.device, &mut encoder, &view, frame);
-            gpu.queue.submit(Some(encoder.finish()));
+                .composite(&lanes.device, &mut chrome_encoder, &master_view, frame);
+            gpu.queue.submit(Some(chrome_encoder.finish()));
+
+            let mut present_encoder =
+                gpu.device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("mesocosm master to surface"),
+                    });
+            lanes
+                .device
+                .draw_surface(&mut present_encoder, &view, &master_view, frame);
+            gpu.queue.submit(Some(present_encoder.finish()));
         } else {
             let mut encoder = gpu
                 .device

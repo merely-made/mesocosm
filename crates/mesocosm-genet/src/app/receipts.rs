@@ -54,32 +54,33 @@ impl Host {
                 frame,
                 gpu.section.body_stats().fallback_bodies as u64,
             );
-            gpu.section
-                .capture_from(&master.texture, |encoder, target, format| {
-                    lanes
-                        .hud
-                        .capture_composite(&lanes.device, format, encoder, target, frame);
-                    lanes
-                        .vitals
-                        .capture_composite(&lanes.device, format, encoder, target, frame);
-                    if self.config.dev {
-                        lanes
-                            .dev
-                            .capture_composite(&lanes.device, format, encoder, target, frame);
-                    }
-                    lanes.checkpoint.capture_composite(
-                        &lanes.device,
-                        format,
-                        encoder,
-                        target,
-                        frame,
-                    );
-                    // Last, as on screen: a capture of a boundary is a capture of
-                    // the board.
-                    lanes
-                        .board
-                        .capture_composite(&lanes.device, format, encoder, target, frame);
-                })
+            let master_view = master.texture.create_view(&Default::default());
+            let mut encoder =
+                lanes
+                    .device
+                    .device()
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("mesocosm captured chrome into master"),
+                    });
+            lanes
+                .hud
+                .composite(&lanes.device, &mut encoder, &master_view, frame);
+            lanes
+                .vitals
+                .composite(&lanes.device, &mut encoder, &master_view, frame);
+            if self.config.dev {
+                lanes
+                    .dev
+                    .composite(&lanes.device, &mut encoder, &master_view, frame);
+            }
+            lanes
+                .checkpoint
+                .composite(&lanes.device, &mut encoder, &master_view, frame);
+            lanes
+                .board
+                .composite(&lanes.device, &mut encoder, &master_view, frame);
+            lanes.device.queue().submit(Some(encoder.finish()));
+            gpu.section.capture_from(&master.texture, |_, _, _| {})
         } else {
             gpu.section.capture(|_, _, _| {})
         };
