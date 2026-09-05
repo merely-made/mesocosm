@@ -2031,6 +2031,38 @@ and UI focus does not also issue a gameplay action. The host's existing
 genet-probe scenario path exercises that route rather than a private test
 setter. A capture locates the part discussed by the panel on the actual body.
 
+**2026-09-05 keyboard inspection verified locally:** the first inspection
+route uses ordinary keyboard input under `--dev`: `I` opens or closes the
+existing inspector, `J/L` walks the followed body's rendered parts, `N/B`
+changes the followed critter, and `U` clears selection. Selection carries
+organism, part and geometry dependency revision from the last voxel draw;
+the current projection must still validate that address. Capsule fallbacks
+offer no exact part selection. A selected part receives an amber tint through
+the existing instance stream and shared depth/slab clipping path.
+
+The panel has keyboard focus while open. Time, follow and pan remain
+available, while gameplay, checkpoint answers and world-edit keys are consumed
+until it closes. The view reads actual expressed sites, tissue condition and
+provenance; it does not infer an acquired dormant trait from a shape's possible
+processes. Exact part events supply history where recorded. Pointer delivery,
+occlusion-aware mouse picking and player sensory food cues remain open. The
+keyboard walks submitted geometry, including parts hidden by the slab or other
+geometry; it does not claim a pixel hit or draw an occluded part through terrain.
+
+Receipt: `Code/testing/mesocosm/vb3_inspection/README.md`. The joined host/views
+run passed 74 + 43 tests; release mesh/render passed 57 + 13, for 187 total.
+Tests cover owner identity, sever invalidation, fallback refusal, inspection
+focus, exact addressed history, donor attribution, instance-only tint updates
+and shared-depth occlusion. The live `genet-probe` path cycles all 46 parts of
+critter 0; the focused capture identifies part 5 and its actual intake site,
+condition and founding provenance. The body budget is explicitly reduced to
+one for that visibility proof; normal-budget captures retain the crowded stand.
+Inspecting, clearing and changing follow leave the paused world at
+`4ae2aa28d9c5ef51`, including the capsule refusal arm. The historical 856-step
+recording remains `17ce02e24e152591` and its PNG is byte-identical to the VB2
+spacing receipt. The host capture used a debug build on the RTX 4060; this is
+functional evidence, not a new frame-time or ecology performance claim.
+
 ### VB4: a life changes the picture, then a descendant grows
 
 **VB4a, existing mechanics.** First join existing graft, whole-part consumption/loss, expression and filial

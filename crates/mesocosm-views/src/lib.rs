@@ -31,7 +31,8 @@ pub mod vitals;
 
 pub use caption::{Caption, CaptionChild, caption_css, caption_root};
 pub use dev::{
-    Dev, DevChild, Follow, Lost, dev_css, dev_root, follow_of, lost_of, lost_words, role_word,
+    Dev, DevChild, Follow, Lost, PartInspection, PartReading, dev_css, dev_root, follow_of,
+    lost_of, lost_words, part_of, role_word,
 };
 pub use leaf::MinimapLeaf;
 pub use minimap::{

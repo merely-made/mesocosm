@@ -219,6 +219,15 @@ impl Host {
                 .map_or(self.config.camera, |gpu| gpu.section.mode())
                 .name(),
             bodies: self.config.body_mode.name(),
+            inspecting: self.inspection.open,
+            selected_part: self
+                .inspection
+                .selected
+                .map(|selection| played::PartSelectionReceipt {
+                    organism: selection.organism.0,
+                    part: selection.part.0,
+                    revision: selection.revision.0,
+                }),
             body_budget: self.config.body_budget,
             body_projection: self
                 .gpu

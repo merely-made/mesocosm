@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
-use mesocosm_core::{VolumeRef, Yaw};
+use mesocosm_core::{PartId, VolumeRef, Yaw};
 use mesocosm_mesh::{BodyMesh, PartMesh};
 use wgpu::util::DeviceExt;
 
@@ -31,6 +31,10 @@ pub struct LiveBody<'a> {
     pub scale: f32,
     /// Linear multiplier applied after the volume material colour.
     pub tint: [f32; 3],
+    /// Gives this body a restrained inspection emphasis.
+    pub focused: bool,
+    /// The one addressed part that receives the inspection colour.
+    pub selected_part: Option<PartId>,
 }
 
 impl<'a> LiveBody<'a> {
@@ -40,6 +44,8 @@ impl<'a> LiveBody<'a> {
             origin,
             scale: 1.0,
             tint: [1.0; 3],
+            focused: false,
+            selected_part: None,
         }
     }
 }
@@ -317,9 +323,10 @@ impl LiveBodyRenderer {
             for placement in &body.mesh.placements {
                 let key = placement.volume.0;
                 let model = model_matrix(*body, placement.yaw, placement.pivot, placement.pivot_at);
+                let tint = part_tint(*body, placement.part);
                 instances.entry(key).or_default().push(Instance {
                     model: model.to_cols_array_2d(),
-                    tint: [body.tint[0], body.tint[1], body.tint[2], 1.0],
+                    tint: [tint[0], tint[1], tint[2], 1.0],
                 });
             }
         }
@@ -492,6 +499,16 @@ impl LiveBodyRenderer {
             cached.bytes.clear();
             cached.bytes.extend_from_slice(bytes);
         }
+    }
+}
+
+fn part_tint(body: LiveBody<'_>, part: PartId) -> [f32; 3] {
+    if body.selected_part == Some(part) {
+        [1.55, 0.82, 0.22]
+    } else if body.focused {
+        body.tint.map(|channel| channel * 1.08)
+    } else {
+        body.tint
     }
 }
 

@@ -135,9 +135,19 @@ pub struct PlayedTrace {
 
 /// What a run says about itself on the way out.
 #[derive(Clone, Debug, Serialize)]
+pub struct PartSelectionReceipt {
+    pub organism: u32,
+    pub part: u32,
+    pub revision: u64,
+}
+
+/// What a run says about itself on the way out.
+#[derive(Clone, Debug, Serialize)]
 pub struct PlayedReceipt {
     pub body_layout: &'static str,
     pub body_content: &'static str,
+    pub inspecting: bool,
+    pub selected_part: Option<PartSelectionReceipt>,
     /// `played` for a session at the keyboard, `replay` for a driven one.
     pub mode: &'static str,
     pub seed: u64,

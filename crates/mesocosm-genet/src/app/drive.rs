@@ -279,6 +279,25 @@ impl Automatable for Host {
                 ("checkpoint", yes_no(self.runtime.checkpoint().is_some())),
                 ("boundary", yes_no(world.at_boundary())),
                 ("paused", yes_no(self.dev_paused)),
+                ("inspecting", yes_no(self.inspection.open)),
+                (
+                    "selected-part",
+                    self.inspection
+                        .selected
+                        .map_or("none".into(), |s| s.part.0.to_string()),
+                ),
+                (
+                    "selected-organism",
+                    self.inspection
+                        .selected
+                        .map_or("none".into(), |s| s.organism.0.to_string()),
+                ),
+                (
+                    "selected-revision",
+                    self.inspection
+                        .selected
+                        .map_or("none".into(), |s| format!("{:016x}", s.revision.0)),
+                ),
             ]
             .into_iter()
             .map(|(name, value)| (name.to_string(), value))
@@ -323,11 +342,11 @@ impl Driveable for Host {
             Ok(()) => {
                 self.events.push(format!("captured {}", path.display()));
                 true
-            }
+            },
             Err(why) => {
                 eprintln!("capture: {why}");
                 false
-            }
+            },
         }
     }
 }

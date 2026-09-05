@@ -1,5 +1,5 @@
-use mesocosm_core::VolumeRef;
 use mesocosm_core::places::{Ground, Places};
+use mesocosm_core::{PartId, VolumeRef};
 use mesocosm_lens::{
     BrickFrameInput, BrickMap, BrickRevision, BrickTracer, FRAME_FORMAT, Grade, TraceCamera,
 };
@@ -144,7 +144,7 @@ fn voxel_body_and_brick_tracer_share_depth_in_both_orders() {
     });
     let depth_view = depth.create_view(&Default::default());
 
-    let mut render = |body_z: Option<f32>, tracer: &mut BrickTracer| -> Vec<u8> {
+    let mut render = |body_z: Option<f32>, selected: bool, tracer: &mut BrickTracer| -> Vec<u8> {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("section depth test"),
         });
@@ -188,6 +188,8 @@ fn voxel_body_and_brick_tracer_share_depth_in_both_orders() {
                         origin: [0.0, 0.0, z],
                         scale: 1.0,
                         tint: [1.0; 3],
+                        focused: false,
+                        selected_part: selected.then_some(PartId(0)),
                     }],
                 )
                 .expect("body draw");
@@ -202,9 +204,10 @@ fn voxel_body_and_brick_tracer_share_depth_in_both_orders() {
         read_pixels(&device, &queue, &colour, width, height)
     };
 
-    let terrain = render(None, &mut tracer);
-    let near = render(Some(8.0), &mut tracer);
-    let far = render(Some(0.0), &mut tracer);
+    let terrain = render(None, false, &mut tracer);
+    let near = render(Some(8.0), false, &mut tracer);
+    let far = render(Some(0.0), false, &mut tracer);
+    let selected_far = render(Some(0.0), true, &mut tracer);
     let near_difference = differing_pixels(&near, &terrain);
     let far_difference = differing_pixels(&far, &terrain);
     assert!(
@@ -218,5 +221,9 @@ fn voxel_body_and_brick_tracer_share_depth_in_both_orders() {
     assert!(
         far_difference * 10 < near_difference,
         "far body should be almost fully occluded"
+    );
+    assert!(
+        differing_pixels(&selected_far, &far) <= far_difference,
+        "selection tint may alter only the body's already visible fragments"
     );
 }

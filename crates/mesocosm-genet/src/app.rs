@@ -30,6 +30,7 @@ mod devtime;
 mod devworld;
 pub mod drive;
 mod follow;
+mod inspection;
 mod receipts;
 mod setup;
 
@@ -133,6 +134,7 @@ pub struct Host {
     /// A followed critter that stopped being one, kept so the tile can report
     /// it after follow has snapped back.
     follow_lost: Option<mesocosm_views::Lost>,
+    inspection: inspection::Inspection,
     /// The scenario driving this run, when `--scenario` gave it one. (DT4)
     ///
     /// `None` for an ordinary session at the keyboard, and for a bare
@@ -252,6 +254,7 @@ impl Host {
             dev_manual_steps: 0,
             follow,
             follow_lost: None,
+            inspection: inspection::Inspection::default(),
             scenario,
             events: Vec::new(),
             pump: None,
@@ -368,6 +371,7 @@ impl Host {
         // A follow target that stopped being alive is reported and dropped
         // here, before anything reads the centre.
         self.update_follow();
+        self.update_inspection();
 
         // Presentation reads of the stepped world, taken before the device is
         // borrowed: the section follows the critter, the HUD backdrop wants
@@ -430,9 +434,12 @@ impl Host {
         // The dev lane's own reading (DT1). `None` outside `--dev`, which is
         // also when nothing below touches `lanes.dev` at all.
         let dev = self.dev_reading();
+        let focused_body = self.config.dev.then(|| self.followed()).flatten();
 
         let world = self.runtime.world();
         let Some(gpu) = &mut self.gpu else { return };
+        gpu.section
+            .set_body_focus(focused_body, self.inspection.selected);
         // wgpu 29 returns an enum rather than a Result here: a suboptimal
         // texture is still drawable, and a lost or outdated surface wants
         // reconfiguring rather than an error.

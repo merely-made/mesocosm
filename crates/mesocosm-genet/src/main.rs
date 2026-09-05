@@ -254,6 +254,11 @@ trace, so a replay's hash cannot move because of one):
   B      follow the previous one
   M      snap the camera back to the critter under your hand
 following moves the camera and nothing else: control stays where it is
+  I      open/close body-part inspection (dev ground truth)
+  J/L    previous/next drawn part of the followed critter
+  U      clear the selected part
+inspection consumes gameplay and world-edit keys until I closes it;
+time, follow and camera pan remain available. Amber marks the selected part.
 and four world-changing ones, which queue ordinary intents and so do enter
 the trace, replay with it, and are counted on the receipt:
   X      end the epoch now (refused where the world's epoch rule says so)

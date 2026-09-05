@@ -3,13 +3,13 @@
 
 //! Addressed voxel bodies in the same camera and depth target as the terrain.
 
-use mesocosm_core::{Organism, World};
+use mesocosm_core::{Organism, OrganismId, World};
 use mesocosm_lens::{BodyLensProjection, BodyPlacement, CritterPose, MAX_ROSTER};
 use mesocosm_mesh::{LiveBodyProjection, LiveBodyProjector, VolumeMap};
 use mesocosm_render::live_body::{ClipSlab, LiveBody, LiveBodyRenderer};
 use serde::Serialize;
 
-use super::{CameraMode, SLAB_DEPTH, SlabWindow};
+use super::{BodySelection, CameraMode, SLAB_DEPTH, SlabWindow};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum BodyMode {
@@ -71,6 +71,8 @@ pub(super) struct BodyLayer {
     pub played_fallback: Option<CritterPose>,
     pub stats: BodyFrameStats,
     pub budget: usize,
+    focus_subject: Option<OrganismId>,
+    selected: Option<BodySelection>,
     depth: wgpu::Texture,
     pub depth_view: wgpu::TextureView,
 }
@@ -86,6 +88,8 @@ impl BodyLayer {
             played_fallback: None,
             stats: BodyFrameStats::default(),
             budget: DEFAULT_BODY_BUDGET,
+            focus_subject: None,
+            selected: None,
             depth,
             depth_view,
         }
@@ -93,6 +97,93 @@ impl BodyLayer {
 
     pub fn resize(&mut self, device: &wgpu::Device, width: u32, height: u32) {
         (self.depth, self.depth_view) = depth_target(device, width, height);
+    }
+
+    pub fn clear_inspection(&mut self) {
+        self.placed.clear();
+        self.selected = None;
+    }
+
+    pub fn select_part(
+        &self,
+        subject: OrganismId,
+        current: Option<BodySelection>,
+        backwards: bool,
+    ) -> Option<BodySelection> {
+        let body = self
+            .placed
+            .iter()
+            .find(|body| body.projection.organism == subject)?;
+        let parts: Vec<_> = body
+            .projection
+            .mesh
+            .placements
+            .iter()
+            .filter(|part| drawable(&body.projection, part.part))
+            .collect();
+        if parts.is_empty() {
+            return None;
+        }
+        let current = current.filter(|selection| selection.organism == subject);
+        let index = current
+            .and_then(|selection| parts.iter().position(|part| part.part == selection.part))
+            .map(|index| {
+                if backwards {
+                    index.checked_sub(1).unwrap_or(parts.len() - 1)
+                } else {
+                    (index + 1) % parts.len()
+                }
+            })
+            .unwrap_or_else(|| if backwards { parts.len() - 1 } else { 0 });
+        Some(BodySelection {
+            organism: subject,
+            part: parts[index].part,
+            revision: body.projection.revision,
+        })
+    }
+
+    pub fn validate_selection(
+        &mut self,
+        selection: BodySelection,
+        world: &World,
+        volumes: &VolumeMap,
+    ) -> bool {
+        let Some(revision) = self
+            .placed
+            .iter()
+            .find(|body| {
+                body.projection.organism == selection.organism
+                    && body.projection.revision == selection.revision
+                    && body.projection.mesh.placements.iter().any(|part| {
+                        part.part == selection.part && drawable(&body.projection, part.part)
+                    })
+            })
+            .map(|body| body.projection.revision)
+        else {
+            return false;
+        };
+        let Some(organism) = world
+            .organisms
+            .iter()
+            .find(|organism| organism.id == selection.organism)
+        else {
+            return false;
+        };
+        self.projector
+            .project(organism.id, organism.body(), volumes)
+            .is_ok_and(|current| {
+                current.revision == revision
+                    && current
+                        .mesh
+                        .placements
+                        .iter()
+                        .any(|part| part.part == selection.part && drawable(&current, part.part))
+            })
+    }
+
+    pub fn set_focus(&mut self, subject: Option<OrganismId>, selected: Option<BodySelection>) {
+        self.focus_subject = subject;
+        self.selected = selected;
     }
 
     pub fn prepare(&mut self, world: &World, volumes: &VolumeMap, window: SlabWindow) {
@@ -196,6 +287,12 @@ impl BodyLayer {
                 origin: body.origin,
                 scale: 1.0,
                 tint: body.tint,
+                focused: self.focus_subject == Some(body.projection.organism),
+                selected_part: self.selected.and_then(|selection| {
+                    (selection.organism == body.projection.organism
+                        && selection.revision == body.projection.revision)
+                        .then_some(selection.part)
+                }),
             })
             .collect();
         let stats = self
@@ -239,6 +336,16 @@ impl BodyLayer {
         self.stats.projection_failures += 1;
         self.placed.clear();
     }
+}
+
+fn drawable(projection: &LiveBodyProjection, part: mesocosm_core::PartId) -> bool {
+    projection
+        .mesh
+        .placements
+        .iter()
+        .find(|placement| placement.part == part)
+        .and_then(|placement| projection.mesh.mesh_for(placement.volume))
+        .is_some_and(|mesh| !mesh.quads.is_empty())
 }
 
 fn distance(at: [i32; 3], centre: [f32; 3]) -> f32 {

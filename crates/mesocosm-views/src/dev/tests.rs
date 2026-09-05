@@ -45,6 +45,7 @@ fn the_root_builds_and_the_sheet_styles_the_class_it_sets() {
         manual_steps: 2,
         follow: follow_of(&world, id, accounts()),
         lost: None,
+        inspection: None,
     };
     let _ = dev_root(&dev);
     assert!(
@@ -281,6 +282,7 @@ fn a_lost_follow_target_is_reported_with_its_tick_and_which_way_it_went() {
     // And the notice reaches the tree.
     let dev = Dev {
         lost: Some(died),
+        inspection: None,
         ..Dev::default()
     };
     let _ = dev_root(&dev);

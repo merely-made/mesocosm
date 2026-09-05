@@ -75,15 +75,15 @@ impl Host {
             input::DevKey::SlowDown => self.dev_speed_idx = self.dev_speed_idx.saturating_sub(1),
             input::DevKey::SpeedUp => {
                 self.dev_speed_idx = (self.dev_speed_idx + 1).min(DEV_SPEED_LADDER.len() - 1);
-            }
+            },
             // DT2: the camera's centre, and nothing else.
             input::DevKey::FollowNext | input::DevKey::FollowBack | input::DevKey::FollowSelf => {
                 self.follow_key(action)
-            }
+            },
             // DT3: an ordinary intent, queued. The only arm here that can
             // reach the world at all.
             action if action.changes_the_world() => self.dev_world_key(action),
-            _ => {}
+            _ => {},
         }
         true
     }
@@ -114,6 +114,22 @@ impl Host {
             manual_steps: self.dev_manual_steps,
             follow,
             lost,
+            inspection: self.inspection.open.then(|| {
+                self.inspection.selected.map_or_else(
+                    || mesocosm_views::PartInspection {
+                        reading: None,
+                        notice: Some(self.inspection.notice.into()),
+                    },
+                    |selected| {
+                        mesocosm_views::part_of(
+                            self.runtime.world(),
+                            selected.organism,
+                            selected.part,
+                            self.runtime.history(),
+                        )
+                    },
+                )
+            }),
         })
     }
 }

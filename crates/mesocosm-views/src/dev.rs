@@ -23,10 +23,12 @@
 use cambium::{AnyView, DetailRow, DetailSection, GenetCtx, GenetElement, detail_panel, el, text};
 
 pub mod follow;
+pub mod part;
 
 pub use follow::{
     Follow, Lost, MAX_DISCOVERY_NAMES, MAX_PART_ROWS, follow_of, lost_of, lost_words, role_word,
 };
+pub use part::{PartInspection, PartReading, part_of};
 
 pub type DevChild = Box<dyn AnyView<Dev, (), GenetCtx, GenetElement>>;
 
@@ -55,6 +57,7 @@ pub struct Dev {
     /// A followed critter that stopped being one, kept after follow snapped
     /// back so the death is reported rather than dropped. (DT2)
     pub lost: Option<Lost>,
+    pub inspection: Option<PartInspection>,
 }
 
 /// The dev panel: the catalog's labelled-facts component, exactly as
@@ -69,7 +72,12 @@ pub fn dev_root(dev: &Dev) -> DevChild {
             DetailRow::new("stepped", dev.manual_steps.to_string()),
         ],
     )];
-    if let Some(follow) = &dev.follow {
+    if let Some(inspection) = &dev.inspection {
+        sections.push(DetailSection::new(
+            "part inspection (dev truth)",
+            inspection_rows(inspection),
+        ));
+    } else if let Some(follow) = &dev.follow {
         sections.push(DetailSection::new("follow", follow_rows(follow)));
     }
 
@@ -83,6 +91,31 @@ pub fn dev_root(dev: &Dev) -> DevChild {
         ));
     }
     Box::new(el::<_, Dev, ()>("div", children).attr("class", "dev"))
+}
+
+fn inspection_rows(inspection: &PartInspection) -> Vec<DetailRow> {
+    let keys = || DetailRow::new("keys", "I close, J/L part, N/B follow, U clear");
+    let Some(reading) = &inspection.reading else {
+        return vec![
+            DetailRow::new(
+                "selection",
+                inspection.notice.as_deref().unwrap_or("unknown"),
+            ),
+            keys(),
+        ];
+    };
+    vec![
+        DetailRow::new("organism", reading.organism.clone()),
+        DetailRow::new("part", reading.id.clone()),
+        DetailRow::new("role", reading.role.clone()),
+        DetailRow::new("process", reading.process.clone()),
+        DetailRow::new("condition", reading.condition.clone()),
+        DetailRow::new("discovered", reading.discovery_condition.clone()),
+        DetailRow::new("history", reading.history_event.clone()),
+        DetailRow::new("lineage", reading.lineage.clone()),
+        DetailRow::new("donor", reading.donor.clone()),
+        keys(),
+    ]
 }
 
 /// The inspector's rows, in the order a reader wants them: who and where

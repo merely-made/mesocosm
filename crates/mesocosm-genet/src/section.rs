@@ -18,8 +18,10 @@
 
 mod bodies;
 mod camera;
+mod inspection;
 
 pub use bodies::{BodyFrameStats, BodyMode, DEFAULT_BODY_BUDGET};
+pub use inspection::BodySelection;
 
 pub use camera::{CameraMode, Framing, OBLIQUE_DEGREES, SLAB_DEPTH, SlabWindow};
 
@@ -203,6 +205,9 @@ impl Section {
     pub fn configure_bodies(&mut self, mode: BodyMode, budget: usize) {
         self.body_mode = mode;
         self.bodies.budget = budget.max(1);
+        if mode == BodyMode::Capsules {
+            self.bodies.clear_inspection();
+        }
     }
 
     pub fn body_stats(&self) -> BodyFrameStats {
@@ -575,5 +580,7 @@ fn pose_at(body: &BodyDocument, at: [i32; 3], tint: [f32; 3]) -> Option<(Critter
 
 #[cfg(test)]
 mod depth_tests;
+#[cfg(test)]
+mod inspection_tests;
 #[cfg(test)]
 mod tests;

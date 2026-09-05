@@ -172,6 +172,50 @@ fn an_unchanged_frame_reuses_all_gpu_uploads() {
     assert_eq!(moved.draw_parts, 1);
     eprintln!("VB1 movement receipt: {moved:?}");
 
+    let selected_body = [LiveBody {
+        selected_part: Some(PartId(0)),
+        ..moved_body[0]
+    }];
+    let mut selection = host.device().create_command_encoder(&Default::default());
+    let selected = live
+        .draw(
+            host.device(),
+            host.queue(),
+            &mut selection,
+            &colour_view,
+            &depth_view,
+            clip,
+            None,
+            &selected_body,
+        )
+        .unwrap();
+    host.queue().submit(Some(selection.finish()));
+    assert_eq!(
+        selected.mesh_upload_bytes, 0,
+        "selection reuses static geometry"
+    );
+    assert!(
+        selected.instance_upload_bytes > 0,
+        "selection changes instance tint"
+    );
+
+    let mut unchanged_selection = host.device().create_command_encoder(&Default::default());
+    let unchanged_selected = live
+        .draw(
+            host.device(),
+            host.queue(),
+            &mut unchanged_selection,
+            &colour_view,
+            &depth_view,
+            clip,
+            None,
+            &selected_body,
+        )
+        .unwrap();
+    host.queue().submit(Some(unchanged_selection.finish()));
+    assert_eq!(unchanged_selected.mesh_upload_bytes, 0);
+    assert_eq!(unchanged_selected.instance_upload_bytes, 0);
+
     let mut attached_mesh = mesh.clone();
     let mut attached = mesh.placements[0].clone();
     attached.part = PartId(1);
@@ -230,4 +274,19 @@ fn an_unchanged_frame_reuses_all_gpu_uploads() {
         "severing removes the added placement"
     );
     eprintln!("VB1 sever receipt: {severed:?}");
+}
+
+#[test]
+fn inspection_tint_prioritizes_the_addressed_part() {
+    let mesh = BodyMesh::single(VolumeRef::from_tag(1), &Volume::solid([1, 1, 1], 1));
+    let focused = LiveBody {
+        focused: true,
+        ..LiveBody::new(&mesh, [0.0; 3])
+    };
+    assert_eq!(part_tint(focused, PartId(9)), [1.08; 3]);
+    let selected = LiveBody {
+        selected_part: Some(PartId(9)),
+        ..focused
+    };
+    assert_eq!(part_tint(selected, PartId(9)), [1.55, 0.82, 0.22]);
 }

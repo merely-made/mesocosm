@@ -113,6 +113,9 @@ impl Host {
     /// queue. At a lineage checkpoint the board's own two keys come first — one
     /// of which sends no intent at all.
     pub(super) fn press_key(&mut self, key: &Key) {
+        if self.try_inspection_key(key) {
+            return;
+        }
         if self.try_dev_key(key) {
             return;
         }
@@ -346,7 +349,9 @@ fn key_named(name: &str) -> Option<Key> {
         // Play: WASD, E, Q, C; T at a checkpoint; R at the board.
         // Dev (live only under `--dev`): P . , [ ] N B M X F K G.
         "w" | "a" | "s" | "d" | "e" | "q" | "c" | "t" | "r" | "p" | "." | "," | "[" | "]" | "n"
-        | "b" | "m" | "x" | "f" | "k" | "g" => Some(Key::Character(name.into())),
+        | "b" | "m" | "x" | "f" | "k" | "g" | "i" | "j" | "l" | "u" => {
+            Some(Key::Character(name.into()))
+        },
         _ => None,
     }
 }
