@@ -6,8 +6,8 @@
 
 //! What a played session leaves behind, and what drives one without a player.
 //!
-//! A run is a seed, an organism count, and an ordered trace; the hash is what
-//! two runs compare. The trace file carries all four so `--replay` can assert
+//! A run is a seed, an organism count, admitted content, and an ordered trace;
+//! the hash is what two runs compare. The trace file carries these so `--replay` can assert
 //! rather than merely re-run, and so the assertion needs no second file.
 //!
 //! The recorded demo answers its own checkpoints, because a checkpoint holds the
@@ -32,6 +32,9 @@ use mesocosm_core::{Intent, Placement, World};
 use mesocosm_mesh::VolumeMap;
 use mesocosm_runtime::{Checkpoint, Occasion, Runtime};
 use serde::{Deserialize, Serialize};
+
+mod layout;
+pub use layout::BodyLayout;
 
 /// Steps the recorded demo runs for.
 ///
@@ -112,6 +115,11 @@ pub struct Script {
 /// A recorded run, complete enough to reproduce and to judge.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PlayedTrace {
+    #[serde(
+        default = "BodyLayout::axial",
+        skip_serializing_if = "BodyLayout::is_axial"
+    )]
+    pub body_layout: BodyLayout,
     pub seed: u64,
     pub organisms: u32,
     pub steps: u64,
@@ -119,11 +127,17 @@ pub struct PlayedTrace {
     /// determinism failure, which is the whole point of writing it down.
     pub state_hash: u64,
     pub intents: Vec<Intent>,
+    /// Immutable palette and voxel bytes admitted when this world was founded.
+    /// Absent in existing recordings, which retain their original fixtures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<mesocosm_mesh::content::ContentPack>,
 }
 
 /// What a run says about itself on the way out.
 #[derive(Clone, Debug, Serialize)]
 pub struct PlayedReceipt {
+    pub body_layout: &'static str,
+    pub body_content: &'static str,
     /// `played` for a session at the keyboard, `replay` for a driven one.
     pub mode: &'static str,
     pub seed: u64,
@@ -168,6 +182,9 @@ pub struct PlayedReceipt {
     /// `oblique` default does. It is written down because captures of one
     /// tick are only comparable if each says which arm it is.
     pub camera: &'static str,
+    pub bodies: &'static str,
+    pub body_budget: usize,
+    pub body_projection: crate::section::BodyFrameStats,
     pub trace: Option<String>,
     pub capture: Option<String>,
     /// Whether `--dev` was set for this run (DT1, ruled 2026-09-02). A played
@@ -311,6 +328,8 @@ pub fn demo_step(runtime: &mut Runtime, volumes: &VolumeMap, step: u64, script: 
 /// direction, metabolize, deposit, carve — and a stretch of doing nothing at
 /// all, which since TD4 is a verb too.
 pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32, steps: u64) -> PlayedTrace {
+    // This historical fixture helper retains tag-backed founding. The real
+    // host records its generated pack alongside intents in app/receipts.rs.
     let volumes = crate::fixture::volumes();
     let mut runtime = Runtime::new(seed, organisms, ticks_per_second);
     let mut script = Script::default();
@@ -318,11 +337,13 @@ pub fn record_demo(seed: u64, organisms: u32, ticks_per_second: u32, steps: u64)
         demo_step(&mut runtime, &volumes, step, &mut script);
     }
     PlayedTrace {
+        body_layout: BodyLayout::Axial,
         seed,
         organisms,
         steps,
         state_hash: runtime.state_hash(),
         intents: runtime.trace().to_vec(),
+        content: None,
     }
 }
 

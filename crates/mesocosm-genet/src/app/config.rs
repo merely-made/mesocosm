@@ -59,6 +59,13 @@ pub struct HostConfig {
     /// no state hash. The measured slice replays one golden trace under all
     /// three and asserts the same hash from each.
     pub camera: CameraMode,
+    /// Voxel anatomy or the legacy capsule comparison, presentation only.
+    pub body_mode: section::BodyMode,
+    pub body_budget: usize,
+    /// New worlds admit generated voxel content. Replays use their saved pack.
+    pub generated_content: bool,
+    /// New-world recipe set. A replay always uses its recorded choice.
+    pub body_layout: crate::played::BodyLayout,
     /// Off by default (DT1). On, the dev lane draws and its keys go live;
     /// recorded in the receipt either way.
     pub dev: bool,
@@ -71,6 +78,14 @@ pub struct HostConfig {
     /// what DT2's headed receipt has to show; nothing about it reaches an
     /// intent, so it cannot move a replay hash.
     pub follow: Option<u32>,
+}
+
+impl HostConfig {
+    pub fn effective_body_layout(&self) -> crate::played::BodyLayout {
+        self.replay
+            .as_ref()
+            .map_or(self.body_layout, |trace| trace.body_layout)
+    }
 }
 
 impl Default for HostConfig {
@@ -98,8 +113,41 @@ impl Default for HostConfig {
             scenario: None,
             slab_half_height: section::SLAB_HALF_HEIGHT,
             camera: CameraMode::default(),
+            body_mode: section::BodyMode::default(),
+            body_budget: section::DEFAULT_BODY_BUDGET,
+            generated_content: true,
+            body_layout: crate::played::BodyLayout::Spaced,
             dev: false,
             follow: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::played::{BodyLayout, PlayedTrace};
+
+    #[test]
+    fn old_trace_without_layout_stays_axial() {
+        let trace: PlayedTrace = serde_json::from_str(
+            r#"{"seed":1,"organisms":1,"steps":0,"state_hash":0,"intents":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(trace.body_layout, BodyLayout::Axial);
+    }
+
+    #[test]
+    fn saved_jointed_layout_overrides_new_spaced_default() {
+        let trace: PlayedTrace = serde_json::from_str(
+            r#"{"body_layout":"jointed","seed":1,"organisms":1,"steps":0,"state_hash":0,"intents":[]}"#,
+        )
+        .unwrap();
+        let config = HostConfig {
+            replay: Some(trace),
+            ..HostConfig::default()
+        };
+        assert_eq!(config.body_layout, BodyLayout::Spaced);
+        assert_eq!(config.effective_body_layout(), BodyLayout::Jointed);
     }
 }

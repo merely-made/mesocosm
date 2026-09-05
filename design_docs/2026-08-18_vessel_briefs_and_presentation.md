@@ -100,6 +100,16 @@ axis moved, by twenty degrees on each of the two free rotations. The
 measurement and its costs are in the default creatures plan's Q9
 Findings entry.
 
+**Direction accepted 2026-09-05 (Mark), prototype pending:** Mesocosm should
+play primarily up/down/left/right with shallow depth, while allowing deliberate
+quarter-turn views of a cutaway terrarium. Mark favours this combination of
+2D legibility and 3D space. The earlier oblique result established a useful
+view of individual anatomy; it does not settle scene composition or interior
+visibility. The current default stays in place while a clearing-and-burrow
+prototype tests the new direction. Exact pitch, framing, cutaway rules and
+depth traversal remain prototype questions. The proposed sequence is body-part
+inspection (VB3), then [CP1](2026-08-30_default_creatures_plan.md#cp1-clearing-and-burrow-camera-prototype).
+
 ### Paredros: third person, one continuous zoom
 
 Full 3D, third-person follow camera pulling out through orbit to an

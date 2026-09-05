@@ -70,7 +70,7 @@ pub mod world;
 pub mod chronicle;
 pub mod wire;
 
-pub use axis::{Appendage, Recipe, Soma, Tagma, Unspeakable};
+pub use axis::{Appendage, AppendageStep, ChainFacing, Recipe, Soma, Tagma, Unspeakable};
 pub use body::{
     Aabb, AttachError, Attachment, BodyDocument, Origin, Part, PartId, Provenance, SpeciesId,
     VolumeRef, Yaw,

@@ -33,13 +33,24 @@ PE0 + PE1 + PE2
 ```
 
 The [playable ecology plan](2026-08-31_playable_ecology_plan.md) owns those
-integration targets and done-conditions. **PE0 is the first undispatched
-product slice.** It has a visible consumer in the same slice, so it is not a
-telemetry infrastructure detour: one replay-derived ecological trend must
-reach the played view. PE1 then wraps the existing conservative filial
-transaction in the individual checkpoint. PE3 is the distinct lineage
-checkpoint and waits on PE2 plus the owning P3/PD3/PD4 path rather than
-opening over the provisional scalar trait model or bypassing P4/PD5.
+integration targets and done-conditions. **PE0-PE3 are landed; PE4 is next.**
+PE4's trophic grammar and the visible-body integration below now share an
+end-to-end acceptance scene. The individual and lineage checkpoints remain
+distinct and use the landed developmental path.
+
+**Visible voxel bodies (Mark's integration request, 2026-09-04):**
+[phenotype section 8](2026-07-31_phenotype_plan.md#8-visible-voxel-bodies-integration-2026-09-04)
+owns `VB0 source audit [complete] -> VB1 live voxel body -> VB2 procedural
+anatomy + VB3 addressed inspection -> VB4 body change and descendant -> VB5
+roster and cost receipt`. VB2 content design may parallel VB1 once the
+representation contract is agreed. VB1's live route is implemented and replay-verified
+locally; pressure silhouettes and headed lifecycle/fault acceptance remain open;
+VB2's first surface grammar is integrated locally with persisted voxel content
+and branching layouts plus jointed appendage chains and foot/canopy spacing: 538 passing joined tests and before/after GPU captures; further anatomy refinement and recognition remain open.
+One host integrator joins representation and GUI work. TG1 is independent;
+TG2/TG3 block VB4's typed diet extension, not VB1-VB3 or the existing-mechanics
+graft/expression proof. TG6 measures trophic viability; VB5 adds visible and
+performance acceptance. Neither closes PE4's generated-world proof by itself.
 
 PE6 consumes the scale lane but does not silently rule its open S2-versus-S3
 order. S3's spatial index and cohort execution are required before the final
@@ -53,7 +64,7 @@ order):
 PD1b -> PD2 (one native played process) -> P3 (branch transfer)
      -> PD3 (static packs) -> PD4 (Piccolo)
      -> P4a lineage program + PD5 filial expression [all LANDED]
-     -> P4's scorer half (ruling-blocked)
+     -> P4's scorer half + PE3 review [LANDED]
 ```
 
 PD1b also unblocks the general model's **E1 acceptance gate** (feeding as
@@ -131,7 +142,16 @@ versioned action/travel protocols -> Stickleback consumer rebase
 
 ## Progress
 
-- **2026-09-04:** PE4's first build is the trophic grammar plan, TG1 through TG7; the per-channel conservation receipt in TG2 blocks everything after it, and the thirty-seed corridor in TG6 is PE4's acceptance measurement. Drafted, awaiting Mark's three rulings.
+- **2026-09-04 (body integration):** Mark requested orchestration of biology,
+  voxel representation and presentation. Phenotype section 8 records VB0-VB5,
+  reviewed by three parallel source audits. Implementation and headed receipts
+  remain pending. The prior TG entry's awaiting-rulings status is superseded:
+  TG is accepted; TG2 gates typed consumers and TG6 measures the first trophic
+  build, not the entire PE4 generated-world acceptance.
+
+- **2026-09-04:** PE4's first build is the accepted trophic grammar plan, TG1
+  through TG7; TG2's typed-account receipt gates its downstream matter
+  mechanics, and TG6 is the first trophic build's corridor measurement.
 
 - **2026-09-04 (latest):** three ruled hygiene items built in one slice, and
   **PE3 and P4 are now fully landed**: the epoch trait array is deleted (five

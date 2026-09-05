@@ -588,8 +588,16 @@ is outstanding.**
 
 **PE4's first build (2026-09-04)** is the [trophic grammar plan](2026-09-04_trophic_grammar_plan.md), which lands typed intake, typed accounts, scruple, defenses, selective edibility, the re-declared roster and the lexicon in that order, and closes the unrestricted predator prey set as a consequence of typed ports.
 
-Choose one material scheme from the elements memo only after PE2 proves the
-consumer. Generate an immutable world-law record first, then admitted material
+**The visible integration runs alongside it (2026-09-04):**
+[phenotype section 8](2026-07-31_phenotype_plan.md#8-visible-voxel-bodies-integration-2026-09-04)
+owns VB0-VB5, connecting inherited development and allocation to procedural
+voxel bodies, the played scene, part inspection and visible life-history
+changes. Its first geometry/existing-mechanics proof does not wait for typed
+matter. Diet-composition appearance waits on TG2/TG3. Visual acceptance and the
+TG6 corridor supplement, rather than replace, PE4's generated-world criteria.
+
+The material scheme is ruled in section 6 item 4. Generate an immutable
+world-law record first, then admitted material
 and process parameters, viable founding programs, and candidate weights. Run
 reachability and headless ecology checks before exposing the world.
 

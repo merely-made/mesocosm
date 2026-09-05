@@ -36,77 +36,8 @@ use super::{DEVELOPMENT_SALT, ENCLOSURE, GRAFT_SALT, PLACE_SALT, PLACE_SIDE, REC
 /// area too.
 const SOIL_SEED_MG_PER_COLUMN: u64 = 100;
 
-/// Where a founding tier's bodies come from.
-///
-/// **A per-tier set, since DC4.** It began as DC2's isolable arm — one tier
-/// authored so the instrument could read that tier's cost alone — and the
-/// roster made the natural shape a *list of bodies per tier* rather than one
-/// body per tier, because how many lineages a tier founds is now part of the
-/// answer. Which palette a world admits follows from the choice, because an
-/// archetype's shapes are world state and its arrangement is the lineage's.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Founding {
-    /// Every tier draws one recipe from [`axis::seed`](crate::axis::seed), the
-    /// worldgen lottery DC1.5 left in place. Three non-played lineages, which
-    /// is what the world founded through DC1.5.
-    Drawn,
-    /// The consumer tier founds from
-    /// [`archetype::consumer_browser`](crate::axis::archetype::consumer_browser);
-    /// producers and decomposers still draw. **DC2's arm**, kept so its
-    /// measurement stays reproducible against the roster's.
-    BrowsingConsumer,
-    /// Only the producer tier founds authored bodies.
-    ///
-    /// **A DC4 diagnostic.** The roster moves the stand and the mouths at
-    /// once, so a verdict on it cannot say which half did the moving. These
-    /// two variants split it, and they exist for the instrument rather than
-    /// for a world to ship.
-    RosterStand,
-    /// Only the consumer and decomposer tiers do. The other half of
-    /// [`Founding::RosterStand`].
-    RosterFauna,
-    /// The full roster: one lineage per archetype, three producers, three
-    /// consumers, two decomposers, and nothing drawn. **This is how the
-    /// enclosure ships** (DC4) — `axis::seed` stays in the tree as the
-    /// generator a soup world would still use.
-    #[default]
-    Roster,
-}
-
-impl Founding {
-    /// The vocabulary a world founded this way has to admit. The archetype
-    /// palette only fills spare slots, so the two differ in what they *can*
-    /// express and not in what a drawn recipe develops.
-    pub fn palette(self) -> PartPalette {
-        match self {
-            Self::Drawn => PartPalette::primitive(),
-            _ => crate::axis::archetype::palette(),
-        }
-    }
-
-    /// The authored bodies this founding installs for a tier, one lineage
-    /// each, in founding order. Empty means the tier still draws.
-    fn tier(self, kingdom: Kingdom) -> &'static [fn() -> crate::axis::Recipe] {
-        use crate::axis::archetype;
-        match (self, kingdom) {
-            (Self::BrowsingConsumer, Kingdom::Consumer) => &archetype::CONSUMERS[..1],
-            (Self::RosterStand, Kingdom::Producer) => &archetype::PRODUCERS,
-            (Self::RosterFauna, Kingdom::Consumer) => &archetype::CONSUMERS,
-            (Self::RosterFauna, Kingdom::Decomposer) => &archetype::DECOMPOSERS,
-            (Self::Roster, Kingdom::Producer) => &archetype::PRODUCERS,
-            (Self::Roster, Kingdom::Consumer) => &archetype::CONSUMERS,
-            (Self::Roster, Kingdom::Decomposer) => &archetype::DECOMPOSERS,
-            _ => &[],
-        }
-    }
-
-    /// How many non-played lineages this tier founds. A drawn tier is one
-    /// interbreeding species, which is the structural fact TD10 found and the
-    /// roster exists to change.
-    fn lineages(self, kingdom: Kingdom) -> usize {
-        self.tier(kingdom).len().max(1)
-    }
-}
+mod founding;
+pub use founding::Founding;
 
 struct Founder {
     id: OrganismId,
@@ -182,11 +113,26 @@ impl World {
         organism_count: u32,
         development_palette: PartPalette,
     ) -> Result<Self, DevelopmentError> {
+        Self::founded_with_palette(seed, organism_count, Founding::Drawn, development_palette)
+    }
+
+    /// Builds a world with an explicit founding and developmental palette.
+    ///
+    /// The palette is world state, while the founding selects the heritable
+    /// recipes. Keeping both arguments here lets a host admit content-pack
+    /// volume references without silently falling back to the primitive
+    /// vocabulary or changing which roster is founded.
+    pub fn founded_with_palette(
+        seed: u64,
+        organism_count: u32,
+        founding: Founding,
+        development_palette: PartPalette,
+    ) -> Result<Self, DevelopmentError> {
         Self::found(
             seed,
             organism_count,
             development_palette,
-            Founding::Drawn,
+            founding,
             crate::world::native_ruleset(),
         )
     }
@@ -370,7 +316,7 @@ impl World {
                 None => {
                     let mut stream = Rng::from_seed(seed ^ RECIPE_SALT ^ u64::from(species.0));
                     crate::axis::seed(&mut stream, kingdom)
-                }
+                },
             };
             lineages.set_recipe(species, recipe);
             lineages.set_symmetry(species, kingdom.symmetry());

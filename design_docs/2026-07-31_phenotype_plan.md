@@ -1,20 +1,24 @@
 # Phenotype: what a body is for
 
-**Status: decisions and proof plan, revised 2026-08-03; downstream body-volume
-boundary refreshed 2026-09-01. Anatomy descent, depth, severing, derived reach,
-and the axial developmental recipe are built; the phenotype bridge described
-here is not.** This document owns Mesocosm's body rules. The
+**Status: body rules and integration plan, refreshed 2026-09-05. P1-P4 and
+the adaptation bridge have landed; P5-P6 remain open. Section 8 now owns the
+visible voxel-body integration sequence, VB0-VB5, requested by Mark after
+reviewing the live terrarium. VB0's source audit is complete; VB1's live draw
+route is implemented and replay-verified with Terra/Luna agents. Remaining
+acceptance gaps are recorded below. VB2's first surface grammar and persisted
+content, branching layouts, jointed appendage chains and foot/canopy spacing are integrated and replay-verified; further refinement and recognition remain
+open.** This document owns Mesocosm's body rules. The
 cross-vessel boundary lives in the
 [wing phenotype contract](2026-07-31_wing_phenotype_contract_plan.md), and
 ordering remains with the
-[execution waves plan](2026-07-31_execution_waves_plan.md).
+[dependency ledger](2026-08-07_dependency_ledger.md).
 The [ProcessDef plan](2026-08-01_processdef_plan.md) owns the extensible
 process vocabulary, developmental expression ABI, Piccolo host, and pack
 proofs. This document continues to own what those processes mean to a body.
 
 ---
 
-## 1. The hole
+## 1. The original hole (historical; P1-P4 below record its closure)
 
 Mesocosm has three competent models of a critter that do not yet explain one
 another:
@@ -1707,3 +1711,456 @@ resolution began, so an act always precedes what it caused.
   palette, returned chronicles regrow local topology through it, and founder
   previews call the same `Species::realize` function. The migration also made
   multi-part mass spending real by folding costs across every living part.
+
+## 8. Visible voxel bodies integration (2026-09-04)
+
+**Status: VB1 live route implemented and measured; acceptance gaps remain, 2026-09-04.** This
+section owns the cross-layer sequence, extending this plan rather than adding
+another body plan. Existing biological rules remain here and in ProcessDef;
+typed intake, nis, scruple and defenses remain in the
+[trophic grammar plan](2026-09-04_trophic_grammar_plan.md). The
+[default critters plan](2026-08-30_default_creatures_plan.md) owns the roster;
+its outstanding visual acceptance is delivered through this sequence.
+
+### Intent and authority
+
+Mark wants procedurally generated voxel critters whose bodies visibly express
+lineage, traits, development and diet. After seeing smooth green capsules in
+the live terrarium, he endorsed the distinction that meaningful voxel anatomy
+does not require each voxel to simulate a biological cell: "projection,
+representation, presentation. it's the whole stack's thesis but applied to
+games, using voxels." He requested planning and orchestration of that join.
+
+The integration runs through these existing owners:
+
+| Layer | Owner and facts | Integration obligation |
+| --- | --- | --- |
+| Biology and development | `mesocosm-core`: lineage recipe/program, admitted palette, `BodyPhenotype`, anatomy, allocation, provenance, mass and accepted transitions; `mesocosm-phenotype`: pack admission | Grow and validate one actual body. Consequential geometry changes pass the existing developmental/world transaction. |
+| Voxel representation | Immutable `VolumeRef` content resolved by `VolumeSource`; `mesocosm-mesh` placements, attributed flattening and greedy meshes | Preserve body/part identity and realized construction. Share volume geometry; keep individual composition and expression bindings explicit. |
+| Presentation | `mesocosm-render` geometry, `mesocosm-lens` terrain/depth, `mesocosm-genet` scene/device/camera and input, `mesocosm-views` explanations | Draw the same body in the terrarium, inspect view and founder preview; retain identity through picking and detail reduction. |
+| Shared machinery | Mere's Cambium/workbench and Conatus/brick infrastructure; Genet host/probe; netrender composition | Reuse the existing device, surfaces, scenario and resource contracts. Product anatomy and biological meaning stay in Mesocosm. |
+
+The allocation mosaic is an authoritative graph of capacity cells, explicitly
+without coordinates or renderer voxels (`phenotype/mosaic.rs`). Its visual
+layout is derived. Do not allocate a simulated biological cell for every
+render voxel, infer mass from display voxel count, or feed cosmetic geometry
+back into capability. Conversely, anatomy that changes reach, occupancy,
+support, attachment or process capacity is a world fact, not a renderer trick.
+Section D3a's immutable-volume and revision rules continue to apply.
+
+### VB0: locate the missing joins — source audit complete
+
+Three parallel read-only reviews covered biology/development, voxel rendering,
+and presentation/inspection. Source findings, not runtime receipts:
+
+- `mesocosm-lens/src/body.rs` deliberately simplifies each living part to one
+  capsule using extents. It retains ancestry on `BodyLensProjection`, but
+  `mesocosm-genet/src/section.rs::pose_at` takes only its pose. The live roster
+  carries poses rather than the organism/part identity needed for inspection.
+- Current limits are 256 played capsules, 40 roster bodies and 11 capsules per
+  roster body (`mesocosm-lens/src/lib.rs`). Wider-part truncation is already
+  built. Older 96/10 figures in the default-critter plan are historical.
+- `mesocosm-mesh` already resolves volumes and builds per-part greedy meshes.
+  The host's separate `app::scene` path meshes the controlled body but uses
+  `BodyMesh::single` for other organisms. It is the HUD backdrop path, not a
+  completed voxel-body join into the terrarium.
+- `mesocosm-genet/src/fixture.rs::volumes` supplies solid cuboids from the
+  default palette. Switching renderers alone will expose boxes, not finish
+  procedural anatomy. Runtime volume resolution must follow the world's
+  admitted content rather than reconstruct `Founding::default()`.
+- The developer already realizes recipes through one body construction path.
+  `plan::classify(half_extent)` participates in role and allocation seeding;
+  changing extents casually changes biology and price. Existing palette role,
+  limb/sensor budget and deterministic mass-conservation tests protect this.
+- The dev inspector and scenario driver exist, but screen-to-part selection
+  is unfinished. Terrain tactile picking is not an exact body-part hit.
+
+The user-provided capture establishes the presentation problem, not its entire
+cause. A same-world before/after headed receipt is still required. Camera and
+lens files were already dirty at review; their work is neither replaced nor
+claimed by this plan.
+
+### VB1: one live body through voxel geometry, terrain and identity
+
+First implement an identity-preserving body projection shared by controlled
+and visible NPC bodies. Carry organism id, part id, body dependency revision,
+volume/content reference and placement to draw and selection consumers. Include
+`SiteId` and `ProcessRef` attribution when visible detail claims an expressed
+process. The derived mapping from visual samples to sites may be optional or
+many-to-many; it neither defines biological adjacency nor equates a voxel with
+a capacity cell. Include
+the expression/material inputs a representation actually reads in its cache
+dependency key; a body-document-only key cannot notice a changed allocation.
+
+Use existing per-part greedy meshes as the initial implementation route. Adapt
+their draw submission to the host's device and the terrarium's camera/depth;
+the standalone renderer's private target is not the final host integration.
+Prove compatible depth, scale and coordinate conventions before extending
+content: name the depth target/format, world-to-clip transform, depth convention
+and pass/load order. Verify all supported camera modes and terrain cut boundaries.
+Start with one producer and one consumer from the actual world, then
+their visible neighbours. Do not make a separate demo-only body constructor.
+Keep capsules as a measured fallback. A moving body updates placements without
+rebuilding immutable volume geometry or baking itself into terrain bricks.
+Living subjects and carcasses use the same surviving-part projection: death
+changes condition/presentation without erasing intact anatomy. Removed tissue
+follows the world's actual disposal rule rather than invented render debris.
+
+**Done when:** the same recorded world draws through the old and new paths in
+the real host at the same camera, with identical world hashes; the new frame
+shows voxel surfaces and complete part placement for played and NPC subjects;
+a foreground terrain step correctly occludes a body while a body in front
+occludes terrain; severed parts disappear and an attached part appears on the
+correct subject. A missing volume or exhausted budget produces a counted,
+truthful fallback rather than an invisible subject. Record upload/mesh counts
+for a static frame, movement, attachment and severing. VB1 proves the route,
+not yet that the cuboid content reads as critters.
+
+### VB2: procedural anatomy that remains recognizable
+
+Build a bounded voxel-part grammar through the existing palette, recipe and
+development path. First use three existing roster strategies: a branched
+producer, a browsing consumer and an armoured consumer. Grow several relatives
+through the same program with recorded realization inputs. Their inherited
+construction supplies family resemblance; admitted variation supplies distinct
+individuals. No renderer branch keyed by archetype/species may construct a
+second body.
+
+Use connected stems, fronds, segment chains, exposed mouths, limbs and plates
+as explicit construction targets, selected only where supported by the body's
+actual roles and processes. Space and attachments must leave readable gaps.
+Separate committed shape/envelope changes from visual surface detail. Validate
+role, extent, attachment/placement constraints, capacity and mass prices when morphology changes; use
+the existing classifier contract until an explicit replacement is justified.
+An anatomical load-bearing support solver is not claimed to exist; a new
+support mechanic would require its own admitted rule.
+Do not silently alter ecological constants to pay for a better silhouette.
+
+Replace tag-backed placeholder volume construction for this slice with
+resolvable immutable content and a declared generator version/inputs. Content
+must survive save/restore without regenerating from an organism's display name
+or today's default palette. A digest identifies what it actually covers;
+generated bytes must not be swapped under a stable content address.
+
+**Done when:** the three families have distinct readable silhouettes at the
+normal play camera and at inspection distance; several relatives show shared
+construction without identical bodies; each visible functional part resolves
+to an actual part/role, and expression claims resolve to allocation/process
+facts. Same admitted inputs reproduce volume content and anatomy after restore.
+Meaningful palette, conservation and determinism tests pass. Record the
+ecological cost of changed morphology separately from VB1's hash-neutral
+presentation. Capture the terrarium as well as isolated silhouettes. Human
+recognition remains open until Mark judges the result.
+
+**Implementation, 2026-09-04:** the first VB2 surface grammar is integrated in
+source with Terra/Luna. `mesocosm-mesh::ContentPack` generates connected forms
+from admitted role, palette slot and half-extent; it retains centre ports on
+all six attachment faces. It records generator version, those inputs, voxel
+bytes and BLAKE3 references. Pack validation checks dimensions, byte count,
+connectivity, content addresses and exact palette binding before publication.
+`World::founded_with_palette` and the runtime's palette constructor admit those
+references through normal roster development. The host saves the entire pack
+in new `PlayedTrace` recordings and resolves saved bytes on replay. Historical
+recordings without a pack keep their original fixtures. `--body-content
+generated|fixtures` chooses content for new sessions; generated is the default.
+
+This pass changes occupancy and structural surface tones inside the existing
+`max(2 * half_extent, 1)` render envelope. It does not change biological mass,
+capacity, attachment geometry, recipes or process allocation. World hashes
+change because the admitted content references change; equal ecology must be
+checked separately by normalizing only those references. Structural marks do
+not assert active processes or typed diet. Very small limbs still have limited
+shape resolution. Broader procedural arrangement and tissue-expression joins
+remain open. The small HUD backdrop still simplifies NPC bodies; the terrarium
+and the `voxel_families` capture example consume complete body documents.
+
+The focused release suites pass: 67 host, 57 mesh and 12 render tests, including
+saved-content replay, historical recordings, snapshot/palette binding,
+address-normalized world equality through play, content refusals, shared GPU
+depth and retained uploads. The new core palette admission test also passes.
+The generated headed run and its saved-content replay both reach 856 steps and
+hash `f9256b0d946a91d9`, even with the replay generation setting switched to
+fixtures. Both submit 41 bodies and 1424 parts with no projection failure and
+zero settled uploads; 297 additional candidates remain omitted. The nine-body
+GPU atlas captures three actual subjects from each target program. Shrubs vary,
+but browsers and armoured subjects remain nearly identical; the normal
+terrarium exposes crowded repeating chains. These captures establish the
+surface/content route, while readable branching, spacing, proportions and
+individual variation remain the next VB2 work. Human recognition is open.
+Artifacts and exact commands are in `Code/testing/mesocosm/vb2/README.md`,
+separate from VB1 and the golden replay fixtures.
+
+**VB2 arrangement slice, 2026-09-04, implemented locally:** Mark requested the
+next pass after seeing the first actual critters. The development owner now
+stores explicit stretch parentage, Base/Middle/Tip anchors and growth facing,
+plus regional segment-count variance. These are recipe data consumed by the
+same body developer for founders, previews and births. Empty layouts retain
+the original axial behavior. Existing valid recipe bytes must remain stable;
+new layouts use a versioned binary envelope, with roundtrip and literal legacy
+fixtures as gates. Splitting a stretch must maintain its branch references.
+
+The new host recipe set is selected independently from content and draw mode
+by `--body-layout branching|axial`. Recordings save that choice; an absent
+choice means the historical axial set, including the first VB2 content trace.
+Historical preset functions remain reproducible. This slice raises and
+branches the shrub and revises consumer proportions and limb-bearing regions.
+Changed counts and extents must be reported as ecological changes, without
+adjusting prices or rates to conceal their effects. Done for this slice means
+valid connected placement, preserved feeding classifications, deterministic
+individual variation, snapshot/replay compatibility, and fresh captures of
+the same three families and normal terrarium. Broader VB2 recognition still
+belongs to Mark. Evidence goes under `Code/testing/mesocosm/vb2_layout/`.
+
+**Verification:** 526 joined release tests pass (one existing calibration test
+ignored), including 128-seed structural overlap, classification and mass
+checks. Both before/after atlas sets and the live terrarium were captured and
+inspected. The axial atlas remains byte-identical to the prior VB2 image. The
+new 856-step run replays at `a180161ad699eca2`; both historical comparison
+hashes also remain unchanged. The settled replay draws 41 bodies / 1262 parts
+with zero failures or uploads, while 349 candidates remain omitted. All 120
+atlas founders retain footing, kingdom and initial mass; total matter remains
+1,738,024 mg. Adult ceilings change with the recipes: sampled shrubs now range
+1374–2397 mg (previously 3364–3758), browsers 824–996 (previously 1284), and
+armoured bodies 1558–1730 (previously 1694). These are measured costs for later
+tuning, not a balance verdict. Armour leg arrangement, foliage separation,
+typed expression/diet and human recognition remain open.
+
+**VB2 appendage chains, 2026-09-04, implemented locally:** this pass
+adds paid part-to-part chains for jointed legs and stalked leaves. A per-tagma
+chain table belongs to `Recipe`; each chain ends in the tagma's admitted
+appendage role and shape. Intermediate links may be bulk or the same role,
+so a support does not invent an acquired capability. Paired chains resolve
+outward/inward relative to their attachment side. A distal attachment may
+move along the preceding link's face while retaining normal face contact.
+Every link participates in minimum birth mass, ordinary mass division and
+severing dependencies. This is static joint structure, not gait or a joint
+physics solver.
+
+Recipe binary V2 carries the chain table; valid V0 and V1 byte encodings stay
+unchanged. Division copies the chain; changing the appendage kind clears that chain, while assigning the same kind preserves it.
+The host records a new `jointed` recipe set, independently of surface content;
+`branching` and `axial` retain their measured inputs. New vertical and fore/aft
+limb templates use the existing classifier and price guard. Leaf separation
+is supplied by real supports and placement, not rendering offsets. This
+slice is done when chain counting, connectivity, paired placement, severing,
+classification and restoration tests pass, old recordings remain reproducible,
+and same-seed family/terrarium captures show the resulting anatomy with its
+ecological cost recorded. Evidence: `Code/testing/mesocosm/vb2_joints/`.
+**Verification:** 534 joined tests pass (397 core, 68 host, 57 mesh, 12 render),
+with one preexisting ignored calibration test. The GPU family atlas and live
+terrarium show terminal leaf sites and upper/lower/foot chains. Browser head,
+neck and sensory structure retain the preceding branching recipe. The new
+856-step replay matches `9b386aca7c893e95`; all three historical replay checks
+retain their measured hashes and the prior branching atlas is byte-identical.
+The settled replay submits 41 bodies / 1197 parts with zero missing volumes,
+projection failures or uploads; 231 further candidates remain omitted.
+All 120 compared founders retain founding mass, kingdom and feeding mode,
+and all stand on terrain. Anatomy costs change: the controlled browser's
+actuator span rises from 18 to 54 and adult ceiling from 996 to 1596 mg;
+shrubs lose repeated leaf sites. Full comparisons and commands are in the
+receipt directory. This does not establish ecological balance.
+
+**Remaining visual findings:** adjacent browser feet merge into skid-like
+shapes, the sparse leaf tips still read cactus-like, and dense terrarium
+occlusion remains substantial. Leaf separation and connected resting leg
+structure are present; broader shape refinement, gait and human recognition
+acceptance remain open.
+
+**VB2 feet and canopy spacing, 2026-09-05, implemented locally:** this
+slice addresses the captured skid-like feet and sparse foliage. A new frozen
+`spaced` founding set keeps the measured `jointed` recording reproducible.
+Feet gain separation through paid backbone spacing; leaves gain area and
+staggered branch-tip sites through actual developmental parts. Core owns this
+recipe and palette change; the renderer continues to read the resulting body.
+Done-conditions: developed foot/leaf separation across individual seeds,
+conserved provisioned mass and preserved feeding readings, joined tests,
+visually inspected same-seed atlas and terrarium captures, exact new replay,
+and historical jointed replay/atlas compatibility. Record changed capacity
+and actuator readings without claiming a tuned ecology. Evidence belongs in
+`Code/testing/mesocosm/vb2_spacing/`. Gait and addressed inspection remain open.
+**Visual finding, 2026-09-05:** the first spacing capture passed the strict
+3D gap test but adjacent feet still looked joined from the oblique camera.
+Their projected thickness hid the narrow gap. The revised browser uses five
+bare segments between leg sites, keeping the feet and their price guard
+unchanged. First-pass captures are retained under the receipt's `first_pass/`;
+only the final repeat of tests, build and captures closes this slice.
+**Final receipt, 2026-09-05:** 538 joined tests pass (399 core, 70 host,
+57 mesh, 12 render), with one preexisting ignored calibration test. The final
+GPU atlas shows separated browser feet and fuller, staggered leaves. The
+856-step played/replayed world matches `17ce02e24e152591`; all four historical
+replay checks match and the previous jointed atlas is byte-identical. The
+settled replay draws 41 bodies / 1326 parts without failures, missing volumes
+or uploads; 390 further candidates remain omitted. All 120 compared founders
+retain initial mass, kingdom and feeding mode, and all stand on terrain.
+The controlled browser retains actuator span 54 while its adult ceiling rises
+from 1596 to 1856 mg. Larger leaves and extra supports carry their measured
+costs in `Code/testing/mesocosm/vb2_spacing/comparison.json`.
+
+This closes the bounded feet/canopy refinement. Dense terrarium occlusion,
+broader recognition, gait and the VB3 addressed-inspection join remain open.
+The final `README.md`, captures, commands and source manifest are in the same
+receipt directory; changes remain local with the original camera/lens WIP
+preserved.
+### VB3: point to the body and read what happened
+
+**Sequence note, 2026-09-05:** Mark accepted shallow-depth play with
+quarter-turn terrarium views and a clearing-and-burrow prototype. His request
+to do that "after" is recorded as following this body-part inspection step;
+that ordering is an interpretation of the conversation. The camera experiment
+is [CP1](2026-08-30_default_creatures_plan.md#cp1-clearing-and-burrow-camera-prototype).
+It will reuse addressed selection and does not replace VB4's biological join.
+
+Compose organism and part selection with the existing dev inspector, views and
+host input route. Preserve identity through the render list; resolve a hit to
+the displayed revision and revalidate it against current world state. A coarse
+fallback may offer organism selection but must not invent an exact part hit.
+Selection is presentation state; action still enters through a world intent.
+
+Give the followed/controlled subject a readable cue, and highlight the selected
+part in place. The existing text surface shows its role, expressed or dormant
+process, relevant condition, lineage/donor provenance and the accepted event
+that changed it, where recorded. Unknown history stays unknown. Trait discovery
+does not paint an organ onto a body that has not expressed it. Player-facing
+food cues use available sensory evidence; dev inspection may explicitly show
+ground truth. Camera, detail budget and display palette are configurable view
+settings, independent of simulation detail and world digest.
+
+**Done when:** an ordinary pointer or keyboard route selects a visible subject
+and part, the highlight and inspector agree, a sever invalidates its old hit,
+and UI focus does not also issue a gameplay action. The host's existing
+genet-probe scenario path exercises that route rather than a private test
+setter. A capture locates the part discussed by the panel on the actual body.
+
+### VB4: a life changes the picture, then a descendant grows
+
+**VB4a, existing mechanics.** First join existing graft, whole-part consumption/loss, expression and filial
+realization. Compare two relatives: retain one unchanged, give the other a
+recorded graft or expressed discovery, show the local consequence, then use the
+ordinary lineage revision and reproduction paths. Distinguish the inherited
+program from the parent's acquired part. This first proof need not wait for
+typed chemistry or add partial-voxel wounds.
+
+**VB4b, typed extension.** Add diet-driven tissue appearance only after TG2/TG3 supply reconciled typed
+accounts and actual scruple. A visual mix is a deterministic projection of
+that part's mix, not an independently accumulated diet counter or random
+colour. Port and defense displays join TG1/TG4 when those mechanics land;
+plate placement alone does not claim a functioning defense. Before the typed
+join, TG2 must define legitimate type conversion and reserve treatment, TG3
+must distinguish digestion from retained graft provenance, and TG5 must name
+how within-kingdom provenance enables selectivity. These are implementation
+questions to resolve in their owning plan, not new answers ruled here.
+
+**VB4a done when:** one recorded scenario connects part intake, accepted
+body change, visible consequence and descendant realization; replay recovers
+the same authoritative results and corresponding representation dependencies.
+The unchanged relative is a control. Compared at the same simulation state,
+a refused action makes no authoritative body/flow change and causes no
+corresponding anatomy/material projection change; ongoing animation or ecology
+need not produce an identical frame.
+
+**VB4b done when:** two diets produce the documented scruple difference, with
+exact accounted mass, corresponding tissue appearance and an inspectable cause.
+VB4a can close independently; VB4b remains explicitly pending until TG2/TG3.
+
+### VB5: the integrated roster and cost gate
+
+Extend the proven route to the eight existing archetypes, the roster's normal
+population, and the relevant TG6 run. Record detailed bodies, fallback bodies,
+omitted bodies, parts, unique volumes, mesh/upload bytes, projection time,
+frame time, tick time and memory against the same hardware, viewport and seed.
+Separate simulation cost from rendering cost. A static unchanged frame does
+not remesh or republish immutable content; motion changes placement; a body
+mutation invalidates only dependent work. Test rapid revisions and delayed
+completion: stale work cannot overwrite the current body.
+
+Budget visible detail by screen footprint and interaction importance with
+configurable caps. Keep played/selected bodies identifiable under pressure;
+far silhouettes retain actual family shape and do not masquerade as an exact
+part projection. This does not raise capsule caps or silently implement cohort
+simulation. A body atlas/direct tracing lane is admitted only if measurements
+show the mesh route's limiting cost; S2 terrain paging and S3 cohort ordering
+remain separate. Reuse shared brick/residency machinery if that lane is needed.
+
+**Initial integration done when:** VB1-VB3 and VB4a work in the live roster; a headed before/after sequence
+shows ordinary play, selection, body change and a descendant; measured budgets
+meet a declared host profile including the existing 10 t/s simulation target;
+pressure and missing-content cases remain visible and diagnosed. The thirty
+fixed seeds compare ecology with TG6, followed by separate held-out seeds and
+a disturbance/recovery observation. Report outcomes rather than tuning to a
+receipt. Visual recognition, ecological viability and PE4 generated-world
+acceptance are separate verdicts.
+
+**Typed/ecology extension done when:** VB4b and TG6 run through that same host
+and receipt. The thirty-seed, held-out and disturbance results above belong to
+this extension and cannot hold the initial visible-body integration hostage.
+
+### Orchestration and handoffs
+
+VB1 is the first implementation handoff. VB2 design/content work can proceed
+beside it after agreeing the volume/placement contract. VB3 follows that same
+identity contract; the coordinating agent in this task is the host integrator
+and serializes their joins. VB1 packets were dispatched to Terra for CPU/GPU
+representation and Luna for validation and content-integrity fixes after Mark
+requested implementation.
+VB4a follows VB1-VB3; VB4b waits on TG2/TG3. VB5
+collects the integrated result. TG1 can proceed independently, and TG2 blocks
+only consumers of typed matter, not the first readable voxel body.
+
+| Work packet | Owned files/seams | Required handoff |
+| --- | --- | --- |
+| Body authority and content | core development/palette/phenotype, pack admission, volume resolution | Real body fixtures, immutable content, validated geometry and expression dependencies; coordinate TG edits before sharing core files. |
+| Voxel representation | mesh projections/cache and body draw adapter | Full placements and stable identities, mesh reuse and revision tests; no camera or biology policy. |
+| Host and presentation | genet section/app/input, views inspector | Shared camera/depth/device join, subject/part selection, ordinary scenario and captures. One writer owns this overlapping surface. |
+| Integration review | scenario, receipts, relevant tests and plan findings | Adversarial same-world comparison, missing-content/stale-result controls, performance and explicit human visual judgment. |
+
+Before writes, inspect current status and existing worker ownership. The
+2026-09-04 camera/lens WIP (`section/camera.rs`, lens `lib.rs`, `tracer.rs`,
+`tracer.wgsl`, `tracer/types.rs`) must be integrated with its owner or worked
+from an isolated checkout of an agreed revision. Do not absorb it into an
+unrelated commit. Each packet returns exact base/changed files, tests, remaining
+limitations and artifact paths. The host integrator consumes a concrete
+contract, not independently invented renderer and inspector formats.
+An implementation packet is not integration-complete until its result runs
+in the joined host scenario, even when its isolated tests pass.
+
+Validation uses the existing core development/phenotype/meal/replay tests,
+mesh attachment/provenance tests, renderer coverage checks and genet-probe
+scenarios. Use an isolated Cargo target and `-j 1` under concurrent Windows
+load. Headless checks cannot close headed visual acceptance. Do not overwrite
+the golden played fixtures: give integration scenarios distinct artifact paths.
+
+**Progress, 2026-09-04:** source reviews and this integration plan completed.
+No body/render implementation, new runtime measurement or visual acceptance
+is claimed by this entry. The earlier screenshot is the motivating baseline;
+VB1 must capture a reproducible baseline tied to its exact source revision.
+
+**Progress, 2026-09-04, implementation:** VB1 is being integrated on base
+`93b6d6c53f9f6339f5b4f9c8d6fe61ea5d74d994`, preserving the existing camera/lens
+WIP. Terra implemented the addressed CPU projection and shared-device mesh
+adapter; Luna reviewed failure paths and added changed-content/empty-content
+refusals. The coordinating agent owns the host join, comparison flag, receipts
+and final tests. Local voxel content remains the admitted cuboid placeholder
+set for this route proof; procedural part generation remains VB2. Validation
+completed for the live route: all 124 library tests pass after final behavioral
+changes, and the earlier full suite also passed 13 integration tests. Real GPU
+tests cover shared terrain depth and static/moving/attached/severed submissions.
+The rebuilt host's voxel/capsule comparison at tick 816 has the identical hash
+`f157eec7fa299bb1`; the voxel frame draws 41 bodies and 1,426 parts. The complete
+3,100-step replay matches its recorded hash `081b4ba4bdc46190`. After settling,
+its 1,472 parts require zero mesh, instance or frame uploads.
+
+Artifacts and commands are in
+`C:/Users/mark_/Code/testing/mesocosm/vb1/README.md`, with captures, JSON receipts,
+the replay scenario, source hashes and preserved-WIP hashes beside it. This is
+a local source-set receipt, not a committed-head claim. The host defaults to
+`--bodies voxels`; `--bodies capsules` retains comparison and `--body-budget`
+configures detailed subjects. Missing content is diagnosed with capsule fallback.
+
+**VB1 acceptance remains partial:** detail pressure currently counts omitted
+neighbours rather than drawing every one as a cheaper silhouette; the tick-816
+receipt counts 286 omissions. Dedicated headed attachment/severing and
+missing-content fault sequences remain open; their present evidence is
+automated. Slab clipping does not construct new cut caps. Cuboid fixture content
+does not close VB2's procedural anatomy or creature recognition. CPU placement
+assembly/mesh clones still run each frame; upload reuse is not a frame-time or
+memory-budget acceptance claim.

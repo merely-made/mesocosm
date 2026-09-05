@@ -14,7 +14,8 @@
 use std::collections::VecDeque;
 
 use mesocosm_core::{
-    Accounts, History, Intent, OrganismId, Outcome, Reading, Trend, World, state_hash,
+    Accounts, DevelopmentError, History, Intent, OrganismId, Outcome, Reading, Trend, World,
+    state_hash,
 };
 
 use crate::clock::Clock;
@@ -128,8 +129,48 @@ fn reckon_if_ended(world: &mut World, history: &History, seen: &mut u64) -> Opti
 
 impl Runtime {
     pub fn new(seed: u64, organisms: u32, ticks_per_second: u32) -> Self {
+        Self::from_world(
+            World::new(seed, organisms),
+            seed,
+            organisms,
+            ticks_per_second,
+        )
+    }
+
+    /// Builds the shipping roster under an explicitly admitted developmental
+    /// palette. The palette remains world state, so hosts can resolve the
+    /// body's immutable content from the same admitted references used at
+    /// founding and replay.
+    pub fn with_development_palette(
+        seed: u64,
+        organisms: u32,
+        ticks_per_second: u32,
+        development_palette: mesocosm_core::PartPalette,
+    ) -> Result<Self, DevelopmentError> {
+        Self::with_founding_palette(
+            seed,
+            organisms,
+            ticks_per_second,
+            mesocosm_core::Founding::Roster,
+            development_palette,
+        )
+    }
+
+    /// Admit the declared recipe set as well as its immutable part vocabulary.
+    pub fn with_founding_palette(
+        seed: u64,
+        organisms: u32,
+        ticks_per_second: u32,
+        founding: mesocosm_core::Founding,
+        development_palette: mesocosm_core::PartPalette,
+    ) -> Result<Self, DevelopmentError> {
+        let world = World::founded_with_palette(seed, organisms, founding, development_palette)?;
+        Ok(Self::from_world(world, seed, organisms, ticks_per_second))
+    }
+
+    fn from_world(world: World, seed: u64, organisms: u32, ticks_per_second: u32) -> Self {
         Self {
-            world: World::new(seed, organisms),
+            world,
             clock: Clock::new(ticks_per_second),
             queued: VecDeque::new(),
             trace: Vec::new(),
@@ -241,7 +282,7 @@ impl Runtime {
                 // the question standing, so the player is not thrown back into
                 // the terrarium by committing. Every other answer closes it.
                 Some(intent) if checkpoint.closed_by(intent) => self.checkpoint = None,
-                Some(intent) if checkpoint.answers(intent) => {}
+                Some(intent) if checkpoint.answers(intent) => {},
                 _ => return false,
             }
         }

@@ -5,6 +5,14 @@ complete.** Both §4 decisions ruled and built. DT4 folded the bespoke replay
 and demo harness into genet-probe's `Automatable`/`Driveable`/`Scenario`, and
 reconciled the epoch boundary's two disagreeing doors into one on the way.
 
+**Follow-on integration, 2026-09-04:** DT1-DT4 completion does not include
+screen-to-part selection. The
+[phenotype plan section 8, VB3](2026-07-31_phenotype_plan.md#vb3-point-to-the-body-and-read-what-happened)
+owns pointer routing, addressed body/part selection, in-scene highlighting and
+the selected-part explanation over these existing tools. The current scenario
+pointer hooks report unrouted input; VB3 must complete the real input route
+before claiming click-driven acceptance.
+
 ## 0. Objective
 
 Mark, 2026-09-01: "We need dev tools to evaluate the game." The base is to sit

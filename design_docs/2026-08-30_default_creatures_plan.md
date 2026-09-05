@@ -1,10 +1,14 @@
 # Default Creatures Plan (2026-08-30)
 
-**Status: in progress (2026-08-31). DC1, DC1.5, DC2, DC3 and DC4 landed; DC5
-(colour) is the last slice and is a ruling.** DC4's roster ships as the default
-founding and its own done-condition — Mark looking at the captures and calling
-them critters — is not met; the Progress entry says what stands in the way and
-none of it is anatomy. Founded on the ruling that closed
+**Status: implementation through DC4 landed; visual acceptance remains open
+(refreshed 2026-09-04).** DC4's roster ships as the default founding, but Mark
+still sees capsules rather than readable voxel critters. The
+[phenotype plan section 8](2026-07-31_phenotype_plan.md#8-visible-voxel-bodies-integration-2026-09-04)
+now coordinates procedural content, the live voxel-body path and presentation
+through VB0-VB5. The earlier claim that none of the remaining problem is
+anatomy is withdrawn: both placeholder content and lossy presentation need
+proof. DC5's historical colour options are inputs to that integration, not
+the final remaining task. Founded on the ruling that closed
 the TD series in
 [`2026-08-29_terrarium_dynamics_plan.md`](2026-08-29_terrarium_dynamics_plan.md)
 §"The series closes here". This plan owns the *body* half of that ruling; the
@@ -2189,3 +2193,41 @@ recipe depends on which anatomy makes it what it is.
   part-scale arithmetic and the render-budget arithmetic are done and are §2 and
   §3. Nothing implemented; eight questions stand for Mark in §7, of which two
   (§4.3) block DC4.
+
+## CP1: clearing and burrow camera prototype
+
+**Status: direction accepted 2026-09-05 (Mark); implementation pending.**
+Mark imagines mainly up/down/left/right play with shallow depth and favours
+four deliberate quarter-turn views of a cutaway terrarium. The clearing and
+burrow prototype follows VB3 body-part inspection in the proposed sequence;
+this ordering interprets his request to do the scene "after". The accepted
+direction reopens camera exploration beyond Q9's earlier three-angle result.
+The current oblique default remains the comparison arm until a prototype is
+reviewed. No exact isometric angle or final movement model is ruled here.
+
+**Scene target:** one small habitat with a readable clearing, canopy/root
+structure, surface entrance and connected underground chamber. Use actual
+Ground geometry and the current voxel critters. Frame the habitat as a place,
+with a visible section through soil and a legible route between surface and
+burrow. This is a representative authored probe before procedural framing.
+
+**Presentation target:** keep the same world-aligned habitat volume and
+subject while turning between four orientations. Hold a stable view during
+ordinary movement, allow shallow depth to clarify forms, and expose the
+occupied/discovered interior through an explicit cutaway rule. Compare pitch,
+framing and foreground suppression as view settings. The current view-aligned
+slab is an implementation starting point, not the definition of the cube.
+
+**Open gameplay question:** establish how screen-relative up/down/left/right
+intent maps to real walkable/climbable surfaces and how a critter changes depth
+at a passage. Rotating the view alone must not teleport a critter or connect
+physically disconnected spaces. Cuts must have a stated information policy
+for undiscovered chambers. These are prototype decisions, not settled rules.
+
+**Done when:** the same habitat is captured from all four views; the controlled
+critter, a nearby threat/food source and the burrow entrance remain readable;
+entering the chamber demonstrates the chosen interior reveal; VB3 selection
+still points to the displayed part after a turn; pure camera rotation leaves
+the world hash unchanged; and the intended traversal has an ordinary input
+receipt. Compare against the existing oblique view at the same world state.
+Review the scene and controls with Mark before changing the shipping camera.

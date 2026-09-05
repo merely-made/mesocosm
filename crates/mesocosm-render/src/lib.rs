@@ -26,6 +26,7 @@
 pub mod camera;
 pub mod composite;
 pub mod geometry;
+pub mod live_body;
 
 use mesocosm_mesh::BodyMesh;
 use wgpu::util::DeviceExt;
@@ -35,6 +36,7 @@ pub use geometry::{
     SceneItem, Vertex, build_scene_vertices, build_vertices, deadened, face_shade, kingdom_colour,
     material_colour, warning_colour,
 };
+pub use live_body::{BodyDrawStats, ClipSlab, LiveBody, LiveBodyError, LiveBodyRenderer};
 
 /// Colour the frame is cleared to. Distinct from every material colour, so
 /// coverage can be measured by "not this".

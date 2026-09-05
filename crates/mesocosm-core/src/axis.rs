@@ -57,6 +57,9 @@ use crate::organism::Kingdom;
 use crate::plan::Role;
 use crate::rng::Rng;
 
+mod appendage_chain;
+pub use appendage_chain::{AppendageStep, ChainFacing};
+
 /// The mouth selector at which a mouth stops being bulk and becomes a jaw.
 ///
 /// One shape bank up: selectors `0..JAW_SHAPE` name `Mass` shapes and
@@ -232,7 +235,7 @@ impl Tagma {
 ///
 /// Epoch-bounded by ruling, because changing this is a regional-identity
 /// change and bodies change between epochs rather than during them.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Recipe {
     /// Stretches head to tail. At least one.
     pub tagmata: Vec<Tagma>,
@@ -242,6 +245,10 @@ pub struct Recipe {
     ///
     /// Ordered so iteration and serialization are deterministic.
     lexicon: BTreeSet<Appendage>,
+    pub layout: Vec<Stretch>,
+    /// Explicit appendage chains, indexed by tagma. Empty means the legacy
+    /// layout-only recipe representation and retains its old wire shape.
+    pub appendage_chains: Vec<Vec<AppendageStep>>,
 }
 
 /// Why an assignment was refused.
@@ -251,6 +258,8 @@ pub enum Unspeakable {
     NotInLexicon(Appendage),
     /// No such stretch.
     NoSuchTagma(usize),
+    /// Layout parent indices are encoded as `u8`.
+    TooManyTagmata,
 }
 
 impl Recipe {
@@ -268,6 +277,8 @@ impl Recipe {
             tagmata: vec![Tagma::bare(segments.max(1))],
             variance: 1,
             lexicon,
+            layout: Vec::new(),
+            appendage_chains: Vec::new(),
         }
     }
 
@@ -290,7 +301,27 @@ impl Recipe {
             tagmata,
             variance: 1,
             lexicon,
+            layout: Vec::new(),
+            appendage_chains: Vec::new(),
         }
+    }
+
+    pub fn with_layout(mut self, layout: Vec<Stretch>) -> Self {
+        self.layout = layout;
+        self
+    }
+
+    pub fn with_appendage_chains(mut self, appendage_chains: Vec<Vec<AppendageStep>>) -> Self {
+        self.appendage_chains = appendage_chains;
+        self
+    }
+
+    pub fn appendage_chain_for(&self, tagma: usize) -> Option<&[AppendageStep]> {
+        self.appendage_chains.get(tagma).map(Vec::as_slice)
+    }
+
+    pub fn layout_for(&self, tagma: usize) -> Option<Stretch> {
+        self.layout.get(tagma).copied()
     }
 
     pub fn lexicon(&self) -> impl Iterator<Item = Appendage> + '_ {
@@ -320,9 +351,15 @@ impl Recipe {
         let Some(target) = self.tagmata.get_mut(tagma) else {
             return Err(Unspeakable::NoSuchTagma(tagma));
         };
+        let changed = target.appendage != appendage;
         target.appendage = appendage;
         if target.per_segment == 0 {
             target.per_segment = 1;
+        }
+        if changed {
+            if let Some(chain) = self.appendage_chains.get_mut(tagma) {
+                chain.clear();
+            }
         }
         Ok(())
     }
@@ -332,10 +369,14 @@ impl Recipe {
     /// A one-tagma worm becoming a head-and-trunk creature is this, and it is
     /// how tagmatization actually arises.
     pub fn divide(&mut self, tagma: usize, at: u8) -> Result<usize, Unspeakable> {
+        if !self.layout.is_empty() && self.tagmata.len() >= u8::MAX as usize {
+            return Err(Unspeakable::TooManyTagmata);
+        }
         let Some(target) = self.tagmata.get_mut(tagma) else {
             return Err(Unspeakable::NoSuchTagma(tagma));
         };
-        let front = at.clamp(1, target.segments.saturating_sub(1).max(1));
+        let old_segments = target.segments;
+        let front = at.clamp(1, old_segments.saturating_sub(1).max(1));
         let back = target.segments.saturating_sub(front).max(1);
         let tail = Tagma {
             segments: back,
@@ -343,6 +384,17 @@ impl Recipe {
         };
         target.segments = front;
         self.tagmata.insert(tagma + 1, tail);
+        if !self.appendage_chains.is_empty() {
+            let chain = self
+                .appendage_chains
+                .get(tagma)
+                .cloned()
+                .unwrap_or_default();
+            self.appendage_chains.insert(tagma + 1, chain);
+        }
+        if !self.layout.is_empty() {
+            crate::axis::recipe_wire::divide_layout(&mut self.layout, tagma, front, old_segments);
+        }
         Ok(tagma + 1)
     }
 
@@ -404,65 +456,7 @@ pub struct Soma {
     pub absent: Vec<(u8, u8)>,
 }
 
-impl Soma {
-    /// Develops an individual from a lineage's recipe and a seed.
-    ///
-    /// Pure function of the two, so a creature's body is reproducible from
-    /// its identity the way everything else in the core is.
-    pub fn develop(lineage: &Recipe, seed: u64) -> Self {
-        let mut rng = Rng::from_seed(seed);
-        let mut segments = Vec::with_capacity(lineage.tagmata.len());
-        for tagma in &lineage.tagmata {
-            let spread = lineage.variance as i32;
-            let drift = if spread > 0 {
-                rng.range_i32(-spread, spread)
-            } else {
-                0
-            };
-            segments.push((tagma.segments as i32 + drift).clamp(1, 255) as u8);
-        }
-
-        // A rare developmental absence, drawn per tagma so a long stretch is
-        // likelier to lose one than a short one.
-        //
-        // **Never a feeding organ, and never a sense organ** (DC1.5, widened at
-        // DC4). An individual missing one limb is variation; an individual
-        // missing the organ it feeds with is a stillbirth, and since a kingdom
-        // is read off that organ it would also be an individual born into a
-        // different kingdom from its own line. A mouth is one such organ and a
-        // **lit** plate is the other — a plant realized at one leafing segment
-        // could otherwise lose its whole canopy and be born a decomposer.
-        //
-        // A feeler is spared for the ruling's own reason rather than the
-        // reading's: senses are *presumed*, and TD11's finding was a world of
-        // blind bodies. A line with one sensory stretch would otherwise bear a
-        // blind founder about one birth in twelve, which is the defect this
-        // plan exists to close, reintroduced by a lottery.
-        //
-        // What absence still takes is limbs, vanes and covering — a leg pair,
-        // a fin, a missing shell. Those are variation.
-        let mut absent = Vec::new();
-        for (index, tagma) in lineage.tagmata.iter().enumerate() {
-            let presumed = match tagma.appendage {
-                Appendage::Mouth | Appendage::Feeler => true,
-                Appendage::Plate => !tagma.appendage.covers(tagma.appendage_shape),
-                _ => false,
-            };
-            if tagma.appendage == Appendage::None || presumed || tagma.per_segment == 0 {
-                continue;
-            }
-            let realised = segments[index];
-            if rng.below(12) == 0 {
-                absent.push((index as u8, rng.below(realised.max(1) as u64) as u8));
-            }
-        }
-        Self { segments, absent }
-    }
-
-    pub fn total_segments(&self) -> u32 {
-        self.segments.iter().map(|s| *s as u32).sum()
-    }
-}
+mod soma;
 
 /// Seeds a lineage's recipe from a stream.
 ///
@@ -562,11 +556,10 @@ pub fn seed(rng: &mut Rng, kingdom: Kingdom) -> Recipe {
                     .iter()
                     .any(|t| matches!(t.appendage, Appendage::Limb | Appendage::Vane));
                 Tagma::new(1, Appendage::Mouth).with_shapes(0, if pursues { JAW_SHAPE } else { 0 })
-            }
+            },
             Kingdom::Producer | Kingdom::Decomposer => Tagma::bare(1),
         },
     );
-
     let mut recipe = Recipe::of(tagmata);
     recipe.variance = 1 + rng.below(2) as u8;
     recipe
@@ -574,6 +567,7 @@ pub fn seed(rng: &mut Rng, kingdom: Kingdom) -> Recipe {
 
 pub mod archetype;
 pub mod catalogue;
-
+pub mod recipe_wire;
+pub use recipe_wire::{Anchor, Stretch};
 #[cfg(test)]
 mod tests;

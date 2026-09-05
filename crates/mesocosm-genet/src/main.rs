@@ -69,6 +69,46 @@ fn main() {
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--frames" => config.frames = args.next().and_then(|v| v.parse().ok()),
+            "--bodies" => {
+                let named = args.next().unwrap_or_default();
+                config.body_mode =
+                    mesocosm_genet::section::BodyMode::parse(&named).unwrap_or_else(|| {
+                        eprintln!("--bodies wants voxels or capsules");
+                        std::process::exit(1);
+                    });
+            },
+            "--body-budget" => {
+                config.body_budget = args
+                    .next()
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .filter(|v| *v > 0)
+                    .unwrap_or_else(|| {
+                        eprintln!("--body-budget wants a positive integer");
+                        std::process::exit(1);
+                    });
+            },
+            "--body-content" => {
+                config.generated_content = match args.next().as_deref() {
+                    Some("generated") => true,
+                    Some("fixtures") => false,
+                    _ => {
+                        eprintln!("--body-content wants generated or fixtures");
+                        std::process::exit(1);
+                    },
+                };
+            },
+            "--body-layout" => {
+                config.body_layout = args
+                    .next()
+                    .as_deref()
+                    .and_then(played::BodyLayout::parse)
+                    .unwrap_or_else(|| {
+                        eprintln!(
+                            "--body-layout wants spaced (default), jointed, branching or axial"
+                        );
+                        std::process::exit(1)
+                    });
+            },
             "--capture" => capture = args.next().map(PathBuf::from),
             "--trace" => trace = args.next().map(PathBuf::from),
             "--receipt" => receipt = args.next().map(PathBuf::from),
@@ -85,9 +125,9 @@ fn main() {
                     Err(error) => {
                         eprintln!("scenario: {}: {error}", path.display());
                         std::process::exit(1);
-                    }
+                    },
                 }
-            }
+            },
             // Which way the section looks (DC4, Q9). Presentation only: the
             // same golden trace replays to the same hash under all three, so
             // the ruled oblique default and the two level arms it was
@@ -99,20 +139,20 @@ fn main() {
                     None => {
                         eprintln!("--camera wants one of oblique, side, across");
                         std::process::exit(1);
-                    }
+                    },
                 }
-            }
+            },
             // Presentation only; the default is ruled and this varies it.
             "--slab" => {
                 if let Some(half) = args.next().and_then(|v| v.parse::<f32>().ok()) {
                     config.slab_half_height = half;
                 }
-            }
+            },
             "--seed" => {
                 if let Some(seed) = args.next().and_then(|v| v.parse().ok()) {
                     config.seed = seed;
                 }
-            }
+            },
             // The dev lane and its keys (DT1). Off by default; recorded in
             // the receipt either way.
             "--dev" => config.dev = true,
@@ -122,7 +162,7 @@ fn main() {
             "--help" | "-h" => {
                 println!("{}", HELP);
                 return;
-            }
+            },
             other => eprintln!("ignoring unknown argument: {other}"),
         }
     }
@@ -145,11 +185,11 @@ fn main() {
                 config.seed = recorded.seed;
                 config.organisms = recorded.organisms;
                 config.replay = Some(recorded);
-            }
+            },
             Err(error) => {
                 eprintln!("replay: {error}");
                 std::process::exit(1);
-            }
+            },
         }
     } else {
         config.trace = Some(trace_path);
@@ -160,7 +200,7 @@ fn main() {
         Err(error) => {
             eprintln!("host failed: {error}");
             std::process::exit(1);
-        }
+        },
     }
 }
 
@@ -168,6 +208,10 @@ const HELP: &str = "\
 mesocosm-genet: run Mesocosm in a window
 
   --frames N      run N frames and exit
+  --bodies MODE   voxels (default) or capsules (comparison), presentation only
+  --body-budget N maximum detailed bodies in the section (default 41)
+  --body-content MODE generated (default) or fixtures for new worlds; replay uses saved content
+  --body-layout MODE  spaced (default), jointed, branching or axial; replay uses the recorded set
   --capture PATH  write the final frame as a PNG
   --trace PATH    write (or, with --replay, read) the intent trace
   --receipt PATH  write the run's receipt

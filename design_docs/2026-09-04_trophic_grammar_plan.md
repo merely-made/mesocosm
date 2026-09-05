@@ -39,6 +39,16 @@ flora should be edible to everything."
 
 Each phase lands alone and is measurable alone.
 
+**Visible-body integration (2026-09-04).** The
+[phenotype plan section 8](2026-07-31_phenotype_plan.md#8-visible-voxel-bodies-integration-2026-09-04)
+owns VB0-VB5: procedural voxel representation, the live body draw path,
+addressed inspection and the body-change/descendant proof. TG1 can proceed
+alongside its initial geometry work. TG2/TG3 gate diet-driven tissue appearance;
+TG4 gates claims of functional defense. Initial visible anatomy uses existing
+parts, allocation and provenance without pretending those TG mechanics have
+landed. TG6 is acceptance for this first trophic build, not all of PE4's
+ordinary/impossible-world and generated-vocabulary requirements.
+
 ### TG1: typed intake
 
 A mouth becomes a port with a declared nis kind, read off the body the way
@@ -60,8 +70,8 @@ against the 17/30 and 1/30 baseline whatever they say.
 
 ### TG2: nis in the accounts
 
-`Soil.matter_mg` and a body's substance become typed stock. Start at three or
-four kinds, kingdom-level, inside the memo section 4 Tier 1 budget with no fields
+`Soil.matter_mg` and a body's substance become typed stock. Start at the three
+kingdom-level nis kinds ruled in section 4, inside the memo section 4 Tier 1 budget with no fields
 added; `percolate` runs per channel and its cost is measured before anything
 else lands on it. **The conservation receipt is rewritten first**: the
 milligram-exact matter test becomes per-channel, and the rewrite ships with a
@@ -200,22 +210,8 @@ beginning body types; start investigating a beginning set of traits.
 
 ---
 
-## Index lines to add (not applied by this document)
+## Integration references
 
-**`DOC_README.md`, active docs table:**
-
-| [2026-09-04_trophic_grammar_plan.md](2026-09-04_trophic_grammar_plan.md) | **PE4's first build; drafted 2026-09-04, awaiting Mark.** Turns the 2026-09-02 material ruling into a trophic grammar: intake as typed ports, so herbivore, carnivore and omnivore are readings rather than labels; typed stock in soil and bodies with per-channel conservation rewritten first; the two composition layers; plates gating bite and payloads firing on provenance at the meal; selective edibility by port match rather than a pairwise table; the roster re-declared and the thirty-seed corridor measured on both walls; and a display-only lexicon in the packs. |
-
-**Playable ecology plan, PE4 section:**
-
-> PE4's first build is the [trophic grammar plan](2026-09-04_trophic_grammar_plan.md),
-> which lands typed intake, typed accounts, scruple, defenses, selective
-> edibility, the re-declared roster and the lexicon in that order, and closes
-> the unrestricted predator prey set as a consequence of typed ports.
-
-**Dependency ledger:**
-
-> PE4's first build is the trophic grammar plan (2026-09-04), TG1 through TG7;
-> the per-channel conservation receipt in TG2 blocks everything after it, and
-> the thirty-seed corridor in TG6 is PE4's acceptance measurement.
-
+The index, playable ecology plan and dependency ledger now link this accepted
+plan. Phenotype section 8 owns the visible voxel-body integration; TG6 closes
+this first trophic build, while PE4 retains its generated-world acceptance.

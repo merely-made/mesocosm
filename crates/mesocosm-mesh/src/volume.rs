@@ -63,6 +63,12 @@ impl Volume {
         self.voxels
     }
 
+    /// Number of stored cells, including empty cells. A deserialised volume
+    /// must still agree with its dimensions before a resolver can index it.
+    pub fn voxel_count(&self) -> usize {
+        self.voxels.len()
+    }
+
     fn index(&self, x: u32, y: u32, z: u32) -> usize {
         (x + y * self.size[0] + z * self.size[0] * self.size[1]) as usize
     }

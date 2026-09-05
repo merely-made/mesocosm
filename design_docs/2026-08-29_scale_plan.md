@@ -55,6 +55,15 @@ and render LOD share facts, never mechanism, stands untouched.
 
 ## The ladder
 
+**Visible-body integration, 2026-09-04.**
+[Phenotype section 8](2026-07-31_phenotype_plan.md#8-visible-voxel-bodies-integration-2026-09-04)
+now owns the immediate voxel-body draw and procedural-content join. Its VB5
+measures geometry reuse, uploads and detail budgets before choosing body atlas
+residency over the existing mesh route. This brings readable near bodies
+forward without resolving S2/S3 order or making voxel anatomy wait for cohort
+simulation. S4's far silhouettes remain a presentation reduction of real
+bodies, separate from ecological execution detail.
+
 Each rung pushes one limit, lands with a receipt, and stops if the trace
 says the stack breaks — finding the break IS a deliverable ("a good
 systems test"). And per Mark, "with optimization, of course": when a

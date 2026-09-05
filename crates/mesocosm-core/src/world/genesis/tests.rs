@@ -8,6 +8,7 @@
 //! ceiling before DC2 added the archetype arm.
 
 use super::*;
+use crate::body::VolumeRef;
 
 // Before the kingdom floor (2026-08-29, TD2b), 2 of these 10 seeds
 // founded zero producer species -- guaranteed collapse under any
@@ -419,4 +420,40 @@ fn the_arm_leaves_the_other_two_tiers_alone() {
             "seed {seed}: 610 producers and 77 decomposers"
         );
     }
+}
+
+#[test]
+fn an_admitted_palette_changes_content_refs_without_changing_body_readings() {
+    let standard = Founding::Roster.palette();
+    let remap = |shapes: crate::development::RoleShapes| {
+        let remap_template = |mut template: crate::development::PartTemplate| {
+            template.volume = VolumeRef::from_tag(template.volume.0[0].wrapping_add(32));
+            template
+        };
+        crate::development::RoleShapes {
+            default: remap_template(shapes.default),
+            extra: shapes.extra.map(|template| template.map(remap_template)),
+        }
+    };
+    let custom = crate::development::PartPalette {
+        mass: remap(standard.mass),
+        limb: remap(standard.limb),
+        plate: remap(standard.plate),
+        sensor: remap(standard.sensor),
+    };
+    let ordinary = World::founded(17, FOUNDERS, Founding::Roster).expect("standard palette");
+    let admitted = World::founded_with_palette(17, FOUNDERS, Founding::Roster, custom)
+        .expect("custom palette");
+
+    for (before, after) in ordinary.organisms.iter().zip(&admitted.organisms) {
+        assert_eq!(before.kingdom(), after.kingdom());
+        assert_eq!(before.feeding_mode(), after.feeding_mode());
+        assert_eq!(before.mass_ceiling_mg(), after.mass_ceiling_mg());
+        assert_eq!(before.body().total_mass_mg(), after.body().total_mass_mg());
+    }
+    assert_eq!(admitted.development_palette(), custom);
+    let restored = crate::snapshot::restore(&crate::snapshot::snapshot(&admitted).unwrap())
+        .expect("custom palette restores");
+    assert_eq!(restored, admitted);
+    assert_eq!(restored.development_palette(), custom);
 }

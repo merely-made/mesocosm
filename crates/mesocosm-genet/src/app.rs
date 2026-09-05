@@ -21,11 +21,11 @@ use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
 use crate::chrome::Chrome;
-use crate::fixture;
 use crate::section::{self, Pan, Section, SectionFrame};
 
 pub mod actions;
 mod config;
+mod content;
 mod devtime;
 mod devworld;
 pub mod drive;
@@ -57,7 +57,7 @@ type Placed = (BodyMesh, [i32; 3], f32, bool, [f32; 3], f32);
 /// drawn as the thing it pretends to be. Size tracks mass, so growth is
 /// visible and a sapling does not look like a giant. The dead drain toward
 /// grey.
-fn look_of(organism: &Organism) -> ([f32; 3], f32) {
+pub(crate) fn look_of(organism: &Organism) -> ([f32; 3], f32) {
     let guise = match organism.guise {
         Kingdom::Producer => 0,
         Kingdom::Consumer => 1,
@@ -86,6 +86,7 @@ pub struct Host {
     config: HostConfig,
     runtime: Runtime,
     volumes: VolumeMap,
+    content: Option<mesocosm_mesh::content::ContentPack>,
     /// Where the section sits relative to the critter it follows. Presentation
     /// only; it never reaches an intent, so it cannot reach the trace.
     pan: Pan,
@@ -199,7 +200,10 @@ fn pack_root() -> PathBuf {
 
 impl Host {
     pub fn new(config: HostConfig) -> Self {
-        let runtime = Runtime::new(config.seed, config.organisms, config.ticks_per_second);
+        let (runtime, content, volumes) = content::start(&config).unwrap_or_else(|why| {
+            eprintln!("body content: {why}");
+            std::process::exit(1);
+        });
         // The pack's authored expressions, for the review. A pack that will not
         // load is a diagnostic and not a reason to refuse to run: the board
         // simply shows one proposal source per row, which is what it does
@@ -209,7 +213,7 @@ impl Host {
             Err(why) => {
                 eprintln!("pack: {}", why.words());
                 runtime
-            }
+            },
         };
         // A fixed follow target for an unattended capture run (DT2). It is
         // only where the camera starts: the ordinary keys move it from here,
@@ -223,13 +227,14 @@ impl Host {
             Some(Err(why)) => {
                 eprintln!("scenario: {why}");
                 std::process::exit(1);
-            }
+            },
             None => None,
         };
         Self {
             config,
             runtime,
-            volumes: fixture::volumes(),
+            volumes,
+            content,
             pan: Pan::default(),
             window: None,
             gpu: None,
@@ -437,7 +442,7 @@ impl Host {
             wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
                 gpu.surface.configure(&gpu.device, &gpu.config);
                 return;
-            }
+            },
             _ => return,
         };
 
@@ -451,6 +456,8 @@ impl Host {
             &mut encoder,
             &view,
             SectionFrame {
+                world,
+                volumes: &self.volumes,
                 ground: world.ground(),
                 dirty: &dirty,
                 centre,
@@ -552,18 +559,18 @@ impl ApplicationHandler for Host {
                     // key contributes its initial keydown and nothing more
                     // while it stays down.
                     key if self.config.replay.is_none() && !event.repeat => self.press_key(key),
-                    _ => {}
+                    _ => {},
                 }
-            }
+            },
 
             WindowEvent::RedrawRequested => {
                 self.frame(event_loop);
                 if let Some(window) = &self.window {
                     window.request_redraw();
                 }
-            }
+            },
 
-            _ => {}
+            _ => {},
         }
     }
 

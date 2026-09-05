@@ -420,3 +420,7 @@ pub const DECOMPOSERS: [fn() -> Recipe; 2] = [decomposer_crust, decomposer_detri
 
 #[cfg(test)]
 mod tests;
+
+pub mod branching;
+pub mod jointed;
+pub mod spaced;

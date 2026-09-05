@@ -38,8 +38,10 @@
 //! so a part that cannot be drawn is a reported failure and not an invisible
 //! critter.
 
+pub mod content;
 pub mod flatten;
 pub mod greedy;
+pub mod live;
 pub mod profile;
 pub mod volume;
 
@@ -47,8 +49,16 @@ use std::collections::BTreeMap;
 
 use mesocosm_core::{BodyDocument, PartId, Provenance, VolumeRef, Yaw};
 
+pub use content::{
+    ContentEntry, ContentError, ContentPack, MATERIAL_BODY, MATERIAL_EDGE, MATERIAL_JOINT,
+    MATERIAL_LIMB, MATERIAL_PLATE, MATERIAL_SENSOR, MAX_PACK_VOLUMES, MAX_VOLUME_VOXELS,
+    VOXEL_GRAMMAR_V1,
+};
 pub use flatten::{Flattened, flatten, flatten_attributed};
 pub use greedy::{PartMesh, Quad, mesh_volume, mesh_volume_naive};
+pub use live::{
+    BodyDependencyRevision, DEFAULT_MESH_CACHE_CAPACITY, LiveBodyProjection, LiveBodyProjector,
+};
 pub use profile::{BodyProfile, PROFILE_SCHEMA, PROFILE_VERSION, ProfileError};
 pub use volume::{Volume, VolumeError, VolumeMap, VolumeSource};
 
@@ -71,9 +81,16 @@ pub struct Placement {
 pub enum MeshError {
     /// A part refers to a volume the source cannot resolve. Loud on purpose.
     MissingVolume { part: PartId, volume: VolumeRef },
+    /// A source returned different bytes for a content address already used
+    /// by this projector. Reusing the old mesh would make the visual cache
+    /// disagree with the resolved body.
+    VolumeContentChanged { volume: VolumeRef },
     /// A part's attachment chain is malformed, so it has no body-space
     /// position. Constructors prevent this; a deserialized document might not.
     Unplaceable { part: PartId },
+    /// Every surviving part resolved, but all of its volumes are empty.
+    /// Publishing this as a voxel body would make the subject disappear.
+    EmptyBodyProjection { organism: mesocosm_core::OrganismId },
     /// More parts than the attributed flatten can name. Checked rather than
     /// assumed because the artifact it feeds crosses a repo boundary.
     TooManyParts { parts: usize },

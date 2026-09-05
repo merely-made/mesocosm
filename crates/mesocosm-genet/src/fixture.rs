@@ -6,9 +6,9 @@
 
 //! The volumes and placement rules the host draws with.
 //!
-//! Placeholder content until authored parts exist. It lives in the host
-//! because it is presentation-adjacent scaffolding, not world truth: the core
-//! carries content addresses and knows nothing about what a volume looks like.
+//! Legacy cuboid fixtures for existing recordings and historical probes.
+//! New host sessions admit a generated content pack before founding; see
+//! `app/content.rs`. The core carries addresses and biological envelopes.
 
 use mesocosm_core::{
     Crossing, Founding, Intent, OrganismId, PartId, Placement, Role, Verdict, VolumeRef, World,
@@ -51,6 +51,20 @@ pub fn volumes() -> VolumeMap {
         map.insert(VolumeRef::from_tag(tag), Volume::solid(size, tag));
     }
     map.insert(VolumeRef::from_tag(64), Volume::solid([1, 1, 1], 5));
+    map
+}
+
+/// VB1's cuboid content resolved from the actual founded bodies. This is still
+/// placeholder geometry; it does not regenerate a different default palette
+/// when replay founded the world with another admitted set of part extents.
+pub fn volumes_for(world: &World) -> VolumeMap {
+    let mut map = VolumeMap::new();
+    for organism in &world.organisms {
+        for part in organism.body().living() {
+            let size = part.half_extent.map(|half| (half * 2).max(1) as u32);
+            map.insert(part.volume, Volume::solid(size, part.volume.0[0].max(1)));
+        }
+    }
     map
 }
 

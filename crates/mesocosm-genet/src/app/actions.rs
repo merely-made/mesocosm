@@ -155,7 +155,7 @@ impl Host {
                     (self.board_row + 1) % rows
                 };
                 Some(None)
-            }
+            },
         }
     }
 
@@ -189,7 +189,7 @@ impl Host {
                     self.follow = Some(OrganismId(id));
                     self.follow_lost = None;
                     true
-                }
+                },
                 Err(_) => false,
             },
             "follow-nearest" => match self.nearest_neighbour() {
@@ -198,12 +198,12 @@ impl Host {
                     self.follow_lost = None;
                     self.events.push(format!("followed-nearest {}", id.0));
                     true
-                }
+                },
                 None => {
                     self.events
                         .push("follow-nearest: nobody big enough is alive nearby".to_string());
                     false
-                }
+                },
             },
             "follow-child" => match self.last_child {
                 Some(id) => {
@@ -211,18 +211,18 @@ impl Host {
                     self.follow_lost = None;
                     self.events.push(format!("followed-child {}", id.0));
                     true
-                }
+                },
                 None => {
                     self.events
                         .push("follow-child: no birth has been forced yet".to_string());
                     false
-                }
+                },
             },
             "hunt" => match rest.parse::<u64>() {
                 Ok(left) => {
                     self.pump = (left > 0).then_some(Pump::Hunt { left });
                     true
-                }
+                },
                 Err(_) => false,
             },
             "demo" => match rest.parse::<u64>() {
@@ -233,7 +233,7 @@ impl Host {
                         script: Script::default(),
                     });
                     true
-                }
+                },
                 Err(_) => false,
             },
             _ => false,
@@ -282,7 +282,7 @@ impl Host {
                     self.events.push("hunt-finished".to_string());
                 }
                 (left > 0).then_some(Pump::Hunt { left })
-            }
+            },
             Pump::Demo {
                 mut step,
                 until,
@@ -304,7 +304,7 @@ impl Host {
                         script,
                     })
                 }
-            }
+            },
         };
         self.note_outcomes();
     }
@@ -457,6 +457,8 @@ mod tests {
         let mut host = Host::new(HostConfig {
             seed: crate::played::DEMO_SEED,
             organisms: FOUNDERS,
+            generated_content: false, // This test compares the historical fixture recorder.
+            body_layout: crate::played::BodyLayout::Axial,
             ..HostConfig::default()
         });
         assert!(host.run_action(&format!("demo {STEPS}")));

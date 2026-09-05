@@ -42,6 +42,20 @@ impl Vertex {
 /// Maps a material id to a base colour. A placeholder until materials become
 /// real content; deliberately deterministic so a body looks the same each run.
 pub fn material_colour(material: u8) -> [f32; 3] {
+    // Generated surfaces carry structural contrast. The host's existing guise
+    // tint supplies organism colour; a plate does not assert active fixation.
+    let tone = match material {
+        240 => Some(0.85),
+        241 => Some(0.65),
+        242 => Some(0.95),
+        243 => Some(0.12),
+        244 => Some(0.35),
+        245 => Some(1.0),
+        _ => None,
+    };
+    if let Some(tone) = tone {
+        return [tone; 3];
+    }
     // Cheap integer hash spread across a pleasant range, so distinct materials
     // are distinguishable without an authored palette.
     let h = material.wrapping_mul(97).wrapping_add(31);
@@ -119,8 +133,8 @@ pub struct SceneItem<'a> {
     pub tint: f32,
     /// Whether this thing is advertising danger. A claim, not a fact.
     pub warns: bool,
-    /// Replaces the material colour outright, when a caller knows something
-    /// more meaningful than a hash of a material id.
+    /// Replaces fixture material colour. Generated structural tones multiply
+    /// this colour, matching the live body's guise-tinted presentation.
     pub recolour: Option<[f32; 3]>,
     /// Scales the body about its own origin. Growth you can see.
     pub scale: f32,
@@ -200,7 +214,14 @@ fn append_body(out: &mut Vec<Vertex>, item: &SceneItem) {
         };
         for quad in &part_mesh.quads {
             let shade = face_shade(quad.axis, quad.positive);
-            let base = recolour.unwrap_or_else(|| material_colour(quad.material));
+            let material = material_colour(quad.material);
+            let base = match recolour {
+                Some(colour) if (240..=245).contains(&quad.material) => {
+                    [0, 1, 2].map(|axis| colour[axis] * material[axis])
+                },
+                Some(colour) => colour,
+                None => material,
+            };
             let base = if warns { warning_colour(base) } else { base };
             let colour = [base[0] * shade, base[1] * shade, base[2] * shade];
 

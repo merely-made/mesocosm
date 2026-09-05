@@ -16,7 +16,10 @@
 //! measured slice compared it against are still there behind `--camera` (DC4,
 //! Q9). None of the three moves the hash.
 
+mod bodies;
 mod camera;
+
+pub use bodies::{BodyFrameStats, BodyMode, DEFAULT_BODY_BUDGET};
 
 pub use camera::{CameraMode, Framing, OBLIQUE_DEGREES, SLAB_DEPTH, SlabWindow};
 
@@ -60,6 +63,8 @@ pub struct Pan {
 /// before the device is borrowed. None of it is world state.
 #[derive(Clone, Copy)]
 pub struct SectionFrame<'a> {
+    pub world: &'a World,
+    pub volumes: &'a mesocosm_mesh::VolumeMap,
     pub ground: &'a Ground,
     /// The host's drain of the world's changed bricks. The slots they map to
     /// are the only region the tracer re-uploads, so a carve costs its own
@@ -86,6 +91,8 @@ pub struct Section {
     /// Which way it looks. Presentation, beside the half-height and for the
     /// same reason: it frames the world and decides nothing in it.
     mode: CameraMode,
+    body_mode: BodyMode,
+    bodies: bodies::BodyLayer,
     /// What the tracer writes: display-encoded values in a linear-tagged
     /// format, exactly as the lens's own captures read them back.
     traced: wgpu::Texture,
@@ -116,6 +123,7 @@ impl Section {
         let tracer =
             BrickTracer::with_format(device.clone(), queue.clone(), width, height, FRAME_FORMAT);
         let composite = Composite::new(&device, format);
+        let bodies = bodies::BodyLayer::new(&device, width, height);
         let (traced, traced_view) = target(&device, width, height, FRAME_FORMAT, "traced section");
         let (display, display_view) = target(
             &device,
@@ -134,6 +142,8 @@ impl Section {
             height,
             half_height: half_height_or_default(framing.half_height),
             mode: framing.mode,
+            body_mode: BodyMode::default(),
+            bodies,
             traced,
             traced_view,
             display,
@@ -146,6 +156,7 @@ impl Section {
         self.width = width.max(1);
         self.height = height.max(1);
         self.tracer.resize(self.width, self.height);
+        self.bodies.resize(&self.device, self.width, self.height);
         (self.traced, self.traced_view) = target(
             &self.device,
             self.width,
@@ -189,6 +200,15 @@ impl Section {
         self.mode
     }
 
+    pub fn configure_bodies(&mut self, mode: BodyMode, budget: usize) {
+        self.body_mode = mode;
+        self.bodies.budget = budget.max(1);
+    }
+
+    pub fn body_stats(&self) -> BodyFrameStats {
+        self.bodies.stats.clone()
+    }
+
     /// How much world the section frames, in voxels of half-height.
     pub fn half_height(&self) -> f32 {
         self.half_height
@@ -204,6 +224,11 @@ impl Section {
     /// Roster members the last traced frame drew. The receipt's evidence that
     /// the section shows the ecology rather than one body.
     pub fn last_roster_members(&self) -> u32 {
+        if self.body_mode == BodyMode::Voxels {
+            return (self.bodies.stats.voxel_bodies + self.bodies.stats.fallback_bodies)
+                .saturating_sub(usize::from(self.bodies.stats.controlled_drawn))
+                as u32;
+        }
         self.tracer
             .last_diagnostics()
             .map_or(0, |diagnostics| diagnostics.roster_members)
@@ -234,20 +259,78 @@ impl Section {
         let camera = self
             .camera(frame.centre)
             .ok_or("invalid terrarium camera")?;
-        let mut input = BrickFrameInput::for_camera(
-            &self.map,
-            BrickRevision(frame.ground.revision()),
-            camera,
-            &self.grade,
-        )
-        .changed(BrickChange::Slots(&slots))
-        .with_roster(frame.roster);
-        if let Some(pose) = frame.pose {
-            input = input.with_pose(pose);
+        if self.body_mode == BodyMode::Voxels {
+            let window = self.slab_window(frame.centre);
+            self.bodies.prepare(frame.world, frame.volumes, window);
+            {
+                let _clear = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("clear shared section attachments"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &self.traced_view,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.bodies.depth_view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+            }
+            let aspect = self.aspect();
+            let matrix = bodies::clip_from_world(self.mode, frame.centre, self.half_height, aspect);
+            if let Err(error) = self.bodies.draw(
+                &self.device,
+                &self.queue,
+                encoder,
+                &self.traced_view,
+                (self.mode, frame.centre, self.half_height, aspect),
+            ) {
+                eprintln!("{error}; using capsule fallback");
+                self.bodies.stats.last_error = Some(error);
+                self.bodies.fallback_all(frame.world);
+            }
+            let mut input = BrickFrameInput::for_camera(
+                &self.map,
+                BrickRevision(frame.ground.revision()),
+                camera,
+                &self.grade,
+            )
+            .changed(BrickChange::Slots(&slots))
+            .with_clip_from_world(matrix)
+            .with_roster(&self.bodies.fallback);
+            if let Some(pose) = self.bodies.played_fallback.as_ref() {
+                input = input.with_pose(pose);
+            }
+            self.tracer
+                .encode_with_depth(encoder, &self.traced_view, &self.bodies.depth_view, input)
+                .map_err(|error| error.to_string())?;
+        } else {
+            let mut input = BrickFrameInput::for_camera(
+                &self.map,
+                BrickRevision(frame.ground.revision()),
+                camera,
+                &self.grade,
+            )
+            .changed(BrickChange::Slots(&slots))
+            .with_roster(frame.roster);
+            if let Some(pose) = frame.pose {
+                input = input.with_pose(pose);
+            }
+            self.tracer
+                .encode(encoder, &self.traced_view, input)
+                .map_err(|error| error.to_string())?;
         }
-        self.tracer
-            .encode(encoder, &self.traced_view, input)
-            .map_err(|error| error.to_string())?;
         self.copy_to_display(encoder);
         self.composite.draw(
             &self.device,
@@ -491,93 +574,6 @@ fn pose_at(body: &BodyDocument, at: [i32; 3], tint: [f32; 3]) -> Option<(Critter
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The companion rule ruled with the half-height: the frame's floor is the
-    /// world's floor, whatever the body it is following is standing on.
-    #[test]
-    fn the_follow_centre_never_frames_below_bedrock() {
-        let pan = Pan::default();
-        for mode in CameraMode::ALL {
-            for half in [20.0, SLAB_HALF_HEIGHT, 36.3, 48.0] {
-                for y in [0, 3, 12, 24, 40] {
-                    let centre = centre_on([7, y, -5], pan, half, mode);
-                    // The camera's own reach, not the half-height: a tilted
-                    // section frames more than its half-height and the clamp
-                    // has to know it.
-                    let reach = mode.vertical_half(half);
-                    assert!(
-                        centre[1] - reach >= 0.0,
-                        "{} at half {half}, y {y} framed {} below bedrock",
-                        mode.name(),
-                        reach - centre[1]
-                    );
-                    assert_eq!(
-                        [centre[0], centre[2]],
-                        [7.0, -5.0],
-                        "the clamp moved x or z"
-                    );
-                }
-            }
-        }
-    }
-
-    /// It is a floor, not a lock: a body standing above it is still followed,
-    /// and the pan still pans.
-    #[test]
-    fn a_body_above_the_floor_is_followed_and_panned() {
-        let high = centre_on(
-            [0, 60, 0],
-            Pan { x: 2.0, y: 3.0 },
-            SLAB_HALF_HEIGHT,
-            CameraMode::Side,
-        );
-        assert_eq!(high, [2.0, 63.0, 0.0]);
-        // Panning down into the void stops at the floor rather than showing it.
-        let low = centre_on(
-            [0, 30, 0],
-            Pan { x: 0.0, y: -20.0 },
-            SLAB_HALF_HEIGHT,
-            CameraMode::Side,
-        );
-        assert_eq!(low[1], SLAB_HALF_HEIGHT);
-    }
-
-    /// A host that names no half-height frames with the ruled default, and the
-    /// clamp reads the same number the camera does.
-    #[test]
-    fn an_unset_half_height_falls_back_to_the_ruled_default() {
-        assert_eq!(half_height_or_default(0.0), SLAB_HALF_HEIGHT);
-        assert_eq!(half_height_or_default(-1.0), SLAB_HALF_HEIGHT);
-        assert_eq!(half_height_or_default(36.3), 36.3);
-    }
-
-    /// The vanish, retired at the boundary that used to swallow it. Mark's
-    /// second playtest reached 304 living parts; the host now poses that body
-    /// and says what it could not carry.
-    #[test]
-    fn a_body_of_the_playtest_size_is_still_posed() {
-        use mesocosm_core::{Attachment, Provenance, SpeciesId, VolumeRef, Yaw};
-
-        let mut body = BodyDocument::new(SpeciesId(1), VolumeRef::from_tag(1), 100, [2, 2, 2]);
-        for index in 0..303 {
-            body.attach(
-                VolumeRef::from_tag(2),
-                10,
-                [2, 1, 1],
-                Attachment {
-                    parent: body.root,
-                    offset: [index + 4, 0, 0],
-                    yaw: Yaw::Zero,
-                },
-                Provenance::founding(),
-            )
-            .unwrap();
-        }
-        assert_eq!(body.living().count(), 304);
-        let (pose, dropped) = pose_at(&body, [0, 8, 0], [0.4, 0.6, 0.4]).expect("a posed body");
-        assert_eq!(pose.capsules.len(), mesocosm_lens::MAX_CAPSULES);
-        assert_eq!(dropped, 48);
-    }
-}
+mod depth_tests;
+#[cfg(test)]
+mod tests;

@@ -86,7 +86,7 @@ impl Host {
 
         // The section binds the live Ground at genesis and refreshes from the
         // world's own dirty drain thereafter.
-        let section = match Section::new(
+        let mut section = match Section::new(
             device.clone(),
             queue.clone(),
             self.config.width,
@@ -101,8 +101,10 @@ impl Host {
                 self.code = 1;
                 event_loop.exit();
                 return;
-            }
+            },
         };
+
+        section.configure_bodies(self.config.body_mode, self.config.body_budget);
 
         // The chrome shares the game's device rather than creating a second
         // one, which is the arrangement the workspace's wgpu pin exists for.

@@ -83,11 +83,13 @@ impl Host {
             return;
         };
         let recorded = PlayedTrace {
+            body_layout: self.config.effective_body_layout(),
             seed: self.config.seed,
             organisms: self.config.organisms,
             steps: self.runtime.trace().len() as u64,
             state_hash: self.runtime.state_hash(),
             intents: self.runtime.trace().to_vec(),
+            content: self.content.clone(),
         };
         if let Err(error) = played::write_json(path, &recorded) {
             eprintln!("trace: {error}");
@@ -171,6 +173,12 @@ impl Host {
             .map(|trace| trace.state_hash);
         let world = self.runtime.world();
         PlayedReceipt {
+            body_layout: self.config.effective_body_layout().name(),
+            body_content: if self.content.is_some() {
+                "generated-v1"
+            } else {
+                "fixtures"
+            },
             mode: self.mode(),
             seed: run.seed,
             organisms: run.organisms,
@@ -210,6 +218,13 @@ impl Host {
                 .as_ref()
                 .map_or(self.config.camera, |gpu| gpu.section.mode())
                 .name(),
+            bodies: self.config.body_mode.name(),
+            body_budget: self.config.body_budget,
+            body_projection: self
+                .gpu
+                .as_ref()
+                .map(|gpu| gpu.section.body_stats())
+                .unwrap_or_default(),
             trace: self
                 .config
                 .trace

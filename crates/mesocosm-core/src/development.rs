@@ -25,9 +25,9 @@
 //! is the boundary that keeps this one authority: a lineage carries *which*
 //! shape, a world carries *what that shape is*.
 
-use crate::axis::{Appendage, Recipe, Soma, Tagma};
-use crate::body::{AttachError, Attachment, BodyDocument, Provenance, SpeciesId, VolumeRef, Yaw};
-use crate::plan::{Role, classify};
+use crate::axis::{Anchor, Appendage, AppendageStep, Recipe, Soma, Tagma};
+use crate::body::{Attachment, BodyDocument, Provenance, SpeciesId, VolumeRef, Yaw};
+use crate::plan::{Facing, Role, classify};
 use serde::{Deserialize, Serialize};
 
 /// The shape and content address used when development expresses one role.
@@ -248,41 +248,8 @@ fn overpriced(role: Role, half_extent: [i32; 3]) -> bool {
     span_voxels(half_extent) * bound_ceiling > bound_span * ceiling
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DevelopmentError {
-    SomaLength {
-        tagmata: usize,
-        realised: usize,
-    },
-    EmptyAxis,
-    InvalidAbsence {
-        tagma: u8,
-        segment: u8,
-    },
-    WrongRole {
-        expected: Role,
-        actual: Role,
-    },
-    /// A `Limb` or `Sensor` shape whose build price exceeds the primitive
-    /// palette's, which would move every TD-series rate without moving a
-    /// single constant. See [`overpriced`].
-    Overpriced {
-        role: Role,
-        half_extent: [i32; 3],
-    },
-    TooManyParts,
-    InsufficientMass {
-        mass_mg: u64,
-        parts: u32,
-    },
-    Attach(AttachError),
-}
-
-impl From<AttachError> for DevelopmentError {
-    fn from(value: AttachError) -> Self {
-        Self::Attach(value)
-    }
-}
+mod error;
+pub use error::DevelopmentError;
 
 /// Realizes one individual's anatomy from its lineage recipe.
 ///
@@ -325,30 +292,47 @@ pub fn develop_body(
     );
 
     let mut previous_segment = body.root;
+    let mut stretches: Vec<Vec<crate::body::PartId>> = Vec::new();
     let mut first = true;
     for (tagma_index, tagma) in recipe.tagmata.iter().enumerate() {
         let realised = soma.segments[tagma_index];
         let segment_template = palette.template_at(Role::Mass, tagma.segment_shape);
+        let stretch = recipe
+            .layout_for(tagma_index)
+            .unwrap_or(crate::axis::Stretch {
+                parent: None,
+                anchor: Anchor::Tip,
+                facing: Facing::Back,
+                variance: None,
+            });
+        let mut realised_segments = Vec::with_capacity(usize::from(realised));
         for segment_index in 0..realised {
             let segment = if first {
                 first = false;
                 body.root
             } else {
+                let parent = if segment_index == 0 {
+                    match stretch.parent {
+                        None => previous_segment,
+                        Some(parent) => anchor(&stretches[parent as usize], stretch.anchor),
+                    }
+                } else {
+                    *realised_segments
+                        .last()
+                        .expect("a non-first segment follows its own stretch")
+                };
                 let previous_half = body
-                    .part(previous_segment)
+                    .part(parent)
                     .expect("development only records attached segments")
                     .half_extent;
-                let offset = [
-                    0,
-                    0,
-                    previous_half[2].abs() + segment_template.half_extent[2].abs(),
-                ];
+                let offset =
+                    segment_offset(previous_half, segment_template.half_extent, stretch.facing);
                 body.attach(
                     segment_template.volume,
                     each,
                     segment_template.half_extent,
                     Attachment {
-                        parent: previous_segment,
+                        parent,
                         offset,
                         yaw: Yaw::Zero,
                     },
@@ -356,12 +340,25 @@ pub fn develop_body(
                 )?
             };
             previous_segment = segment;
+            realised_segments.push(segment);
 
             if is_absent(soma, tagma_index, segment_index) {
                 continue;
             }
-            attach_appendages(&mut body, segment, tagma, each, palette)?;
+            attach_appendages(
+                &mut body,
+                segment,
+                tagma,
+                recipe
+                    .appendage_chains
+                    .get(tagma_index)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]),
+                each,
+                palette,
+            )?;
         }
+        stretches.push(realised_segments);
     }
 
     debug_assert_eq!(body.len(), count as usize);
@@ -389,6 +386,32 @@ fn validate_soma(recipe: &Recipe, soma: &Soma) -> Result<(), DevelopmentError> {
     if soma.segments.iter().all(|segments| *segments == 0) {
         return Err(DevelopmentError::EmptyAxis);
     }
+    if !recipe.layout.is_empty() && recipe.layout.len() != recipe.tagmata.len() {
+        return Err(DevelopmentError::LayoutLength {
+            tagmata: recipe.tagmata.len(),
+            layout: recipe.layout.len(),
+        });
+    }
+    if !recipe.layout.is_empty() && soma.segments.first() == Some(&0) {
+        return Err(DevelopmentError::LayoutEmptyRoot);
+    }
+    appendage_chain::validate(recipe)?;
+    for (tagma, stretch) in recipe.layout.iter().enumerate() {
+        if let Some(parent) = stretch.parent
+            && usize::from(parent) >= tagma
+        {
+            return Err(DevelopmentError::InvalidLayoutParent {
+                tagma,
+                parent: usize::from(parent),
+            });
+        }
+        if let Some(parent) = stretch.parent {
+            let parent = usize::from(parent);
+            if soma.segments[parent] == 0 {
+                return Err(DevelopmentError::LayoutEmptyParent { tagma, parent });
+            }
+        }
+    }
     for &(tagma, segment) in &soma.absent {
         let Some(realised) = soma.segments.get(tagma as usize) else {
             return Err(DevelopmentError::InvalidAbsence { tagma, segment });
@@ -398,6 +421,25 @@ fn validate_soma(recipe: &Recipe, soma: &Soma) -> Result<(), DevelopmentError> {
         }
     }
     Ok(())
+}
+
+fn anchor(parts: &[crate::body::PartId], anchor: Anchor) -> crate::body::PartId {
+    let index = match anchor {
+        Anchor::Base => 0,
+        Anchor::Middle => parts.len() / 2,
+        Anchor::Tip => parts.len() - 1,
+    };
+    parts[index]
+}
+
+/// The face-to-face join for two segments along the stretch's declared axis.
+/// This is deliberately only a placement change: it neither rotates a volume
+/// nor changes its extent, role, price, or mass share.
+fn segment_offset(parent: [i32; 3], child: [i32; 3], facing: Facing) -> [i32; 3] {
+    let (axis, sign) = facing.axis();
+    let mut offset = [0; 3];
+    offset[axis] = sign * (parent[axis].abs() + child[axis].abs());
+    offset
 }
 
 fn part_count(recipe: &Recipe, soma: &Soma) -> Result<u32, DevelopmentError> {
@@ -411,7 +453,14 @@ fn part_count(recipe: &Recipe, soma: &Soma) -> Result<u32, DevelopmentError> {
             if is_absent(soma, tagma_index, segment) {
                 continue;
             }
-            let pieces = appendage_pieces(tagma);
+            let pieces = appendage_pieces(
+                tagma,
+                recipe
+                    .appendage_chains
+                    .get(tagma_index)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]),
+            );
             count = count
                 .checked_add(pieces)
                 .ok_or(DevelopmentError::TooManyParts)?;
@@ -428,8 +477,10 @@ fn part_count(recipe: &Recipe, soma: &Soma) -> Result<u32, DevelopmentError> {
 /// Paired for anything that grows on the flanks, single for anything borne on
 /// the midline — which now includes a covering plate, since armour wraps a
 /// body from both sides the way a limb pair does.
-fn appendage_pieces(tagma: &Tagma) -> u32 {
-    let count = u32::from(tagma.per_segment);
+fn appendage_pieces(tagma: &Tagma, chain: &[AppendageStep]) -> u32 {
+    let count = u32::from(tagma.per_segment)
+        .checked_mul(u32::try_from(chain.len().max(1)).expect("chain length is bounded"))
+        .expect("bounded chain count fits u32");
     match tagma.appendage {
         Appendage::None => 0,
         Appendage::Limb | Appendage::Feeler | Appendage::Vane => count * 2,
@@ -448,6 +499,7 @@ fn attach_appendages(
     body: &mut BodyDocument,
     segment: crate::body::PartId,
     tagma: &Tagma,
+    chain: &[AppendageStep],
     mass_mg: u64,
     palette: PartPalette,
 ) -> Result<(), DevelopmentError> {
@@ -456,6 +508,9 @@ fn attach_appendages(
     let Some(role) = appendage.role(tagma.appendage_shape) else {
         return Ok(());
     };
+    if !chain.is_empty() {
+        return appendage_chain::attach(body, segment, tagma, chain, mass_mg, palette);
+    }
     // A mouth's selector picks its *role* as well as its shape, so it is mapped
     // back into that role's own bank before the palette sees it. (DC1.5)
     let template = palette.template_at(role, appendage.shape_index(tagma.appendage_shape));
@@ -477,13 +532,13 @@ fn attach_appendages(
             Appendage::None => continue,
             Appendage::Limb | Appendage::Feeler | Appendage::Vane => {
                 vec![[flush(0, -1), 0, along], [flush(0, 1), 0, along]]
-            }
+            },
             // **Where a plate hangs is what it means** (DC4). Held above the
             // segment it is a frond in the canopy; worn on the flanks it is
             // covering, and covering fixes nothing.
             Appendage::Plate if covers => {
                 vec![[flush(0, -1), 0, along], [flush(0, 1), 0, along]]
-            }
+            },
             Appendage::Plate => vec![[0, flush(1, 1), along]],
             Appendage::Mouth => vec![[0, flush(1, -1), along]],
         };
@@ -510,3 +565,9 @@ fn slot_offset(ordinal: u8, count: u8, half: i32) -> i32 {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "development/layout_tests.rs"]
+mod layout_tests;
+
+mod appendage_chain;
