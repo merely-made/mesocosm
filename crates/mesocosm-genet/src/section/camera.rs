@@ -43,6 +43,8 @@
 //! which is exact for all three modes and reduces to precisely the old
 //! numbers for [`CameraMode::Side`].
 
+use mesocosm_lens::SlabWall;
+
 /// **Slice thickness, and deliberately not scaled with the enclosure.** A
 /// section shows a cut of fixed depth; widening it to keep the same fraction of
 /// a bigger world would only stack more bodies into the same pixels, which is
@@ -136,7 +138,10 @@ impl CameraMode {
     /// world voxels.
     ///
     /// `half_height` for the two axis-aligned modes, and more than that for
-    /// [`Self::Oblique`], whose slab depth leans into the vertical. The
+    /// [`Self::Oblique`], whose slab depth leans into the vertical — and
+    /// which leans it further than the depth alone, because its rays begin on
+    /// the world-vertical front wall rather than on the tilted near plane.
+    /// The
     /// follow centre's bedrock clamp reads this rather than `half_height` so
     /// a tilted frame does not dip below the world's floor — the same
     /// companion rule Mark ruled with the half-height on 2026-08-29, told the
@@ -145,7 +150,23 @@ impl CameraMode {
         let [right, up, forward] = self.basis();
         right[1].abs() * half_height * WIDEST_ASPECT
             + up[1].abs() * half_height
-            + forward[1].abs() * SLAB_DEPTH * 0.5
+            + forward[1].abs() * self.slab_reach(half_height, WIDEST_ASPECT)
+    }
+
+    /// How far along this camera's forward the slab reaches from its centre.
+    ///
+    /// `SLAB_DEPTH / 2` for a level section, and read straight off
+    /// [`SlabWall`] rather than restated here, because the tracer seeds its
+    /// rays on that wall and a cull box that disagreed with it would drop
+    /// bodies the frame draws. A tilted section reaches further: its rays
+    /// begin on an upright wall rather than on the tilted near plane, so
+    /// where they enter the slab depends on how high up the frame they sit.
+    ///
+    /// The level modes take [`SlabWall`]'s own level branch, which returns
+    /// exactly the half depth this replaces.
+    pub fn slab_reach(self, half_height: f32, aspect: f32) -> f32 {
+        SlabWall::new(self.forward(), UP, half_height, aspect, SLAB_DEPTH)
+            .map_or(SLAB_DEPTH * 0.5, |wall| wall.reach)
     }
 }
 
@@ -201,7 +222,11 @@ impl SlabWindow {
         Self {
             centre,
             axes: mode.basis(),
-            half: [half_height * aspect, half_height, SLAB_DEPTH * 0.5],
+            half: [
+                half_height * aspect,
+                half_height,
+                mode.slab_reach(half_height, aspect),
+            ],
         }
     }
 
@@ -314,8 +339,31 @@ mod tests {
         assert_eq!(CameraMode::Across.vertical_half(28.0), 28.0);
         let tilted = CameraMode::Oblique.vertical_half(28.0);
         assert!(
-            (29.0..29.2).contains(&tilted),
-            "28 cos20 + 8 sin20, not 28: {tilted}"
+            (32.5..33.5).contains(&tilted),
+            "28 cos20 plus the seeded slab's reach leaning into y: {tilted}"
+        );
+    }
+
+    /// The two level modes take the wall's level branch, so the number the
+    /// cull box and the bedrock clamp read is the *same* half depth they read
+    /// before the wall existed — not a value that happens to round to it.
+    #[test]
+    fn a_level_camera_reaches_exactly_the_half_depth_it_always_did() {
+        for mode in [CameraMode::Side, CameraMode::Across] {
+            for half in [20.0, 28.0, 48.0] {
+                for aspect in [1.0, 1.78] {
+                    assert_eq!(
+                        mode.slab_reach(half, aspect),
+                        SLAB_DEPTH * 0.5,
+                        "{} moved its slab reach",
+                        mode.name()
+                    );
+                }
+            }
+        }
+        assert!(
+            CameraMode::Oblique.slab_reach(28.0, 1.78) > SLAB_DEPTH * 0.5,
+            "a tilted section reaches past its half depth"
         );
     }
 

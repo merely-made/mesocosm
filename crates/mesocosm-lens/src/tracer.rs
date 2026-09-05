@@ -32,7 +32,7 @@ use residency::ResidentMap;
 pub use lease::LeasedAtlas;
 pub use types::{
     BrickCapture, BrickChange, BrickDiagnostics, BrickFrameInput, BrickRevision, BrickTraceError,
-    TraceCamera,
+    SlabWall, TraceCamera,
 };
 
 struct CaptureResources {

@@ -34,6 +34,94 @@ pub struct TraceCamera {
     _right_pad: f32,
     up: [f32; 3],
     _up_pad: f32,
+    /// [`SlabWall::seed`] with a pad, read only by the orthographic branch.
+    wall: [f32; 4],
+}
+
+/// Where an orthographic slab's rays begin: its **world-vertical front wall**.
+///
+/// A slab's near plane is perpendicular to the view. Level, that plane is
+/// already vertical and is the section's glass wall. Tilt the view and the
+/// plane tilts with it, and the plane then cuts the terrain on a slope: rays
+/// along the bottom of the frame begin below the surface, inside solid ground,
+/// where the DDA has no face to report and hands back its seeded `+y` normal.
+/// The slope is drawn as a lit top face, and a face parallel to the screen
+/// under a camera that is not is exactly what reads as broken perspective.
+///
+/// So the wall is kept vertical in the world whatever the camera does: a plane
+/// with a **horizontal** normal, standing at the slab's near depth, that every
+/// ray is slid along its own direction onto before it marches. What the ray
+/// meets there is a vertical section through the terrain under any camera, and
+/// the region of the wall that stands inside solid ground is the section's cut
+/// — drawn as the wall, never as a face.
+///
+/// # Level sections are untouched by construction
+///
+/// A view with no vertical component leans nowhere, so the horizontal normal
+/// *is* the forward, the near plane *is* the wall, and [`Self::new`] returns
+/// exactly zero advance and exactly the depth it was handed. The arithmetic is
+/// skipped rather than merely cancelling, so no rounding can reach a level
+/// frame and every capture the tree holds of one is unchanged to the byte.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SlabWall {
+    /// How far along forward a ray moves to reach the wall, as
+    /// `seed[0] * ndc.x + seed[1] * ndc.y + seed[2]`. Negative moves back
+    /// toward the viewer.
+    pub seed: [f32; 3],
+    /// The ray interval that crosses the full slab depth once the near and
+    /// far cuts are both vertical. A tilted view walks further than `depth`
+    /// to cross the same horizontal thickness.
+    pub far: f32,
+    /// Half the extent along the camera's forward that the seeded slab
+    /// actually reaches, measured from the slab centre. Conservative — it
+    /// bounds the slab rather than tracing its corners — and exactly
+    /// `depth / 2` for a level view, which is the number it replaces.
+    pub reach: f32,
+}
+
+impl SlabWall {
+    /// The wall a slab of `depth` looking down `forward` stands on, where
+    /// `vertical` is the world's up.
+    pub fn new(
+        forward: [f32; 3],
+        vertical: [f32; 3],
+        half_height: f32,
+        aspect: f32,
+        depth: f32,
+    ) -> Option<Self> {
+        let forward = normalize(forward)?;
+        let vertical = normalize(vertical)?;
+        let lean = dot(forward, vertical);
+        if lean == 0.0 {
+            // Level: the near plane already is the wall.
+            return Some(Self {
+                seed: [0.0; 3],
+                far: depth,
+                reach: depth * 0.5,
+            });
+        }
+        let normal = normalize(sub(forward, scale(vertical, lean)))?;
+        let level = dot(forward, normal);
+        // Straight down there is no horizontal normal to stand a wall on, and
+        // no section either. The caller keeps its untilted slab.
+        if level <= 1e-3 {
+            return None;
+        }
+        let right = normalize(cross(forward, vertical))?;
+        let up = normalize(cross(right, forward))?;
+        let seed = [
+            -dot(scale(right, half_height * aspect), normal) / level,
+            -dot(scale(up, half_height), normal) / level,
+            depth * 0.5 * (level - 1.0) / level,
+        ];
+        let far = depth / level;
+        let spread = seed[0].abs() + seed[1].abs() + seed[2].abs();
+        Some(Self {
+            seed,
+            far,
+            reach: spread + far - depth * 0.5,
+        })
+    }
 }
 
 impl TraceCamera {
@@ -63,13 +151,20 @@ impl TraceCamera {
             _right_pad: 0.0,
             up: scale(up_unit, half_height),
             _up_pad: 0.0,
+            wall: [0.0; 4],
         })
     }
 
-    /// An orthographic section whose ray interval is exactly `depth` voxels.
+    /// An orthographic section that cuts `depth` voxels of world between two
+    /// **world-vertical** walls.
     ///
     /// `centre` is the middle of the retained slab rather than the eye. This
     /// keeps the near and far cut planes symmetric when the section is moved.
+    ///
+    /// The cuts stand upright whichever way the section looks: see
+    /// [`SlabWall`], which is where the ray interval and the seed advance
+    /// come from, and which reduces to the plain near plane and exactly
+    /// `depth` for a level view.
     pub fn orthographic_slab(
         centre: [f32; 3],
         forward: [f32; 3],
@@ -84,16 +179,34 @@ impl TraceCamera {
         let forward = normalize(forward)?;
         let right_unit = normalize(cross(forward, up))?;
         let up_unit = normalize(cross(right_unit, forward))?;
+        // A view with no wall to stand on — straight down world up — keeps
+        // the plain near plane rather than losing its section.
+        let wall = SlabWall::new(forward, up, half_height, aspect, depth).unwrap_or(SlabWall {
+            seed: [0.0; 3],
+            far: depth,
+            reach: depth * 0.5,
+        });
         Some(Self {
             origin: sub(centre, scale(forward, depth * 0.5)),
             projection: ORTHOGRAPHIC,
             forward,
-            far: depth,
+            far: wall.far,
             right: scale(right_unit, half_height * aspect),
             _right_pad: 0.0,
             up: scale(up_unit, half_height),
             _up_pad: 0.0,
+            wall: [wall.seed[0], wall.seed[1], wall.seed[2], 0.0],
         })
+    }
+
+    /// The same camera with its front wall taken away: the tilted near plane
+    /// the tracer seeded rays on before [`SlabWall`], and the fault that
+    /// motivated it. The negative control for the wall receipts.
+    #[cfg(test)]
+    pub(crate) fn without_front_wall(mut self, depth: f32) -> Self {
+        self.wall = [0.0; 4];
+        self.far = depth;
+        self
     }
 
     fn from_flight(flight: &Flight) -> Self {
@@ -116,12 +229,18 @@ impl TraceCamera {
     }
 
     #[cfg(test)]
-    fn ray_at(self, ndc: [f32; 2]) -> ([f32; 3], [f32; 3]) {
+    pub(crate) fn ray_at(self, ndc: [f32; 2]) -> ([f32; 3], [f32; 3]) {
         if self.projection == ORTHOGRAPHIC {
+            // The shader's `camera_ray`, in the same order: the near-plane
+            // point, then the slide along forward onto the front wall.
+            let advance = self.wall[0] * ndc[0] + self.wall[1] * ndc[1] + self.wall[2];
             (
                 add(
-                    self.origin,
-                    add(scale(self.right, ndc[0]), scale(self.up, ndc[1])),
+                    add(
+                        self.origin,
+                        add(scale(self.right, ndc[0]), scale(self.up, ndc[1])),
+                    ),
+                    scale(self.forward, advance),
                 ),
                 self.forward,
             )
@@ -148,6 +267,10 @@ fn sub(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
 
 fn scale(value: [f32; 3], amount: f32) -> [f32; 3] {
     [value[0] * amount, value[1] * amount, value[2] * amount]
+}
+
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
 fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
@@ -346,19 +469,19 @@ impl std::fmt::Display for BrickTraceError {
                     f,
                     "brick capture requires Rgba8Unorm output, not {format:?}"
                 )
-            }
+            },
             Self::TooManyCapsules { actual, maximum } => {
                 write!(f, "brick trace has {actual} capsules; maximum is {maximum}")
-            }
+            },
             Self::UnknownBrickSlot(slot) => {
                 write!(f, "brick change names unknown atlas slot {slot}")
-            }
+            },
             Self::MissingClipFromWorld => {
                 write!(
                     f,
                     "the depth join needs a clip_from_world matrix on its frame input"
                 )
-            }
+            },
             Self::DevicePoll(message) => write!(f, "device poll failed: {message}"),
             Self::Readback(message) => write!(f, "readback failed: {message}"),
         }

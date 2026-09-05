@@ -18,6 +18,11 @@ struct TraceCamera {
     _right_pad: f32,
     up: vec3<f32>,
     _up_pad: f32,
+    // How far along `forward` an orthographic ray slides to reach the slab's
+    // world-vertical front wall: `wall.x * ndc.x + wall.y * ndc.y + wall.z`.
+    // Exactly zero for a level section, whose near plane is that wall
+    // already. See `SlabWall` on the Rust side.
+    wall: vec4<f32>,
 };
 
 struct TraceParams {
@@ -324,12 +329,19 @@ fn grade(colour: vec3<f32>, t: f32, pixel: vec2<u32>, along_hue: bool) -> vec3<f
     return out;
 }
 
+// Where a pixel's ray begins and which way it goes.
+//
+// **The orthographic branch begins on the section's wall, not on the near
+// plane.** The two are the same thing for a level section and the advance is
+// exactly zero there, so nothing about a level frame moves. Tilt the section
+// and the near plane tilts with it, cutting the terrain on a slope; sliding
+// each ray along its own direction onto the upright wall keeps the cut a
+// vertical section of the world under any camera.
 fn camera_ray(ndc: vec2<f32>) -> Ray {
     if (params.camera.projection == 1u) {
-        return Ray(
-            params.camera.origin + params.camera.right * ndc.x + params.camera.up * ndc.y,
-            params.camera.forward,
-        );
+        let plane = params.camera.origin + params.camera.right * ndc.x + params.camera.up * ndc.y;
+        let advance = dot(params.camera.wall.xyz, vec3(ndc.x, ndc.y, 1.0));
+        return Ray(plane + params.camera.forward * advance, params.camera.forward);
     }
     return Ray(
         params.camera.origin,
@@ -400,18 +412,29 @@ fn trace_sample(in: VsOut) -> TraceSample {
     }
     let sun = normalize(vec3(0.4, 0.8, 0.3));
     let light = 0.38 + 0.62 * max(0.0, dot(hit.normal, sun));
+    // Where the section's own wall stands inside solid ground.
+    //
+    // The DDA seeds its normal to `+y` and returns that seed unchanged for a
+    // ray that begins inside solid, so such a pixel is not a face at all: it
+    // is the wall, and the terrain's cut on it. Asking the map what material
+    // the ray's first voxel holds is the direct test — the same voxel the DDA
+    // itself opens with — and it costs one texture load on the pixels that
+    // already found ground. A ray starting outside the map reads as air here,
+    // which is right: it entered through a face.
+    let seeded = ray.origin + ray.direction * 0.0001;
+    let in_wall = brick_material_at(params.space, vec3<i32>(floor(seeded))) != 0u;
     // The ground seen from above, and only that.
     //
-    // **Both halves are load-bearing.** The face normal alone is not the
-    // test: the DDA seeds its normal to `+y` and returns that seed unchanged
-    // when a ray begins inside solid, which under the level section is the
-    // whole block of terrain that reaches the camera's near plane — those
-    // pixels claim an up normal without the camera being able to see a top
-    // face at all. Pairing it with a downward ray settles both: an
-    // orthographic section's ray direction is its forward, and `side` and
-    // `across` have forward.y exactly zero, so this is false for every pixel
-    // of a level frame and the second ladder cannot reach one.
-    let from_above = hit.normal.y > 0.5 && ray.direction.y < 0.0;
+    // **All three halves are load-bearing.** The face normal alone is not the
+    // test, because of the seeded `+y` above. The downward ray is not enough
+    // either: it is exactly false for a level section — whose forward.y is
+    // zero — but a tilted section's whole wall passes it, and the wall would
+    // then be drawn as a lit top face in the ground's own colour, which is
+    // the flat screen-parallel slate that broke the first tilted capture.
+    // `in_wall` is the half that names the wall as a wall. It leaves a level
+    // frame exactly where it was, since the pixels it excludes there were
+    // already excluded by the ray direction.
+    let from_above = hit.normal.y > 0.5 && ray.direction.y < 0.0 && !in_wall;
     return TraceSample(
         vec4(grade(material_colour(hit.material) * light, hit.t, pixel, from_above), 1.0),
         ray.origin + ray.direction * hit.t,
